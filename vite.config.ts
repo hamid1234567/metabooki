@@ -56,4 +56,9 @@ export default defineConfig({
   server: {
     port: 8080,
   },
+  build: {
+    // Vite's production CSS minifier drops the standard backdrop-filter rule
+    // and leaves only the WebKit variant, breaking frosted menus on Android Chrome.
+    cssMinify: false,
+  },
 })
