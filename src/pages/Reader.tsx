@@ -11,7 +11,7 @@ import { runAiThroughGateway, type AiStructuredContent, type ReaderAiAction, typ
 import { supabase } from '@/integrations/supabase/client'
 
 type HighlightColor = 'yellow' | 'green' | 'red'
-type HighlightEntry = { id: string; text: string; color: HighlightColor; pageIndex: number }
+type HighlightEntry = { id: string; text: string; color: HighlightColor; pageIndex: number; blockKey?: string }
 type ReaderBackground = 'abstract' | 'image'
 
 const highlightColors: Record<HighlightColor, { label: string; className: string; swatch: string }> = {
@@ -53,7 +53,14 @@ export default function Reader() {
   const [autoScroll, setAutoScroll] = useState(false)
   const contentRef = useRef<HTMLDivElement>(null)
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null)
-  const highlightStartRef = useRef<{ node: Node; offset: number } | null>(null)
+  const highlightStartRef = useRef<{
+    node: Node
+    offset: number
+    block: HTMLElement
+    x: number
+    y: number
+    drawing: boolean
+  } | null>(null)
 
   useEffect(() => {
     if (id) {
@@ -88,7 +95,13 @@ export default function Reader() {
         (supabase as any).from('reader_highlights').select('*').eq('user_id', user.id).eq('book_key', book.id).order('created_at'),
         (supabase as any).from('reader_states').select('*').eq('user_id', user.id).eq('book_key', book.id).maybeSingle(),
       ])
-      setHighlights((savedHighlights || []).map((item: any) => ({ id: item.id, text: item.text_content, color: item.color, pageIndex: item.page_index })))
+      setHighlights((savedHighlights || []).map((item: any) => ({
+        id: item.id,
+        text: item.text_content,
+        color: item.color,
+        pageIndex: item.page_index,
+        blockKey: typeof item.source === 'string' && item.source.startsWith('selection|') ? item.source.slice('selection|'.length) : undefined,
+      })))
       if (state) {
         setCurrentPage(state.current_page || 0)
         setReaderBackground(state.background === 'image' ? 'image' : 'abstract')
@@ -208,9 +221,15 @@ export default function Reader() {
     return range ? { node: range.startContainer, offset: range.startOffset } : null
   }
 
+  const getHighlightBlock = (node: Node) => {
+    const element = node.nodeType === Node.ELEMENT_NODE ? node as Element : node.parentElement
+    return element?.closest<HTMLElement>('[data-reader-text="true"]') || null
+  }
+
   const drawHighlightRange = (end: { node: Node; offset: number }, commit = false) => {
     const start = highlightStartRef.current
-    if (!start || !contentRef.current?.contains(start.node) || !contentRef.current.contains(end.node)) return
+    const endBlock = getHighlightBlock(end.node)
+    if (!start || !endBlock || endBlock !== start.block || !contentRef.current?.contains(start.node) || !contentRef.current.contains(end.node)) return
     const range = document.createRange()
     try {
       range.setStart(start.node, start.offset)
@@ -229,26 +248,45 @@ export default function Reader() {
     const text = range.toString().trim()
     selection?.removeAllRanges()
     highlightStartRef.current = null
-    if (text) addHighlight(selectedHighlightColor, text)
+    if (text) {
+      addHighlight(selectedHighlightColor, text, 'selection', start.block.dataset.readerBlock)
+      setHighlightActive(false)
+    }
   }
 
   const startHighlightStroke = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!highlightActive || (e.target as HTMLElement).closest('button,a,input,textarea,select,audio,[data-no-swipe="true"]')) return
     const caret = caretAtPoint(e.clientX, e.clientY)
-    if (!caret || !contentRef.current?.contains(caret.node)) return
-    e.preventDefault()
-    highlightStartRef.current = caret
-    e.currentTarget.setPointerCapture(e.pointerId)
+    const block = caret ? getHighlightBlock(caret.node) : null
+    if (!caret || !block || !contentRef.current?.contains(caret.node)) return
+    if (e.pointerType !== 'touch') e.preventDefault()
+    highlightStartRef.current = { ...caret, block, x: e.clientX, y: e.clientY, drawing: false }
+    if (e.pointerType !== 'touch') e.currentTarget.setPointerCapture(e.pointerId)
   }
 
   const moveHighlightStroke = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!highlightActive || !highlightStartRef.current) return
+    const start = highlightStartRef.current
+    if (!highlightActive || !start) return
+    const dx = Math.abs(e.clientX - start.x)
+    const dy = Math.abs(e.clientY - start.y)
+    if (!start.drawing && e.pointerType === 'touch' && dy > 8 && dy > dx * 1.15) {
+      highlightStartRef.current = null
+      window.getSelection()?.removeAllRanges()
+      return
+    }
+    if (!start.drawing && Math.max(dx, dy) < 5) return
+    start.drawing = true
+    if (e.pointerType !== 'touch' || dx > dy) e.preventDefault()
     const caret = caretAtPoint(e.clientX, e.clientY)
     if (caret) drawHighlightRange(caret)
   }
 
   const finishHighlightStroke = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!highlightActive || !highlightStartRef.current) return
+    if (!highlightActive || !highlightStartRef.current?.drawing) {
+      highlightStartRef.current = null
+      window.getSelection()?.removeAllRanges()
+      return
+    }
     const caret = caretAtPoint(e.clientX, e.clientY)
     if (caret) drawHighlightRange(caret, true)
     else highlightStartRef.current = null
@@ -269,18 +307,19 @@ export default function Reader() {
     else if (user) (supabase as any).from('reader_states').upsert({ user_id: user.id, book_key: book.id, current_page: currentPage, total_pages: book.pages.length, background: next, highlight_color: selectedHighlightColor, updated_at: new Date().toISOString() }).then(() => {})
   }
 
-  const addHighlight = (color: HighlightColor, text: string, source: 'selection' | 'ai' = 'selection') => {
+  const addHighlight = (color: HighlightColor, text: string, source: 'selection' | 'ai' = 'selection', blockKey?: string) => {
     if (!text || !user) return
     const newHL: HighlightEntry = {
       id: crypto.randomUUID(),
       text,
       color,
-      pageIndex: currentPage
+      pageIndex: currentPage,
+      blockKey,
     }
     const updated = [...highlights, newHL]
     setHighlights(updated)
     if (user.mockData) saveHighlightsForUser(updated)
-    else (supabase as any).from('reader_highlights').insert({ id: newHL.id, user_id: user.id, book_key: book.id, page_index: currentPage, text_content: text, color, source }).then(() => {})
+    else (supabase as any).from('reader_highlights').insert({ id: newHL.id, user_id: user.id, book_key: book.id, page_index: currentPage, text_content: text, color, source: source === 'selection' && blockKey ? `selection|${blockKey}` : source }).then(() => {})
     window.getSelection()?.removeAllRanges()
   }
 
@@ -291,8 +330,8 @@ export default function Reader() {
     else if (user) (supabase as any).from('reader_highlights').delete().eq('id', id).eq('user_id', user.id).then(() => {})
   }
 
-  const renderHighlightedText = (text: string) => {
-    const pageItems = highlights.filter(h => h.pageIndex === currentPage && h.text)
+  const renderHighlightedText = (text: string, blockKey: string) => {
+    const pageItems = highlights.filter(h => h.pageIndex === currentPage && h.text && (!h.blockKey || h.blockKey === blockKey))
     if (pageItems.length === 0) return text
 
     const parts: ReactNode[] = []
@@ -437,7 +476,10 @@ export default function Reader() {
   const renderBlock = (block: any, idx: number) => {
     const qKey = `${currentPage}-${idx}`
     switch (block.type) {
-      case 'paragraph': return <p key={idx} className="mb-5 leading-loose text-justify select-text" style={{fontSize: `${fontSize}px`, lineHeight: '2.2'}}>{renderHighlightedText(block.content)}</p>
+      case 'paragraph': {
+        const blockKey = `p:${idx}:${block.content.length}:${block.content.slice(0, 16)}`
+        return <p key={idx} data-reader-text="true" data-reader-block={blockKey} className="mb-5 leading-loose text-justify" style={{fontSize: `${fontSize}px`, lineHeight: '2.2'}}>{renderHighlightedText(block.content, blockKey)}</p>
+      }
       case 'heading': return <div key={idx} className="mb-8"><h2 className="text-2xl font-bold font-display mb-5 text-primary border-r-4 border-primary pr-4">{block.content}</h2>{block.blocks?.map((b:any,i:number)=>renderBlock(b,i))}</div>
       case 'image': return <div key={idx} className="mb-8"><img src={block.url} alt={block.caption||''} className="w-full rounded-2xl shadow-book" loading="lazy" />{block.caption && <p className="text-center text-sm text-muted-foreground mt-3">{block.caption}</p>}</div>
       case 'quiz': {
