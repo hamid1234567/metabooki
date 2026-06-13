@@ -160,7 +160,7 @@ export default function BookLanding() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <div className="book-detail-page max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       <Link to="/store" className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-primary">
         <ArrowLeft className="w-4 h-4" /> بازگشت به فروشگاه
       </Link>
@@ -227,6 +227,35 @@ export default function BookLanding() {
           </div>
         </div>
       </section>
+
+      <aside className="book-persistent-actions menu-glass-70" aria-label="خرید و مطالعه کتاب">
+        <div className="book-persistent-price">
+          <span>قیمت کتاب</span>
+          <strong className={isFree ? 'text-success' : 'text-primary'}>
+            {isFree ? 'رایگان' : `${book.price.toLocaleString('fa-IR')} کردیت`}
+          </strong>
+          {!isFree && <small>{tomanPrice.toLocaleString('fa-IR')} تومان</small>}
+        </div>
+        <div className="book-persistent-buttons">
+          {canRead ? (
+            <Link to={`/read/${book.id}`}>
+              <Button className="w-full gap-2 shadow-glow"><PlayCircle className="w-4 h-4" />خواندن کتاب</Button>
+            </Link>
+          ) : user ? (
+            <Button onClick={handleBuy} disabled={!canBuy || buying} className="w-full gap-2 shadow-glow">
+              {buying ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-t-transparent" /> : <ShoppingCart className="w-4 h-4" />}
+              {canBuy ? 'خرید کتاب' : 'اعتبار ناکافی'}
+            </Button>
+          ) : (
+            <Link to="/auth"><Button className="w-full gap-2 shadow-glow"><ShoppingCart className="w-4 h-4" />ورود برای خرید</Button></Link>
+          )}
+          {book.preview_pages.length > 0 && (
+            <Link to={`/read/${book.id}`}>
+              <Button variant="outline" className="w-full gap-2"><Eye className="w-4 h-4" />پیش‌نمایش</Button>
+            </Link>
+          )}
+        </div>
+      </aside>
 
       <div className="grid lg:grid-cols-[1fr_360px] gap-8 items-start">
         <main className="space-y-8">

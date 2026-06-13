@@ -1348,6 +1348,57 @@ body {
   padding: 1.25rem;
 }
 
+.book-persistent-actions {
+  position: fixed;
+  right: max(1rem, calc((100vw - 80rem) / 2 + 1rem));
+  bottom: 1rem;
+  z-index: 39;
+  display: grid;
+  width: min(22rem, calc(100vw - 2rem));
+  grid-template-columns: minmax(0, 0.8fr) minmax(9rem, 1.2fr);
+  gap: 0.75rem;
+  border-radius: 1rem;
+  padding: 0.75rem;
+  box-shadow: 0 18px 48px hsl(222 30% 14% / 0.2);
+  animation: bookActionDockIn 420ms var(--ease-spring) both;
+}
+
+.book-persistent-price {
+  min-width: 0;
+  align-self: center;
+}
+
+.book-persistent-price span,
+.book-persistent-price small {
+  display: block;
+  color: var(--color-muted-foreground);
+  font-size: 0.65rem;
+}
+
+.book-persistent-price strong {
+  display: block;
+  margin-block: 0.12rem;
+  font-size: 1rem;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.book-persistent-buttons {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.book-persistent-buttons button {
+  min-height: 2.35rem;
+  border-radius: 0.75rem;
+  font-size: 0.75rem;
+}
+
+@keyframes bookActionDockIn {
+  from { opacity: 0; transform: translateY(1rem) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 .book-comment {
   border-radius: 1.1rem;
   padding: 1rem;
@@ -1476,6 +1527,27 @@ body {
 
   .book-buy-panel {
     position: static;
+  }
+
+  .book-detail-page {
+    padding-bottom: 9.5rem;
+  }
+
+  .book-persistent-actions {
+    right: 0.5rem;
+    bottom: max(0.5rem, env(safe-area-inset-bottom));
+    width: calc(100vw - 1rem);
+    grid-template-columns: minmax(5.5rem, 0.65fr) minmax(0, 1.35fr);
+    padding: 0.6rem;
+  }
+
+  .book-persistent-buttons {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: center;
+  }
+
+  .book-persistent-buttons button {
+    padding-inline: 0.45rem;
   }
 
   .library-stats {
