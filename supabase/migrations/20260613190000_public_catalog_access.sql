@@ -33,3 +33,44 @@ on public.book_series
 for select
 to anon, authenticated
 using (true);
+
+-- Management policies must never run for anonymous catalog reads.
+drop policy if exists "Publishers manage own books" on public.books;
+create policy "Publishers manage own books"
+on public.books
+for all
+to authenticated
+using (
+  exists (
+    select 1 from public.publisher_profiles p
+    where p.id = publisher_id and p.user_id = auth.uid()
+  )
+  or public.is_admin(auth.uid())
+)
+with check (
+  exists (
+    select 1 from public.publisher_profiles p
+    where p.id = publisher_id and p.user_id = auth.uid()
+  )
+  or public.is_admin(auth.uid())
+);
+
+drop policy if exists "Publishers manage own series" on public.book_series;
+create policy "Publishers manage own series"
+on public.book_series
+for all
+to authenticated
+using (
+  exists (
+    select 1 from public.publisher_profiles p
+    where p.id = publisher_id and p.user_id = auth.uid()
+  )
+  or public.is_admin(auth.uid())
+)
+with check (
+  exists (
+    select 1 from public.publisher_profiles p
+    where p.id = publisher_id and p.user_id = auth.uid()
+  )
+  or public.is_admin(auth.uid())
+);
