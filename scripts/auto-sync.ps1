@@ -5,6 +5,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$env:GIT_TERMINAL_PROMPT = '0'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $git = 'C:\Program Files\Git\cmd\git.exe'
 
