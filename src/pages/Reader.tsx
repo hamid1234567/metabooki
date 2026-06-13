@@ -71,6 +71,8 @@ export default function Reader() {
     node: Node
     offset: number
     block: HTMLElement
+    blockKey: string
+    blockOffset: number
     x: number
     y: number
     drawing: boolean
@@ -260,18 +262,34 @@ export default function Reader() {
     return range.toString().length
   }
 
+  const getPointAtBlockOffset = (block: HTMLElement, targetOffset: number) => {
+    const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT)
+    let consumed = 0
+    let node = walker.nextNode()
+    while (node) {
+      const length = node.textContent?.length || 0
+      if (consumed + length >= targetOffset) return { node, offset: Math.max(0, targetOffset - consumed) }
+      consumed += length
+      node = walker.nextNode()
+    }
+    return { node: block, offset: block.childNodes.length }
+  }
+
   const drawHighlightRange = (end: { node: Node; offset: number }, commit = false) => {
     const start = highlightStartRef.current
     const endBlock = getHighlightBlock(end.node)
-    if (!start || !endBlock || endBlock !== start.block || !contentRef.current?.contains(start.node) || !contentRef.current.contains(end.node)) return
+    if (!start || !endBlock || endBlock.dataset.readerBlock !== start.blockKey || !contentRef.current?.contains(end.node)) return
+    const liveBlock = contentRef.current.querySelector<HTMLElement>(`[data-reader-block="${CSS.escape(start.blockKey)}"]`)
+    if (!liveBlock) return
+    const endBlockOffset = getOffsetWithinBlock(endBlock, end.node, end.offset)
+    const from = Math.min(start.blockOffset, endBlockOffset)
+    const to = Math.max(start.blockOffset, endBlockOffset)
+    const rangeStart = getPointAtBlockOffset(liveBlock, from)
+    const rangeEnd = getPointAtBlockOffset(liveBlock, to)
     const range = document.createRange()
     try {
-      range.setStart(start.node, start.offset)
-      range.setEnd(end.node, end.offset)
-      if (range.collapsed) {
-        range.setStart(end.node, end.offset)
-        range.setEnd(start.node, start.offset)
-      }
+      range.setStart(rangeStart.node, rangeStart.offset)
+      range.setEnd(rangeEnd.node, rangeEnd.offset)
     } catch {
       return
     }
@@ -279,13 +297,13 @@ export default function Reader() {
     selection?.removeAllRanges()
     selection?.addRange(range)
     if (!commit) return
-    const startOffset = getOffsetWithinBlock(start.block, range.startContainer, range.startOffset)
-    const endOffset = getOffsetWithinBlock(start.block, range.endContainer, range.endOffset)
+    const startOffset = from
+    const endOffset = to
     const text = range.toString()
     selection?.removeAllRanges()
     highlightStartRef.current = null
     if (text.trim()) {
-      addHighlight(selectedHighlightColor, text, 'selection', start.block.dataset.readerBlock, startOffset, endOffset)
+      addHighlight(selectedHighlightColor, text, 'selection', start.blockKey, startOffset, endOffset)
       highlightReadyUntilRef.current = Date.now() + 3000
       setHighlightActive(true)
       if (highlightReadyTimerRef.current) clearTimeout(highlightReadyTimerRef.current)
@@ -301,7 +319,9 @@ export default function Reader() {
     const caret = caretAtPoint(e.clientX, e.clientY)
     const block = caret ? getHighlightBlock(caret.node) : null
     if (!caret || !block || !contentRef.current?.contains(caret.node)) return
-    highlightStartRef.current = { ...caret, block, x: e.clientX, y: e.clientY, drawing: false }
+    const blockKey = block.dataset.readerBlock
+    if (!blockKey) return
+    highlightStartRef.current = { ...caret, block, blockKey, blockOffset: getOffsetWithinBlock(block, caret.node, caret.offset), x: e.clientX, y: e.clientY, drawing: false }
     if (Date.now() < highlightReadyUntilRef.current) {
       highlightStartRef.current.drawing = true
       setHighlightActive(true)
