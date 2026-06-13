@@ -33,6 +33,7 @@ export default function Reader() {
   const [aiAction, setAiAction] = useState<ReaderAiAction | null>(null)
   const [aiQuizAnswer, setAiQuizAnswer] = useState<number | null>(null)
   const [aiTimelineStep, setAiTimelineStep] = useState(0)
+  const [aiMindmapBranch, setAiMindmapBranch] = useState(0)
   const [aiUsage, setAiUsage] = useState<RunAiResult['usage'] | null>(null)
   const [aiLoading, setAiLoading] = useState(false)
   const [quizAnswers, setQuizAnswers] = useState<Record<string, number>>({})
@@ -51,6 +52,8 @@ export default function Reader() {
   const [readingMode, setReadingMode] = useState<'day'|'night'|'sepia'>('day')
   const [readerBackground, setReaderBackground] = useState<ReaderBackground>('abstract')
   const [autoScroll, setAutoScroll] = useState(false)
+  const [autoScrollSpeed, setAutoScrollSpeed] = useState(2)
+  const [highlightHolding, setHighlightHolding] = useState(false)
   const contentRef = useRef<HTMLDivElement>(null)
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null)
   const highlightStartRef = useRef<{
@@ -61,6 +64,7 @@ export default function Reader() {
     y: number
     drawing: boolean
   } | null>(null)
+  const highlightHoldTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (id) {
@@ -72,21 +76,18 @@ export default function Reader() {
   }, [id])
 
   useEffect(() => {
-    if (!user || !book) return
-    if (user.mockData) {
-      const key = `metabooki_highlights_${user.mockData.id}_${book.id}`
-      const colorKey = `metabooki_highlight_color_${user.mockData.id}_${book.id}`
+    if (!book) return
+    const localUserId = user?.id || user?.mockData?.id || 'guest'
+    const key = `metabooki_highlights_${localUserId}_${book.id}`
+    try {
+      const saved = localStorage.getItem(key)
+      if (saved) setHighlights(JSON.parse(saved))
+    } catch {}
+    if (!user || user.mockData) {
+      const colorKey = `metabooki_highlight_color_${user?.mockData?.id || 'guest'}_${book.id}`
       try {
         const savedColor = localStorage.getItem(colorKey) as HighlightColor | null
         if (savedColor && ['yellow', 'green', 'red'].includes(savedColor)) setSelectedHighlightColor(savedColor)
-        const saved = localStorage.getItem(key)
-        if (saved) {
-          const parsed = JSON.parse(saved) as Array<HighlightEntry | any>
-          setHighlights(parsed.map((h) => ({
-            ...h,
-            color: ['yellow', 'green', 'red'].includes(h.color) ? h.color : 'yellow'
-          })))
-        }
       } catch {}
       return
     }
@@ -95,13 +96,17 @@ export default function Reader() {
         (supabase as any).from('reader_highlights').select('*').eq('user_id', user.id).eq('book_key', book.id).order('created_at'),
         (supabase as any).from('reader_states').select('*').eq('user_id', user.id).eq('book_key', book.id).maybeSingle(),
       ])
-      setHighlights((savedHighlights || []).map((item: any) => ({
+      const remoteHighlights = (savedHighlights || []).map((item: any) => ({
         id: item.id,
         text: item.text_content,
         color: item.color,
         pageIndex: item.page_index,
         blockKey: typeof item.source === 'string' && item.source.startsWith('selection|') ? item.source.slice('selection|'.length) : undefined,
-      })))
+      }))
+      setHighlights(current => {
+        const merged = new Map([...current, ...remoteHighlights].map(item => [item.id, item]))
+        return [...merged.values()]
+      })
       if (state) {
         setCurrentPage(state.current_page || 0)
         setReaderBackground(state.background === 'image' ? 'image' : 'abstract')
@@ -129,16 +134,13 @@ export default function Reader() {
   // Auto scroll - must be before any early returns (Rules of Hooks)
   useEffect(() => {
     if (!autoScroll || !book) return
-    const b = book
     const interval = setInterval(() => {
-      window.scrollBy({ top: 1, behavior: 'smooth' })
+      window.scrollBy({ top: autoScrollSpeed, behavior: 'auto' })
       const rect = contentRef.current?.getBoundingClientRect()
-      if (rect && rect.bottom <= window.innerHeight + 100 && currentPage < b.pages.length - 1) {
-        setCurrentPage(p => p + 1)
-      }
+      if (rect && rect.bottom <= window.innerHeight + 100) setAutoScroll(false)
     }, 80)
     return () => clearInterval(interval)
-  }, [autoScroll, currentPage, book])
+  }, [autoScroll, autoScrollSpeed, currentPage, book])
 
   if (loadingBook) {
     return <ReaderLoading />
@@ -205,8 +207,7 @@ export default function Reader() {
   }
 
   const saveHighlightsForUser = (items: HighlightEntry[]) => {
-    if (!user?.mockData) return
-    const key = `metabooki_highlights_${user.mockData.id}_${book.id}`
+    const key = `metabooki_highlights_${user?.id || user?.mockData?.id || 'guest'}_${book.id}`
     localStorage.setItem(key, JSON.stringify(items))
   }
 
@@ -259,9 +260,13 @@ export default function Reader() {
     const caret = caretAtPoint(e.clientX, e.clientY)
     const block = caret ? getHighlightBlock(caret.node) : null
     if (!caret || !block || !contentRef.current?.contains(caret.node)) return
-    if (e.pointerType !== 'touch') e.preventDefault()
     highlightStartRef.current = { ...caret, block, x: e.clientX, y: e.clientY, drawing: false }
-    if (e.pointerType !== 'touch') e.currentTarget.setPointerCapture(e.pointerId)
+    highlightHoldTimerRef.current = setTimeout(() => {
+      if (!highlightStartRef.current) return
+      highlightStartRef.current.drawing = true
+      setHighlightHolding(true)
+      e.currentTarget.setPointerCapture(e.pointerId)
+    }, 2000)
   }
 
   const moveHighlightStroke = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -269,19 +274,21 @@ export default function Reader() {
     if (!highlightActive || !start) return
     const dx = Math.abs(e.clientX - start.x)
     const dy = Math.abs(e.clientY - start.y)
-    if (!start.drawing && e.pointerType === 'touch' && dy > 8 && dy > dx * 1.15) {
+    if (!start.drawing && Math.max(dx, dy) > 8) {
+      if (highlightHoldTimerRef.current) clearTimeout(highlightHoldTimerRef.current)
       highlightStartRef.current = null
       window.getSelection()?.removeAllRanges()
       return
     }
-    if (!start.drawing && Math.max(dx, dy) < 5) return
-    start.drawing = true
-    if (e.pointerType !== 'touch' || dx > dy) e.preventDefault()
+    if (!start.drawing) return
+    e.preventDefault()
     const caret = caretAtPoint(e.clientX, e.clientY)
     if (caret) drawHighlightRange(caret)
   }
 
   const finishHighlightStroke = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (highlightHoldTimerRef.current) clearTimeout(highlightHoldTimerRef.current)
+    setHighlightHolding(false)
     if (!highlightActive || !highlightStartRef.current?.drawing) {
       highlightStartRef.current = null
       window.getSelection()?.removeAllRanges()
@@ -295,7 +302,8 @@ export default function Reader() {
   const chooseHighlightColor = (color: HighlightColor) => {
     setSelectedHighlightColor(color)
     setHighlightActive(true)
-    if (user?.mockData) localStorage.setItem(`metabooki_highlight_color_${user.mockData.id}_${book.id}`, color)
+    localStorage.setItem(`metabooki_highlight_color_${user?.id || user?.mockData?.id || 'guest'}_${book.id}`, color)
+    if (user?.mockData) return setShowHighlightMenu(false)
     else if (user) (supabase as any).from('reader_states').upsert({ user_id: user.id, book_key: book.id, current_page: currentPage, total_pages: book.pages.length, background: readerBackground, highlight_color: color, updated_at: new Date().toISOString() }).then(() => {})
     setShowHighlightMenu(false)
   }
@@ -303,12 +311,13 @@ export default function Reader() {
   const toggleReaderBackground = () => {
     const next: ReaderBackground = readerBackground === 'abstract' ? 'image' : 'abstract'
     setReaderBackground(next)
-    if (user?.mockData) localStorage.setItem(`metabooki_reader_bg_${book.id}`, next)
+    localStorage.setItem(`metabooki_reader_bg_${book.id}`, next)
+    if (user?.mockData) return
     else if (user) (supabase as any).from('reader_states').upsert({ user_id: user.id, book_key: book.id, current_page: currentPage, total_pages: book.pages.length, background: next, highlight_color: selectedHighlightColor, updated_at: new Date().toISOString() }).then(() => {})
   }
 
   const addHighlight = (color: HighlightColor, text: string, source: 'selection' | 'ai' = 'selection', blockKey?: string) => {
-    if (!text || !user) return
+    if (!text) return
     const newHL: HighlightEntry = {
       id: crypto.randomUUID(),
       text,
@@ -318,20 +327,20 @@ export default function Reader() {
     }
     const updated = [...highlights, newHL]
     setHighlights(updated)
-    if (user.mockData) saveHighlightsForUser(updated)
-    else (supabase as any).from('reader_highlights').insert({ id: newHL.id, user_id: user.id, book_key: book.id, page_index: currentPage, text_content: text, color, source: source === 'selection' && blockKey ? `selection|${blockKey}` : source }).then(() => {})
+    saveHighlightsForUser(updated)
+    if (user && !user.mockData) (supabase as any).from('reader_highlights').insert({ id: newHL.id, user_id: user.id, book_key: book.id, page_index: currentPage, text_content: text, color, source: source === 'selection' && blockKey ? `selection|${blockKey}` : source }).then(() => {})
     window.getSelection()?.removeAllRanges()
   }
 
   const removeHighlight = (id: string) => {
     const updated = highlights.filter(h => h.id !== id)
     setHighlights(updated)
-    if (user?.mockData) saveHighlightsForUser(updated)
-    else if (user) (supabase as any).from('reader_highlights').delete().eq('id', id).eq('user_id', user.id).then(() => {})
+    saveHighlightsForUser(updated)
+    if (user && !user.mockData) (supabase as any).from('reader_highlights').delete().eq('id', id).eq('user_id', user.id).then(() => {})
   }
 
   const renderHighlightedText = (text: string, blockKey: string) => {
-    const pageItems = highlights.filter(h => h.pageIndex === currentPage && h.text && (!h.blockKey || h.blockKey === blockKey))
+    const pageItems = highlights.filter(h => h.pageIndex === currentPage && h.text && h.blockKey === blockKey)
     if (pageItems.length === 0) return text
 
     const parts: ReactNode[] = []
@@ -357,15 +366,15 @@ export default function Reader() {
   }
 
   // Search
-  const doSearch = () => {
-    if (!searchQuery.trim()) { setSearchResults([]); return }
+  const doSearch = (query = searchQuery) => {
+    if (!query.trim()) { setSearchResults([]); return }
     const results: {page: number, text: string}[] = []
     book.pages.forEach((p, i) => {
       p.blocks.forEach((b: any) => {
-        if (b.content && b.content.includes(searchQuery)) {
-          const idx = b.content.indexOf(searchQuery)
+        if (b.content && b.content.includes(query)) {
+          const idx = b.content.indexOf(query)
           const start = Math.max(0, idx - 30)
-          results.push({page: i, text: '...' + b.content.slice(start, idx + searchQuery.length + 30) + '...'})
+          results.push({page: i, text: '...' + b.content.slice(start, idx + query.length + 30) + '...'})
         }
       })
     })
@@ -395,6 +404,7 @@ export default function Reader() {
       setAiAction(action)
       setAiQuizAnswer(null)
       setAiTimelineStep(0)
+      setAiMindmapBranch(0)
       const result = await runAiThroughGateway({
         action,
         bookTitle: book.title,
@@ -439,9 +449,25 @@ export default function Reader() {
     }
     if (content.type === 'timeline') {
       const step = content.steps[aiTimelineStep] || content.steps[0]
-      return <div><h4 className="text-lg font-bold mb-4">{content.title}</h4><div className="flex gap-2 overflow-x-auto pb-3">{content.steps.map((item, index) => <button key={`${item.title}-${index}`} onClick={() => setAiTimelineStep(index)} className={`shrink-0 rounded-full px-3 py-1.5 text-xs ${index === aiTimelineStep ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>{index + 1}. {item.title}</button>)}</div><div className="rounded-xl border bg-background/60 p-4"><h5 className="font-bold mb-2">{step?.title}</h5><p className="text-sm text-muted-foreground leading-relaxed">{step?.description}</p></div></div>
+      return <div className="ai-timeline">
+        <h4 className="text-lg font-bold mb-4">{content.title}</h4>
+        <div className="ai-timeline-track">
+          {content.steps.map((item, index) => <button key={`${item.title}-${index}`} onClick={() => setAiTimelineStep(index)} className={`ai-timeline-node ${index === aiTimelineStep ? 'is-active' : ''}`} title={item.title}><span>{index + 1}</span><small>{item.title}</small></button>)}
+        </div>
+        <div className="ai-timeline-card">
+          <div className="flex items-center justify-between gap-3 mb-3"><span className="text-xs font-bold text-primary">مرحله {aiTimelineStep + 1} از {content.steps.length}</span><div className="flex gap-1"><button disabled={aiTimelineStep === 0} onClick={() => setAiTimelineStep(value => Math.max(0, value - 1))} className="ai-nav-button" title="مرحله قبل"><ChevronRight className="w-4 h-4"/></button><button disabled={aiTimelineStep >= content.steps.length - 1} onClick={() => setAiTimelineStep(value => Math.min(content.steps.length - 1, value + 1))} className="ai-nav-button" title="مرحله بعد"><ChevronLeft className="w-4 h-4"/></button></div></div>
+          <h5 className="font-bold mb-2">{step?.title}</h5><p className="text-sm text-muted-foreground leading-relaxed">{step?.description}</p>
+        </div>
+      </div>
     }
-    if (content.type === 'mindmap') return <div><h4 className="text-center text-lg font-bold text-primary mb-4">{content.title}</h4><div className="grid sm:grid-cols-2 gap-3">{content.branches.map(branch => <section key={branch.title} className="rounded-xl border bg-background/60 p-3"><h5 className="font-bold mb-2">{branch.title}</h5><ul className="space-y-1.5 text-sm text-muted-foreground">{branch.items.map(item => <li key={item} className="border-r-2 border-primary/40 pr-2">{item}</li>)}</ul></section>)}</div></div>
+    if (content.type === 'mindmap') {
+      const branch = content.branches[aiMindmapBranch] || content.branches[0]
+      return <div className="ai-mindmap">
+        <div className="ai-mindmap-center">{content.title}</div>
+        <div className="ai-mindmap-branches">{content.branches.map((item, index) => <button key={item.title} onClick={() => setAiMindmapBranch(index)} className={index === aiMindmapBranch ? 'is-active' : ''}><span>{index + 1}</span>{item.title}</button>)}</div>
+        <div className="ai-mindmap-items">{branch?.items.map((item, index) => <button key={`${item}-${index}`} className="ai-mindmap-leaf"><span>{index + 1}</span><p>{item}</p></button>)}</div>
+      </div>
+    }
     return <article><header className="mb-4 border-b pb-3"><h4 className="text-xl font-bold">{content.title}</h4>{content.lead && <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{content.lead}</p>}</header><div className="space-y-5">{content.sections.map(section => <section key={section.heading}><h5 className="font-bold text-primary mb-2">{section.heading}</h5>{section.paragraphs.map(paragraph => <p key={paragraph} className="text-sm leading-8 text-foreground/85 mb-2">{paragraph}</p>)}{section.bullets?.length ? <ul className="space-y-2">{section.bullets.map(item => <li key={item} className="rounded-lg bg-primary/5 border-r-2 border-primary px-3 py-2 text-sm">{item}</li>)}</ul> : null}</section>)}</div></article>
   }
 
@@ -590,8 +616,8 @@ export default function Reader() {
     }
   }
 
-  const pageHighlights = highlights.filter(h => h.pageIndex === currentPage)
   const bgClass = readingMode === 'night' ? 'bg-[#0f172a] text-slate-100' : readingMode === 'sepia' ? 'bg-[#f4ecd8] text-[#5b4636]' : 'bg-background text-foreground'
+  const sidePanelClass = `reader-side-panel ${dir === 'rtl' ? 'right-0 border-l' : 'left-0 border-r'} menu-glass-70`
 
   return (
     <div
@@ -644,22 +670,12 @@ export default function Reader() {
         <div className="reader-main min-w-0 w-full flex-1 max-w-3xl mx-auto px-4 sm:px-8 py-10 pb-32" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
           <div
             ref={contentRef}
-            className={`reader-content-protected mb-10 min-h-[65vh] ${highlightActive ? `reader-highlight-mode reader-highlight-${selectedHighlightColor}` : ''}`}
+            className={`reader-content-protected mb-10 min-h-[65vh] ${highlightActive ? `reader-highlight-mode reader-highlight-${selectedHighlightColor}` : ''} ${highlightHolding ? 'reader-highlight-holding' : ''}`}
             onPointerDown={startHighlightStroke}
             onPointerMove={moveHighlightStroke}
             onPointerUp={finishHighlightStroke}
-            onPointerCancel={() => { highlightStartRef.current = null; window.getSelection()?.removeAllRanges() }}
+            onPointerCancel={() => { if (highlightHoldTimerRef.current) clearTimeout(highlightHoldTimerRef.current); highlightStartRef.current = null; setHighlightHolding(false); window.getSelection()?.removeAllRanges() }}
           >
-            {/* Highlights bar */}
-            {pageHighlights.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-6">
-                {pageHighlights.map(hl => (
-                  <div key={hl.id} className={`text-sm px-3 py-1 rounded-full flex items-center gap-2 ${highlightColors[hl.color]?.className || highlightColors.yellow.className}`}>
-                    <PenTool className="w-3 h-3"/><span className="truncate max-w-[200px]">{hl.text.slice(0,40)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
             {page.blocks.map((block:any,i:number)=>renderBlock(block,i))}
           </div>
 
@@ -687,6 +703,7 @@ export default function Reader() {
           {readerBackground === 'abstract' ? <ImageIcon className="w-4 h-4"/> : <Sparkles className="w-4 h-4"/>}
         </button>
         <button onClick={()=>setAutoScroll(!autoScroll)} className={`p-2 rounded-lg transition-colors ${autoScroll?'bg-primary/20 text-primary':'hover:bg-muted text-muted-foreground'}`} title="پیمایش خودکار">{autoScroll?<Pause className="w-4 h-4"/>:<Play className="w-4 h-4"/>}</button>
+        {autoScroll && <label className="reader-scroll-speed" title="سرعت پیمایش خودکار"><span>{autoScrollSpeed}</span><input type="range" min="1" max="6" step="1" value={autoScrollSpeed} onChange={e => setAutoScrollSpeed(Number(e.target.value))}/></label>}
         <div className="w-px h-6 bg-border mx-1"/>
         {/* Highlight */}
         <button onClick={()=>setShowHighlightMenu(!showHighlightMenu)} className={`p-2 rounded-lg hover:bg-primary/10 transition-colors ${highlightActive ? highlightColors[selectedHighlightColor].className : 'text-muted-foreground hover:text-primary'}`} title="قلم هایلایت / انتخاب رنگ"><Highlighter className="w-4 h-4"/></button>
@@ -724,6 +741,7 @@ export default function Reader() {
               />
             ))}
           </div>
+          <p className="mb-2 rounded-lg bg-primary/10 px-2.5 py-2 text-[11px] leading-5 text-muted-foreground">برای شروع هایلایت، دو ثانیه روی ابتدای متن نگه دارید و سپس قلم را بکشید. حرکت عادی صفحه همچنان برای اسکرول است.</p>
           <button
             onClick={()=>{ setHighlightActive(!highlightActive); setShowHighlightMenu(false) }}
             className={`w-full rounded-lg py-2 text-xs font-medium ${highlightActive ? 'bg-destructive/15 text-destructive hover:bg-destructive/20' : 'bg-primary/15 text-primary hover:bg-primary/20'}`}
@@ -735,7 +753,7 @@ export default function Reader() {
 
       {/* Highlights List Panel */}
       {showHighlights && (
-        <div className="fixed bottom-16 left-1/2 -translate-x-1/2 z-50 w-full max-w-lg menu-glass-70 rounded-2xl p-5 shadow-glass animate-slide-up">
+        <div className={sidePanelClass}>
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold flex items-center gap-2"><PenTool className="w-4 h-4 text-primary"/>لیست هایلایت‌های من</h3>
             <button title="بستن لیست هایلایت‌ها" onClick={()=>setShowHighlights(false)} className="p-1 rounded hover:bg-muted"><X className="w-4 h-4"/></button>
@@ -770,8 +788,8 @@ export default function Reader() {
 
       {/* Search Panel */}
       {showSearch && (
-        <div className="fixed bottom-16 left-1/2 -translate-x-1/2 z-50 w-full max-w-lg menu-glass-70 rounded-2xl p-4 shadow-glass animate-slide-up">
-          <div className="flex items-center gap-2 mb-3"><Search className="w-4 h-4 text-muted-foreground"/><input value={searchQuery} onChange={e=>{setSearchQuery(e.target.value);doSearch()}} placeholder="جستجو در کتاب..." className="flex-1 bg-transparent border-none outline-none text-sm"/><button title="بستن جستجو" onClick={()=>setShowSearch(false)} className="p-1 rounded hover:bg-muted"><X className="w-4 h-4"/></button></div>
+        <div className={sidePanelClass}>
+          <div className="flex items-center gap-2 mb-3"><Search className="w-4 h-4 text-muted-foreground"/><input value={searchQuery} onChange={e=>{const query=e.target.value;setSearchQuery(query);doSearch(query)}} placeholder="جستجو در کتاب..." className="flex-1 bg-transparent border-none outline-none text-sm"/><button title="بستن جستجو" onClick={()=>setShowSearch(false)} className="p-1 rounded hover:bg-muted"><X className="w-4 h-4"/></button></div>
           {searchResults.length > 0 ? (
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {searchResults.map((r,i)=>(<button key={i} onClick={()=>{goPage(r.page);setShowSearch(false)}} className="w-full text-right p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors text-sm"><p className="text-xs text-primary font-bold mb-1">صفحه {r.page+1}</p><p className="text-xs">{r.text}</p></button>))}
@@ -782,7 +800,7 @@ export default function Reader() {
 
       {/* AI Panel */}
       {showAiPanel && (
-        <div className="fixed bottom-16 left-1/2 -translate-x-1/2 z-50 w-full max-w-lg menu-glass-70 rounded-2xl p-5 shadow-glass animate-slide-up">
+        <div className={sidePanelClass}>
           <div className="flex items-center justify-between mb-4"><h3 className="font-semibold flex items-center gap-2"><Sparkles className="w-4 h-4 text-primary"/>دستیار هوش مصنوعی</h3><button title="بستن دستیار" onClick={()=>setShowAiPanel(false)} className="p-1 rounded hover:bg-muted"><X className="w-4 h-4"/></button></div>
           <div className="grid grid-cols-5 gap-1.5 mb-4">
             {([

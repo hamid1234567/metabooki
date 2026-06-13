@@ -476,19 +476,19 @@ body {
 .reader-image-bg::after {
   content: "";
   position: absolute;
-  top: -10rem;
-  left: -10rem;
-  width: min(54vw, 34rem);
+  top: 4rem;
+  left: -4rem;
+  width: min(44vw, 28rem);
   aspect-ratio: 3 / 4;
-  border-radius: 45%;
+  border-radius: 38%;
   background-image: var(--reader-bg-image);
   background-position: center;
   background-size: cover;
-  filter: blur(64px) saturate(0.65);
-  opacity: 0.13;
-  transform: scale(1.12);
-  -webkit-mask-image: radial-gradient(circle at center, black 12%, transparent 72%);
-  mask-image: radial-gradient(circle at center, black 12%, transparent 72%);
+  filter: blur(30px) saturate(0.82);
+  opacity: 0.25;
+  transform: scale(1.06);
+  -webkit-mask-image: radial-gradient(circle at center, black 26%, transparent 82%);
+  mask-image: radial-gradient(circle at center, black 26%, transparent 82%);
 }
 
 .reader-floating-toolbar {
@@ -516,6 +516,40 @@ body {
   flex: 0 0 auto;
 }
 
+.reader-scroll-speed {
+  display: flex;
+  width: 6rem;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 0.6rem;
+  background: hsl(var(--muted) / 0.55);
+  padding: 0.25rem 0.4rem;
+  font-size: 0.65rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.reader-scroll-speed input {
+  min-width: 0;
+  width: 100%;
+  accent-color: hsl(var(--primary));
+}
+
+.reader-side-panel {
+  position: fixed;
+  top: 3.75rem;
+  bottom: 0;
+  z-index: 55;
+  width: min(27rem, 94vw);
+  overflow-y: auto;
+  padding: 1.25rem;
+  animation: readerPanelIn 220ms ease-out both;
+}
+
+@keyframes readerPanelIn {
+  from { opacity: 0; transform: translateX(1rem); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
 .reader-protected,
 .reader-content-protected,
 .reader-content-protected * {
@@ -539,6 +573,11 @@ body {
   user-select: text !important;
 }
 
+.reader-highlight-holding [data-reader-text="true"] {
+  outline: 2px dashed hsl(var(--primary) / 0.5);
+  outline-offset: 0.35rem;
+}
+
 .reader-highlight-yellow ::selection { background: hsl(48 96% 70% / 0.7); color: inherit; }
 .reader-highlight-green ::selection { background: hsl(142 70% 70% / 0.7); color: inherit; }
 .reader-highlight-red ::selection { background: hsl(0 82% 76% / 0.7); color: inherit; }
@@ -548,7 +587,165 @@ body {
 }
 
 [data-theme="midnight"] .reader-image-bg::after {
-  opacity: 0.09;
+  opacity: 0.18;
+}
+
+.ai-timeline-track {
+  position: relative;
+  display: flex;
+  gap: 0.7rem;
+  overflow-x: auto;
+  padding: 0.3rem 0.2rem 1rem;
+}
+
+.ai-timeline-track::before {
+  content: "";
+  position: absolute;
+  top: 1.2rem;
+  right: 1rem;
+  left: 1rem;
+  height: 2px;
+  background: hsl(var(--primary) / 0.22);
+}
+
+.ai-timeline-node {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  min-width: 5rem;
+  justify-items: center;
+  gap: 0.35rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.ai-timeline-node span {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border: 2px solid hsl(var(--primary) / 0.42);
+  border-radius: 999px;
+  background: hsl(var(--background) / 0.92);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.ai-timeline-node small {
+  max-width: 5.5rem;
+  font-size: 0.65rem;
+  line-height: 1.5;
+}
+
+.ai-timeline-node.is-active span {
+  border-color: hsl(var(--primary));
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  box-shadow: 0 0 0 5px hsl(var(--primary) / 0.12);
+}
+
+.ai-timeline-card {
+  border: 1px solid hsl(var(--primary) / 0.18);
+  border-radius: 0.85rem;
+  background: hsl(var(--background) / 0.58);
+  padding: 1rem;
+}
+
+.ai-nav-button {
+  display: grid;
+  width: 1.8rem;
+  height: 1.8rem;
+  place-items: center;
+  border-radius: 0.5rem;
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+}
+
+.ai-nav-button:disabled { opacity: 0.35; }
+
+.ai-mindmap {
+  display: grid;
+  gap: 1rem;
+  justify-items: stretch;
+}
+
+.ai-mindmap-center {
+  justify-self: center;
+  max-width: 15rem;
+  border: 2px solid hsl(var(--primary) / 0.36);
+  border-radius: 999px;
+  background: hsl(var(--primary) / 0.14);
+  padding: 0.75rem 1.2rem;
+  text-align: center;
+  font-weight: 800;
+  color: hsl(var(--primary));
+}
+
+.ai-mindmap-branches {
+  position: relative;
+  display: flex;
+  gap: 0.55rem;
+  overflow-x: auto;
+  padding-top: 1rem;
+}
+
+.ai-mindmap-branches::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 50%;
+  width: 2px;
+  height: 0.8rem;
+  background: hsl(var(--primary) / 0.32);
+}
+
+.ai-mindmap-branches button {
+  display: flex;
+  min-width: 8rem;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.7rem;
+  background: hsl(var(--background) / 0.65);
+  padding: 0.55rem;
+  font-size: 0.72rem;
+}
+
+.ai-mindmap-branches button span,
+.ai-mindmap-leaf span {
+  display: grid;
+  min-width: 1.45rem;
+  height: 1.45rem;
+  place-items: center;
+  border-radius: 999px;
+  background: hsl(var(--primary) / 0.14);
+  color: hsl(var(--primary));
+  font-size: 0.65rem;
+  font-weight: 800;
+}
+
+.ai-mindmap-branches button.is-active {
+  border-color: hsl(var(--primary));
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+}
+
+.ai-mindmap-items {
+  display: grid;
+  gap: 0.55rem;
+  border-inline-start: 2px solid hsl(var(--primary) / 0.24);
+  padding-inline-start: 0.8rem;
+}
+
+.ai-mindmap-leaf {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  border-radius: 0.7rem;
+  background: hsl(var(--muted) / 0.45);
+  padding: 0.65rem;
+  text-align: start;
+  font-size: 0.75rem;
+  line-height: 1.75;
 }
 
 .reader-abstract-bg::before,
@@ -1452,6 +1649,11 @@ body {
     opacity: 0;
     transform: translateY(18px) scale(0.98);
   }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
 
   .book-card-compact {
     border-radius: 0.85rem;
@@ -1529,12 +1731,6 @@ body {
     from { transform: translateX(-100%); }
     to { transform: translateX(200%); }
   }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
 @media (max-width: 900px) {
   .store-hero,
   .library-hero,
