@@ -2,7 +2,7 @@
   "name": "Metabooki",
   "short_name": "Metabooki",
   "description": "Digital Publishing & Reading Platform",
-  "start_url": "/",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#e8ecf1",
   "theme_color": "#1e2b4a",
@@ -11,14 +11,16 @@
   "lang": "fa",
   "icons": [
     {
-      "src": "/icon-192.png",
+      "src": "./icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
-      "src": "/icon-512.png",
+      "src": "./icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }

@@ -3,7 +3,7 @@ import { BarChart3, BookOpen, CheckCircle, Eye, FileText, MessageSquare, Plus, R
 import { Button } from '@/components/ui/button'
 import { deletePublisherBook, getPublisherBooks, type PublisherBook } from '@/lib/publisher-books'
 import { getAllComments } from '@/lib/mock-comments'
-import metabookiMark from '@/assets/metabooki-mark.svg'
+import metabookiMark from '@/assets/metabooki-mark.png'
 import { useState } from 'react'
 
 const stageMeta = {

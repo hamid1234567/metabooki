@@ -6,7 +6,7 @@ import { useAuthContext } from '@/lib/auth-context'
 import { useI18n } from '@/lib/i18n'
 import { useTheme } from '@/lib/theme'
 import { creditsBus } from '@/lib/credits-bus'
-import metabookiMark from '@/assets/metabooki-mark.svg'
+import metabookiMark from '@/assets/metabooki-mark.png'
 import { useCredits } from '@/hooks/useCredits'
 import { useRoles } from '@/hooks/useRoles'
 
@@ -50,7 +50,7 @@ export function Navbar() {
       <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between gap-2">
           <Link to="/" className="brand-lockup shrink-0">
-            <img src={metabookiMark} alt="Metabooki" className="h-9 w-9 object-contain" />
+            <img src={metabookiMark} alt="Metabooki" className="h-9 w-auto max-w-16 object-contain" />
             <span className="hidden sm:inline">متابوکی</span>
           </Link>
 

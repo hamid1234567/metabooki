@@ -1,10 +1,14 @@
 // Cache-first service worker for Metabooki
-const CACHE_NAME = 'metabooki-v1'
+const CACHE_NAME = 'metabooki-v2'
 
 const PRECACHE_URLS = [
-  '/',
-  '/index.html',
-  '/manifest.webmanifest',
+  './',
+  './index.html',
+  './manifest.webmanifest',
+  './favicon.png',
+  './icon-192.png',
+  './icon-512.png',
+  './metabooki-logo.png',
 ]
 
 self.addEventListener('install', (event) => {
