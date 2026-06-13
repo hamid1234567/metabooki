@@ -7,9 +7,10 @@ interface BookCoverProps {
   category?: string
   className?: string
   loading?: 'eager' | 'lazy'
+  fetchPriority?: 'high' | 'low' | 'auto'
 }
 
-export function BookCover({ src, title, category = 'کتاب', className = '', loading = 'lazy' }: BookCoverProps) {
+export function BookCover({ src, title, category = 'کتاب', className = '', loading = 'lazy', fetchPriority = 'auto' }: BookCoverProps) {
   const [failed, setFailed] = useState(!src)
   const [loaded, setLoaded] = useState(false)
 
@@ -26,6 +27,8 @@ export function BookCover({ src, title, category = 'کتاب', className = '', l
           src={src || ''}
           alt={title}
           loading={loading}
+          decoding="async"
+          fetchPriority={fetchPriority}
           className={loaded ? 'is-loaded' : ''}
           onLoad={() => setLoaded(true)}
           onError={() => setFailed(true)}

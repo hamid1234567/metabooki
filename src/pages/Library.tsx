@@ -35,7 +35,7 @@ function ShelfBookCard({
       style={{ animationDelay: `${Math.min(index, 8) * 45}ms` }}
     >
       <Link to={`/b/${book.id}`} className="shelf-cover">
-        <BookCover src={book.cover_url} title={book.title} category={book.category} />
+        <BookCover src={book.cover_url} title={book.title} category={book.category} loading={index < 8 ? 'eager' : 'lazy'} fetchPriority={index < 4 ? 'high' : 'auto'} />
         <div className="book-card-sheen" />
         <span className={isPurchased ? 'book-pill book-pill-primary' : 'book-pill book-pill-success'}>
           {isPurchased ? 'در قفسه شما' : 'رایگان'}

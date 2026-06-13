@@ -387,7 +387,7 @@ export default function Reader() {
       case 'quiz': {
         const ua = quizAnswers[qKey]; const answered = ua !== undefined
         return (
-          <div key={idx} className="glass rounded-2xl p-6 mb-8 border-2 border-primary/10">
+          <div key={idx} className="reader-interactive glass rounded-2xl p-6 mb-8 border-2 border-primary/10">
             <h3 className="font-semibold mb-4 text-lg">📝 {block.question}</h3>
             <div className="space-y-2">{block.options.map((opt:string,i:number)=>(<button key={i} onClick={()=>{if(!answered)setQuizAnswers(q=>({...q,[qKey]:i}))}} disabled={answered} className={`w-full text-right p-3.5 rounded-xl border-2 transition-all ${answered?i===block.correct?'bg-success/20 border-success':i===ua?'bg-destructive/20 border-destructive':'bg-muted/30 border-border opacity-60':'bg-muted/50 border-border hover:bg-muted hover:border-primary/30 cursor-pointer'}`}><div className="flex items-center justify-between"><span>{opt}</span>{answered&&i===block.correct&&<Check className="w-5 h-5 text-success"/>}{answered&&i===ua&&i!==block.correct&&<XIcon className="w-5 h-5 text-destructive"/>}</div></button>))}</div>
             {answered&&<p className={`mt-3 text-sm font-medium ${ua===block.correct?'text-success':'text-destructive'}`}>{ua===block.correct?'✅ پاسخ صحیح! آفرین!':'❌ پاسخ نادرست'}</p>}
@@ -400,7 +400,7 @@ export default function Reader() {
         const active = timelineStep[qKey] ?? 0
         const ev = block.events[active] || block.events[0]
         return (
-          <div key={idx} className="menu-glass-70 rounded-2xl p-5 mb-8">
+          <div key={idx} className="reader-interactive menu-glass-70 rounded-2xl p-5 mb-8">
             <h3 className="font-semibold mb-5 text-lg">⏳ تایم‌لاین تعاملی</h3>
             <div className="relative overflow-x-auto pb-4" data-no-swipe="true">
               <div className="absolute top-5 right-8 left-8 h-0.5 bg-primary/25" />
@@ -426,7 +426,7 @@ export default function Reader() {
         const active = storyStep[qKey] ?? 0
         const step = block.steps[active] || block.steps[0]
         return (
-          <div key={idx} className="menu-glass-70 rounded-2xl p-4 mb-8" data-no-swipe="true">
+          <div key={idx} className="reader-interactive reader-story menu-glass-70 rounded-2xl p-4 mb-8" data-no-swipe="true">
             <div className="grid md:grid-cols-[1.2fr_0.8fr] gap-4 items-stretch">
               <div className="relative rounded-2xl overflow-hidden min-h-72">
                 <img src={step.image} alt={step.text} className="absolute inset-0 w-full h-full object-cover transition-all duration-500" />
@@ -462,7 +462,7 @@ export default function Reader() {
         })
         const setAll = (value:boolean) => setHotspotsVisible(s => ({...s, [qKey]: block.points.map(()=>value)}))
         return (
-          <div key={idx} className="menu-glass-70 rounded-2xl p-4 mb-8 overflow-visible" data-no-swipe="true">
+          <div key={idx} className="reader-interactive reader-hotspot menu-glass-70 rounded-2xl p-4 mb-8 overflow-visible" data-no-swipe="true">
             <div className="flex items-center justify-between gap-3 mb-3">
               <h3 className="font-semibold">📍 تصویر هات‌اسپات</h3>
               <button onClick={()=>setAll(!allVisible)} className="text-xs px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20">
@@ -475,7 +475,7 @@ export default function Reader() {
                 <div key={pi} className="absolute" style={{left:`${pt.x}%`, top:`${pt.y}%`, transform:'translate(-50%, -50%)'}}>
                   <button onClick={()=>togglePoint(pi)} className="w-8 h-8 rounded-full bg-primary text-primary-foreground shadow-glow animate-pulse-glow border-2 border-white" title={pt.title}>{pi+1}</button>
                   {visible[pi] && (
-                    <div className={`absolute top-9 w-56 menu-glass-70 rounded-xl p-3 text-sm animate-fade-in ${pt.x > 62 ? 'left-0' : 'right-0'}`}>
+                    <div className={`reader-hotspot-popover absolute top-9 w-56 menu-glass-70 rounded-xl p-3 text-sm animate-fade-in ${pt.x > 62 ? 'left-0' : 'right-0'}`}>
                       <p className="font-bold mb-1">{pt.title}</p>
                       <p className="text-muted-foreground leading-relaxed">{pt.text}</p>
                     </div>
@@ -525,7 +525,7 @@ export default function Reader() {
         </div>
       </div>
 
-      <div className="relative flex">
+      <div className="relative flex min-w-0">
         {/* TOC Sidebar - on same side based on language */}
         {showToc && (
           <div className={`fixed top-0 ${dir==='rtl'?'right-0 border-l':'left-0 border-r'} z-[70] h-full w-80 toc-menu-clear p-5 overflow-y-auto animate-slide-in-right shadow-glass`} style={{paddingTop:'4rem'}}>
@@ -536,7 +536,7 @@ export default function Reader() {
         )}
 
         {/* Main Content */}
-        <div className="flex-1 max-w-3xl mx-auto px-4 sm:px-8 py-10 pb-32" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+        <div className="reader-main min-w-0 w-full flex-1 max-w-3xl mx-auto px-4 sm:px-8 py-10 pb-32" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
           <div ref={contentRef} className="mb-10 min-h-[65vh]" onMouseUp={captureSelection}>
             {/* Highlights bar */}
             {pageHighlights.length > 0 && (

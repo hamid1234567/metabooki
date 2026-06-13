@@ -20,7 +20,7 @@ function BookShowcaseCard({ book, index }: { book: MockBook; index: number }) {
       style={{ animationDelay: `${Math.min(index, 8) * 45}ms` }}
     >
       <div className="book-card-cover">
-        <BookCover src={book.cover_url} title={book.title} category={book.category} />
+        <BookCover src={book.cover_url} title={book.title} category={book.category} loading={index < 8 ? 'eager' : 'lazy'} fetchPriority={index < 4 ? 'high' : 'auto'} />
 
         <div className="book-card-sheen" />
 
@@ -28,9 +28,6 @@ function BookShowcaseCard({ book, index }: { book: MockBook; index: number }) {
           <span className={isFree ? 'book-pill book-pill-success' : 'book-pill book-pill-primary'}>
             {isFree ? 'رایگان' : `${book.price.toLocaleString('fa-IR')} کردیت`}
           </span>
-          {book.preview_pages.length > 0 && (
-            <span className="book-pill book-pill-glass">{book.preview_pages.length} صفحه پیش‌نمایش</span>
-          )}
         </div>
 
         <div className="book-card-hover">
@@ -134,7 +131,7 @@ export default function Store() {
 
         {featuredBook && (
           <Link to={`/b/${featuredBook.id}`} className="featured-book-card">
-            <BookCover src={featuredBook.cover_url} title={featuredBook.title} category={featuredBook.category} />
+            <BookCover src={featuredBook.cover_url} title={featuredBook.title} category={featuredBook.category} loading="eager" fetchPriority="high" />
             <div className="min-w-0">
               <p className="text-xs text-primary font-bold">پیشنهاد ویژه</p>
               <h2 className="mt-1 text-xl font-black line-clamp-2">{featuredBook.title}</h2>

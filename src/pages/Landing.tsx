@@ -114,7 +114,7 @@ export default function Landing() {
           <div className="relative min-h-[440px] hidden lg:block">
             {heroBooks.map((book, i) => (
               <Link key={book.id} to={`/b/${book.id}`} className={`absolute w-48 rounded-3xl overflow-hidden shadow-book transition-all hover:scale-105 ${i===0?'right-8 top-8 rotate-6 z-30':i===1?'left-16 top-0 -rotate-6 z-20':i===2?'right-0 bottom-12 -rotate-3 z-10': 'left-4 bottom-0 rotate-3 z-20'}`}>
-                <BookCover src={book.cover_url} title={book.title} category={book.category} className="w-full aspect-[3/4]" />
+                <BookCover src={book.cover_url} title={book.title} category={book.category} className="w-full aspect-[3/4]" loading="eager" fetchPriority={i < 2 ? 'high' : 'auto'} />
               </Link>
             ))}
             <div className="absolute left-20 top-48 menu-glass-70 rounded-2xl p-4 z-40 max-w-56">
