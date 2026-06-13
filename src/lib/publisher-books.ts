@@ -62,6 +62,7 @@ export function createPublisherBook(input: { title: string; author: string; cate
     series_id: null,
     series_order: null,
     publisher_name: 'انتشارات دانش نو',
+    book_type: 'تألیف',
     page_count: 1,
     created_at: now,
     stage: 'editing',

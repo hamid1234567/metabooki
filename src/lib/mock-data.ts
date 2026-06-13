@@ -13,7 +13,7 @@ export interface MockBook {
   status: 'draft' | 'published'; review_status: 'pending' | 'approved' | 'rejected'
   publisher_id: string; language: string; tags: string[]; category: string
   series_id: string | null; series_order: number | null
-  publisher_name: string; page_count: number; created_at: string
+  publisher_name: string; author?: string; book_type?: string; page_count: number; created_at: string
 }
 
 export const mockUsers: MockUser[] = [

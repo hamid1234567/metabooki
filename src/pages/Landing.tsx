@@ -1,10 +1,13 @@
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { ArrowLeft, BookOpen, CreditCard, Download, Headphones, Highlighter, MessageSquare, ShieldCheck, Sparkles, Store, UploadCloud, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { BookCover } from '@/components/BookCover'
 import { useAuthContext } from '@/lib/auth-context'
 import { useI18n } from '@/lib/i18n'
-import { getAllPublishedBooks, bookCategories } from '@/lib/mock-data'
+import type { MockBook } from '@/lib/mock-data'
+import { getPopularBookIds, getPublishedBooks } from '@/lib/book-repository'
 
 const categoryVisuals: Record<string, { icon: string; gradient: string; desc: string }> = {
   all: { icon: '✨', gradient: 'from-primary/20 to-secondary/20', desc: 'همه کتاب‌ها در یک نگاه' },
@@ -21,10 +24,32 @@ export default function Landing() {
   const { user, signIn } = useAuthContext()
   const { t } = useI18n()
   const navigate = useNavigate()
-  const books = getAllPublishedBooks()
+  const [books, setBooks] = useState<MockBook[]>([])
+  const [popularIds, setPopularIds] = useState<string[]>([])
+  const [loadingBooks, setLoadingBooks] = useState(true)
+
+  useEffect(() => {
+    Promise.all([getPublishedBooks(), getPopularBookIds()])
+      .then(([published, ids]) => {
+        setBooks(published)
+        setPopularIds(ids)
+      })
+      .finally(() => setLoadingBooks(false))
+  }, [])
+
+  const categories = useMemo(() => {
+    const values = Array.from(new Set(books.map(book => book.category).filter(Boolean)))
+    return [{ key: 'all', label: 'همه کتاب‌ها' }, ...values.map(value => ({ key: value, label: value }))]
+  }, [books])
   const freeBooks = books.filter(b => b.price === 0)
   const latestBooks = [...books].sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at)).slice(0, 5)
+  const popularBooks = popularIds.map(id => books.find(book => book.id === id)).filter(Boolean) as MockBook[]
+  const suggestedBooks = books.filter(book => !popularIds.slice(0, 6).includes(book.id)).slice(0, 18)
   const heroBooks = books.slice(0, 4)
+  const roles = user?.mockData?.roles || (user?.role ? [user.role] : [])
+  const isPublisher = roles.includes('publisher') || roles.includes('admin') || roles.includes('super_admin')
+  const isAdmin = roles.includes('admin') || roles.includes('super_admin')
+  const memberLink = (path: string) => user ? path : '/auth'
   const testAccounts = [
     { label: 'کاربر آزمایشی ۱', email: 'reader1@metabooki.local' },
     { label: 'کاربر آزمایشی ۲', email: 'reader2@metabooki.local' },
@@ -40,15 +65,15 @@ export default function Landing() {
     }
   }
 
-  const BookCard = ({ book, compact = false }: { book: typeof books[number]; compact?: boolean }) => (
-    <Link to={`/b/${book.id}`} className={`group menu-glass-70 rounded-2xl overflow-hidden hover:-translate-y-1 hover:shadow-book transition-all duration-300 ${compact ? 'flex gap-3 p-3' : 'block'}`}>
+  const BookCard = ({ book, compact = false, rail = false }: { book: MockBook; compact?: boolean; rail?: boolean }) => (
+    <Link to={`/b/${book.id}`} className={`group menu-glass-70 rounded-2xl overflow-hidden hover:-translate-y-1 hover:shadow-book transition-all duration-300 ${compact ? 'flex gap-3 p-3' : 'block'} ${rail ? 'landing-rail-card' : ''}`}>
       <div className={compact ? 'w-20 aspect-[3/4] rounded-xl overflow-hidden bg-muted shrink-0' : 'aspect-[3/4] bg-muted overflow-hidden relative'}>
-        <img src={book.cover_url} alt={book.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+        <BookCover src={book.cover_url} title={book.title} category={book.category} className="w-full h-full" />
         {!compact && book.price === 0 && <span className="absolute top-2 right-2 bg-success text-success-foreground text-[10px] px-2 py-0.5 rounded-full">رایگان</span>}
       </div>
       <div className={compact ? 'flex-1 min-w-0' : 'p-4'}>
         <h3 className="font-bold text-sm line-clamp-2 group-hover:text-primary transition-colors">{book.title}</h3>
-        <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{book.publisher_name}</p>
+        <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{book.author || 'نویسنده نامشخص'}</p>
         <div className="flex flex-wrap gap-1 mt-2">
           {book.tags.slice(0, 2).map(tag => <span key={tag} className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">{tag}</span>)}
         </div>
@@ -80,7 +105,7 @@ export default function Landing() {
             <div className="grid grid-cols-3 gap-3 max-w-xl">
               {[
                 { n: books.length, l: 'کتاب منتشرشده' },
-                { n: bookCategories.length - 1, l: 'دسته‌بندی' },
+                { n: Math.max(categories.length - 1, 0), l: 'دسته‌بندی' },
                 { n: freeBooks.length, l: 'کتاب رایگان' },
               ].map(s => <div key={s.l} className="menu-glass-70 rounded-2xl p-2.5 sm:p-4 text-center"><p className="text-xl sm:text-2xl font-black text-primary">{s.n}</p><p className="text-[10px] sm:text-xs text-muted-foreground">{s.l}</p></div>)}
             </div>
@@ -89,7 +114,7 @@ export default function Landing() {
           <div className="relative min-h-[440px] hidden lg:block">
             {heroBooks.map((book, i) => (
               <Link key={book.id} to={`/b/${book.id}`} className={`absolute w-48 rounded-3xl overflow-hidden shadow-book transition-all hover:scale-105 ${i===0?'right-8 top-8 rotate-6 z-30':i===1?'left-16 top-0 -rotate-6 z-20':i===2?'right-0 bottom-12 -rotate-3 z-10': 'left-4 bottom-0 rotate-3 z-20'}`}>
-                <img src={book.cover_url} alt={book.title} className="w-full aspect-[3/4] object-cover" />
+                <BookCover src={book.cover_url} title={book.title} category={book.category} className="w-full aspect-[3/4]" />
               </Link>
             ))}
             <div className="absolute left-20 top-48 menu-glass-70 rounded-2xl p-4 z-40 max-w-56">
@@ -127,7 +152,7 @@ export default function Landing() {
             <Link to="/store" className="text-primary hover:underline text-sm flex items-center gap-1">همه دسته‌ها <ArrowLeft className="w-4 h-4" /></Link>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {bookCategories.map(cat => {
+            {categories.map(cat => {
               const v = categoryVisuals[cat.key] || categoryVisuals.all
               return (
                 <Link key={cat.key} to={`/store?cat=${cat.key}`} className={`rounded-2xl sm:rounded-3xl p-3 sm:p-5 bg-gradient-to-br ${v.gradient} border border-border/60 hover:-translate-y-1 hover:shadow-book transition-all`}>
@@ -137,6 +162,38 @@ export default function Landing() {
                 </Link>
               )
             })}
+          </div>
+        </div>
+      </section>
+
+      <section className="py-8 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-5 flex items-end justify-between gap-3">
+            <div>
+              <h2 className="text-2xl md:text-3xl font-black font-display">محبوب‌ترین کتاب‌ها</h2>
+              <p className="mt-1 text-sm text-muted-foreground">بیشترین انتخاب خوانندگان متابوکی</p>
+            </div>
+            <Link to="/store" className="text-primary hover:underline text-sm flex items-center gap-1">همه کتاب‌ها <ArrowLeft className="w-4 h-4" /></Link>
+          </div>
+          {loadingBooks ? (
+            <div className="landing-book-grid">{Array.from({ length: 6 }).map((_, index) => <div key={index} className="aspect-[3/5] animate-pulse rounded-2xl bg-muted/60" />)}</div>
+          ) : (
+            <div className="landing-book-grid">{popularBooks.slice(0, 6).map(book => <BookCard key={book.id} book={book} />)}</div>
+          )}
+        </div>
+      </section>
+
+      <section className="py-8 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-5 flex items-end justify-between gap-3">
+            <div>
+              <h2 className="text-2xl md:text-3xl font-black font-display">پیشنهاد برای مطالعه بعدی</h2>
+              <p className="mt-1 text-sm text-muted-foreground">برای دیدن کتاب‌های بیشتر، ردیف را به طرفین بکشید</p>
+            </div>
+            <Link to="/store" className="text-primary hover:underline text-sm flex items-center gap-1">رفتن به فروشگاه <ArrowLeft className="w-4 h-4" /></Link>
+          </div>
+          <div className="landing-book-rail">
+            {suggestedBooks.map(book => <BookCard key={book.id} book={book} rail />)}
           </div>
         </div>
       </section>
@@ -189,12 +246,12 @@ export default function Landing() {
           <div className="mb-6"><h2 className="text-2xl font-black font-display">امکانات کامل پلتفرم</h2><p className="text-sm text-muted-foreground mt-1">مطابق نقشه راه متابوکی، همه مسیرهای اصلی در دسترس‌اند.</p></div>
           <div className="grid md:grid-cols-3 lg:grid-cols-6 gap-4">
             {[
-              { icon: UploadCloud, title: 'تولید از Word', link: '/upload' },
-              { icon: Headphones, title: 'نسخه صوتی', link: '/audio-studio/book-001' },
-              { icon: CreditCard, title: 'کردیت و پرداخت', link: '/credits' },
+              { icon: UploadCloud, title: 'تولید از Word', link: isPublisher ? '/upload' : '/auth' },
+              { icon: Headphones, title: 'نسخه صوتی', link: isPublisher && heroBooks[0] ? `/audio-studio/${heroBooks[0].id}` : '/store' },
+              { icon: CreditCard, title: 'کردیت و پرداخت', link: memberLink('/credits') },
               { icon: Download, title: 'نصب و آفلاین', link: '/install' },
-              { icon: ShieldCheck, title: 'پنل ادمین', link: '/admin' },
-              { icon: BookOpen, title: 'داشبورد ناشر', link: '/publisher/me' },
+              { icon: ShieldCheck, title: 'پنل ادمین', link: isAdmin ? '/admin' : '/auth' },
+              { icon: BookOpen, title: 'داشبورد ناشر', link: isPublisher ? '/publisher/me' : '/auth' },
             ].map(item => (
               <Link key={item.title} to={item.link} className="menu-glass-70 rounded-2xl p-4 text-center hover:-translate-y-1 transition-all">
                 <item.icon className="w-7 h-7 text-primary mx-auto mb-3" />

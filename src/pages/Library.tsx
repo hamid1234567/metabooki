@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
+import { BookCover } from '@/components/BookCover'
 import { useAuthContext } from '@/lib/auth-context'
 import { useI18n } from '@/lib/i18n'
 import { getAllReadingProgress, getMockLibraryEntries } from '@/lib/mock-library'
@@ -34,7 +35,7 @@ function ShelfBookCard({
       style={{ animationDelay: `${Math.min(index, 8) * 45}ms` }}
     >
       <Link to={`/b/${book.id}`} className="shelf-cover">
-        <img src={book.cover_url} alt={book.title} loading="lazy" />
+        <BookCover src={book.cover_url} title={book.title} category={book.category} />
         <div className="book-card-sheen" />
         <span className={isPurchased ? 'book-pill book-pill-primary' : 'book-pill book-pill-success'}>
           {isPurchased ? 'در قفسه شما' : 'رایگان'}
@@ -45,12 +46,12 @@ function ShelfBookCard({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h3 className="book-card-title">{book.title}</h3>
-            <p className="book-card-subtitle">{book.publisher_name}</p>
+            <p className="book-card-subtitle">{book.author || 'نویسنده نامشخص'}</p>
           </div>
           {isFinished && <CheckCircle className="w-5 h-5 text-success shrink-0" />}
         </div>
 
-        <p className="book-card-description">{book.description}</p>
+        <p className="book-card-description">{book.book_type || 'تألیف'} · {book.publisher_name}</p>
 
         {isPurchased ? (
           <div className="rounded-2xl bg-muted/45 p-3">
@@ -177,7 +178,7 @@ export default function Library() {
                 </h2>
                 <span className="text-sm text-muted-foreground">{libraryBooks.length.toLocaleString('fa-IR')} کتاب</span>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              <div className="library-book-grid">
                 {libraryBooks.map((book, index) => (
                   <ShelfBookCard
                     key={book.id}
@@ -199,7 +200,7 @@ export default function Library() {
                 </h2>
                 <span className="text-sm text-muted-foreground">بدون پرداخت، مستقیم بخوانید</span>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              <div className="library-book-grid">
                 {freeBooks.map((book, index) => (
                   <ShelfBookCard
                     key={book.id}

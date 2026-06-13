@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
+import { BookCover } from '@/components/BookCover'
 import { useI18n } from '@/lib/i18n'
 import { bookCategories, type MockBook } from '@/lib/mock-data'
 import { getPublishedBooks } from '@/lib/book-repository'
@@ -19,14 +20,7 @@ function BookShowcaseCard({ book, index }: { book: MockBook; index: number }) {
       style={{ animationDelay: `${Math.min(index, 8) * 45}ms` }}
     >
       <div className="book-card-cover">
-        {book.cover_url ? (
-          <img src={book.cover_url} alt={book.title} loading="lazy" />
-        ) : (
-          <div className="book-card-cover-fallback">
-            <BookOpen className="w-12 h-12" />
-            <span>{book.title}</span>
-          </div>
-        )}
+        <BookCover src={book.cover_url} title={book.title} category={book.category} />
 
         <div className="book-card-sheen" />
 
@@ -51,7 +45,7 @@ function BookShowcaseCard({ book, index }: { book: MockBook; index: number }) {
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h3 className="book-card-title">{book.title}</h3>
-            {book.subtitle && <p className="book-card-subtitle">{book.subtitle}</p>}
+            <p className="book-card-subtitle">{book.author || 'نویسنده نامشخص'}</p>
           </div>
           <span className="book-rating">
             <Star className="w-3.5 h-3.5 fill-warning text-warning" />
@@ -59,7 +53,7 @@ function BookShowcaseCard({ book, index }: { book: MockBook; index: number }) {
           </span>
         </div>
 
-        <p className="book-card-description">{book.description}</p>
+        <p className="book-card-description">{book.book_type || 'تألیف'} · {book.publisher_name}</p>
 
         <div className="book-tags">
           {book.tags.slice(0, 3).map(tag => <span key={tag}>{tag}</span>)}
@@ -140,11 +134,11 @@ export default function Store() {
 
         {featuredBook && (
           <Link to={`/b/${featuredBook.id}`} className="featured-book-card">
-            <img src={featuredBook.cover_url} alt={featuredBook.title} />
+            <BookCover src={featuredBook.cover_url} title={featuredBook.title} category={featuredBook.category} />
             <div className="min-w-0">
               <p className="text-xs text-primary font-bold">پیشنهاد ویژه</p>
               <h2 className="mt-1 text-xl font-black line-clamp-2">{featuredBook.title}</h2>
-              <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{featuredBook.description}</p>
+              <p className="mt-1 text-xs text-muted-foreground line-clamp-1">{featuredBook.author || 'نویسنده نامشخص'} · {featuredBook.book_type || 'تألیف'}</p>
               <div className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-primary">
                 دیدن معرفی <ArrowLeft className="w-4 h-4" />
               </div>
@@ -183,7 +177,7 @@ export default function Store() {
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+          <div className="store-book-grid">
             {Array.from({ length: 12 }).map((_, index) => <div key={index} className="aspect-[3/5] animate-pulse rounded-xl bg-muted/70" />)}
           </div>
         ) : filtered.length === 0 ? (
@@ -195,7 +189,7 @@ export default function Store() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+            <div className="store-book-grid">
               {visibleBooks.map((book, index) => <BookShowcaseCard key={book.id} book={book} index={index} />)}
             </div>
             {pageCount > 1 && (

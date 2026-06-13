@@ -25,6 +25,8 @@ function toBook(row: Record<string, unknown>): MockBook {
     series_id: row.series_id ? String(row.series_id) : null,
     series_order: row.series_order === null || row.series_order === undefined ? null : Number(row.series_order),
     publisher_name: String(metadata.publisher_name || 'ناشر متابوکی'),
+    author: String(metadata.author || 'نویسنده نامشخص'),
+    book_type: String(metadata.book_type || 'تألیف'),
     page_count: pages.length,
     created_at: String(row.created_at || ''),
   }
@@ -35,6 +37,13 @@ export async function getPublishedBooks(): Promise<MockBook[]> {
   const { data, error } = await supabase.from('books').select('*').eq('status', 'published').eq('review_status', 'approved').order('created_at', { ascending: false })
   if (error) throw error
   return (data || []).map(row => toBook(row as unknown as Record<string, unknown>))
+}
+
+export async function getPopularBookIds(): Promise<string[]> {
+  if (!hasSupabase) return mockBooks.slice(0, 10).map(book => book.id)
+  const { data, error } = await (supabase as any).rpc('get_popular_book_ids')
+  if (error) return []
+  return (data || []).map((item: { book_id: string }) => item.book_id)
 }
 
 export async function getBook(bookId: string): Promise<MockBook | null> {

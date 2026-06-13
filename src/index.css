@@ -600,6 +600,78 @@ body {
   transition: transform 620ms var(--ease-spring), filter 420ms var(--ease-spring);
 }
 
+.book-cover-art {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: hsl(215 32% 88%);
+}
+
+.book-cover-art > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 280ms ease, transform 620ms var(--ease-spring), filter 420ms var(--ease-spring);
+}
+
+.book-cover-art > img.is-loaded {
+  opacity: 1;
+}
+
+.book-cover-art-fallback {
+  display: flex;
+  height: 100%;
+  min-height: inherit;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  padding: 1rem;
+  background: hsl(211 46% 90%);
+  color: hsl(218 35% 23%);
+  text-align: center;
+}
+
+.book-cover-art-fallback svg {
+  width: 2rem;
+  height: 2rem;
+  color: hsl(205 72% 44%);
+}
+
+.book-cover-art-fallback span,
+.book-cover-art-fallback small {
+  color: hsl(218 20% 42%);
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.book-cover-art-fallback strong {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  font-size: clamp(0.78rem, 1.2vw, 1.05rem);
+  line-height: 1.7;
+}
+
+.book-cover-art[data-category="ادبیات"] .book-cover-art-fallback,
+.book-cover-art[data-category="تاریخ"] .book-cover-art-fallback {
+  background: hsl(42 48% 88%);
+}
+
+.book-cover-art[data-category="هنر"] .book-cover-art-fallback {
+  background: hsl(345 42% 91%);
+}
+
+.book-cover-art[data-category="برنامه‌نویسی"] .book-cover-art-fallback,
+.book-cover-art[data-category="علمی"] .book-cover-art-fallback {
+  background: hsl(198 48% 88%);
+}
+
 .book-card:hover .book-card-cover img,
 .shelf-card:hover .shelf-cover img {
   transform: scale(1.08);
@@ -766,13 +838,74 @@ body {
 
 .shelf-card {
   display: grid;
-  grid-template-columns: 8.5rem minmax(0, 1fr);
+  grid-template-columns: 6.8rem minmax(0, 1fr);
 }
 
 .shelf-cover {
   position: relative;
-  min-height: 16.5rem;
+  min-height: 13.2rem;
   overflow: hidden;
+}
+
+.shelf-content {
+  gap: 0.55rem;
+  padding: 0.75rem;
+}
+
+.shelf-content .book-card-description {
+  min-height: 0;
+  -webkit-line-clamp: 1;
+  font-size: 0.72rem;
+}
+
+.store-book-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.library-book-grid {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .store-book-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 768px) {
+  .library-book-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .store-book-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .library-book-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  .store-book-grid {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+
+  .library-book-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1536px) {
+  .store-book-grid {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
 }
 
 .shelf-cover .book-pill {
@@ -812,8 +945,8 @@ body {
 .book-detail-hero {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(16rem, 24rem) minmax(0, 1fr);
-  gap: clamp(1.5rem, 4vw, 3rem);
+  grid-template-columns: minmax(13rem, 17rem) minmax(0, 1fr);
+  gap: clamp(1.25rem, 3vw, 2rem);
   overflow: hidden;
   border-radius: 1.75rem;
   border: 1px solid hsl(220 14% 84% / 0.5);
@@ -822,7 +955,7 @@ body {
     radial-gradient(circle at 18% 18%, hsl(215 50% 50% / 0.18), transparent 34%),
     radial-gradient(circle at 82% 24%, hsl(38 92% 50% / 0.14), transparent 30%);
   box-shadow: var(--shadow-glass);
-  padding: clamp(1.25rem, 4vw, 2.5rem);
+  padding: clamp(1rem, 3vw, 1.75rem);
 }
 
 [data-theme="midnight"] .book-detail-hero {
@@ -885,6 +1018,121 @@ body {
 
 .book-detail-main {
   align-self: center;
+}
+
+.book-detail-title {
+  margin-top: 1rem;
+  font-family: var(--font-display);
+  font-size: clamp(1.55rem, 3vw, 2.65rem);
+  font-weight: 900;
+  line-height: 1.45;
+}
+
+.book-detail-subtitle {
+  margin-top: 0.35rem;
+  color: var(--color-muted-foreground);
+  font-size: 1rem;
+}
+
+.book-credit-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 1rem;
+  margin-top: 0.8rem;
+  color: var(--color-muted-foreground);
+  font-size: 0.82rem;
+}
+
+.book-credit-line b {
+  color: var(--color-foreground);
+}
+
+.book-summary-section {
+  display: grid;
+  grid-template-columns: minmax(8rem, 11rem) 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+.book-summary-section span {
+  color: var(--color-primary);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.book-summary-section h2 {
+  margin-top: 0.2rem;
+  font-size: 1.25rem;
+  font-weight: 900;
+}
+
+.book-summary-section p {
+  color: var(--color-muted-foreground);
+  font-size: 0.9rem;
+  line-height: 2;
+}
+
+.book-card-compact .book-card-body {
+  gap: 0.25rem;
+  padding: 0.48rem 0.55rem 0.58rem;
+}
+
+.book-card-compact .book-card-title {
+  font-size: 0.76rem;
+  line-height: 1.55;
+}
+
+.book-card-compact .book-card-subtitle {
+  font-size: 0.67rem;
+}
+
+.book-card-compact .book-rating {
+  padding: 0.15rem 0.35rem;
+  font-size: 0.65rem;
+}
+
+.book-card-compact .book-card-description,
+.book-card-compact .book-tags,
+.book-card-compact .book-card-footer {
+  display: none;
+}
+
+.landing-book-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.landing-book-rail {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(9.5rem, 11rem);
+  gap: 0.75rem;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scroll-snap-type: inline mandatory;
+  scrollbar-width: thin;
+  padding: 0.25rem 0.1rem 1rem;
+}
+
+.landing-rail-card {
+  scroll-snap-align: start;
+}
+
+@media (min-width: 640px) {
+  .landing-book-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .landing-book-rail {
+    grid-auto-columns: minmax(10.5rem, 12rem);
+  }
+}
+
+@media (min-width: 1024px) {
+  .landing-book-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
 }
 
 .book-detail-stat,
@@ -1122,6 +1370,10 @@ body {
   }
 
   .library-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .book-summary-section {
     grid-template-columns: 1fr;
   }
 }

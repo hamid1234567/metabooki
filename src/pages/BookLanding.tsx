@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
+import { BookCover } from '@/components/BookCover'
 import { useAuthContext } from '@/lib/auth-context'
 import { CREDIT_VALUE_TOMAN, type MockBook } from '@/lib/mock-data'
 import { getBook } from '@/lib/book-repository'
@@ -167,7 +168,7 @@ export default function BookLanding() {
       <section className="book-detail-hero">
         <div className="book-detail-cover-wrap">
           <div className="book-detail-cover">
-            <img src={book.cover_url} alt={book.title} />
+            <BookCover src={book.cover_url} title={book.title} category={book.category} loading="eager" />
             <div className="book-card-sheen" />
           </div>
           <div className="book-detail-mini-stats">
@@ -185,9 +186,12 @@ export default function BookLanding() {
             {purchased && <span className="book-pill book-pill-success">در قفسه شما</span>}
           </div>
 
-          <h1 className="mt-5 text-3xl sm:text-4xl md:text-6xl font-black font-display leading-tight">{book.title}</h1>
-          {book.subtitle && <p className="mt-3 text-xl text-muted-foreground">{book.subtitle}</p>}
-          <p className="mt-5 max-w-3xl text-muted-foreground leading-8">{book.description}</p>
+          <h1 className="book-detail-title">{book.title}</h1>
+          {book.subtitle && <p className="book-detail-subtitle">{book.subtitle}</p>}
+          <div className="book-credit-line">
+            <span>نویسنده: <b>{book.author || 'نویسنده نامشخص'}</b></span>
+            <span>نوع اثر: <b>{book.book_type || 'تألیف'}</b></span>
+          </div>
 
           <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="book-detail-stat"><b>{rating}</b><span><Star className="w-4 h-4 fill-warning text-warning" /> امتیاز</span></div>
@@ -226,6 +230,14 @@ export default function BookLanding() {
 
       <div className="grid lg:grid-cols-[1fr_360px] gap-8 items-start">
         <main className="space-y-8">
+          <section className="book-detail-section book-summary-section">
+            <div>
+              <span>درباره کتاب</span>
+              <h2>خلاصه کتاب</h2>
+            </div>
+            <p>{book.description}</p>
+          </section>
+
           <section className="book-detail-section">
             <div className="mb-5 flex items-center justify-between gap-3">
               <h2 className="text-2xl font-black font-display">چرا این کتاب؟</h2>
@@ -369,6 +381,8 @@ export default function BookLanding() {
 
           <div className="mt-5 space-y-3 border-t pt-5 text-sm text-muted-foreground">
             <div className="flex items-center justify-between"><span>ناشر</span><b className="text-foreground">{book.publisher_name}</b></div>
+            <div className="flex items-center justify-between"><span>نویسنده</span><b className="text-foreground">{book.author || 'نویسنده نامشخص'}</b></div>
+            <div className="flex items-center justify-between"><span>نوع اثر</span><b className="text-foreground">{book.book_type || 'تألیف'}</b></div>
             <div className="flex items-center justify-between"><span>دسته‌بندی</span><b className="text-foreground">{book.category}</b></div>
             <div className="flex items-center justify-between"><span>زبان</span><b className="text-foreground">{book.language === 'fa' ? 'فارسی' : 'English'}</b></div>
           </div>
