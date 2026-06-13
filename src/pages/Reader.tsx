@@ -104,6 +104,15 @@ export default function Reader() {
       .then(({ data }) => setRealOwner(Boolean(data)))
   }, [user, book])
 
+  useEffect(() => {
+    if (!book) return
+    const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
+    const frame = requestAnimationFrame(() => {
+      requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior }))
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [currentPage, book?.id])
+
   // Auto scroll - must be before any early returns (Rules of Hooks)
   useEffect(() => {
     if (!autoScroll || !book) return
@@ -113,7 +122,6 @@ export default function Reader() {
       const rect = contentRef.current?.getBoundingClientRect()
       if (rect && rect.bottom <= window.innerHeight + 100 && currentPage < b.pages.length - 1) {
         setCurrentPage(p => p + 1)
-        window.scrollTo({ top: 0 })
       }
     }, 80)
     return () => clearInterval(interval)

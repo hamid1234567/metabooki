@@ -4,6 +4,7 @@ import { Navbar } from '@/components/navbar/Navbar'
 import { OfflineBanner } from '@/components/offline/OfflineBanner'
 import { RoleGuard } from '@/components/ui/role-guard'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
+import { ScrollToTop } from '@/components/navigation/ScrollToTop'
 
 // Direct imports (no lazy loading for stability)
 import Landing from '@/pages/Landing'
@@ -31,6 +32,7 @@ function App() {
   return (
     <ErrorBoundary>
       <div className="min-h-screen bg-background text-foreground">
+        <ScrollToTop />
         <OfflineBanner />
         <Navbar />
         <main className="relative">
