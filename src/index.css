@@ -335,15 +335,15 @@ body {
 
 /* Frosted menus: 60% opacity + strong matte blur */
 .menu-glass-70 {
-  background: hsl(0 0% 100% / 0.58) !important;
-  backdrop-filter: blur(24px) saturate(1.22) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(1.22) !important;
-  border: 1px solid hsl(210 38% 90% / 0.62);
+  background: hsl(0 0% 100% / 0.68) !important;
+  backdrop-filter: blur(32px) saturate(1.12) !important;
+  -webkit-backdrop-filter: blur(32px) saturate(1.12) !important;
+  border: 1px solid hsl(210 38% 90% / 0.72);
   box-shadow: var(--shadow-glass);
 }
 
 [data-theme="midnight"] .menu-glass-70 {
-  background: hsl(222 30% 14% / 0.6) !important;
+  background: hsl(222 30% 14% / 0.72) !important;
   border-color: hsl(222 30% 28% / 0.45);
 }
 
@@ -441,14 +441,14 @@ body {
 }
 
 .toc-menu-clear {
-  background: hsl(0 0% 100% / 0.62) !important;
-  backdrop-filter: blur(24px) saturate(1.18) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(1.18) !important;
+  background: hsl(0 0% 100% / 0.76) !important;
+  backdrop-filter: blur(36px) saturate(1.08) !important;
+  -webkit-backdrop-filter: blur(36px) saturate(1.08) !important;
   opacity: 1 !important;
 }
 
 [data-theme="midnight"] .toc-menu-clear {
-  background: hsl(222 30% 14% / 0.7) !important;
+  background: hsl(222 30% 14% / 0.82) !important;
 }
 
 .reader-bg-literature::before { background: hsl(32 72% 68% / 0.45); }
@@ -472,13 +472,30 @@ body {
 }
 
 .menu-backdrop-blur {
-  background: hsl(222 30% 14% / 0.16);
-  backdrop-filter: blur(12px) saturate(1.08);
-  -webkit-backdrop-filter: blur(12px) saturate(1.08);
+  background: hsl(210 25% 96% / 0.34);
+  backdrop-filter: blur(22px) saturate(0.82);
+  -webkit-backdrop-filter: blur(22px) saturate(0.82);
 }
 
 [data-theme="midnight"] .menu-backdrop-blur {
-  background: hsl(0 0% 0% / 0.22);
+  background: hsl(222 30% 8% / 0.46);
+}
+
+.reader-main,
+.reader-main > *,
+.reader-interactive {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.reader-main img,
+.reader-main audio,
+.reader-interactive pre {
+  max-width: 100%;
+}
+
+.reader-mindmap * {
+  overflow-wrap: anywhere;
 }
 
 /* Book commerce surfaces */
@@ -1516,9 +1533,61 @@ body {
   .reader-floating-toolbar ~ div.fixed.bottom-16 {
     width: calc(100vw - 0.75rem);
     max-width: none;
+    max-height: calc(100dvh - 5.25rem);
     bottom: 4rem;
     padding: 0.85rem;
     border-radius: 1rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .reader-toc-panel {
+    width: min(20rem, 88vw);
+    padding-inline: 0.85rem;
+  }
+
+  .reader-main {
+    padding-inline: 0.75rem;
+    padding-top: 1.5rem;
+  }
+
+  .reader-main > div:first-child {
+    min-width: 0;
+  }
+
+  .reader-main .glass,
+  .reader-main .menu-glass-70 {
+    max-width: 100%;
+    padding: 0.85rem;
+  }
+
+  .reader-main table {
+    min-width: 32rem;
+  }
+
+  .reader-main pre {
+    padding: 0.85rem;
+    font-size: 0.75rem;
+  }
+
+  .reader-story .min-h-72 {
+    min-height: 13rem;
+  }
+
+  .reader-hotspot-popover {
+    position: fixed;
+    inset-inline: 0.75rem !important;
+    top: auto !important;
+    bottom: 4.75rem;
+    width: auto;
+    max-height: 45dvh;
+    overflow-y: auto;
+    z-index: 80;
+  }
+
+  .reader-mindmap .rounded-full {
+    max-width: 100%;
+    padding-inline: 0.75rem;
   }
 
   .admin-tabs {
