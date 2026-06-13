@@ -40,6 +40,22 @@ function syncVersionJsonPlugin() {
   }
 }
 
+function preserveStandardBackdropFilterPlugin() {
+  return {
+    name: 'preserve-standard-backdrop-filter',
+    enforce: 'post' as const,
+    generateBundle(_: unknown, bundle: Record<string, { type: string; fileName: string; source?: string | Uint8Array }>) {
+      for (const output of Object.values(bundle)) {
+        if (output.type !== 'asset' || !output.fileName.endsWith('.css') || typeof output.source !== 'string') continue
+        output.source = output.source.replace(
+          /(^|[;{]\s*)-webkit-backdrop-filter:\s*([^;}]+)(?=;|})/gm,
+          '$1backdrop-filter: $2; -webkit-backdrop-filter: $2',
+        )
+      }
+    },
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   base: './',
@@ -47,6 +63,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
     syncVersionJsonPlugin(),
+    preserveStandardBackdropFilterPlugin(),
   ],
   resolve: {
     alias: {
@@ -55,10 +72,5 @@ export default defineConfig({
   },
   server: {
     port: 8080,
-  },
-  build: {
-    // Vite's production CSS minifier drops the standard backdrop-filter rule
-    // and leaves only the WebKit variant, breaking frosted menus on Android Chrome.
-    cssMinify: false,
   },
 })
