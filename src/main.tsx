@@ -8,7 +8,8 @@ import { I18nProvider } from './lib/i18n'
 import { ThemeProvider } from './lib/theme'
 import { AuthProvider } from './lib/auth-context'
 import App from './App'
-import { refreshVersionedCaches } from './lib/version-cache'
+import { ensureLatestOnlineVersion, refreshVersionedCaches } from './lib/version-cache'
+import { APP_VERSION } from './lib/version'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -16,9 +17,10 @@ const queryClient = new QueryClient({
   },
 })
 
-await refreshVersionedCaches()
+const isLatestVersion = await ensureLatestOnlineVersion()
+if (isLatestVersion) await refreshVersionedCaches()
 
-createRoot(document.getElementById('root')!).render(
+if (isLatestVersion) createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <HashRouter>
       <QueryClientProvider client={queryClient}>
@@ -37,6 +39,6 @@ createRoot(document.getElementById('root')!).render(
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then(registration => registration.update()).catch(() => {})
+    navigator.serviceWorker.register(`./sw.js?v=${APP_VERSION}`, { updateViaCache: 'none' }).then(registration => registration.update()).catch(() => {})
   })
 }
