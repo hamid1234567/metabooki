@@ -516,6 +516,27 @@ body {
   flex: 0 0 auto;
 }
 
+.reader-protected,
+.reader-content-protected,
+.reader-content-protected * {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none;
+}
+
+.reader-content-protected {
+  cursor: default;
+}
+
+.reader-highlight-mode {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%230ea5e9' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 11-6 6v3h9l3-3'/%3E%3Cpath d='m22 12-4.5 4.5-10-10L12 2z'/%3E%3C/svg%3E") 2 22, crosshair;
+  touch-action: none;
+}
+
+.reader-highlight-yellow ::selection { background: hsl(48 96% 70% / 0.7); color: inherit; }
+.reader-highlight-green ::selection { background: hsl(142 70% 70% / 0.7); color: inherit; }
+.reader-highlight-red ::selection { background: hsl(0 82% 76% / 0.7); color: inherit; }
+
 [data-theme="midnight"] .reader-image-bg {
   background: radial-gradient(circle at 8% 8%, hsl(210 65% 32% / 0.12), transparent 30%);
 }

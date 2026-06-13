@@ -5,7 +5,7 @@ import { type MockBook } from '@/lib/mock-data'
 import { getBook } from '@/lib/book-repository'
 import { isInMockLibrary, saveReadingProgress } from '@/lib/mock-library'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, BookOpen, Lock, Eye, List, X, Sparkles, FileText, HelpCircle, ChevronRight, ChevronLeft, Check, X as XIcon, Search, Highlighter, Sun, Moon, Play, Pause, PenTool, Image as ImageIcon, Network, GitBranch } from 'lucide-react'
+import { ArrowLeft, BookOpen, Lock, Eye, List, Menu, Minus, Plus, X, Sparkles, FileText, HelpCircle, ChevronRight, ChevronLeft, Check, X as XIcon, Search, Highlighter, Sun, Moon, Play, Pause, PenTool, Image as ImageIcon, Network, GitBranch } from 'lucide-react'
 import { toast } from 'sonner'
 import { runAiThroughGateway, type AiStructuredContent, type ReaderAiAction, type RunAiResult } from '@/lib/ai-gateway'
 import { supabase } from '@/integrations/supabase/client'
@@ -54,6 +54,7 @@ export default function Reader() {
   const [autoScroll, setAutoScroll] = useState(false)
   const contentRef = useRef<HTMLDivElement>(null)
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null)
+  const highlightStartRef = useRef<{ node: Node; offset: number } | null>(null)
 
   useEffect(() => {
     if (id) {
@@ -165,11 +166,13 @@ export default function Reader() {
   }
 
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (highlightActive) return
     if (e.touches.length !== 1) return
     touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, time: Date.now() }
   }
 
   const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (highlightActive) return
     const start = touchStartRef.current
     touchStartRef.current = null
     if (!start || e.changedTouches.length !== 1) return
@@ -195,14 +198,61 @@ export default function Reader() {
     localStorage.setItem(key, JSON.stringify(items))
   }
 
-  // Capture selected text; color is chosen separately from toolbar menu
-  const captureSelection = () => {
-    if (!highlightActive) return
-    const sel = window.getSelection()
-    const text = sel?.toString().trim() || ''
-    if (!text) return
-    setSelectedText(text)
-    addHighlight(selectedHighlightColor, text)
+  const caretAtPoint = (x: number, y: number) => {
+    const doc = document as Document & {
+      caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null
+      caretRangeFromPoint?: (x: number, y: number) => Range | null
+    }
+    const position = doc.caretPositionFromPoint?.(x, y)
+    if (position) return { node: position.offsetNode, offset: position.offset }
+    const range = doc.caretRangeFromPoint?.(x, y)
+    return range ? { node: range.startContainer, offset: range.startOffset } : null
+  }
+
+  const drawHighlightRange = (end: { node: Node; offset: number }, commit = false) => {
+    const start = highlightStartRef.current
+    if (!start || !contentRef.current?.contains(start.node) || !contentRef.current.contains(end.node)) return
+    const range = document.createRange()
+    try {
+      range.setStart(start.node, start.offset)
+      range.setEnd(end.node, end.offset)
+      if (range.collapsed) {
+        range.setStart(end.node, end.offset)
+        range.setEnd(start.node, start.offset)
+      }
+    } catch {
+      return
+    }
+    const selection = window.getSelection()
+    selection?.removeAllRanges()
+    selection?.addRange(range)
+    if (!commit) return
+    const text = range.toString().trim()
+    selection?.removeAllRanges()
+    highlightStartRef.current = null
+    if (text) addHighlight(selectedHighlightColor, text)
+  }
+
+  const startHighlightStroke = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!highlightActive || (e.target as HTMLElement).closest('button,a,input,textarea,select,audio,[data-no-swipe="true"]')) return
+    const caret = caretAtPoint(e.clientX, e.clientY)
+    if (!caret || !contentRef.current?.contains(caret.node)) return
+    e.preventDefault()
+    highlightStartRef.current = caret
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+
+  const moveHighlightStroke = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!highlightActive || !highlightStartRef.current) return
+    const caret = caretAtPoint(e.clientX, e.clientY)
+    if (caret) drawHighlightRange(caret)
+  }
+
+  const finishHighlightStroke = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!highlightActive || !highlightStartRef.current) return
+    const caret = caretAtPoint(e.clientX, e.clientY)
+    if (caret) drawHighlightRange(caret, true)
+    else highlightStartRef.current = null
   }
 
   const chooseHighlightColor = (color: HighlightColor) => {
@@ -504,7 +554,16 @@ export default function Reader() {
   const bgClass = readingMode === 'night' ? 'bg-[#0f172a] text-slate-100' : readingMode === 'sepia' ? 'bg-[#f4ecd8] text-[#5b4636]' : 'bg-background text-foreground'
 
   return (
-    <div className={`min-h-screen transition-colors duration-500 ${bgClass}`} dir={dir}>
+    <div
+      className={`reader-protected min-h-screen transition-colors duration-500 ${bgClass}`}
+      dir={dir}
+      onCopy={e => e.preventDefault()}
+      onCut={e => e.preventDefault()}
+      onDragStart={e => e.preventDefault()}
+      onContextMenu={e => {
+        if ((e.target as HTMLElement).closest('.reader-content-protected')) e.preventDefault()
+      }}
+    >
       {readerBackground === 'abstract' ? (
         <div className={`reader-abstract-bg ${getReaderBgClass()}`} />
       ) : (
@@ -522,14 +581,12 @@ export default function Reader() {
         <div className="flex items-center gap-3">
           <Link to={canReadFull ? `/b/${book.id}` : '/store'} className="flex items-center gap-1 text-muted-foreground hover:text-foreground text-sm"><ArrowLeft className="w-4 h-4"/>بازگشت</Link>
           <div className="h-5 w-px bg-border mx-1"/>
-          <div className="text-xs text-muted-foreground">
-            <span className="font-bold text-foreground">{currentPage + 1}</span> / {book.pages.length}
-          </div>
+          <button onClick={() => setShowToc(!showToc)} className="p-2 rounded-lg hover:bg-muted transition-colors" title="فهرست"><Menu className="w-5 h-5"/></button>
         </div>
         <div className="text-center hidden sm:block"><h1 className="text-sm font-bold font-display">{book.title}</h1></div>
         <div className="flex items-center gap-2">
           {!canReadFull && <span className="text-xs bg-warning/20 text-warning px-2 py-0.5 rounded-full">پیش‌نمایش</span>}
-          <button onClick={() => setShowToc(!showToc)} className="p-2 rounded-lg hover:bg-muted transition-colors" title="فهرست"><List className="w-5 h-5"/></button>
+          <div className="text-xs text-muted-foreground"><span className="font-bold text-foreground">{currentPage + 1}</span> / {book.pages.length}</div>
         </div>
       </div>
 
@@ -545,7 +602,14 @@ export default function Reader() {
 
         {/* Main Content */}
         <div className="reader-main min-w-0 w-full flex-1 max-w-3xl mx-auto px-4 sm:px-8 py-10 pb-32" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
-          <div ref={contentRef} className="mb-10 min-h-[65vh]" onMouseUp={captureSelection}>
+          <div
+            ref={contentRef}
+            className={`reader-content-protected mb-10 min-h-[65vh] ${highlightActive ? `reader-highlight-mode reader-highlight-${selectedHighlightColor}` : ''}`}
+            onPointerDown={startHighlightStroke}
+            onPointerMove={moveHighlightStroke}
+            onPointerUp={finishHighlightStroke}
+            onPointerCancel={() => { highlightStartRef.current = null; window.getSelection()?.removeAllRanges() }}
+          >
             {/* Highlights bar */}
             {pageHighlights.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-6">
@@ -570,8 +634,11 @@ export default function Reader() {
 
       {/* Floating Toolbar */}
       <div className="reader-floating-toolbar menu-glass-70">
+        <button onClick={()=>setShowToc(!showToc)} className="p-2 rounded-lg hover:bg-muted text-muted-foreground" title="فهرست مطالب"><List className="w-4 h-4"/></button>
+        <div className="w-px h-6 bg-border mx-1"/>
         {/* Reading controls */}
-        {[12,14,18,22,28].map(sz=><button key={sz} title={`اندازه فونت ${sz}`} onClick={()=>setFontSize(sz)} className={`px-2 py-1 rounded-lg text-xs font-bold transition-colors ${fontSize===sz?'bg-primary text-primary-foreground':'hover:bg-muted text-muted-foreground'}`}>A{sz===12?'':sz===28?'+':''}</button>)}
+        <button title="کوچک‌تر کردن نوشته" onClick={()=>setFontSize(size => Math.max(12, size - 2))} disabled={fontSize <= 12} className="p-2 rounded-lg hover:bg-muted text-muted-foreground disabled:opacity-35"><Minus className="w-4 h-4"/></button>
+        <button title="بزرگ‌تر کردن نوشته" onClick={()=>setFontSize(size => Math.min(28, size + 2))} disabled={fontSize >= 28} className="p-2 rounded-lg hover:bg-muted text-muted-foreground disabled:opacity-35"><Plus className="w-4 h-4"/></button>
         <div className="w-px h-6 bg-border mx-1"/>
         <button onClick={()=>setReadingMode(readingMode==='day'?'sepia':readingMode==='sepia'?'night':'day')} className="p-2 rounded-lg hover:bg-muted text-muted-foreground" title="حالت مطالعه">
           {readingMode==='day'?<Sun className="w-4 h-4"/>:readingMode==='night'?<Moon className="w-4 h-4"/>:<Sun className="w-4 h-4 text-amber-500"/>}
@@ -592,8 +659,6 @@ export default function Reader() {
         <div className="w-px h-6 bg-border mx-1"/>
         {/* AI (single icon) */}
         <button onClick={()=>setShowAiPanel(!showAiPanel)} className="p-2 rounded-lg hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors" title="دستیار هوش مصنوعی"><Sparkles className="w-4 h-4"/></button>
-        {/* TOC toggle */}
-        <button onClick={()=>setShowToc(!showToc)} className="p-2 rounded-lg hover:bg-muted text-muted-foreground" title="فهرست مطالب"><List className="w-4 h-4"/></button>
       </div>
 
       {/* Highlight Color Menu */}
