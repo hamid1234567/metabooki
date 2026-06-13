@@ -11,7 +11,15 @@ import { runAiThroughGateway, type AiStructuredContent, type ReaderAiAction, typ
 import { supabase } from '@/integrations/supabase/client'
 
 type HighlightColor = 'yellow' | 'green' | 'red'
-type HighlightEntry = { id: string; text: string; color: HighlightColor; pageIndex: number; blockKey?: string }
+type HighlightEntry = {
+  id: string
+  text: string
+  color: HighlightColor
+  pageIndex: number
+  blockKey?: string
+  startOffset?: number
+  endOffset?: number
+}
 type ReaderBackground = 'abstract' | 'image'
 
 const highlightColors: Record<HighlightColor, { label: string; className: string; swatch: string }> = {
@@ -96,13 +104,18 @@ export default function Reader() {
         (supabase as any).from('reader_highlights').select('*').eq('user_id', user.id).eq('book_key', book.id).order('created_at'),
         (supabase as any).from('reader_states').select('*').eq('user_id', user.id).eq('book_key', book.id).maybeSingle(),
       ])
-      const remoteHighlights = (savedHighlights || []).map((item: any) => ({
-        id: item.id,
-        text: item.text_content,
-        color: item.color,
-        pageIndex: item.page_index,
-        blockKey: typeof item.source === 'string' && item.source.startsWith('selection|') ? item.source.slice('selection|'.length) : undefined,
-      }))
+      const remoteHighlights = (savedHighlights || []).map((item: any) => {
+        const sourceParts = typeof item.source === 'string' ? item.source.split('|') : []
+        return {
+          id: item.id,
+          text: item.text_content,
+          color: item.color,
+          pageIndex: item.page_index,
+          blockKey: sourceParts[0] === 'selection' && sourceParts[1] ? decodeURIComponent(sourceParts[1]) : undefined,
+          startOffset: sourceParts[2] !== undefined ? Number(sourceParts[2]) : undefined,
+          endOffset: sourceParts[3] !== undefined ? Number(sourceParts[3]) : undefined,
+        }
+      })
       setHighlights(current => {
         const merged = new Map([...current, ...remoteHighlights].map(item => [item.id, item]))
         return [...merged.values()]
@@ -180,13 +193,11 @@ export default function Reader() {
   }
 
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (highlightActive) return
     if (e.touches.length !== 1) return
     touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, time: Date.now() }
   }
 
   const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (highlightActive) return
     const start = touchStartRef.current
     touchStartRef.current = null
     if (!start || e.changedTouches.length !== 1) return
@@ -227,6 +238,13 @@ export default function Reader() {
     return element?.closest<HTMLElement>('[data-reader-text="true"]') || null
   }
 
+  const getOffsetWithinBlock = (block: HTMLElement, node: Node, offset: number) => {
+    const range = document.createRange()
+    range.selectNodeContents(block)
+    range.setEnd(node, offset)
+    return range.toString().length
+  }
+
   const drawHighlightRange = (end: { node: Node; offset: number }, commit = false) => {
     const start = highlightStartRef.current
     const endBlock = getHighlightBlock(end.node)
@@ -246,17 +264,18 @@ export default function Reader() {
     selection?.removeAllRanges()
     selection?.addRange(range)
     if (!commit) return
-    const text = range.toString().trim()
+    const startOffset = getOffsetWithinBlock(start.block, range.startContainer, range.startOffset)
+    const endOffset = getOffsetWithinBlock(start.block, range.endContainer, range.endOffset)
+    const text = range.toString()
     selection?.removeAllRanges()
     highlightStartRef.current = null
-    if (text) {
-      addHighlight(selectedHighlightColor, text, 'selection', start.block.dataset.readerBlock)
-      setHighlightActive(false)
+    if (text.trim()) {
+      addHighlight(selectedHighlightColor, text, 'selection', start.block.dataset.readerBlock, startOffset, endOffset)
     }
   }
 
   const startHighlightStroke = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!highlightActive || (e.target as HTMLElement).closest('button,a,input,textarea,select,audio,[data-no-swipe="true"]')) return
+    if ((e.target as HTMLElement).closest('button,a,input,textarea,select,audio,[data-no-swipe="true"]')) return
     const caret = caretAtPoint(e.clientX, e.clientY)
     const block = caret ? getHighlightBlock(caret.node) : null
     if (!caret || !block || !contentRef.current?.contains(caret.node)) return
@@ -264,6 +283,7 @@ export default function Reader() {
     highlightHoldTimerRef.current = setTimeout(() => {
       if (!highlightStartRef.current) return
       highlightStartRef.current.drawing = true
+      setHighlightActive(true)
       setHighlightHolding(true)
       e.currentTarget.setPointerCapture(e.pointerId)
     }, 2000)
@@ -271,7 +291,7 @@ export default function Reader() {
 
   const moveHighlightStroke = (e: React.PointerEvent<HTMLDivElement>) => {
     const start = highlightStartRef.current
-    if (!highlightActive || !start) return
+    if (!start) return
     const dx = Math.abs(e.clientX - start.x)
     const dy = Math.abs(e.clientY - start.y)
     if (!start.drawing && Math.max(dx, dy) > 8) {
@@ -289,7 +309,7 @@ export default function Reader() {
   const finishHighlightStroke = (e: React.PointerEvent<HTMLDivElement>) => {
     if (highlightHoldTimerRef.current) clearTimeout(highlightHoldTimerRef.current)
     setHighlightHolding(false)
-    if (!highlightActive || !highlightStartRef.current?.drawing) {
+    if (!highlightStartRef.current?.drawing) {
       highlightStartRef.current = null
       window.getSelection()?.removeAllRanges()
       return
@@ -301,7 +321,6 @@ export default function Reader() {
 
   const chooseHighlightColor = (color: HighlightColor) => {
     setSelectedHighlightColor(color)
-    setHighlightActive(true)
     localStorage.setItem(`metabooki_highlight_color_${user?.id || user?.mockData?.id || 'guest'}_${book.id}`, color)
     if (user?.mockData) return setShowHighlightMenu(false)
     else if (user) (supabase as any).from('reader_states').upsert({ user_id: user.id, book_key: book.id, current_page: currentPage, total_pages: book.pages.length, background: readerBackground, highlight_color: color, updated_at: new Date().toISOString() }).then(() => {})
@@ -316,7 +335,7 @@ export default function Reader() {
     else if (user) (supabase as any).from('reader_states').upsert({ user_id: user.id, book_key: book.id, current_page: currentPage, total_pages: book.pages.length, background: next, highlight_color: selectedHighlightColor, updated_at: new Date().toISOString() }).then(() => {})
   }
 
-  const addHighlight = (color: HighlightColor, text: string, source: 'selection' | 'ai' = 'selection', blockKey?: string) => {
+  const addHighlight = (color: HighlightColor, text: string, source: 'selection' | 'ai' = 'selection', blockKey?: string, startOffset?: number, endOffset?: number) => {
     if (!text) return
     const newHL: HighlightEntry = {
       id: crypto.randomUUID(),
@@ -324,11 +343,16 @@ export default function Reader() {
       color,
       pageIndex: currentPage,
       blockKey,
+      startOffset,
+      endOffset,
     }
     const updated = [...highlights, newHL]
     setHighlights(updated)
     saveHighlightsForUser(updated)
-    if (user && !user.mockData) (supabase as any).from('reader_highlights').insert({ id: newHL.id, user_id: user.id, book_key: book.id, page_index: currentPage, text_content: text, color, source: source === 'selection' && blockKey ? `selection|${blockKey}` : source }).then(() => {})
+    const storedSource = source === 'selection' && blockKey
+      ? `selection|${encodeURIComponent(blockKey)}|${startOffset ?? ''}|${endOffset ?? ''}`
+      : source
+    if (user && !user.mockData) (supabase as any).from('reader_highlights').insert({ id: newHL.id, user_id: user.id, book_key: book.id, page_index: currentPage, text_content: text, color, source: storedSource }).then(() => {})
     window.getSelection()?.removeAllRanges()
   }
 
@@ -346,19 +370,25 @@ export default function Reader() {
     const parts: ReactNode[] = []
     let cursor = 0
     const matches = pageItems
-      .map(h => ({ h, index: text.indexOf(h.text, cursor) }))
-      .filter(item => item.index >= 0)
+      .map(h => {
+        const hasPreciseOffsets = Number.isInteger(h.startOffset) && Number.isInteger(h.endOffset) && h.startOffset! >= 0 && h.endOffset! <= text.length && h.endOffset! > h.startOffset!
+        const legacyIndex = text.indexOf(h.text)
+        const legacyIsUnique = legacyIndex >= 0 && legacyIndex === text.lastIndexOf(h.text)
+        const index = hasPreciseOffsets ? h.startOffset! : legacyIsUnique ? legacyIndex : -1
+        return { h, index, end: hasPreciseOffsets ? h.endOffset! : index + h.text.length }
+      })
+      .filter(item => item.index >= 0 && item.end > item.index)
       .sort((a, b) => a.index - b.index)
 
-    matches.forEach(({ h, index }) => {
+    matches.forEach(({ h, index, end }) => {
       if (index < cursor) return
       if (index > cursor) parts.push(text.slice(cursor, index))
       parts.push(
         <mark key={h.id} className={`rounded px-1 ${highlightColors[h.color]?.className || highlightColors.yellow.className}`}>
-          {text.slice(index, index + h.text.length)}
+          {text.slice(index, end)}
         </mark>
       )
-      cursor = index + h.text.length
+      cursor = end
     })
 
     if (cursor < text.length) parts.push(text.slice(cursor))
@@ -706,7 +736,7 @@ export default function Reader() {
         {autoScroll && <label className="reader-scroll-speed" title="سرعت پیمایش خودکار"><span>{autoScrollSpeed}</span><input type="range" min="1" max="6" step="1" value={autoScrollSpeed} onChange={e => setAutoScrollSpeed(Number(e.target.value))}/></label>}
         <div className="w-px h-6 bg-border mx-1"/>
         {/* Highlight */}
-        <button onClick={()=>setShowHighlightMenu(!showHighlightMenu)} className={`p-2 rounded-lg hover:bg-primary/10 transition-colors ${highlightActive ? highlightColors[selectedHighlightColor].className : 'text-muted-foreground hover:text-primary'}`} title="قلم هایلایت / انتخاب رنگ"><Highlighter className="w-4 h-4"/></button>
+        <button onClick={()=>setShowHighlightMenu(!showHighlightMenu)} className={`p-2 rounded-lg hover:bg-primary/10 transition-colors ${highlightColors[selectedHighlightColor].className}`} title="رنگ قلم هایلایت"><Highlighter className="w-4 h-4"/></button>
         <button onClick={()=>setShowHighlights(!showHighlights)} className="relative p-2 rounded-lg hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors" title="لیست هایلایت‌ها">
           <PenTool className="w-4 h-4"/>
           {highlights.length > 0 && <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center">{highlights.length > 99 ? '+99' : highlights.length}</span>}
@@ -725,7 +755,7 @@ export default function Reader() {
             <div>
               <h3 className="font-semibold text-sm flex items-center gap-1.5"><Highlighter className="w-3.5 h-3.5 text-primary"/>قلم هایلایت</h3>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                رنگ فعلی: {highlightColors[selectedHighlightColor].label} — وضعیت: {highlightActive ? 'فعال' : 'غیرفعال'}
+                رنگ فعلی: {highlightColors[selectedHighlightColor].label}
               </p>
             </div>
             <button title="بستن منوی هایلایت" onClick={()=>setShowHighlightMenu(false)} className="p-1 rounded hover:bg-muted"><X className="w-4 h-4"/></button>
@@ -741,13 +771,7 @@ export default function Reader() {
               />
             ))}
           </div>
-          <p className="mb-2 rounded-lg bg-primary/10 px-2.5 py-2 text-[11px] leading-5 text-muted-foreground">برای شروع هایلایت، دو ثانیه روی ابتدای متن نگه دارید و سپس قلم را بکشید. حرکت عادی صفحه همچنان برای اسکرول است.</p>
-          <button
-            onClick={()=>{ setHighlightActive(!highlightActive); setShowHighlightMenu(false) }}
-            className={`w-full rounded-lg py-2 text-xs font-medium ${highlightActive ? 'bg-destructive/15 text-destructive hover:bg-destructive/20' : 'bg-primary/15 text-primary hover:bg-primary/20'}`}
-          >
-            {highlightActive ? 'غیرفعال کردن هایلایت' : 'فعال کردن هایلایت'}
-          </button>
+          <p className="rounded-lg bg-primary/10 px-2.5 py-2 text-[11px] leading-5 text-muted-foreground">روی هر نقطه از متن دو ثانیه نگه دارید تا قلم با همین رنگ فعال شود؛ سپس بدون برداشتن دست روی متن بکشید. برای اسکرول، صفحه را عادی حرکت دهید.</p>
         </div>
       )}
 
