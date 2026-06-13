@@ -21,6 +21,8 @@ type HighlightEntry = {
   endOffset?: number
 }
 type ReaderBackground = 'abstract' | 'image'
+type SearchResult = { page: number; text: string; blockKey: string; offset: number; thumbnail?: string }
+type SearchTarget = { page: number; blockKey: string; query: string; offset: number }
 
 const highlightColors: Record<HighlightColor, { label: string; className: string; swatch: string }> = {
   yellow: { label: 'زرد', className: 'bg-yellow-200 text-yellow-950', swatch: 'bg-yellow-300' },
@@ -51,7 +53,8 @@ export default function Reader() {
   const [highlightActive, setHighlightActive] = useState(false)
   const [selectedHighlightColor, setSelectedHighlightColor] = useState<HighlightColor>('yellow')
   const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<{page: number, text: string}[]>([])
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([])
+  const [searchTarget, setSearchTarget] = useState<SearchTarget | null>(null)
   const [showSearch, setShowSearch] = useState(false)
   const [timelineStep, setTimelineStep] = useState<Record<string, number>>({})
   const [storyStep, setStoryStep] = useState<Record<string, number>>({})
@@ -73,6 +76,8 @@ export default function Reader() {
     drawing: boolean
   } | null>(null)
   const highlightHoldTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const highlightReadyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const highlightReadyUntilRef = useRef(0)
 
   useEffect(() => {
     if (id) {
@@ -143,6 +148,16 @@ export default function Reader() {
     })
     return () => cancelAnimationFrame(frame)
   }, [currentPage, book?.id])
+
+  useEffect(() => {
+    if (!searchTarget || searchTarget.page !== currentPage) return
+    const frame = requestAnimationFrame(() => {
+      const target = contentRef.current?.querySelector<HTMLElement>(`[data-reader-block="${CSS.escape(searchTarget.blockKey)}"]`)
+      target?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      window.setTimeout(() => setSearchTarget(current => current === searchTarget ? null : current), 3200)
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [searchTarget, currentPage])
 
   // Auto scroll - must be before any early returns (Rules of Hooks)
   useEffect(() => {
@@ -271,6 +286,13 @@ export default function Reader() {
     highlightStartRef.current = null
     if (text.trim()) {
       addHighlight(selectedHighlightColor, text, 'selection', start.block.dataset.readerBlock, startOffset, endOffset)
+      highlightReadyUntilRef.current = Date.now() + 3000
+      setHighlightActive(true)
+      if (highlightReadyTimerRef.current) clearTimeout(highlightReadyTimerRef.current)
+      highlightReadyTimerRef.current = setTimeout(() => {
+        highlightReadyUntilRef.current = 0
+        setHighlightActive(false)
+      }, 3000)
     }
   }
 
@@ -280,13 +302,20 @@ export default function Reader() {
     const block = caret ? getHighlightBlock(caret.node) : null
     if (!caret || !block || !contentRef.current?.contains(caret.node)) return
     highlightStartRef.current = { ...caret, block, x: e.clientX, y: e.clientY, drawing: false }
+    if (Date.now() < highlightReadyUntilRef.current) {
+      highlightStartRef.current.drawing = true
+      setHighlightActive(true)
+      setHighlightHolding(true)
+      e.currentTarget.setPointerCapture(e.pointerId)
+      return
+    }
     highlightHoldTimerRef.current = setTimeout(() => {
       if (!highlightStartRef.current) return
       highlightStartRef.current.drawing = true
       setHighlightActive(true)
       setHighlightHolding(true)
       e.currentTarget.setPointerCapture(e.pointerId)
-    }, 2000)
+    }, 1000)
   }
 
   const moveHighlightStroke = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -317,6 +346,13 @@ export default function Reader() {
     const caret = caretAtPoint(e.clientX, e.clientY)
     if (caret) drawHighlightRange(caret, true)
     else highlightStartRef.current = null
+  }
+
+  const cancelHighlightStroke = () => {
+    if (highlightHoldTimerRef.current) clearTimeout(highlightHoldTimerRef.current)
+    highlightStartRef.current = null
+    setHighlightHolding(false)
+    window.getSelection()?.removeAllRanges()
   }
 
   const chooseHighlightColor = (color: HighlightColor) => {
@@ -365,26 +401,28 @@ export default function Reader() {
 
   const renderHighlightedText = (text: string, blockKey: string) => {
     const pageItems = highlights.filter(h => h.pageIndex === currentPage && h.text && h.blockKey === blockKey)
-    if (pageItems.length === 0) return text
-
     const parts: ReactNode[] = []
     let cursor = 0
-    const matches = pageItems
+    const matches: Array<{ h?: HighlightEntry; index: number; end: number; search?: boolean }> = pageItems
       .map(h => {
         const hasPreciseOffsets = Number.isInteger(h.startOffset) && Number.isInteger(h.endOffset) && h.startOffset! >= 0 && h.endOffset! <= text.length && h.endOffset! > h.startOffset!
         const legacyIndex = text.indexOf(h.text)
         const legacyIsUnique = legacyIndex >= 0 && legacyIndex === text.lastIndexOf(h.text)
         const index = hasPreciseOffsets ? h.startOffset! : legacyIsUnique ? legacyIndex : -1
-        return { h, index, end: hasPreciseOffsets ? h.endOffset! : index + h.text.length }
+        return { h, index, end: hasPreciseOffsets ? h.endOffset! : index + h.text.length, search: false }
       })
       .filter(item => item.index >= 0 && item.end > item.index)
-      .sort((a, b) => a.index - b.index)
+    if (searchTarget?.page === currentPage && searchTarget.blockKey === blockKey) {
+      matches.push({ index: searchTarget.offset, end: searchTarget.offset + searchTarget.query.length, search: true })
+    }
+    if (matches.length === 0) return text
+    matches.sort((a, b) => a.index - b.index)
 
-    matches.forEach(({ h, index, end }) => {
+    matches.forEach(({ h, index, end, search }) => {
       if (index < cursor) return
       if (index > cursor) parts.push(text.slice(cursor, index))
       parts.push(
-        <mark key={h.id} className={`rounded px-1 ${highlightColors[h.color]?.className || highlightColors.yellow.className}`}>
+        <mark key={search ? `search-${index}` : h!.id} className={`rounded px-1 ${search ? 'reader-search-flash' : highlightColors[h!.color]?.className || highlightColors.yellow.className}`}>
           {text.slice(index, end)}
         </mark>
       )
@@ -398,17 +436,25 @@ export default function Reader() {
   // Search
   const doSearch = (query = searchQuery) => {
     if (!query.trim()) { setSearchResults([]); return }
-    const results: {page: number, text: string}[] = []
+    const results: SearchResult[] = []
     book.pages.forEach((p, i) => {
-      p.blocks.forEach((b: any) => {
+      const thumbnail = p.blocks.find((block: any) => block.type === 'image' && block.url)?.url
+      p.blocks.forEach((b: any, blockIndex: number) => {
         if (b.content && b.content.includes(query)) {
           const idx = b.content.indexOf(query)
           const start = Math.max(0, idx - 30)
-          results.push({page: i, text: '...' + b.content.slice(start, idx + query.length + 30) + '...'})
+          const blockKey = `p:${blockIndex}:${b.content.length}:${b.content.slice(0, 16)}`
+          results.push({page: i, text: '...' + b.content.slice(start, idx + query.length + 30) + '...', blockKey, offset: idx, thumbnail})
         }
       })
     })
     setSearchResults(results)
+  }
+
+  const openSearchResult = (result: SearchResult) => {
+    setSearchTarget({ page: result.page, blockKey: result.blockKey, query: searchQuery, offset: result.offset })
+    goPage(result.page)
+    setShowSearch(false)
   }
 
   const blockToPlainText = (block: any): string => {
@@ -704,7 +750,8 @@ export default function Reader() {
             onPointerDown={startHighlightStroke}
             onPointerMove={moveHighlightStroke}
             onPointerUp={finishHighlightStroke}
-            onPointerCancel={() => { if (highlightHoldTimerRef.current) clearTimeout(highlightHoldTimerRef.current); highlightStartRef.current = null; setHighlightHolding(false); window.getSelection()?.removeAllRanges() }}
+            onPointerCancel={cancelHighlightStroke}
+            onContextMenu={e => e.preventDefault()}
           >
             {page.blocks.map((block:any,i:number)=>renderBlock(block,i))}
           </div>
@@ -771,7 +818,7 @@ export default function Reader() {
               />
             ))}
           </div>
-          <p className="rounded-lg bg-primary/10 px-2.5 py-2 text-[11px] leading-5 text-muted-foreground">روی هر نقطه از متن دو ثانیه نگه دارید تا قلم با همین رنگ فعال شود؛ سپس بدون برداشتن دست روی متن بکشید. برای اسکرول، صفحه را عادی حرکت دهید.</p>
+          <p className="rounded-lg bg-primary/10 px-2.5 py-2 text-[11px] leading-5 text-muted-foreground">روی متن یک ثانیه نگه دارید و سپس بدون برداشتن دست قلم را بکشید. پس از هر هایلایت، قلم تا سه ثانیه آماده است و هایلایت بعدی بدون مکث شروع می‌شود.</p>
         </div>
       )}
 
@@ -816,7 +863,7 @@ export default function Reader() {
           <div className="flex items-center gap-2 mb-3"><Search className="w-4 h-4 text-muted-foreground"/><input value={searchQuery} onChange={e=>{const query=e.target.value;setSearchQuery(query);doSearch(query)}} placeholder="جستجو در کتاب..." className="flex-1 bg-transparent border-none outline-none text-sm"/><button title="بستن جستجو" onClick={()=>setShowSearch(false)} className="p-1 rounded hover:bg-muted"><X className="w-4 h-4"/></button></div>
           {searchResults.length > 0 ? (
             <div className="space-y-2 max-h-64 overflow-y-auto">
-              {searchResults.map((r,i)=>(<button key={i} onClick={()=>{goPage(r.page);setShowSearch(false)}} className="w-full text-right p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors text-sm"><p className="text-xs text-primary font-bold mb-1">صفحه {r.page+1}</p><p className="text-xs">{r.text}</p></button>))}
+              {searchResults.map((r,i)=>(<button key={i} onClick={()=>openSearchResult(r)} className="reader-search-result w-full text-right p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors text-sm">{r.thumbnail && <img src={r.thumbnail} alt="" loading="lazy"/>}<span className="min-w-0"><p className="text-xs text-primary font-bold mb-1">صفحه {r.page+1}</p><p className="text-xs">{r.text}</p></span></button>))}
             </div>
           ) : searchQuery ? <p className="text-sm text-muted-foreground text-center py-4">نتیجه‌ای یافت نشد</p> : <p className="text-sm text-muted-foreground text-center py-4">عبارت مورد نظر را جستجو کنید</p>}
         </div>

@@ -567,12 +567,6 @@ body {
   touch-action: pan-y;
 }
 
-.reader-highlight-mode [data-reader-text="true"],
-.reader-highlight-mode [data-reader-text="true"] * {
-  -webkit-user-select: text !important;
-  user-select: text !important;
-}
-
 .reader-highlight-holding [data-reader-text="true"] {
   outline: 2px dashed hsl(var(--primary) / 0.5);
   outline-offset: 0.35rem;
@@ -581,6 +575,37 @@ body {
 .reader-highlight-yellow ::selection { background: hsl(48 96% 70% / 0.7); color: inherit; }
 .reader-highlight-green ::selection { background: hsl(142 70% 70% / 0.7); color: inherit; }
 .reader-highlight-red ::selection { background: hsl(0 82% 76% / 0.7); color: inherit; }
+
+.reader-search-result {
+  display: grid;
+  grid-template-columns: 3.25rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.reader-search-result:not(:has(img)) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.reader-search-result img {
+  width: 3.25rem;
+  height: 3.75rem;
+  border-radius: 0.5rem;
+  object-fit: cover;
+}
+
+.reader-search-flash {
+  background: hsl(48 100% 62%);
+  color: hsl(35 90% 18%);
+  animation: readerSearchFlash 650ms ease-in-out 4;
+}
+
+@keyframes readerSearchFlash {
+  50% {
+    background: hsl(var(--primary) / 0.14);
+    box-shadow: 0 0 0 0.4rem hsl(var(--primary) / 0.12);
+  }
+}
 
 [data-theme="midnight"] .reader-image-bg {
   background: radial-gradient(circle at 8% 8%, hsl(210 65% 32% / 0.12), transparent 30%);

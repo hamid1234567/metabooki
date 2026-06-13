@@ -1,4 +1,4 @@
-const APP_VERSION = '1.0.12'
+const APP_VERSION = '1.0.13'
 const CACHE_NAME = `metabooki-${APP_VERSION}`
 
 const PRECACHE_URLS = [
@@ -22,13 +22,6 @@ self.addEventListener('activate', (event) => {
     caches.keys()
       .then((cacheNames) => Promise.all(cacheNames.filter((name) => name !== CACHE_NAME).map((name) => caches.delete(name))))
       .then(() => self.clients.claim())
-      .then(() => self.clients.matchAll({ type: 'window' }))
-      .then((clients) => Promise.all(clients.map((client) => {
-        const url = new URL(client.url)
-        if (url.searchParams.get('appVersion') === APP_VERSION) return
-        url.searchParams.set('appVersion', APP_VERSION)
-        return client.navigate(url.toString())
-      })))
   )
 })
 
