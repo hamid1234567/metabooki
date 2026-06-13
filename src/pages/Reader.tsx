@@ -24,6 +24,7 @@ type ReaderBackground = 'abstract' | 'image'
 type SearchResult = { page: number; text: string; blockKey: string; offset: number; thumbnail?: string }
 type SearchTarget = { page: number; blockKey: string; query: string; offset: number }
 type HighlightDraft = { blockKey: string; startOffset: number; endOffset: number; color: HighlightColor }
+type HighlightIndicator = { x: number; y: number; pointerType: string }
 
 const highlightColors: Record<HighlightColor, { label: string; className: string; swatch: string }> = {
   yellow: { label: 'زرد', className: 'bg-yellow-200 text-yellow-950', swatch: 'bg-yellow-300' },
@@ -67,6 +68,7 @@ export default function Reader() {
   const [autoScrollSpeed, setAutoScrollSpeed] = useState(2)
   const [highlightHolding, setHighlightHolding] = useState(false)
   const [highlightDraft, setHighlightDraft] = useState<HighlightDraft | null>(null)
+  const [highlightIndicator, setHighlightIndicator] = useState<HighlightIndicator | null>(null)
   const contentRef = useRef<HTMLDivElement>(null)
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null)
   const highlightStartRef = useRef<{
@@ -313,7 +315,12 @@ export default function Reader() {
       highlightReadyTimerRef.current = setTimeout(() => {
         highlightReadyUntilRef.current = 0
         setHighlightActive(false)
+        setHighlightIndicator(null)
       }, 3000)
+    } else {
+      highlightReadyUntilRef.current = 0
+      setHighlightActive(false)
+      setHighlightIndicator(null)
     }
   }
 
@@ -329,6 +336,7 @@ export default function Reader() {
       highlightStartRef.current.drawing = true
       setHighlightActive(true)
       setHighlightHolding(true)
+      setHighlightIndicator({ x: e.clientX, y: e.clientY, pointerType: e.pointerType })
       e.currentTarget.setPointerCapture(e.pointerId)
       return
     }
@@ -337,6 +345,7 @@ export default function Reader() {
       highlightStartRef.current.drawing = true
       setHighlightActive(true)
       setHighlightHolding(true)
+      setHighlightIndicator({ x: e.clientX, y: e.clientY, pointerType: e.pointerType })
       e.currentTarget.setPointerCapture(e.pointerId)
     }, 1000)
   }
@@ -349,6 +358,7 @@ export default function Reader() {
     if (!start.drawing && Math.max(dx, dy) > 8) {
       if (highlightHoldTimerRef.current) clearTimeout(highlightHoldTimerRef.current)
       highlightStartRef.current = null
+      setHighlightIndicator(null)
       window.getSelection()?.removeAllRanges()
       return
     }
@@ -368,7 +378,10 @@ export default function Reader() {
       return
     }
     const caret = caretAtPoint(e.clientX, e.clientY)
-    if (caret) drawHighlightRange(caret, true)
+    if (caret) {
+      setHighlightIndicator({ x: e.clientX, y: e.clientY, pointerType: e.pointerType })
+      drawHighlightRange(caret, true)
+    }
     else highlightStartRef.current = null
   }
 
@@ -377,6 +390,9 @@ export default function Reader() {
     highlightStartRef.current = null
     setHighlightHolding(false)
     setHighlightDraft(null)
+    setHighlightIndicator(null)
+    highlightReadyUntilRef.current = 0
+    setHighlightActive(false)
     window.getSelection()?.removeAllRanges()
   }
 
@@ -738,6 +754,15 @@ export default function Reader() {
         <div className={`reader-abstract-bg ${getReaderBgClass()}`} />
       ) : (
         <div className="reader-image-bg" style={{ ['--reader-bg-image' as string]: `url("${book.cover_url}")` }} />
+      )}
+      {highlightActive && highlightIndicator && (
+        <div
+          className={`reader-highlight-indicator ${highlightIndicator.pointerType === 'touch' ? 'is-touch' : 'is-pointer'} ${highlightColors[selectedHighlightColor].className}`}
+          style={{ left: highlightIndicator.x, top: highlightIndicator.y }}
+          aria-hidden="true"
+        >
+          <Highlighter className="w-4 h-4"/>
+        </div>
       )}
       {(showToc || showSearch || showAiPanel || showHighlights || showHighlightMenu) && (
         <div
