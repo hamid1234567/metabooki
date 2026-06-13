@@ -23,6 +23,7 @@ type HighlightEntry = {
 type ReaderBackground = 'abstract' | 'image'
 type SearchResult = { page: number; text: string; blockKey: string; offset: number; thumbnail?: string }
 type SearchTarget = { page: number; blockKey: string; query: string; offset: number }
+type HighlightDraft = { blockKey: string; startOffset: number; endOffset: number; color: HighlightColor }
 
 const highlightColors: Record<HighlightColor, { label: string; className: string; swatch: string }> = {
   yellow: { label: 'زرد', className: 'bg-yellow-200 text-yellow-950', swatch: 'bg-yellow-300' },
@@ -65,6 +66,7 @@ export default function Reader() {
   const [autoScroll, setAutoScroll] = useState(false)
   const [autoScrollSpeed, setAutoScrollSpeed] = useState(2)
   const [highlightHolding, setHighlightHolding] = useState(false)
+  const [highlightDraft, setHighlightDraft] = useState<HighlightDraft | null>(null)
   const contentRef = useRef<HTMLDivElement>(null)
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null)
   const highlightStartRef = useRef<{
@@ -293,14 +295,15 @@ export default function Reader() {
     } catch {
       return
     }
-    const selection = window.getSelection()
-    selection?.removeAllRanges()
-    selection?.addRange(range)
-    if (!commit) return
+    window.getSelection()?.removeAllRanges()
+    if (!commit) {
+      setHighlightDraft({ blockKey: start.blockKey, startOffset: from, endOffset: to, color: selectedHighlightColor })
+      return
+    }
     const startOffset = from
     const endOffset = to
     const text = range.toString()
-    selection?.removeAllRanges()
+    setHighlightDraft(null)
     highlightStartRef.current = null
     if (text.trim()) {
       addHighlight(selectedHighlightColor, text, 'selection', start.blockKey, startOffset, endOffset)
@@ -360,6 +363,7 @@ export default function Reader() {
     setHighlightHolding(false)
     if (!highlightStartRef.current?.drawing) {
       highlightStartRef.current = null
+      setHighlightDraft(null)
       window.getSelection()?.removeAllRanges()
       return
     }
@@ -372,6 +376,7 @@ export default function Reader() {
     if (highlightHoldTimerRef.current) clearTimeout(highlightHoldTimerRef.current)
     highlightStartRef.current = null
     setHighlightHolding(false)
+    setHighlightDraft(null)
     window.getSelection()?.removeAllRanges()
   }
 
@@ -423,7 +428,7 @@ export default function Reader() {
     const pageItems = highlights.filter(h => h.pageIndex === currentPage && h.text && h.blockKey === blockKey)
     const parts: ReactNode[] = []
     let cursor = 0
-    const matches: Array<{ h?: HighlightEntry; index: number; end: number; search?: boolean }> = pageItems
+    const matches: Array<{ h?: HighlightEntry; index: number; end: number; search?: boolean; draft?: HighlightDraft }> = pageItems
       .map(h => {
         const hasPreciseOffsets = Number.isInteger(h.startOffset) && Number.isInteger(h.endOffset) && h.startOffset! >= 0 && h.endOffset! <= text.length && h.endOffset! > h.startOffset!
         const legacyIndex = text.indexOf(h.text)
@@ -435,14 +440,17 @@ export default function Reader() {
     if (searchTarget?.page === currentPage && searchTarget.blockKey === blockKey) {
       matches.push({ index: searchTarget.offset, end: searchTarget.offset + searchTarget.query.length, search: true })
     }
+    if (highlightDraft?.blockKey === blockKey && highlightDraft.endOffset > highlightDraft.startOffset) {
+      matches.push({ index: highlightDraft.startOffset, end: highlightDraft.endOffset, draft: highlightDraft })
+    }
     if (matches.length === 0) return text
     matches.sort((a, b) => a.index - b.index)
 
-    matches.forEach(({ h, index, end, search }) => {
+    matches.forEach(({ h, index, end, search, draft }) => {
       if (index < cursor) return
       if (index > cursor) parts.push(text.slice(cursor, index))
       parts.push(
-        <mark key={search ? `search-${index}` : h!.id} className={`rounded px-1 ${search ? 'reader-search-flash' : highlightColors[h!.color]?.className || highlightColors.yellow.className}`}>
+        <mark key={search ? `search-${index}` : draft ? `draft-${index}-${end}` : h!.id} className={`rounded px-1 ${search ? 'reader-search-flash' : draft ? `${highlightColors[draft.color].className} reader-highlight-draft` : highlightColors[h!.color]?.className || highlightColors.yellow.className}`}>
           {text.slice(index, end)}
         </mark>
       )
@@ -844,7 +852,7 @@ export default function Reader() {
 
       {/* Highlights List Panel */}
       {showHighlights && (
-        <div className={sidePanelClass}>
+        <div className={`${sidePanelClass} reader-highlights-panel`}>
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold flex items-center gap-2"><PenTool className="w-4 h-4 text-primary"/>لیست هایلایت‌های من</h3>
             <button title="بستن لیست هایلایت‌ها" onClick={()=>setShowHighlights(false)} className="p-1 rounded hover:bg-muted"><X className="w-4 h-4"/></button>
@@ -852,7 +860,7 @@ export default function Reader() {
           {highlights.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-6">هنوز هایلایتی ثبت نشده است.</p>
           ) : (
-            <div className="space-y-2 max-h-80 overflow-y-auto">
+            <div className="reader-highlights-list space-y-2">
               {highlights.map(hl => (
                 <div key={hl.id} className="rounded-xl bg-muted/40 p-3 border border-border/60">
                   <div className="flex items-start justify-between gap-2">
