@@ -8,12 +8,15 @@ import { I18nProvider } from './lib/i18n'
 import { ThemeProvider } from './lib/theme'
 import { AuthProvider } from './lib/auth-context'
 import App from './App'
+import { refreshVersionedCaches } from './lib/version-cache'
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: { retry: 1, staleTime: 30000, refetchOnWindowFocus: false },
   },
 })
+
+await refreshVersionedCaches()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -31,3 +34,9 @@ createRoot(document.getElementById('root')!).render(
     </HashRouter>
   </StrictMode>,
 )
+
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then(registration => registration.update()).catch(() => {})
+  })
+}

@@ -9,6 +9,7 @@ import { creditsBus } from '@/lib/credits-bus'
 import metabookiMark from '@/assets/metabooki-mark.png'
 import { useCredits } from '@/hooks/useCredits'
 import { useRoles } from '@/hooks/useRoles'
+import { APP_VERSION } from '@/lib/version'
 
 export function Navbar() {
   const { user, signOut } = useAuthContext()
@@ -59,6 +60,7 @@ export function Navbar() {
           <Link to="/" className="brand-lockup shrink-0">
             <img src={metabookiMark} alt="Metabooki" className="h-9 w-auto max-w-16 object-contain" />
             <span className="hidden sm:inline">متابوکی</span>
+            <span className="app-version-chip">v{APP_VERSION}</span>
           </Link>
 
           <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
@@ -128,6 +130,10 @@ export function Navbar() {
           <div className="mobile-menu-actions">
             <Button variant="outline" size="sm" onClick={() => setLang(lang === 'fa' ? 'en' : 'fa')} className="gap-2"><Languages className="w-4 h-4" />{lang === 'fa' ? 'English' : 'فارسی'}</Button>
             <Button variant="outline" size="sm" onClick={cycleTheme} className="gap-2">{theme === 'midnight' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}تم</Button>
+          </div>
+          <div className="nav-version-status">
+            <span>نسخه همگام‌شده</span>
+            <b>v{APP_VERSION}</b>
           </div>
         </div>
       )}
