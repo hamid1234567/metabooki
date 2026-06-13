@@ -38,7 +38,6 @@ export default function Reader() {
   const [quizAnswers, setQuizAnswers] = useState<Record<string, number>>({})
   const [highlights, setHighlights] = useState<HighlightEntry[]>([])
   const [showHighlights, setShowHighlights] = useState(false)
-  const [selectedText, setSelectedText] = useState('')
   const [showHighlightMenu, setShowHighlightMenu] = useState(false)
   const [highlightActive, setHighlightActive] = useState(false)
   const [selectedHighlightColor, setSelectedHighlightColor] = useState<HighlightColor>('yellow')
@@ -270,7 +269,7 @@ export default function Reader() {
     else if (user) (supabase as any).from('reader_states').upsert({ user_id: user.id, book_key: book.id, current_page: currentPage, total_pages: book.pages.length, background: next, highlight_color: selectedHighlightColor, updated_at: new Date().toISOString() }).then(() => {})
   }
 
-  const addHighlight = (color: HighlightColor, text = selectedText) => {
+  const addHighlight = (color: HighlightColor, text: string, source: 'selection' | 'ai' = 'selection') => {
     if (!text || !user) return
     const newHL: HighlightEntry = {
       id: crypto.randomUUID(),
@@ -281,8 +280,7 @@ export default function Reader() {
     const updated = [...highlights, newHL]
     setHighlights(updated)
     if (user.mockData) saveHighlightsForUser(updated)
-    else (supabase as any).from('reader_highlights').insert({ id: newHL.id, user_id: user.id, book_key: book.id, page_index: currentPage, text_content: text, color, source: text === selectedText ? 'selection' : 'ai' }).then(() => {})
-    setSelectedText('')
+    else (supabase as any).from('reader_highlights').insert({ id: newHL.id, user_id: user.id, book_key: book.id, page_index: currentPage, text_content: text, color, source }).then(() => {})
     window.getSelection()?.removeAllRanges()
   }
 
@@ -770,7 +768,7 @@ export default function Reader() {
           ) : (
             <div className="animate-fade-in">
               <div className="bg-muted/35 rounded-xl p-4 mb-3 max-h-[55vh] overflow-y-auto">{renderAiResult(aiResult)}</div>
-              {aiResult.type === 'quiz' ? <Button size="sm" onClick={() => runAi('quiz')} className="w-full">تولید سؤال بعدی</Button> : <Button size="sm" variant="outline" onClick={() => addHighlight(selectedHighlightColor, aiContentAsText(aiResult))} className="w-full gap-2"><Highlighter className="w-4 h-4"/>افزودن خروجی به هایلایت‌ها</Button>}
+              {aiResult.type === 'quiz' ? <Button size="sm" onClick={() => runAi('quiz')} className="w-full">تولید سؤال بعدی</Button> : <Button size="sm" variant="outline" onClick={() => addHighlight(selectedHighlightColor, aiContentAsText(aiResult), 'ai')} className="w-full gap-2"><Highlighter className="w-4 h-4"/>افزودن خروجی به هایلایت‌ها</Button>}
               {aiUsage && <p className="mt-3 text-center text-[11px] text-muted-foreground">{aiUsage.chargedCredits.toLocaleString('fa-IR')} کردیت کسر شد</p>}
             </div>
           )}
