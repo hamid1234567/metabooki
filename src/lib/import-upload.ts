@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase } from '@/integrations/supabase/client'
 import { createPublisherBook } from '@/lib/publisher-books'
 import { analysisToReaderPages } from '@/lib/import-document'
@@ -19,10 +20,18 @@ function hasSupabase() {
 async function uploadChunked(userId: string, projectId: string, file: File, onProgress: (progress: UploadProgress) => void) {
   const storage = (supabase as any).storage
   const chunkCount = Math.ceil(file.size / CHUNK_SIZE)
+  const folder = `${userId}/${projectId}/source`
+  const { data: existing } = await storage.from('book-imports').list(folder, { limit: Math.min(1000, chunkCount) })
+  const uploadedNames = new Set((existing || []).map((item: { name: string }) => item.name))
   for (let index = 0; index < chunkCount; index += 1) {
     const start = index * CHUNK_SIZE
     const end = Math.min(file.size, start + CHUNK_SIZE)
-    const path = `${userId}/${projectId}/source/${String(index).padStart(6, '0')}.part`
+    const name = `${String(index).padStart(6, '0')}.part`
+    const path = `${folder}/${name}`
+    if (uploadedNames.has(name)) {
+      onProgress({ uploaded: end, total: file.size, percent: Math.round(end / file.size * 85), label: `بخش ${index + 1} قبلاً ارسال شده بود` })
+      continue
+    }
     const chunk = file.slice(start, end)
     const { error } = await storage.from('book-imports').upload(path, chunk, { upsert: true, contentType: 'application/octet-stream' })
     if (error) throw error
@@ -53,8 +62,9 @@ export async function confirmAndUploadImport(
   const { data: publisher, error: publisherError } = await client.from('publisher_profiles').select('id').eq('user_id', userId).maybeSingle()
   if (publisherError || !publisher) throw publisherError || new Error('پروفایل ناشر برای این حساب پیدا نشد.')
 
-  const { data: importRow, error: importError } = await client.from('book_import_projects').insert({
-    id: project.id,
+  const { data: previousImport } = await client.from('book_import_projects').select('id,book_id').eq('owner_id', userId).eq('source_checksum', project.analysis.checksum).maybeSingle()
+  const { data: importRow, error: importError } = await client.from('book_import_projects').upsert({
+    id: previousImport?.id || project.id,
     owner_id: userId,
     publisher_id: publisher.id,
     title: project.title,
@@ -69,7 +79,7 @@ export async function confirmAndUploadImport(
     complexity_score: project.analysis.complexity.score,
     complexity_grade: project.analysis.complexity.grade,
     estimated_credits: project.analysis.complexity.estimatedCredits,
-  }).select('id').single()
+  }, { onConflict: 'owner_id,source_checksum' }).select('id,book_id').single()
   if (importError) throw importError
 
   await uploadChunked(userId, importRow.id, project.sourceFile, onProgress)
@@ -84,6 +94,13 @@ export async function confirmAndUploadImport(
   const { error: manifestError } = await client.storage.from('book-imports').upload(manifestPath, manifest, { upsert: true, contentType: 'application/json' })
   if (manifestError) throw manifestError
   onProgress({ uploaded: project.sourceFile.size, total: project.sourceFile.size, percent: 92, label: 'ثبت بسته تبدیل و ساخت پیش‌نویس' })
+
+  if (importRow.book_id) {
+    await client.from('book_import_projects').update({ status: 'queued', uploaded_at: new Date().toISOString() }).eq('id', importRow.id)
+    const { data: existingBook } = await client.from('books').select('*').eq('id', importRow.book_id).single()
+    onProgress({ uploaded: project.sourceFile.size, total: project.sourceFile.size, percent: 100, label: 'ارسال قبلی بازیابی شد' })
+    return existingBook
+  }
 
   const { data: book, error: bookError } = await client.from('books').insert({
     title: project.title || project.sourceFile.name.replace(/\.docx$/i, ''),

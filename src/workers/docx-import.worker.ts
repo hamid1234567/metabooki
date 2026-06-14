@@ -22,7 +22,10 @@ function collectText(value: unknown): string {
   if (!value || typeof value !== 'object') return ''
   const record = value as Record<string, unknown>
   if (typeof record['#text'] === 'string') return record['#text']
-  return Object.entries(record).filter(([key]) => key === 'w:t' || key === 'w:tab' || key === 'w:br').map(([, item]) => collectText(item)).join('')
+  return Object.entries(record)
+    .filter(([key]) => key !== ':@' && key !== '#text')
+    .map(([key, item]) => key === 'w:tab' ? '\t' : key === 'w:br' ? '\n' : collectText(item))
+    .join('')
 }
 
 function deepFind(value: unknown, key: string): unknown[] {
@@ -39,8 +42,24 @@ function deepFind(value: unknown, key: string): unknown[] {
 
 function getStyle(node: unknown) {
   const styles = deepFind(node, 'w:pStyle')
-  const first = styles[0] as Record<string, unknown> | undefined
-  return String(first?.['@_w:val'] || first?.['@_val'] || '')
+  return String(findAttribute(styles[0], '@_w:val') || findAttribute(styles[0], '@_val') || '')
+}
+
+function findAttribute(value: unknown, attribute: string): unknown {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = findAttribute(item, attribute)
+      if (found !== undefined) return found
+    }
+  } else if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>
+    if (record[attribute] !== undefined) return record[attribute]
+    for (const item of Object.values(record)) {
+      const found = findAttribute(item, attribute)
+      if (found !== undefined) return found
+    }
+  }
+  return undefined
 }
 
 function headingLevel(style: string) {
@@ -50,16 +69,14 @@ function headingLevel(style: string) {
 
 function hasPageBreak(node: unknown) {
   return deepFind(node, 'w:br').some(item => {
-    const value = item as Record<string, unknown>
-    return value?.['@_w:type'] === 'page' || value?.['@_type'] === 'page'
+    return findAttribute(item, '@_w:type') === 'page' || findAttribute(item, '@_type') === 'page'
   }) || deepFind(node, 'w:lastRenderedPageBreak').length > 0
 }
 
 function relationIds(node: unknown) {
   const ids = new Set<string>()
   for (const item of [...deepFind(node, 'a:blip'), ...deepFind(node, 'v:imagedata')]) {
-    const record = item as Record<string, unknown>
-    const id = record?.['@_r:embed'] || record?.['@_r:id']
+    const id = findAttribute(item, '@_r:embed') || findAttribute(item, '@_r:id')
     if (id) ids.add(String(id))
   }
   return [...ids]

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AlertTriangle, BookOpen, Check, ChevronLeft, CircleGauge, FileSearch, FileText, Image as ImageIcon, ListTree, MonitorSmartphone, RefreshCcw, ShieldCheck, UploadCloud, WandSparkles } from 'lucide-react'
+import { AlertTriangle, Check, ChevronLeft, CircleGauge, FileSearch, ListTree, MonitorSmartphone, RefreshCcw, ShieldCheck, UploadCloud, WandSparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuthContext } from '@/lib/auth-context'
 import { confirmAndUploadImport, type UploadProgress } from '@/lib/import-upload'
