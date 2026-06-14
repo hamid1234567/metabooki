@@ -1,0 +1,12 @@
+{
+  "name": "metabooki-import-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.108.1",
+    "jszip": "^3.10.1"
+  }
+}
