@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 import JSZip from 'jszip'
 import { XMLParser } from 'fast-xml-parser'
-import type { ImportImage, ImportIssue, ImportPage, ImportParagraph, TocEntry, WordImportAnalysis } from '@/lib/word-import-types'
+import type { ImportImage, ImportIssue, ImportPage, ImportParagraph, TocEntry, WordImportAnalysis, WordStyleDefinition } from '@/lib/word-import-types'
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope
 const orderedParser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_', preserveOrder: true })
@@ -67,6 +67,52 @@ function headingLevel(style: string) {
   return match ? Number(match[1]) : 0
 }
 
+function normalizeArray<T>(value: T | T[] | undefined): T[] {
+  if (!value) return []
+  return Array.isArray(value) ? value : [value]
+}
+
+function parseAlignment(value: unknown): WordStyleDefinition['alignment'] {
+  const alignment = String(value || '').toLowerCase()
+  if (alignment === 'both' || alignment === 'distribute') return 'justify'
+  if (alignment === 'right' || alignment === 'left' || alignment === 'center') return alignment
+  return undefined
+}
+
+function parseStyles(stylesXml: string | undefined) {
+  const result = new Map<string, WordStyleDefinition>()
+  if (!stylesXml) return result
+  const parsed = regularParser.parse(stylesXml)
+  const styles = normalizeArray(parsed?.['w:styles']?.['w:style'])
+  for (const raw of styles) {
+    if (raw?.['@_w:type'] !== 'paragraph') continue
+    const id = String(raw?.['@_w:styleId'] || '')
+    if (!id) continue
+    const name = String(raw?.['w:name']?.['@_w:val'] || id)
+    const outlineRaw = raw?.['w:pPr']?.['w:outlineLvl']?.['@_w:val']
+    const outlineLevel = outlineRaw !== undefined ? Number(outlineRaw) : undefined
+    const namedLevel = headingLevel(`${id} ${name}`)
+    const suggestedLevel = namedLevel || (outlineLevel !== undefined && outlineLevel < 6 ? outlineLevel + 1 : null)
+    const sizeRaw = raw?.['w:rPr']?.['w:sz']?.['@_w:val'] || raw?.['w:rPr']?.['w:szCs']?.['@_w:val']
+    result.set(id, {
+      id,
+      name,
+      usedCount: 0,
+      suggestedLevel,
+      selectedLevel: suggestedLevel,
+      titleCandidate: /(^|\s)title($|\s)/i.test(`${id} ${name}`) && !/subtitle/i.test(`${id} ${name}`),
+      basedOn: raw?.['w:basedOn']?.['@_w:val'],
+      outlineLevel,
+      fontSizePt: sizeRaw ? Number(sizeRaw) / 2 : undefined,
+      color: raw?.['w:rPr']?.['w:color']?.['@_w:val'],
+      bold: Boolean(raw?.['w:rPr']?.['w:b']),
+      italic: Boolean(raw?.['w:rPr']?.['w:i']),
+      alignment: parseAlignment(raw?.['w:pPr']?.['w:jc']?.['@_w:val']),
+    })
+  }
+  return result
+}
+
 function hasPageBreak(node: unknown) {
   return deepFind(node, 'w:br').some(item => {
     return findAttribute(item, '@_w:type') === 'page' || findAttribute(item, '@_type') === 'page'
@@ -82,15 +128,29 @@ function relationIds(node: unknown) {
   return [...ids]
 }
 
-function normalizeParagraph(node: unknown, number: number, imageRelations: Map<string, string>): ImportParagraph[] {
+function normalizeParagraph(node: unknown, number: number, imageRelations: Map<string, string>, styles: Map<string, WordStyleDefinition>): ImportParagraph[] {
   const style = getStyle(node)
-  const level = headingLevel(style)
+  const definition = styles.get(style)
+  const level = definition?.selectedLevel || headingLevel(style)
   const text = collectText(node).replace(/\s+\n/g, '\n').trim()
   const blocks: ImportParagraph[] = []
-  if (text) blocks.push({ id: `p-${number}`, type: level ? 'heading' : 'paragraph', text, level: level || undefined, style: style || undefined })
+  if (definition) definition.usedCount += 1
+  const directSize = findAttribute(deepFind(node, 'w:sz')[0], '@_w:val')
+  const directColor = findAttribute(deepFind(node, 'w:color')[0], '@_w:val')
+  const directAlignment = findAttribute(deepFind(node, 'w:jc')[0], '@_w:val')
+  const format: ImportParagraph['format'] = {
+    fontSizePt: directSize ? Number(directSize) / 2 : definition?.fontSizePt,
+    color: String(directColor || definition?.color || '').replace(/^auto$/i, '') || undefined,
+    bold: deepFind(node, 'w:b').length > 0 || definition?.bold,
+    italic: deepFind(node, 'w:i').length > 0 || definition?.italic,
+    alignment: parseAlignment(directAlignment) || definition?.alignment,
+  }
+  if (text) blocks.push({ id: `p-${number}`, type: level ? 'heading' : 'paragraph', text, level: level || undefined, style: style || undefined, format })
   relationIds(node).forEach((relationId, index) => {
     const imageId = imageRelations.get(relationId)
-    if (imageId) blocks.push({ id: `p-${number}-image-${index}`, type: 'image', imageId })
+    const extent = deepFind(node, 'wp:extent')[index]
+    const widthEmu = Number(findAttribute(extent, '@_cx') || findAttribute(extent, '@_wp:cx') || 0)
+    if (imageId) blocks.push({ id: `p-${number}-image-${index}`, type: 'image', imageId, imageWidthPercent: widthEmu ? Math.min(100, Math.max(18, widthEmu / 914400 / 6.5 * 100)) : undefined })
   })
   if (deepFind(node, 'm:oMath').length || deepFind(node, 'm:oMathPara').length) {
     blocks.push({ id: `p-${number}-math`, type: 'math', text: text || 'فرمول استخراج‌شده از Word' })
@@ -127,6 +187,7 @@ async function analyze(file: File): Promise<WordImportAnalysis> {
   if (!documentEntry) throw new Error('ساختار استاندارد Word در فایل پیدا نشد.')
 
   progress(20, 'استخراج ساختار و ارتباط تصاویر')
+  const styles = parseStyles(await zip.file('word/styles.xml')?.async('text'))
   const relationships = new Map<string, string>()
   const relsEntry = zip.file('word/_rels/document.xml.rels')
   if (relsEntry) {
@@ -161,7 +222,7 @@ async function analyze(file: File): Promise<WordImportAnalysis> {
 
   const append = (block: ImportParagraph) => {
     pages[pages.length - 1].blocks.push(block)
-    if (block.type === 'heading' && block.text) toc.push({ id: block.id, title: block.text, level: block.level || 1, page: pages.length, included: true })
+    if (block.type === 'heading' && block.text) toc.push({ id: block.id, title: block.text, level: block.level || 1, page: pages.length, included: true, styleId: block.style })
   }
 
   for (const item of bodyItems.flatMap(value => Array.isArray(value) ? value : [value])) {
@@ -170,7 +231,7 @@ async function analyze(file: File): Promise<WordImportAnalysis> {
     if ('w:p' in record) {
       paragraphNumber += 1
       const node = record['w:p']
-      normalizeParagraph(node, paragraphNumber, imageRelations).forEach(append)
+      normalizeParagraph(node, paragraphNumber, imageRelations, styles).forEach(append)
       if (hasPageBreak(node) && pages.length < 2000) pages.push({ number: pages.length + 1, blocks: [] })
     } else if ('w:tbl' in record) {
       tableNumber += 1
@@ -187,7 +248,8 @@ async function analyze(file: File): Promise<WordImportAnalysis> {
       }))
 
   const paragraphs = contentPages.flatMap(page => page.blocks)
-  if (!toc.length) issues.push({ id: 'missing-toc', code: 'missing-toc', severity: 'warning', message: 'هیچ تیتر استانداردی پیدا نشد؛ استایل Heading را در Word بررسی کنید.', page: 1 })
+  const suggestedTitleBlock = contentPages.flatMap(page => page.blocks).find(block => block.text && styles.get(block.style || '')?.titleCandidate)
+  if (!toc.length) issues.push({ id: 'missing-toc', code: 'missing-toc', severity: 'warning', message: 'تیتر خودکار پیدا نشد؛ از بخش نگاشت Style، استایل‌های فصل را به H1 تا H6 متصل کنید.', page: 1 })
   images.filter(image => image.mimeType === 'image/tiff').forEach((image, index) => issues.push({ id: `image-format-${index}`, code: 'unsupported-image', severity: 'warning', message: `تصویر ${image.name} برای وب باید در سرور تبدیل شود.`, page: 1 }))
   const stats = {
     paragraphs: paragraphs.filter(block => block.type === 'paragraph').length,
@@ -208,6 +270,8 @@ async function analyze(file: File): Promise<WordImportAnalysis> {
     totalPages: contentPages.length,
     previewPages: contentPages.slice(0, 50),
     toc,
+    styles: [...styles.values()].sort((a, b) => b.usedCount - a.usedCount || Number(Boolean(b.suggestedLevel)) - Number(Boolean(a.suggestedLevel)) || a.name.localeCompare(b.name)),
+    suggestedTitle: suggestedTitleBlock?.text,
     issues,
     images,
     stats,

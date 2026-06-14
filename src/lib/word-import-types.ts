@@ -16,6 +16,14 @@ export interface ImportParagraph {
   style?: string
   imageId?: string
   rows?: string[][]
+  format?: {
+    fontSizePt?: number
+    color?: string
+    bold?: boolean
+    italic?: boolean
+    alignment?: 'right' | 'left' | 'center' | 'justify'
+  }
+  imageWidthPercent?: number
 }
 
 export interface ImportPage {
@@ -36,6 +44,23 @@ export interface TocEntry {
   level: number
   page: number
   included: boolean
+  styleId?: string
+}
+
+export interface WordStyleDefinition {
+  id: string
+  name: string
+  usedCount: number
+  suggestedLevel: number | null
+  selectedLevel: number | null
+  titleCandidate: boolean
+  basedOn?: string
+  outlineLevel?: number
+  fontSizePt?: number
+  color?: string
+  bold?: boolean
+  italic?: boolean
+  alignment?: 'right' | 'left' | 'center' | 'justify'
 }
 
 export interface ComplexityAssessment {
@@ -54,6 +79,8 @@ export interface WordImportAnalysis {
   totalPages: number
   previewPages: ImportPage[]
   toc: TocEntry[]
+  styles: WordStyleDefinition[]
+  suggestedTitle?: string
   issues: ImportIssue[]
   images: ImportImage[]
   stats: {

@@ -1,0 +1,42 @@
+import type { WordImportAnalysis } from '@/lib/word-import-types'
+
+export function applyWordStyleMapping(
+  analysis: WordImportAnalysis,
+  styleId: string,
+  selectedLevel: number | null,
+): WordImportAnalysis {
+  const styles = analysis.styles.map(style => style.id === styleId ? { ...style, selectedLevel } : style)
+  const mappedPages = analysis.previewPages.map(page => ({
+    ...page,
+    blocks: page.blocks.map(block => {
+      if (block.style !== styleId || !block.text) return block
+      return {
+        ...block,
+        type: selectedLevel ? 'heading' as const : 'paragraph' as const,
+        level: selectedLevel || undefined,
+      }
+    }),
+  }))
+  const toc = mappedPages.flatMap(page => page.blocks
+    .filter(block => block.type === 'heading' && block.text)
+    .map(block => ({
+      id: block.id,
+      title: block.text || '',
+      level: block.level || 1,
+      page: page.number,
+      included: analysis.toc.find(item => item.id === block.id)?.included ?? true,
+      styleId: block.style,
+    })))
+  return {
+    ...analysis,
+    styles,
+    previewPages: mappedPages,
+    toc,
+    stats: { ...analysis.stats, headings: toc.length },
+    issues: toc.length
+      ? analysis.issues.filter(issue => issue.code !== 'missing-toc')
+      : analysis.issues.some(issue => issue.code === 'missing-toc')
+        ? analysis.issues
+        : [...analysis.issues, { id: 'missing-toc', code: 'missing-toc', severity: 'warning', message: 'برای ساخت فهرست حداقل یک Style را به H1 تا H6 متصل کنید.', page: 1 }],
+  }
+}

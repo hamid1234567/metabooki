@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { useAuthContext } from '@/lib/auth-context'
 import { confirmAndUploadImport, type UploadProgress } from '@/lib/import-upload'
 import { clearExpiredLocalImports, deleteLocalImport, saveLocalImport, updateLocalAnalysis } from '@/lib/local-import-store'
-import { pageText } from '@/lib/import-document'
+import { applyWordStyleMapping } from '@/lib/word-style-mapping'
 import type { LocalImportProject, WordImportAnalysis, ImportWorkerMessage } from '@/lib/word-import-types'
 
 type Stage = 'choose' | 'analyzing' | 'review' | 'uploading' | 'complete'
@@ -24,8 +24,6 @@ export default function Upload() {
   const [progress, setProgress] = useState(0)
   const [progressLabel, setProgressLabel] = useState('')
   const [error, setError] = useState('')
-  const [view, setView] = useState<'print' | 'fluid'>('print')
-  const [activePage, setActivePage] = useState(1)
   const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null)
   const [title, setTitle] = useState('')
   const [author, setAuthor] = useState('')
@@ -44,8 +42,6 @@ export default function Upload() {
   }, [analysis])
 
   useEffect(() => () => Object.values(imageUrls).forEach(URL.revokeObjectURL), [imageUrls])
-
-  const currentPage = analysis?.previewPages.find(page => page.number === activePage) || analysis?.previewPages[0]
 
   const analyze = (selected: File) => {
     workerRef.current?.terminate()
@@ -67,8 +63,7 @@ export default function Upload() {
       } else {
         const result = message.analysis
         setAnalysis(result)
-        setTitle(current => current || selected.name.replace(/\.docx$/i, ''))
-        setActivePage(1)
+        setTitle(current => current || result.suggestedTitle || selected.name.replace(/\.docx$/i, ''))
         setStage('review')
         const project: LocalImportProject = {
           id: result.id, sourceFile: selected, analysis: result,
@@ -92,6 +87,25 @@ export default function Upload() {
     setAnalysis(updated)
     await updateLocalAnalysis(updated.id, updated)
   }
+
+  const mapStyle = async (styleId: string, levelValue: string) => {
+    if (!analysis) return
+    const updated = applyWordStyleMapping(analysis, styleId, levelValue ? Number(levelValue) : null)
+    setAnalysis(updated)
+    await updateLocalAnalysis(updated.id, updated)
+  }
+
+  const scrollToPreviewBlock = (id: string) => {
+    document.getElementById(`preview-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
+
+  const blockStyle = (block: WordImportAnalysis['previewPages'][number]['blocks'][number]): React.CSSProperties => ({
+    color: block.format?.color ? `#${block.format.color}` : undefined,
+    fontSize: block.format?.fontSizePt ? `${Math.min(30, Math.max(11, block.format.fontSizePt))}pt` : undefined,
+    fontWeight: block.format?.bold ? 800 : undefined,
+    fontStyle: block.format?.italic ? 'italic' : undefined,
+    textAlign: block.format?.alignment,
+  })
 
   const confirmUpload = async () => {
     if (!analysis || !file || !user) return
@@ -176,7 +190,7 @@ export default function Upload() {
               </div>
               <div className="word-issues">
                 <h3>موارد نیازمند توجه</h3>
-                {analysis.issues.length ? analysis.issues.map(issue => <button key={issue.id} onClick={() => setActivePage(issue.page)}><AlertTriangle /><span>{issue.message}</span><ChevronLeft /></button>) : <p className="word-ok"><Check />مشکل مهمی در پیش‌نمایش پیدا نشد.</p>}
+                {analysis.issues.length ? analysis.issues.map(issue => <button key={issue.id} onClick={() => document.getElementById(`preview-page-${issue.page}`)?.scrollIntoView({ behavior: 'smooth' })}><AlertTriangle /><span>{issue.message}</span><ChevronLeft /></button>) : <p className="word-ok"><Check />مشکل مهمی در پیش‌نمایش پیدا نشد.</p>}
               </div>
             </div>
             <div className="word-book-meta menu-glass-70">
@@ -188,35 +202,48 @@ export default function Upload() {
             </div>
           </section>
 
+          <section className="word-style-mapper menu-glass-70">
+            <header><div><h3>نگاشت Styleهای Word به ساختار کتاب</h3><p>همه Styleهای استفاده‌شده در فایل را بررسی کنید. هر Style را می‌توانید به متن عادی یا یکی از سطوح H1 تا H6 تبدیل کنید؛ فهرست و پیش‌نمایش بلافاصله به‌روز می‌شوند.</p></div><span>{analysis.styles.filter(style => style.usedCount > 0).length.toLocaleString('fa-IR')} Style استفاده‌شده</span></header>
+            <div className="word-style-list">
+              {analysis.styles.map(style => (
+                <div key={style.id} className={style.usedCount ? 'is-used' : 'is-available'}>
+                  <span className="word-style-sample" style={{ fontSize: style.fontSizePt ? `${Math.min(22, style.fontSizePt)}px` : undefined, color: style.color ? `#${style.color}` : undefined, fontWeight: style.bold ? 800 : undefined }}>{style.name}</span>
+                  <span className="word-style-id">{style.id}</span>
+                  <span className="word-style-count">{style.usedCount ? `${style.usedCount.toLocaleString('fa-IR')} بار استفاده` : 'تعریف‌شده در Word'}</span>
+                  {style.titleCandidate && <span className="word-style-title-badge">پیشنهاد عنوان کتاب</span>}
+                  <select value={style.selectedLevel || ''} onChange={event => mapStyle(style.id, event.target.value)} aria-label={`نگاشت ${style.name}`}>
+                    <option value="">متن عادی</option>
+                    {[1, 2, 3, 4, 5, 6].map(level => <option key={level} value={level}>H{level}</option>)}
+                  </select>
+                </div>
+              ))}
+            </div>
+          </section>
+
           <section className="word-preview-workspace">
             <aside className="word-toc menu-glass-70">
               <div><h3><ListTree />فهرست پیشنهادی</h3><span>{analysis.toc.length.toLocaleString('fa-IR')} عنوان</span></div>
-              {analysis.toc.length ? analysis.toc.map(item => <label key={item.id} style={{ paddingInlineStart: `${Math.min(4, item.level - 1) * 12 + 8}px` }}><input type="checkbox" checked={item.included} onChange={() => toggleToc(item.id)} /><button onClick={() => setActivePage(item.page)}>{item.title}</button><small>{item.page.toLocaleString('fa-IR')}</small></label>) : <p>برای ساخت فهرست بهتر، در Word از Heading استفاده کنید.</p>}
+              {analysis.toc.length ? analysis.toc.map(item => <label key={item.id} style={{ paddingInlineStart: `${Math.min(4, item.level - 1) * 12 + 8}px` }}><input type="checkbox" checked={item.included} onChange={() => toggleToc(item.id)} /><button onClick={() => scrollToPreviewBlock(item.id)}>{item.title}</button><span className={`word-toc-level level-${item.level}`}>H{item.level.toLocaleString('fa-IR')}</span><small>{item.page.toLocaleString('fa-IR')}</small></label>) : <p>یکی از Styleهای فصل را در بخش بالا به H1 تا H6 متصل کنید.</p>}
             </aside>
 
             <section className="word-preview-panel menu-glass-70">
               <header>
-                <div><h3>پیش‌نمایش محلی</h3><span>تا ۵۰ صفحه نخست · بدون آپلود</span></div>
-                <div className="word-view-toggle"><button className={view === 'print' ? 'active' : ''} onClick={() => setView('print')}>چاپی</button><button className={view === 'fluid' ? 'active' : ''} onClick={() => setView('fluid')}>خوانش روان</button></div>
+                <div><h3>پیش‌نمایش وب کتاب</h3><span>تا ۵۰ صفحه نخست، پیوسته و اسکرولی · بدون آپلود</span></div>
               </header>
-              <article className={`word-page-preview ${view}`}>
-                <span className="word-page-number">{currentPage?.number.toLocaleString('fa-IR')}</span>
-                {currentPage?.blocks.map(block => {
-                  if (block.type === 'heading') {
-                    const Tag = `h${Math.min(6, block.level || 2)}` as keyof React.JSX.IntrinsicElements
-                    return <Tag key={block.id} id={block.id}>{block.text}</Tag>
-                  }
-                  if (block.type === 'image') return imageUrls[block.imageId || ''] ? <img key={block.id} src={imageUrls[block.imageId || '']} alt="تصویر استخراج‌شده از کتاب" /> : null
-                  if (block.type === 'table') return <div className="word-table-wrap" key={block.id}><table><tbody>{block.rows?.map((row, rowIndex) => <tr key={rowIndex}>{row.map((cell, cellIndex) => <td key={cellIndex}>{cell}</td>)}</tr>)}</tbody></table></div>
-                  return <p key={block.id} className={block.type === 'math' ? 'word-math' : ''}>{block.text}</p>
-                })}
-                {!currentPage?.blocks.length && <p>{pageText(currentPage!) || 'این صفحه محتوای قابل نمایش ندارد.'}</p>}
+              <article className="word-web-preview">
+                {analysis.previewPages.map((page, pageIndex) => <section key={page.number} id={`preview-page-${page.number}`} className="word-preview-page-section">
+                  {pageIndex > 0 && <div className="word-page-divider"><span>صفحه {page.number.toLocaleString('fa-IR')}</span></div>}
+                  {page.blocks.map(block => {
+                    if (block.type === 'heading') {
+                      const Tag = `h${Math.min(6, block.level || 2)}` as keyof React.JSX.IntrinsicElements
+                      return <Tag key={block.id} id={`preview-${block.id}`} className={`web-heading web-heading-${block.level || 2}`} style={{ textAlign: block.format?.alignment }}>{block.text}</Tag>
+                    }
+                    if (block.type === 'image') return imageUrls[block.imageId || ''] ? <figure key={block.id} id={`preview-${block.id}`} style={{ width: `${block.imageWidthPercent || 80}%` }}><img src={imageUrls[block.imageId || '']} alt="تصویر استخراج‌شده از کتاب" /></figure> : null
+                    if (block.type === 'table') return <div className="word-table-wrap final-table" key={block.id} id={`preview-${block.id}`}><table><tbody>{block.rows?.map((row, rowIndex) => <tr key={rowIndex}>{row.map((cell, cellIndex) => rowIndex === 0 ? <th key={cellIndex}>{cell}</th> : <td key={cellIndex}>{cell}</td>)}</tr>)}</tbody></table></div>
+                    return <p key={block.id} id={`preview-${block.id}`} className={block.type === 'math' ? 'word-math' : ''} style={blockStyle(block)}>{block.text}</p>
+                  })}
+                </section>)}
               </article>
-              <footer>
-                <Button variant="outline" disabled={activePage <= 1} onClick={() => setActivePage(value => value - 1)}>صفحه قبل</Button>
-                <select value={activePage} onChange={event => setActivePage(Number(event.target.value))}>{analysis.previewPages.map(page => <option key={page.number} value={page.number}>صفحه {page.number.toLocaleString('fa-IR')}</option>)}</select>
-                <Button variant="outline" disabled={activePage >= analysis.previewPages.length} onClick={() => setActivePage(value => value + 1)}>صفحه بعد</Button>
-              </footer>
             </section>
           </section>
 
