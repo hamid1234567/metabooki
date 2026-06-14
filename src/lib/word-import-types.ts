@@ -6,14 +6,17 @@ export interface ImportIssue {
   code: string
   message: string
   page: number
+  imageId?: string
 }
 
 export interface ImportParagraph {
   id: string
-  type: 'paragraph' | 'heading' | 'image' | 'table' | 'math'
+  type: 'paragraph' | 'heading' | 'caption' | 'table-title' | 'image' | 'table' | 'math'
   text?: string
+  inline?: ImportInlineSpan[]
   level?: number
   style?: string
+  anchor?: string
   imageId?: string
   rows?: string[][]
   format?: {
@@ -24,10 +27,23 @@ export interface ImportParagraph {
     alignment?: 'right' | 'left' | 'center' | 'justify'
   }
   imageWidthPercent?: number
+  pageBreakBefore?: boolean
+}
+
+export interface ImportInlineSpan {
+  text: string
+  bold?: boolean
+  italic?: boolean
+  superscript?: boolean
+  subscript?: boolean
+  href?: string
+  footnoteId?: string
+  pageBreakBefore?: boolean
 }
 
 export interface ImportPage {
   number: number
+  printNumber?: number
   blocks: ImportParagraph[]
 }
 
@@ -36,6 +52,18 @@ export interface ImportImage {
   name: string
   mimeType: string
   data: ArrayBuffer
+  originalName?: string
+  originalMimeType?: string
+  conversionStatus?: 'original-web' | 'converted-local' | 'conversion-failed'
+  conversionError?: string
+  wordPages?: number[]
+  caption?: string
+}
+
+export interface ImportFootnote {
+  id: string
+  text: string
+  inline: ImportInlineSpan[]
 }
 
 export interface TocEntry {
@@ -53,7 +81,9 @@ export interface WordStyleDefinition {
   usedCount: number
   suggestedLevel: number | null
   selectedLevel: number | null
+  selectedRole: 'body' | 'heading' | 'caption' | 'table-title' | 'ignore'
   titleCandidate: boolean
+  sampleText?: string
   basedOn?: string
   outlineLevel?: number
   fontSizePt?: number
@@ -83,12 +113,14 @@ export interface WordImportAnalysis {
   suggestedTitle?: string
   issues: ImportIssue[]
   images: ImportImage[]
+  footnotes: ImportFootnote[]
   stats: {
     paragraphs: number
     headings: number
     images: number
     tables: number
     formulas: number
+    footnotes: number
     words: number
   }
   complexity: ComplexityAssessment

@@ -39,13 +39,53 @@ async function uploadChunked(userId: string, projectId: string, file: File, onPr
   }
 }
 
+function safeFileName(value: string) {
+  return value.replace(/[^\p{L}\p{N}._-]+/gu, '-').replace(/^-+|-+$/g, '') || 'image.png'
+}
+
+async function uploadPreparedImages(userId: string, projectId: string, project: LocalImportProject, onProgress: (progress: UploadProgress) => void) {
+  const storage = (supabase as any).storage.from('book-imports')
+  const paths: Record<string, string> = {}
+  const readyImages = project.analysis.images.filter(image => image.conversionStatus !== 'conversion-failed')
+  const folder = `${userId}/${projectId}/images`
+  const { data: existing } = await storage.list(folder, { limit: Math.min(1000, readyImages.length) })
+  const uploadedNames = new Set((existing || []).map((item: { name: string }) => item.name))
+  for (const [index, image] of readyImages.entries()) {
+    const name = `${image.id}-${safeFileName(image.name)}`
+    const path = `${folder}/${name}`
+    if (!uploadedNames.has(name)) {
+      const { error } = await storage.upload(path, image.data, { upsert: true, contentType: image.mimeType })
+      if (error) throw error
+    }
+    paths[image.id] = path
+    onProgress({
+      uploaded: project.sourceFile.size,
+      total: project.sourceFile.size,
+      percent: 85 + Math.round((index + 1) / Math.max(1, readyImages.length) * 8),
+      label: uploadedNames.has(name) ? `تصویر آماده ${index + 1} قبلاً ارسال شده بود` : `ارسال تصویر آماده ${index + 1} از ${readyImages.length}`,
+    })
+  }
+  const entries = Object.entries(paths)
+  const urls: Record<string, string> = {}
+  if (entries.length) {
+    const { data } = await storage.createSignedUrls(entries.map(([, path]) => path), 60 * 60 * 24 * 365)
+    data?.forEach((item: { signedUrl?: string }, index: number) => {
+      if (item.signedUrl) urls[entries[index][0]] = item.signedUrl
+    })
+  }
+  return { paths, urls }
+}
+
 export async function confirmAndUploadImport(
   project: LocalImportProject,
   userId: string,
   onProgress: (progress: UploadProgress) => void,
 ) {
-  const readerPages = analysisToReaderPages(project.analysis)
   if (!hasSupabase()) {
+    const localImageUrls = Object.fromEntries(project.analysis.images
+      .filter(image => image.conversionStatus !== 'conversion-failed')
+      .map(image => [image.id, URL.createObjectURL(new Blob([image.data], { type: image.mimeType }))]))
+    const readerPages = analysisToReaderPages(project.analysis, localImageUrls)
     onProgress({ uploaded: project.sourceFile.size, total: project.sourceFile.size, percent: 100, label: 'پیش‌نویس محلی آماده شد' })
     return createPublisherBook({
       title: project.title,
@@ -74,7 +114,10 @@ export async function confirmAndUploadImport(
     source_checksum: project.analysis.checksum,
     local_analysis: {
       ...project.analysis,
-      images: project.analysis.images.map(image => ({ id: image.id, name: image.name, mimeType: image.mimeType })),
+      images: project.analysis.images.map(image => ({
+        id: image.id, name: image.name, mimeType: image.mimeType, originalName: image.originalName,
+        originalMimeType: image.originalMimeType, conversionStatus: image.conversionStatus,
+      })),
     },
     complexity_score: project.analysis.complexity.score,
     complexity_grade: project.analysis.complexity.grade,
@@ -83,11 +126,20 @@ export async function confirmAndUploadImport(
   if (importError) throw importError
 
   await uploadChunked(userId, importRow.id, project.sourceFile, onProgress)
+  const uploadedImages = await uploadPreparedImages(userId, importRow.id, project, onProgress)
+  const readerPages = analysisToReaderPages(project.analysis, uploadedImages.urls)
 
   const manifest = new Blob([JSON.stringify({
     version: 1,
     project: { title: project.title, author: project.author, category: project.category, description: project.description },
-    analysis: { ...project.analysis, images: project.analysis.images.map(image => ({ id: image.id, name: image.name, mimeType: image.mimeType })) },
+    analysis: {
+      ...project.analysis,
+      images: project.analysis.images.map(image => ({
+        id: image.id, name: image.name, mimeType: image.mimeType, originalName: image.originalName,
+        originalMimeType: image.originalMimeType, conversionStatus: image.conversionStatus,
+        storagePath: uploadedImages.paths[image.id],
+      })),
+    },
     pages: readerPages,
   })], { type: 'application/json' })
   const manifestPath = `${userId}/${importRow.id}/manifest.json`

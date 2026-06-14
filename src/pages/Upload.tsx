@@ -88,9 +88,9 @@ export default function Upload() {
     await updateLocalAnalysis(updated.id, updated)
   }
 
-  const mapStyle = async (styleId: string, levelValue: string) => {
+  const mapStyle = async (styleId: string, mapping: string) => {
     if (!analysis) return
-    const updated = applyWordStyleMapping(analysis, styleId, levelValue ? Number(levelValue) : null)
+    const updated = applyWordStyleMapping(analysis, styleId, mapping)
     setAnalysis(updated)
     await updateLocalAnalysis(updated.id, updated)
   }
@@ -107,8 +107,40 @@ export default function Upload() {
     textAlign: block.format?.alignment,
   })
 
+  const renderInline = (block: WordImportAnalysis['previewPages'][number]['blocks'][number]) => {
+    if (!block.inline?.length) return block.text
+    return block.inline.map((span, index) => {
+      const content = span.footnoteId ? <sup className="word-footnote-reference">{span.footnoteId}</sup> : span.superscript ? <sup>{span.text}</sup> : span.subscript ? <sub>{span.text}</sub> : span.text
+      const formatted = <span key={index} style={{ fontWeight: span.bold ? 800 : undefined, fontStyle: span.italic ? 'italic' : undefined }}>{content}</span>
+      return span.href ? <a key={index} href={span.href} target={span.href.startsWith('#') ? undefined : '_blank'} rel="noreferrer">{formatted}</a> : formatted
+    })
+  }
+
+  const replaceFailedImage = async (imageId: string, replacement: File) => {
+    if (!analysis || !replacement.type.startsWith('image/')) return
+    const data = await replacement.arrayBuffer()
+    const updated: WordImportAnalysis = {
+      ...analysis,
+      images: analysis.images.map(image => image.id === imageId ? {
+        ...image,
+        name: replacement.name,
+        mimeType: replacement.type,
+        data,
+        conversionStatus: 'original-web',
+        conversionError: undefined,
+      } : image),
+      issues: analysis.issues.filter(issue => issue.imageId !== imageId),
+    }
+    setAnalysis(updated)
+    await updateLocalAnalysis(updated.id, updated)
+  }
+
   const confirmUpload = async () => {
     if (!analysis || !file || !user) return
+    if (analysis.images.some(image => image.conversionStatus === 'conversion-failed')) {
+      setError('پیش از تأیید و آپلود، تصاویر ناموفق را با فایل مناسب وب جایگزین کنید.')
+      return
+    }
     setError('')
     setStage('uploading')
     const project: LocalImportProject = {
@@ -186,12 +218,24 @@ export default function Upload() {
                 <div className={`complexity-grade grade-${analysis.complexity.grade.replace(' ', '-')}`}><CircleGauge /><span>درجه سختی</span><b>{analysis.complexity.grade}</b><small>{analysis.complexity.estimatedCredits.toLocaleString('fa-IR')} کردیت تخمینی</small></div>
               </div>
               <div className="word-stat-grid">
-                {[['صفحه', analysis.totalPages], ['پاراگراف', analysis.stats.paragraphs], ['تیتر', analysis.stats.headings], ['تصویر', analysis.stats.images], ['جدول', analysis.stats.tables], ['فرمول', analysis.stats.formulas]].map(([label, value]) => <div key={label}><b>{Number(value).toLocaleString('fa-IR')}</b><span>{label}</span></div>)}
+                {[['صفحه', analysis.totalPages], ['پاراگراف', analysis.stats.paragraphs], ['تیتر', analysis.stats.headings], ['تصویر', analysis.stats.images], ['جدول', analysis.stats.tables], ['پاورقی', analysis.stats.footnotes || 0]].map(([label, value]) => <div key={label}><b>{Number(value).toLocaleString('fa-IR')}</b><span>{label}</span></div>)}
+              </div>
+              <div className="word-image-conversion-summary">
+                <span><Check />{analysis.images.filter(image => image.conversionStatus === 'converted-local').length.toLocaleString('fa-IR')} تصویر محلی تبدیل‌شده</span>
+                <span>{analysis.images.filter(image => image.conversionStatus === 'original-web').length.toLocaleString('fa-IR')} تصویر مناسب وب</span>
+                {analysis.images.some(image => image.conversionStatus === 'conversion-failed') && <span className="has-error"><AlertTriangle />{analysis.images.filter(image => image.conversionStatus === 'conversion-failed').length.toLocaleString('fa-IR')} تبدیل ناموفق</span>}
               </div>
               <div className="word-issues">
                 <h3>موارد نیازمند توجه</h3>
                 {analysis.issues.length ? analysis.issues.map(issue => <button key={issue.id} onClick={() => document.getElementById(`preview-page-${issue.page}`)?.scrollIntoView({ behavior: 'smooth' })}><AlertTriangle /><span>{issue.message}</span><ChevronLeft /></button>) : <p className="word-ok"><Check />مشکل مهمی در پیش‌نمایش پیدا نشد.</p>}
               </div>
+              {analysis.images.some(image => image.conversionStatus === 'conversion-failed') && <div className="word-failed-images">
+                <h3>تصاویر نیازمند جایگزینی</h3>
+                {analysis.images.filter(image => image.conversionStatus === 'conversion-failed').map(image => <div key={image.id}>
+                  <span><b>{image.caption || image.originalName || image.name}</b><small>صفحه چاپی: {image.wordPages?.map(page => page.toLocaleString('fa-IR')).join('، ') || 'نامشخص'} · {image.conversionError}</small></span>
+                  <label>بارگذاری جایگزین<input type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" onChange={event => event.target.files?.[0] && replaceFailedImage(image.id, event.target.files[0])} /></label>
+                </div>)}
+              </div>}
             </div>
             <div className="word-book-meta menu-glass-70">
               <h3>اطلاعات پیش‌نویس</h3>
@@ -210,10 +254,14 @@ export default function Upload() {
                   <span className="word-style-sample" style={{ fontSize: style.fontSizePt ? `${Math.min(22, style.fontSizePt)}px` : undefined, color: style.color ? `#${style.color}` : undefined, fontWeight: style.bold ? 800 : undefined }}>{style.name}</span>
                   <span className="word-style-id">{style.id}</span>
                   <span className="word-style-count">{style.usedCount ? `${style.usedCount.toLocaleString('fa-IR')} بار استفاده` : 'تعریف‌شده در Word'}</span>
+                  <span className="word-style-example">{style.sampleText || 'نمونه‌ای در متن استفاده نشده است'}</span>
                   {style.titleCandidate && <span className="word-style-title-badge">پیشنهاد عنوان کتاب</span>}
-                  <select value={style.selectedLevel || ''} onChange={event => mapStyle(style.id, event.target.value)} aria-label={`نگاشت ${style.name}`}>
-                    <option value="">متن عادی</option>
-                    {[1, 2, 3, 4, 5, 6].map(level => <option key={level} value={level}>H{level}</option>)}
+                  <select value={style.selectedRole === 'heading' ? `h${style.selectedLevel}` : style.selectedRole} onChange={event => mapStyle(style.id, event.target.value)} aria-label={`نگاشت ${style.name}`}>
+                    <option value="ignore">عدم استفاده در فهرست</option>
+                    <option value="body">متن عادی</option>
+                    {[1, 2, 3, 4, 5, 6].map(level => <option key={level} value={`h${level}`}>H{level}</option>)}
+                    <option value="caption">کپشن تصویر</option>
+                    <option value="table-title">عنوان جدول</option>
                   </select>
                 </div>
               ))}
@@ -231,18 +279,24 @@ export default function Upload() {
                 <div><h3>پیش‌نمایش وب کتاب</h3><span>تا ۵۰ صفحه نخست، پیوسته و اسکرولی · بدون آپلود</span></div>
               </header>
               <article className="word-web-preview">
-                {analysis.previewPages.map((page, pageIndex) => <section key={page.number} id={`preview-page-${page.number}`} className="word-preview-page-section">
-                  {pageIndex > 0 && <div className="word-page-divider"><span>صفحه {page.number.toLocaleString('fa-IR')}</span></div>}
+                {analysis.previewPages.map((page, pageIndex) => {
+                  const pageFootnoteIds = [...new Set(page.blocks.flatMap(block => block.inline?.map(span => span.footnoteId).filter((id): id is string => Boolean(id)) || []))]
+                  return <section key={page.number} id={`preview-page-${page.number}`} className="word-preview-page-section">
+                  {pageIndex > 0 && <div className="word-page-divider"><span>صفحه چاپی {(page.printNumber || page.number).toLocaleString('fa-IR')}</span></div>}
                   {page.blocks.map(block => {
                     if (block.type === 'heading') {
                       const Tag = `h${Math.min(6, block.level || 2)}` as keyof React.JSX.IntrinsicElements
-                      return <Tag key={block.id} id={`preview-${block.id}`} className={`web-heading web-heading-${block.level || 2}`} style={{ textAlign: block.format?.alignment }}>{block.text}</Tag>
+                      return <Tag key={block.id} id={`preview-${block.id}`} className={`web-heading web-heading-${block.level || 2}`} style={{ textAlign: block.format?.alignment }}>{block.anchor && <span id={block.anchor} className="word-bookmark-anchor" />}{renderInline(block)}</Tag>
                     }
                     if (block.type === 'image') return imageUrls[block.imageId || ''] ? <figure key={block.id} id={`preview-${block.id}`} style={{ width: `${block.imageWidthPercent || 80}%` }}><img src={imageUrls[block.imageId || '']} alt="تصویر استخراج‌شده از کتاب" /></figure> : null
                     if (block.type === 'table') return <div className="word-table-wrap final-table" key={block.id} id={`preview-${block.id}`}><table><tbody>{block.rows?.map((row, rowIndex) => <tr key={rowIndex}>{row.map((cell, cellIndex) => rowIndex === 0 ? <th key={cellIndex}>{cell}</th> : <td key={cellIndex}>{cell}</td>)}</tr>)}</tbody></table></div>
-                    return <p key={block.id} id={`preview-${block.id}`} className={block.type === 'math' ? 'word-math' : ''} style={blockStyle(block)}>{block.text}</p>
+                    return <p key={block.id} id={`preview-${block.id}`} className={block.type === 'math' ? 'word-math' : block.type === 'caption' ? 'word-figure-caption' : block.type === 'table-title' ? 'word-table-title' : ''} style={blockStyle(block)}>{block.anchor && <span id={block.anchor} className="word-bookmark-anchor" />}{renderInline(block)}</p>
                   })}
-                </section>)}
+                  {pageFootnoteIds.length > 0 && <footer className="word-footnotes">{pageFootnoteIds.map(id => {
+                    const note = analysis.footnotes?.find(item => item.id === id)
+                    return note ? <p key={id}><sup>{id}</sup>{note.text}</p> : null
+                  })}</footer>}
+                </section>})}
               </article>
             </section>
           </section>

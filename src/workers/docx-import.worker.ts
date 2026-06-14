@@ -1,14 +1,82 @@
 /// <reference lib="webworker" />
 import JSZip from 'jszip'
 import { XMLParser } from 'fast-xml-parser'
-import type { ImportImage, ImportIssue, ImportPage, ImportParagraph, TocEntry, WordImportAnalysis, WordStyleDefinition } from '@/lib/word-import-types'
+import UTIF from 'utif'
+import { convertEmfToDataUrl, convertWmfToDataUrl } from 'emf-converter'
+import type { ImportFootnote, ImportImage, ImportInlineSpan, ImportIssue, ImportPage, ImportParagraph, TocEntry, WordImportAnalysis, WordStyleDefinition } from '@/lib/word-import-types'
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope
-const orderedParser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_', preserveOrder: true })
-const regularParser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_' })
+const orderedParser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_', preserveOrder: true, trimValues: false })
+const regularParser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_', trimValues: false })
 
 function progress(value: number, label: string) {
   ctx.postMessage({ type: 'progress', progress: value, label })
+}
+
+const browserImageTypes = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml', 'image/webp'])
+
+function dataUrlToArrayBuffer(dataUrl: string) {
+  const encoded = dataUrl.split(',')[1] || ''
+  const binary = atob(encoded)
+  const bytes = new Uint8Array(binary.length)
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index)
+  return bytes.buffer
+}
+
+async function canvasToPng(canvas: OffscreenCanvas) {
+  return (await canvas.convertToBlob({ type: 'image/png' })).arrayBuffer()
+}
+
+async function convertTiff(data: ArrayBuffer) {
+  const directory = UTIF.decode(data)[0]
+  if (!directory) throw new Error('ساختار TIFF قابل خواندن نیست.')
+  UTIF.decodeImage(data, directory)
+  const rgba = UTIF.toRGBA8(directory)
+  const canvas = new OffscreenCanvas(directory.width, directory.height)
+  const context = canvas.getContext('2d')
+  if (!context) throw new Error('Canvas محلی در دسترس نیست.')
+  context.putImageData(new ImageData(new Uint8ClampedArray(rgba), directory.width, directory.height), 0, 0)
+  return canvasToPng(canvas)
+}
+
+async function convertBrowserDecodableImage(data: ArrayBuffer, mimeType: string) {
+  const bitmap = await createImageBitmap(new Blob([data], { type: mimeType }))
+  const canvas = new OffscreenCanvas(bitmap.width, bitmap.height)
+  const context = canvas.getContext('2d')
+  if (!context) throw new Error('Canvas محلی در دسترس نیست.')
+  context.drawImage(bitmap, 0, 0)
+  bitmap.close()
+  return canvasToPng(canvas)
+}
+
+async function convertImageLocally(image: ImportImage): Promise<ImportImage> {
+  if (browserImageTypes.has(image.mimeType)) return { ...image, conversionStatus: 'original-web' }
+  try {
+    let converted: ArrayBuffer | null = null
+    if (image.mimeType === 'image/tiff') converted = await convertTiff(image.data)
+    else if (image.mimeType === 'image/emf' || image.mimeType === 'image/wmf') {
+      const dataUrl = image.mimeType === 'image/emf'
+        ? await convertEmfToDataUrl(image.data, 2400, 2400, { dpiScale: 2 })
+        : await convertWmfToDataUrl(image.data, 2400, 2400, { dpiScale: 2 })
+      if (dataUrl) converted = dataUrlToArrayBuffer(dataUrl)
+    } else converted = await convertBrowserDecodableImage(image.data, image.mimeType)
+    if (!converted) throw new Error('مبدل محلی خروجی قابل نمایش تولید نکرد.')
+    return {
+      ...image,
+      name: image.name.replace(/\.[^.]+$/, '') + '.png',
+      mimeType: 'image/png',
+      data: converted,
+      originalName: image.name,
+      originalMimeType: image.mimeType,
+      conversionStatus: 'converted-local',
+    }
+  } catch (error) {
+    return {
+      ...image,
+      conversionStatus: 'conversion-failed',
+      conversionError: error instanceof Error ? error.message : 'تبدیل محلی ناموفق بود.',
+    }
+  }
 }
 
 async function sha256(file: File) {
@@ -17,7 +85,7 @@ async function sha256(file: File) {
 }
 
 function collectText(value: unknown): string {
-  if (typeof value === 'string') return value
+  if (typeof value === 'string') return value.split('¬').join('\u200B')
   if (Array.isArray(value)) return value.map(collectText).join('')
   if (!value || typeof value !== 'object') return ''
   const record = value as Record<string, unknown>
@@ -42,7 +110,17 @@ function deepFind(value: unknown, key: string): unknown[] {
 
 function findElementAttributes(value: unknown, key: string): Record<string, unknown>[] {
   const found: Record<string, unknown>[] = []
-  if (Array.isArray(value)) value.forEach(item => found.push(...findElementAttributes(item, key)))
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => {
+      if (item && typeof item === 'object' && key in (item as Record<string, unknown>)) {
+        const next = value[index + 1]
+        if (next && typeof next === 'object' && ':@' in (next as Record<string, unknown>)) {
+          found.push((next as Record<string, Record<string, unknown>>)[':@'])
+        }
+      }
+      found.push(...findElementAttributes(item, key))
+    })
+  }
   else if (value && typeof value === 'object') {
     const record = value as Record<string, unknown>
     if (key in record) {
@@ -73,11 +151,28 @@ function normalizeArray<T>(value: T | T[] | undefined): T[] {
   return Array.isArray(value) ? value : [value]
 }
 
+function firstSentence(text: string) {
+  const normalized = text.replace(/\s+/g, ' ').trim()
+  const match = normalized.match(/^.{1,180}?[.!?؟؛](?:\s|$)/)
+  return (match?.[0] || normalized.slice(0, 180)).trim()
+}
+
 function parseAlignment(value: unknown): WordStyleDefinition['alignment'] {
   const alignment = String(value || '').toLowerCase()
   if (alignment === 'both' || alignment === 'distribute') return 'justify'
   if (alignment === 'right' || alignment === 'left' || alignment === 'center') return alignment
   return undefined
+}
+
+function wordToggle(value: unknown, key: string): boolean | undefined {
+  const attributes = findElementAttributes(value, key)[0]
+  const matches = deepFind(value, key)
+  if (!attributes && !matches.length) return undefined
+  const regularValue = matches[0] && typeof matches[0] === 'object' && !Array.isArray(matches[0])
+    ? matches[0] as Record<string, unknown>
+    : undefined
+  const raw = String(attributes?.['@_w:val'] ?? attributes?.['@_val'] ?? regularValue?.['@_w:val'] ?? regularValue?.['@_val'] ?? 'true').toLowerCase()
+  return !['0', 'false', 'off', 'none'].includes(raw)
 }
 
 function parseStyles(stylesXml: string | undefined) {
@@ -94,6 +189,8 @@ function parseStyles(stylesXml: string | undefined) {
     const outlineLevel = outlineRaw !== undefined ? Number(outlineRaw) : undefined
     const namedLevel = headingLevel(`${id} ${name}`)
     const suggestedLevel = namedLevel || (outlineLevel !== undefined && outlineLevel < 6 ? outlineLevel + 1 : null)
+    const captionCandidate = /(caption|figure|image|picture|شکل|تصویر|عکس)/i.test(`${id} ${name}`)
+    const tableTitleCandidate = /(table\s*(title|caption)|عنوان\s*جدول|جدول)/i.test(`${id} ${name}`) && !captionCandidate
     const sizeRaw = raw?.['w:rPr']?.['w:sz']?.['@_w:val'] || raw?.['w:rPr']?.['w:szCs']?.['@_w:val']
     result.set(id, {
       id,
@@ -101,13 +198,14 @@ function parseStyles(stylesXml: string | undefined) {
       usedCount: 0,
       suggestedLevel,
       selectedLevel: suggestedLevel,
+      selectedRole: suggestedLevel ? 'heading' : captionCandidate ? 'caption' : tableTitleCandidate ? 'table-title' : 'body',
       titleCandidate: /(^|\s)title($|\s)/i.test(`${id} ${name}`) && !/subtitle/i.test(`${id} ${name}`),
       basedOn: raw?.['w:basedOn']?.['@_w:val'],
       outlineLevel,
       fontSizePt: sizeRaw ? Number(sizeRaw) / 2 : undefined,
       color: raw?.['w:rPr']?.['w:color']?.['@_w:val'],
-      bold: Boolean(raw?.['w:rPr']?.['w:b']),
-      italic: Boolean(raw?.['w:rPr']?.['w:i']),
+      bold: wordToggle(raw?.['w:rPr'], 'w:b'),
+      italic: wordToggle(raw?.['w:rPr'], 'w:i'),
       alignment: parseAlignment(raw?.['w:pPr']?.['w:jc']?.['@_w:val']),
     })
   }
@@ -116,6 +214,7 @@ function parseStyles(stylesXml: string | undefined) {
     if (!style.suggestedLevel && parent?.suggestedLevel) {
       style.suggestedLevel = parent.suggestedLevel
       style.selectedLevel = parent.suggestedLevel
+      style.selectedRole = 'heading'
     }
     style.fontSizePt ??= parent?.fontSizePt
     style.color ??= parent?.color
@@ -140,24 +239,110 @@ function relationIds(node: unknown) {
   return [...ids]
 }
 
-function normalizeParagraph(node: unknown, number: number, imageRelations: Map<string, string>, styles: Map<string, WordStyleDefinition>): ImportParagraph[] {
+function parseInline(node: unknown, hyperlinks: Map<string, string>, inheritedHref?: string): ImportInlineSpan[] {
+  const spans: ImportInlineSpan[] = []
+  let pendingPageBreak = false
+  const visit = (value: unknown, href?: string) => {
+    if (!value) return
+    if (Array.isArray(value)) {
+      value.forEach(item => visit(item, href))
+      return
+    }
+    if (typeof value !== 'object') return
+    const record = value as Record<string, unknown>
+    if ('w:lastRenderedPageBreak' in record || ('w:br' in record && String(elementAttribute([record], 'w:br', '@_w:type', '@_type') || '') === 'page')) {
+      pendingPageBreak = true
+      return
+    }
+    if ('w:instrText' in record || 'w:delText' in record) return
+    if ('w:hyperlink' in record) {
+      const attrs = record[':@'] as Record<string, unknown> | undefined
+      const relationId = String(attrs?.['@_r:id'] || '')
+      const anchor = String(attrs?.['@_w:anchor'] || '')
+      visit(record['w:hyperlink'], hyperlinks.get(relationId) || (anchor ? `#${anchor}` : href))
+      return
+    }
+    if ('w:r' in record) {
+      const run = record['w:r']
+      if (hasPageBreak(run)) pendingPageBreak = true
+      const vertical = String(elementAttribute(run, 'w:vertAlign', '@_w:val') || '')
+      const runHref = href
+      const textParts: string[] = []
+      const footnoteId = String(elementAttribute(run, 'w:footnoteReference', '@_w:id', '@_id') || '')
+      const collectVisible = (part: unknown) => {
+        if (Array.isArray(part)) return part.forEach(collectVisible)
+        if (!part || typeof part !== 'object') return
+        const item = part as Record<string, unknown>
+        if ('w:instrText' in item || 'w:fldChar' in item || 'w:delText' in item) return
+        if ('w:t' in item) textParts.push(collectText(item['w:t']))
+        else if ('w:tab' in item) textParts.push(' ')
+        else if ('w:br' in item) textParts.push('\n')
+        else Object.values(item).forEach(collectVisible)
+      }
+      collectVisible(run)
+      const text = textParts.join('')
+      if (text || footnoteId) spans.push({
+        text: text || footnoteId,
+        bold: wordToggle(run, 'w:b') ?? wordToggle(run, 'w:bCs'),
+        italic: wordToggle(run, 'w:i') ?? wordToggle(run, 'w:iCs'),
+        superscript: vertical === 'superscript',
+        subscript: vertical === 'subscript',
+        href: runHref,
+        footnoteId: footnoteId || undefined,
+        pageBreakBefore: pendingPageBreak || undefined,
+      })
+      pendingPageBreak = false
+      return
+    }
+    Object.values(record).forEach(item => visit(item, href))
+  }
+  visit(node, inheritedHref)
+  return spans
+}
+
+function normalizeParagraph(node: unknown, number: number, imageRelations: Map<string, string>, hyperlinks: Map<string, string>, styles: Map<string, WordStyleDefinition>): ImportParagraph[] {
   const style = getStyle(node)
   const definition = styles.get(style)
   const level = definition?.selectedLevel || headingLevel(style)
-  const text = collectText(node).replace(/\s+\n/g, '\n').trim()
+  const inline = parseInline(node, hyperlinks)
+  const text = inline.map(span => span.text).join('').replace(/[ \t]+\n/g, '\n').trim()
+  const rawAnchor = String(elementAttribute(node, 'w:bookmarkStart', '@_w:name', '@_name') || '')
+  const anchor = rawAnchor && rawAnchor !== '_GoBack' ? rawAnchor : undefined
   const blocks: ImportParagraph[] = []
-  if (definition) definition.usedCount += 1
+  if (definition) {
+    definition.usedCount += 1
+    if (!definition.sampleText && text) definition.sampleText = firstSentence(text)
+  }
   const directSize = elementAttribute(node, 'w:sz', '@_w:val')
   const directColor = elementAttribute(node, 'w:color', '@_w:val')
   const directAlignment = elementAttribute(node, 'w:jc', '@_w:val')
   const format: ImportParagraph['format'] = {
     fontSizePt: directSize ? Number(directSize) / 2 : definition?.fontSizePt,
     color: String(directColor || definition?.color || '').replace(/^auto$/i, '') || undefined,
-    bold: deepFind(node, 'w:b').length > 0 || definition?.bold,
-    italic: deepFind(node, 'w:i').length > 0 || definition?.italic,
+    bold: definition?.bold,
+    italic: definition?.italic,
     alignment: parseAlignment(directAlignment) || definition?.alignment,
   }
-  if (text) blocks.push({ id: `p-${number}`, type: level ? 'heading' : 'paragraph', text, level: level || undefined, style: style || undefined, format })
+  const semanticType: ImportParagraph['type'] = level ? 'heading' : definition?.selectedRole === 'caption' ? 'caption' : definition?.selectedRole === 'table-title' ? 'table-title' : 'paragraph'
+  const inlineGroups = inline.reduce<ImportInlineSpan[][]>((groups, span) => {
+    if (span.pageBreakBefore && groups[groups.length - 1]?.length) groups.push([])
+    groups[groups.length - 1].push({ ...span, pageBreakBefore: undefined })
+    return groups
+  }, [[]]).filter(group => group.length)
+  inlineGroups.forEach((group, groupIndex) => {
+    const groupText = group.map(span => span.text).join('').replace(/[ \t]+\n/g, '\n').trim()
+    if (groupText) blocks.push({
+      id: `p-${number}${groupIndex ? `-${groupIndex}` : ''}`,
+      type: semanticType,
+      text: groupText,
+      inline: group,
+      level: level || undefined,
+      style: style || undefined,
+      anchor: groupIndex ? undefined : anchor,
+      format,
+      pageBreakBefore: groupIndex > 0 || undefined,
+    })
+  })
   relationIds(node).forEach((relationId, index) => {
     const imageId = imageRelations.get(relationId)
     const extent = findElementAttributes(node, 'wp:extent')[index]
@@ -170,8 +355,20 @@ function normalizeParagraph(node: unknown, number: number, imageRelations: Map<s
   return blocks
 }
 
-function tableBlock(node: unknown, number: number): ImportParagraph {
-  const rows = deepFind(node, 'w:tr').map(row => deepFind(row, 'w:tc').map(cell => collectText(cell).trim()))
+function parseFootnotes(xml: string | undefined, hyperlinks: Map<string, string>): ImportFootnote[] {
+  if (!xml) return []
+  const parsed = regularParser.parse(xml)
+  return normalizeArray(parsed?.['w:footnotes']?.['w:footnote'])
+    .filter(note => Number(note?.['@_w:id']) >= 0)
+    .map(note => {
+      const inline = parseInline(note, hyperlinks).filter(span => !span.footnoteId)
+      return { id: String(note['@_w:id']), inline, text: inline.map(span => span.text).join('').trim() }
+    })
+    .filter(note => note.text)
+}
+
+function tableBlock(node: unknown, number: number, hyperlinks: Map<string, string>): ImportParagraph {
+  const rows = deepFind(node, 'w:tr').map(row => deepFind(row, 'w:tc').map(cell => parseInline(cell, hyperlinks).map(span => span.text).join('').trim()))
   return { id: `table-${number}`, type: 'table', rows }
 }
 
@@ -201,24 +398,40 @@ async function analyze(file: File): Promise<WordImportAnalysis> {
   progress(20, 'استخراج ساختار و ارتباط تصاویر')
   const styles = parseStyles(await zip.file('word/styles.xml')?.async('text'))
   const relationships = new Map<string, string>()
+  const hyperlinks = new Map<string, string>()
   const relsEntry = zip.file('word/_rels/document.xml.rels')
   if (relsEntry) {
     const rels = regularParser.parse(await relsEntry.async('text'))
     const entries = rels?.Relationships?.Relationship || []
     for (const rel of Array.isArray(entries) ? entries : [entries]) {
-      if (rel?.['@_Id'] && rel?.['@_Target']) relationships.set(rel['@_Id'], String(rel['@_Target']).replace('../', ''))
+      if (rel?.['@_Id'] && rel?.['@_Target']) {
+        const target = String(rel['@_Target'])
+        if (String(rel?.['@_Type'] || '').endsWith('/hyperlink')) hyperlinks.set(rel['@_Id'], target)
+        else relationships.set(rel['@_Id'], target.replace('../', ''))
+      }
     }
   }
+  const footnotes = parseFootnotes(await zip.file('word/footnotes.xml')?.async('text'), hyperlinks)
 
-  const images: ImportImage[] = []
+  const extractedImages: ImportImage[] = []
   const imageByPath = new Map<string, string>()
   const imageEntries = Object.values(zip.files).filter(entry => !entry.dir && entry.name.startsWith('word/media/'))
   for (const [index, entry] of imageEntries.entries()) {
     const extension = entry.name.split('.').pop()?.toLowerCase() || 'bin'
-    const mimeType = extension === 'png' ? 'image/png' : extension === 'gif' ? 'image/gif' : extension === 'svg' ? 'image/svg+xml' : extension === 'tif' || extension === 'tiff' ? 'image/tiff' : 'image/jpeg'
+    const mimeTypes: Record<string, string> = {
+      jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif',
+      svg: 'image/svg+xml', webp: 'image/webp', tif: 'image/tiff', tiff: 'image/tiff',
+      wmf: 'image/wmf', emf: 'image/emf', bmp: 'image/bmp',
+    }
+    const mimeType = mimeTypes[extension] || 'application/octet-stream'
     const id = `image-${index + 1}`
-    images.push({ id, name: entry.name.split('/').pop() || id, mimeType, data: await entry.async('arraybuffer') })
+    extractedImages.push({ id, name: entry.name.split('/').pop() || id, mimeType, data: await entry.async('arraybuffer') })
     imageByPath.set(entry.name.replace('word/', ''), id)
+  }
+  const images: ImportImage[] = []
+  for (const [index, image] of extractedImages.entries()) {
+    progress(22 + Math.round((index + 1) / Math.max(1, extractedImages.length) * 20), `تبدیل محلی تصویر ${index + 1} از ${extractedImages.length}`)
+    images.push(await convertImageLocally(image))
   }
   const imageRelations = new Map([...relationships].map(([id, path]) => [id, imageByPath.get(path)]).filter((item): item is [string, string] => Boolean(item[1])))
 
@@ -226,15 +439,21 @@ async function analyze(file: File): Promise<WordImportAnalysis> {
   const parsed = orderedParser.parse(await documentEntry.async('text'))
   const body = deepFind(parsed, 'w:body')[0] || parsed
   const bodyItems = Array.isArray(body) ? body : [body]
-  const pages: ImportPage[] = [{ number: 1, blocks: [] }]
+  const pages: ImportPage[] = [{ number: 1, printNumber: 1, blocks: [] }]
   const toc: TocEntry[] = []
   const issues: ImportIssue[] = []
   let paragraphNumber = 0
   let tableNumber = 0
 
+  const pushPage = (printNumber?: number) => {
+    if (pages.length >= 2000) return
+    pages.push({ number: pages.length + 1, printNumber: printNumber ?? (pages[pages.length - 1].printNumber || pages.length) + 1, blocks: [] })
+  }
+
   const append = (block: ImportParagraph) => {
+    if (block.pageBreakBefore && pages[pages.length - 1].blocks.length) pushPage()
     pages[pages.length - 1].blocks.push(block)
-    if (block.type === 'heading' && block.text) toc.push({ id: block.id, title: block.text, level: block.level || 1, page: pages.length, included: true, styleId: block.style })
+    if (block.type === 'heading' && block.text) toc.push({ id: block.id, title: block.text, level: block.level || 1, page: pages[pages.length - 1].printNumber || pages.length, included: true, styleId: block.style })
   }
 
   for (const item of bodyItems.flatMap(value => Array.isArray(value) ? value : [value])) {
@@ -243,32 +462,66 @@ async function analyze(file: File): Promise<WordImportAnalysis> {
     if ('w:p' in record) {
       paragraphNumber += 1
       const node = record['w:p']
-      normalizeParagraph(node, paragraphNumber, imageRelations, styles).forEach(append)
-      if (hasPageBreak(node) && pages.length < 2000) pages.push({ number: pages.length + 1, blocks: [] })
+      const normalized = normalizeParagraph(node, paragraphNumber, imageRelations, hyperlinks, styles)
+      normalized.forEach(append)
+      const sectionPageStart = Number(elementAttribute(node, 'w:pgNumType', '@_w:start', '@_start') || 0)
+      if (sectionPageStart && pages[pages.length - 1].blocks.length) pushPage(sectionPageStart)
+      else if (hasPageBreak(node) && !normalized.some(block => block.pageBreakBefore)) pushPage()
     } else if ('w:tbl' in record) {
       tableNumber += 1
-      append(tableBlock(record['w:tbl'], tableNumber))
+      append(tableBlock(record['w:tbl'], tableNumber, hyperlinks))
     }
   }
 
-  const nonEmptyPages = pages.filter(page => page.blocks.length)
-  const contentPages = nonEmptyPages.length > 1
-    ? nonEmptyPages
-    : Array.from({ length: Math.max(1, Math.ceil((nonEmptyPages[0]?.blocks.length || 0) / 14)) }, (_, index) => ({
+  let lastContentPageIndex = pages.length - 1
+  while (lastContentPageIndex > 0 && !pages[lastContentPageIndex].blocks.length) lastContentPageIndex -= 1
+  const physicalPages = pages.slice(0, Math.max(1, lastContentPageIndex + 1))
+  const contentPages = physicalPages.length > 1
+    ? physicalPages
+    : Array.from({ length: Math.max(1, Math.ceil((physicalPages[0]?.blocks.length || 0) / 14)) }, (_, index) => ({
         number: index + 1,
-        blocks: (nonEmptyPages[0]?.blocks || []).slice(index * 14, (index + 1) * 14),
+        printNumber: index + 1,
+        blocks: (physicalPages[0]?.blocks || []).slice(index * 14, (index + 1) * 14),
       }))
 
   const paragraphs = contentPages.flatMap(page => page.blocks)
+  const imageUsage = new Map<string, { pages: Set<number>; caption?: string }>()
+  contentPages.forEach(page => page.blocks.forEach((block, index, blocks) => {
+    if (block.type !== 'image' || !block.imageId) return
+    const usage = imageUsage.get(block.imageId) || { pages: new Set<number>() }
+    usage.pages.add(page.printNumber || page.number)
+    const next = blocks[index + 1]
+    const previous = blocks[index - 1]
+    usage.caption ||= next?.type === 'caption' ? next.text : previous?.type === 'caption' ? previous.text : undefined
+    imageUsage.set(block.imageId, usage)
+  }))
+  images.forEach(image => {
+    const usage = imageUsage.get(image.id)
+    image.wordPages = usage ? [...usage.pages] : []
+    image.caption = usage?.caption
+  })
   const suggestedTitleBlock = contentPages.flatMap(page => page.blocks).find(block => block.text && styles.get(block.style || '')?.titleCandidate)
   if (!toc.length) issues.push({ id: 'missing-toc', code: 'missing-toc', severity: 'warning', message: 'تیتر خودکار پیدا نشد؛ از بخش نگاشت Style، استایل‌های فصل را به H1 تا H6 متصل کنید.', page: 1 })
-  images.filter(image => image.mimeType === 'image/tiff').forEach((image, index) => issues.push({ id: `image-format-${index}`, code: 'unsupported-image', severity: 'warning', message: `تصویر ${image.name} برای وب باید در سرور تبدیل شود.`, page: 1 }))
+  const convertedImageCount = images.filter(image => image.conversionStatus === 'converted-local').length
+  if (convertedImageCount) issues.push({ id: 'image-format-summary', code: 'converted-image', severity: 'info', message: `از مجموع ${images.length.toLocaleString('fa-IR')} تصویر، ${convertedImageCount.toLocaleString('fa-IR')} تصویر پیش از آپلود به‌صورت محلی تبدیل و در پیش‌نمایش جایگزین شد.`, page: 1 })
+  images.filter(image => image.conversionStatus === 'conversion-failed').forEach(image => {
+    const page = image.wordPages?.[0] || 1
+    issues.push({
+      id: `image-conversion-failed-${image.id}`,
+      imageId: image.id,
+      code: 'unsupported-image',
+      severity: 'warning',
+      page,
+      message: `${image.caption || image.originalName || image.name} در صفحه چاپی ${page.toLocaleString('fa-IR')} تبدیل نشد: ${image.conversionError || 'فرمت پشتیبانی نمی‌شود.'}`,
+    })
+  })
   const stats = {
     paragraphs: paragraphs.filter(block => block.type === 'paragraph').length,
     headings: paragraphs.filter(block => block.type === 'heading').length,
     images: images.length,
     tables: paragraphs.filter(block => block.type === 'table').length,
     formulas: paragraphs.filter(block => block.type === 'math').length,
+    footnotes: footnotes.length,
     words: paragraphs.reduce((sum, block) => sum + (block.text?.split(/\s+/).filter(Boolean).length || 0), 0),
   }
 
@@ -282,10 +535,14 @@ async function analyze(file: File): Promise<WordImportAnalysis> {
     totalPages: contentPages.length,
     previewPages: contentPages.slice(0, 50),
     toc,
-    styles: [...styles.values()].sort((a, b) => b.usedCount - a.usedCount || Number(Boolean(b.suggestedLevel)) - Number(Boolean(a.suggestedLevel)) || a.name.localeCompare(b.name)),
+    styles: [...styles.values()].filter(style => style.usedCount > 0).sort((a, b) => {
+      const priority = (style: WordStyleDefinition) => style.selectedRole === 'heading' ? 0 : style.selectedRole === 'caption' || style.selectedRole === 'table-title' ? 1 : style.usedCount ? 2 : 3
+      return priority(a) - priority(b) || (a.selectedLevel || 99) - (b.selectedLevel || 99) || b.usedCount - a.usedCount || a.name.localeCompare(b.name)
+    }),
     suggestedTitle: suggestedTitleBlock?.text,
     issues,
     images,
+    footnotes,
     stats,
     complexity: calculateComplexity(stats, issues),
   }
