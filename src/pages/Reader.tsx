@@ -67,6 +67,7 @@ export default function Reader() {
   const [autoScroll, setAutoScroll] = useState(false)
   const [autoScrollSpeed, setAutoScrollSpeed] = useState(2)
   const [highlightHolding, setHighlightHolding] = useState(false)
+  const [highlightArmed, setHighlightArmed] = useState(false)
   const [highlightDraft, setHighlightDraft] = useState<HighlightDraft | null>(null)
   const [highlightIndicator, setHighlightIndicator] = useState<HighlightIndicator | null>(null)
   const contentRef = useRef<HTMLDivElement>(null)
@@ -81,7 +82,8 @@ export default function Reader() {
     y: number
     drawing: boolean
   } | null>(null)
-  const highlightHoldTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const highlightTapRef = useRef<{ x: number; y: number; time: number; blockKey: string } | null>(null)
+  const highlightArmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const highlightReadyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const highlightReadyUntilRef = useRef(0)
 
@@ -214,11 +216,16 @@ export default function Reader() {
   }
 
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (highlightActive || highlightHolding || highlightArmed || Date.now() < highlightReadyUntilRef.current) return
     if (e.touches.length !== 1) return
     touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, time: Date.now() }
   }
 
   const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (highlightActive || highlightHolding || highlightArmed || Date.now() < highlightReadyUntilRef.current) {
+      touchStartRef.current = null
+      return
+    }
     const start = touchStartRef.current
     touchStartRef.current = null
     if (!start || e.changedTouches.length !== 1) return
@@ -331,23 +338,35 @@ export default function Reader() {
     if (!caret || !block || !contentRef.current?.contains(caret.node)) return
     const blockKey = block.dataset.readerBlock
     if (!blockKey) return
+    const now = Date.now()
+    const previousTap = highlightTapRef.current
+    const isDoubleTap = Boolean(
+      previousTap &&
+      previousTap.blockKey === blockKey &&
+      now - previousTap.time <= 420 &&
+      Math.hypot(e.clientX - previousTap.x, e.clientY - previousTap.y) <= 42
+    )
     highlightStartRef.current = { ...caret, block, blockKey, blockOffset: getOffsetWithinBlock(block, caret.node, caret.offset), x: e.clientX, y: e.clientY, drawing: false }
-    if (Date.now() < highlightReadyUntilRef.current) {
+    if (now < highlightReadyUntilRef.current || isDoubleTap) {
+      highlightTapRef.current = null
+      setHighlightArmed(false)
+      if (highlightArmTimerRef.current) clearTimeout(highlightArmTimerRef.current)
       highlightStartRef.current.drawing = true
       setHighlightActive(true)
       setHighlightHolding(true)
       setHighlightIndicator({ x: e.clientX, y: e.clientY, pointerType: e.pointerType })
       e.currentTarget.setPointerCapture(e.pointerId)
+      e.preventDefault()
       return
     }
-    highlightHoldTimerRef.current = setTimeout(() => {
-      if (!highlightStartRef.current) return
-      highlightStartRef.current.drawing = true
-      setHighlightActive(true)
-      setHighlightHolding(true)
-      setHighlightIndicator({ x: e.clientX, y: e.clientY, pointerType: e.pointerType })
-      e.currentTarget.setPointerCapture(e.pointerId)
-    }, 1000)
+    highlightTapRef.current = { x: e.clientX, y: e.clientY, time: now, blockKey }
+    setHighlightArmed(true)
+    if (highlightArmTimerRef.current) clearTimeout(highlightArmTimerRef.current)
+    highlightArmTimerRef.current = setTimeout(() => {
+      highlightTapRef.current = null
+      highlightStartRef.current = null
+      setHighlightArmed(false)
+    }, 450)
   }
 
   const moveHighlightStroke = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -356,8 +375,9 @@ export default function Reader() {
     const dx = Math.abs(e.clientX - start.x)
     const dy = Math.abs(e.clientY - start.y)
     if (!start.drawing && Math.max(dx, dy) > 8) {
-      if (highlightHoldTimerRef.current) clearTimeout(highlightHoldTimerRef.current)
       highlightStartRef.current = null
+      highlightTapRef.current = null
+      setHighlightArmed(false)
       setHighlightIndicator(null)
       window.getSelection()?.removeAllRanges()
       return
@@ -369,7 +389,6 @@ export default function Reader() {
   }
 
   const finishHighlightStroke = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (highlightHoldTimerRef.current) clearTimeout(highlightHoldTimerRef.current)
     setHighlightHolding(false)
     if (!highlightStartRef.current?.drawing) {
       highlightStartRef.current = null
@@ -386,8 +405,10 @@ export default function Reader() {
   }
 
   const cancelHighlightStroke = () => {
-    if (highlightHoldTimerRef.current) clearTimeout(highlightHoldTimerRef.current)
+    if (highlightArmTimerRef.current) clearTimeout(highlightArmTimerRef.current)
     highlightStartRef.current = null
+    highlightTapRef.current = null
+    setHighlightArmed(false)
     setHighlightHolding(false)
     setHighlightDraft(null)
     setHighlightIndicator(null)
@@ -737,7 +758,7 @@ export default function Reader() {
   }
 
   const bgClass = readingMode === 'night' ? 'bg-[#0f172a] text-slate-100' : readingMode === 'sepia' ? 'bg-[#f4ecd8] text-[#5b4636]' : 'bg-background text-foreground'
-  const sidePanelClass = `reader-side-panel ${dir === 'rtl' ? 'right-0 border-l' : 'left-0 border-r'} menu-glass-70`
+  const sidePanelClass = `reader-side-panel ${dir === 'rtl' ? 'right-0 border-l' : 'left-0 border-r'} frosted-menu-surface`
 
   return (
     <div
@@ -772,7 +793,7 @@ export default function Reader() {
         />
       )}
       {/* Top Bar */}
-      <div className="sticky top-0 z-40 menu-glass-70 border-b px-4 py-2.5 flex items-center justify-between">
+      <div className="sticky top-0 z-40 frosted-menu-surface border-b px-4 py-2.5 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link to={canReadFull ? `/b/${book.id}` : '/store'} className="flex items-center gap-1 text-muted-foreground hover:text-foreground text-sm"><ArrowLeft className="w-4 h-4"/>بازگشت</Link>
           <div className="h-5 w-px bg-border mx-1"/>
@@ -788,7 +809,7 @@ export default function Reader() {
       <div className="relative flex min-w-0">
         {/* TOC Sidebar - on same side based on language */}
         {showToc && (
-          <div className={`reader-toc-panel fixed top-0 ${dir==='rtl'?'right-0 border-l':'left-0 border-r'} z-[70] h-full w-80 toc-menu-clear p-5 overflow-y-auto animate-slide-in-right shadow-glass`} style={{paddingTop:'4rem'}}>
+          <div className={`reader-toc-panel fixed top-0 ${dir==='rtl'?'right-0 border-l':'left-0 border-r'} z-[70] h-full w-80 frosted-menu-surface p-5 overflow-y-auto animate-slide-in-right shadow-glass`} style={{paddingTop:'4rem'}}>
             <div className="flex items-center justify-between mb-5"><h2 className="font-bold font-display text-lg">📑 فهرست</h2><button title="بستن فهرست" onClick={()=>setShowToc(false)} className="p-1.5 rounded-lg hover:bg-muted"><X className="w-4 h-4"/></button></div>
             <div className="relative mb-4"><Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"/><input placeholder="جستجو در عناوین..." className="w-full pr-10 pl-3 py-2 rounded-xl border bg-background text-sm" onChange={e=>setSearchQuery(e.target.value)}/></div>
             {book.pages.map((p:any,i:number)=>(<button key={i} onClick={()=>goPage(i)} className={`block w-full text-right p-2.5 rounded-xl text-sm mb-1 transition-all ${currentPage===i?'bg-primary/10 text-primary font-bold':'hover:bg-muted'}`}><div className="flex items-center justify-between"><span>{p.title||`صفحه ${i+1}`}</span>{!canReadFull&&!book.preview_pages.includes(i)&&<Lock className="w-3 h-3 text-muted-foreground"/>}</div></button>))}
@@ -799,7 +820,7 @@ export default function Reader() {
         <div className="reader-main min-w-0 w-full flex-1 max-w-3xl mx-auto px-4 sm:px-8 py-10 pb-32" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
           <div
             ref={contentRef}
-            className={`reader-content-protected mb-10 min-h-[65vh] ${highlightActive ? `reader-highlight-mode reader-highlight-${selectedHighlightColor}` : ''} ${highlightHolding ? 'reader-highlight-holding' : ''}`}
+            className={`reader-content-protected mb-10 min-h-[65vh] ${highlightActive ? `reader-highlight-mode reader-highlight-${selectedHighlightColor}` : ''} ${highlightArmed ? 'reader-highlight-armed' : ''} ${highlightHolding ? 'reader-highlight-holding' : ''}`}
             onPointerDown={startHighlightStroke}
             onPointerMove={moveHighlightStroke}
             onPointerUp={finishHighlightStroke}
@@ -819,7 +840,7 @@ export default function Reader() {
       </div>
 
       {/* Floating Toolbar */}
-      <div className="reader-floating-toolbar menu-glass-70">
+      <div className="reader-floating-toolbar frosted-menu-surface">
         <button onClick={()=>setShowToc(!showToc)} className="p-2 rounded-lg hover:bg-muted text-muted-foreground" title="فهرست مطالب"><List className="w-4 h-4"/></button>
         <div className="w-px h-6 bg-border mx-1"/>
         {/* Reading controls */}
@@ -850,7 +871,7 @@ export default function Reader() {
 
       {/* Highlight Color Menu */}
       {showHighlightMenu && (
-        <div className="fixed bottom-16 left-1/2 -translate-x-1/2 z-50 w-full max-w-xs menu-glass-70 rounded-2xl p-3 shadow-glass animate-slide-up">
+        <div className="fixed bottom-16 left-1/2 -translate-x-1/2 z-50 w-full max-w-xs frosted-menu-surface rounded-2xl p-3 shadow-glass animate-slide-up">
           <div className="flex items-center justify-between mb-2">
             <div>
               <h3 className="font-semibold text-sm flex items-center gap-1.5"><Highlighter className="w-3.5 h-3.5 text-primary"/>قلم هایلایت</h3>
@@ -871,7 +892,7 @@ export default function Reader() {
               />
             ))}
           </div>
-          <p className="rounded-lg bg-primary/10 px-2.5 py-2 text-[11px] leading-5 text-muted-foreground">روی متن یک ثانیه نگه دارید و سپس بدون برداشتن دست قلم را بکشید. پس از هر هایلایت، قلم تا سه ثانیه آماده است و هایلایت بعدی بدون مکث شروع می‌شود.</p>
+          <p className="rounded-lg bg-primary/10 px-2.5 py-2 text-[11px] leading-5 text-muted-foreground">روی محل شروع دوبار کلیک یا دبل‌تپ کنید و در حرکت دوم، بدون برداشتن دست یا قلم روی متن بکشید. پس از هر هایلایت، قلم تا سه ثانیه آماده است و هایلایت بعدی فوری شروع می‌شود.</p>
         </div>
       )}
 

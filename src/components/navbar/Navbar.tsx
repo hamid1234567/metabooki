@@ -54,6 +54,7 @@ export function Navbar() {
   }
 
   return (
+    <>
     <nav className="app-top-nav">
       <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between gap-2">
@@ -100,12 +101,13 @@ export function Navbar() {
         </div>
       </div>
 
+    </nav>
+
       {(siteMenuOpen || userMenuOpen) && (
         <button className="fixed inset-0 top-16 z-40 menu-backdrop-blur" onClick={closeMenus} aria-label="بستن منو" />
       )}
-
       {userMenuOpen && user && (
-        <div className="nav-glass-panel user-account-panel">
+        <div className="nav-glass-panel frosted-menu-surface user-account-panel">
           <div className="mobile-user-summary">
             {avatarUrl ? <img src={avatarUrl} alt={displayName} className="user-avatar-chip object-cover" /> : <span className="user-avatar-chip">{userInitials.slice(0, 2)}</span>}
             <span className="min-w-0"><b className="block truncate">{displayName}</b><small className="block truncate">{user.email}</small></span>
@@ -119,7 +121,7 @@ export function Navbar() {
       )}
 
       {siteMenuOpen && (
-        <div className="nav-glass-panel site-menu-panel">
+        <div className="nav-glass-panel frosted-menu-surface site-menu-panel">
           <div className="space-y-1">
             <Link to="/store" className="mobile-menu-row"><Store className="w-4 h-4" />فروشگاه</Link>
             {user && <Link to="/library" className="mobile-menu-row"><BookOpen className="w-4 h-4" />قفسه من</Link>}
@@ -137,6 +139,6 @@ export function Navbar() {
           </div>
         </div>
       )}
-    </nav>
+    </>
   )
 }

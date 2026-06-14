@@ -298,8 +298,8 @@ body {
 }
 
 .nav-glass-panel {
-  position: absolute;
-  top: calc(100% + 0.5rem);
+  position: fixed;
+  top: 4.5rem;
   z-index: 60;
   width: min(20rem, calc(100vw - 1rem));
   max-height: calc(100dvh - 5rem);
@@ -454,6 +454,34 @@ body {
   border-color: hsl(222 30% 28% / 0.45);
 }
 
+/* Shared surface for every opened menu, popover and reader control panel.
+   Keeping these surfaces outside filtered ancestors lets backdrop-filter sample
+   the actual page in both local builds and GitHub Pages. */
+.frosted-menu-surface,
+.nav-glass-panel,
+.mobile-menu-panel,
+.toc-menu-clear,
+[data-radix-popper-content-wrapper] > [role="menu"] {
+  background:
+    linear-gradient(145deg, hsl(0 0% 100% / 0.48), hsl(205 62% 96% / 0.34)) !important;
+  border: 1px solid hsl(0 0% 100% / 0.7) !important;
+  box-shadow:
+    0 18px 48px hsl(213 38% 24% / 0.16),
+    inset 0 1px 0 hsl(0 0% 100% / 0.72) !important;
+  backdrop-filter: blur(17px) saturate(1.35) contrast(1.04) !important;
+  -webkit-backdrop-filter: blur(17px) saturate(1.35) contrast(1.04) !important;
+}
+
+[data-theme="midnight"] .frosted-menu-surface,
+[data-theme="midnight"] .nav-glass-panel,
+[data-theme="midnight"] .mobile-menu-panel,
+[data-theme="midnight"] .toc-menu-clear,
+[data-theme="midnight"] [data-radix-popper-content-wrapper] > [role="menu"] {
+  background:
+    linear-gradient(145deg, hsl(222 30% 13% / 0.54), hsl(215 34% 17% / 0.4)) !important;
+  border-color: hsl(210 35% 78% / 0.18) !important;
+}
+
 /* Reader abstract animated backgrounds: subtle, non-distracting */
 .reader-abstract-bg {
   pointer-events: none;
@@ -577,7 +605,17 @@ body {
 
 .reader-highlight-mode {
   cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%230ea5e9' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 11-6 6v3h9l3-3'/%3E%3Cpath d='m22 12-4.5 4.5-10-10L12 2z'/%3E%3C/svg%3E") 2 22, crosshair;
-  touch-action: pan-y;
+  touch-action: none;
+}
+
+.reader-highlight-armed {
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.reader-highlight-armed [data-reader-text="true"] {
+  outline: 1px dashed hsl(var(--primary) / 0.32);
+  outline-offset: 0.25rem;
 }
 
 .reader-highlight-indicator {
@@ -872,9 +910,9 @@ body {
 }
 
 .menu-backdrop-blur {
-  background: hsl(210 25% 96% / 0.2);
-  backdrop-filter: blur(13px) saturate(1.16);
-  -webkit-backdrop-filter: blur(13px) saturate(1.16);
+  background: hsl(210 25% 96% / 0.1);
+  backdrop-filter: blur(8px) saturate(1.12);
+  -webkit-backdrop-filter: blur(8px) saturate(1.12);
 }
 
 [data-theme="midnight"] .menu-backdrop-blur {
