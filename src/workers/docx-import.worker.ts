@@ -40,30 +40,31 @@ function deepFind(value: unknown, key: string): unknown[] {
   return found
 }
 
-function getStyle(node: unknown) {
-  const styles = deepFind(node, 'w:pStyle')
-  return String(findAttribute(styles[0], '@_w:val') || findAttribute(styles[0], '@_val') || '')
+function findElementAttributes(value: unknown, key: string): Record<string, unknown>[] {
+  const found: Record<string, unknown>[] = []
+  if (Array.isArray(value)) value.forEach(item => found.push(...findElementAttributes(item, key)))
+  else if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>
+    if (key in record) {
+      const attributes = record[':@']
+      if (attributes && typeof attributes === 'object') found.push(attributes as Record<string, unknown>)
+    }
+    Object.values(record).forEach(item => found.push(...findElementAttributes(item, key)))
+  }
+  return found
 }
 
-function findAttribute(value: unknown, attribute: string): unknown {
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      const found = findAttribute(item, attribute)
-      if (found !== undefined) return found
-    }
-  } else if (value && typeof value === 'object') {
-    const record = value as Record<string, unknown>
-    if (record[attribute] !== undefined) return record[attribute]
-    for (const item of Object.values(record)) {
-      const found = findAttribute(item, attribute)
-      if (found !== undefined) return found
-    }
-  }
-  return undefined
+function elementAttribute(value: unknown, key: string, ...attributes: string[]) {
+  const attrs = findElementAttributes(value, key)[0]
+  return attributes.map(attribute => attrs?.[attribute]).find(item => item !== undefined)
+}
+
+function getStyle(node: unknown) {
+  return String(elementAttribute(node, 'w:pStyle', '@_w:val', '@_val') || '')
 }
 
 function headingLevel(style: string) {
-  const match = style.match(/(?:heading|عنوان|تیتر)\s*([1-6])/i)
+  const match = style.match(/(?:heading|toc|level|عنوان|تیتر|سطح)\s*[-_ ]?([1-6])/i)
   return match ? Number(match[1]) : 0
 }
 
@@ -110,19 +111,30 @@ function parseStyles(stylesXml: string | undefined) {
       alignment: parseAlignment(raw?.['w:pPr']?.['w:jc']?.['@_w:val']),
     })
   }
+  for (const style of result.values()) {
+    const parent = style.basedOn ? result.get(style.basedOn) : undefined
+    if (!style.suggestedLevel && parent?.suggestedLevel) {
+      style.suggestedLevel = parent.suggestedLevel
+      style.selectedLevel = parent.suggestedLevel
+    }
+    style.fontSizePt ??= parent?.fontSizePt
+    style.color ??= parent?.color
+    style.bold ??= parent?.bold
+    style.italic ??= parent?.italic
+    style.alignment ??= parent?.alignment
+  }
   return result
 }
 
 function hasPageBreak(node: unknown) {
-  return deepFind(node, 'w:br').some(item => {
-    return findAttribute(item, '@_w:type') === 'page' || findAttribute(item, '@_type') === 'page'
-  }) || deepFind(node, 'w:lastRenderedPageBreak').length > 0
+  return findElementAttributes(node, 'w:br').some(attrs => attrs['@_w:type'] === 'page' || attrs['@_type'] === 'page')
+    || deepFind(node, 'w:lastRenderedPageBreak').length > 0
 }
 
 function relationIds(node: unknown) {
   const ids = new Set<string>()
-  for (const item of [...deepFind(node, 'a:blip'), ...deepFind(node, 'v:imagedata')]) {
-    const id = findAttribute(item, '@_r:embed') || findAttribute(item, '@_r:id')
+  for (const attrs of [...findElementAttributes(node, 'a:blip'), ...findElementAttributes(node, 'v:imagedata')]) {
+    const id = attrs['@_r:embed'] || attrs['@_r:id']
     if (id) ids.add(String(id))
   }
   return [...ids]
@@ -135,9 +147,9 @@ function normalizeParagraph(node: unknown, number: number, imageRelations: Map<s
   const text = collectText(node).replace(/\s+\n/g, '\n').trim()
   const blocks: ImportParagraph[] = []
   if (definition) definition.usedCount += 1
-  const directSize = findAttribute(deepFind(node, 'w:sz')[0], '@_w:val')
-  const directColor = findAttribute(deepFind(node, 'w:color')[0], '@_w:val')
-  const directAlignment = findAttribute(deepFind(node, 'w:jc')[0], '@_w:val')
+  const directSize = elementAttribute(node, 'w:sz', '@_w:val')
+  const directColor = elementAttribute(node, 'w:color', '@_w:val')
+  const directAlignment = elementAttribute(node, 'w:jc', '@_w:val')
   const format: ImportParagraph['format'] = {
     fontSizePt: directSize ? Number(directSize) / 2 : definition?.fontSizePt,
     color: String(directColor || definition?.color || '').replace(/^auto$/i, '') || undefined,
@@ -148,8 +160,8 @@ function normalizeParagraph(node: unknown, number: number, imageRelations: Map<s
   if (text) blocks.push({ id: `p-${number}`, type: level ? 'heading' : 'paragraph', text, level: level || undefined, style: style || undefined, format })
   relationIds(node).forEach((relationId, index) => {
     const imageId = imageRelations.get(relationId)
-    const extent = deepFind(node, 'wp:extent')[index]
-    const widthEmu = Number(findAttribute(extent, '@_cx') || findAttribute(extent, '@_wp:cx') || 0)
+    const extent = findElementAttributes(node, 'wp:extent')[index]
+    const widthEmu = Number(extent?.['@_cx'] || extent?.['@_wp:cx'] || 0)
     if (imageId) blocks.push({ id: `p-${number}-image-${index}`, type: 'image', imageId, imageWidthPercent: widthEmu ? Math.min(100, Math.max(18, widthEmu / 914400 / 6.5 * 100)) : undefined })
   })
   if (deepFind(node, 'm:oMath').length || deepFind(node, 'm:oMathPara').length) {
