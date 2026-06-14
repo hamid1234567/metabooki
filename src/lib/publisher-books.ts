@@ -11,6 +11,7 @@ export interface PublisherBook extends MockBook {
   revenue: number
   author: string
   importStatus?: 'manual' | 'word-imported' | 'needs-review'
+  metadata?: Record<string, unknown>
 }
 
 function read(): PublisherBook[] {
@@ -34,7 +35,7 @@ export function getPublisherBooks(): PublisherBook[] {
   return [...custom, ...seeded.filter(b => !ids.has(b.id))]
 }
 
-export function createPublisherBook(input: { title: string; author: string; category: string; description: string; fileName?: string }) {
+export function createPublisherBook(input: { title: string; author: string; category: string; description: string; fileName?: string; pages?: any[]; importProjectId?: string }) {
   const now = new Date().toISOString()
   const id = `pub-${Date.now()}`
   const book: PublisherBook = {
@@ -44,7 +45,7 @@ export function createPublisherBook(input: { title: string; author: string; cate
     description: input.description || 'کتاب جدید آماده ویرایش و تکمیل محتوا است.',
     cover_url: `https://picsum.photos/seed/${id}/400/560`,
     back_cover_url: null,
-    pages: [
+    pages: input.pages || [
       { title: 'فصل ۱', blocks: [
         { type: 'heading', level: 2, content: 'فصل ۱' },
         { type: 'paragraph', content: input.fileName ? 'متن اولیه از فایل Word شبیه‌سازی و برای ویرایش آماده شد. در نسخه واقعی، ساختار فصل‌ها، تصاویر و جداول از DOCX استخراج می‌شود.' : 'محتوای کتاب را اینجا بنویسید یا از فایل Word وارد کنید.' },
@@ -63,7 +64,7 @@ export function createPublisherBook(input: { title: string; author: string; cate
     series_order: null,
     publisher_name: 'انتشارات دانش نو',
     book_type: 'تألیف',
-    page_count: 1,
+    page_count: input.pages?.length || 1,
     created_at: now,
     stage: 'editing',
     readers: 0,
@@ -71,6 +72,7 @@ export function createPublisherBook(input: { title: string; author: string; cate
     revenue: 0,
     author: input.author || 'نویسنده نامشخص',
     importStatus: input.fileName ? 'word-imported' : 'manual',
+    metadata: input.importProjectId ? { import_project_id: input.importProjectId } : undefined,
   }
   const items = read()
   items.unshift(book)

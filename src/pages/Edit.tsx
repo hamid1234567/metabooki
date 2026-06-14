@@ -1,99 +1,161 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { useMemo, useState } from 'react'
-import { Bot, Eye, FileText, Highlighter, Image, Layers, ListTree, MessageSquare, Plus, Save, Sparkles, Table, WandSparkles } from 'lucide-react'
+import { EditorContent, useEditor } from '@tiptap/react'
+import StarterKit from '@tiptap/starter-kit'
+import Underline from '@tiptap/extension-underline'
+import TextAlign from '@tiptap/extension-text-align'
+import Subscript from '@tiptap/extension-subscript'
+import Superscript from '@tiptap/extension-superscript'
+import { AlignCenter, AlignJustify, AlignLeft, AlignRight, Bold, Eye, Heading1, Heading2, Italic, List, ListOrdered, Minus, Plus, Redo2, Save, Sparkles, Strikethrough, Subscript as SubIcon, Superscript as SuperIcon, Underline as UnderlineIcon, Undo2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { findPublisherBook, updatePublisherBook } from '@/lib/publisher-books'
 import { findBookById } from '@/lib/mock-data'
+import { supabase } from '@/integrations/supabase/client'
 
-const blockTools = [
-  { type: 'paragraph', label: 'پاراگراف', icon: FileText },
-  { type: 'image', label: 'تصویر', icon: Image },
-  { type: 'table', label: 'جدول', icon: Table },
-  { type: 'quiz', label: 'آزمون', icon: Highlighter },
-  { type: 'timeline', label: 'تایم‌لاین', icon: ListTree },
-  { type: 'hotspot', label: 'هات‌اسپات', icon: Layers },
-]
+function pagesToHtml(pages: any[] = []) {
+  const escape = (value = '') => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  return pages.map((page, pageIndex) => `${pageIndex ? '<hr data-page-break="true">' : ''}${(page.blocks || []).map((block: any) => {
+    if (block.type === 'heading') return `<h${Math.min(6, block.level || 2)}>${escape(block.content)}</h${Math.min(6, block.level || 2)}>`
+    if (block.type === 'table') return `<table><tbody>${[block.headers || [], ...(block.rows || [])].map((row: string[]) => `<tr>${row.map(cell => `<td>${escape(cell)}</td>`).join('')}</tr>`).join('')}</tbody></table>`
+    if (block.type === 'image' && block.url) return `<img src="${block.url}" alt="${escape(block.caption || '')}">`
+    return `<p>${escape(block.content || block.expression || '')}</p>`
+  }).join('')}`).join('')
+}
+
+function editorJsonToPages(json: any) {
+  const pages: any[] = [{ title: 'صفحه ۱', blocks: [] }]
+  for (const node of json?.content || []) {
+    if (node.type === 'horizontalRule') {
+      pages.push({ title: `صفحه ${pages.length + 1}`, blocks: [] })
+      continue
+    }
+    const text = (node.content || []).map((part: any) => part.text || '').join('')
+    if (node.type === 'heading') {
+      pages[pages.length - 1].blocks.push({ type: 'heading', level: node.attrs?.level || 2, content: text })
+      if (!pages[pages.length - 1].blocks.slice(0, -1).length) pages[pages.length - 1].title = text || pages[pages.length - 1].title
+    } else if (node.type === 'bulletList' || node.type === 'orderedList') {
+      const items = (node.content || []).map((item: any) => (item.content || []).flatMap((part: any) => part.content || []).map((part: any) => part.text || '').join(''))
+      pages[pages.length - 1].blocks.push({ type: 'paragraph', content: items.map((item: string, index: number) => `${node.type === 'orderedList' ? `${index + 1}.` : '•'} ${item}`).join('\n') })
+    } else if (node.type === 'paragraph' && text) {
+      pages[pages.length - 1].blocks.push({ type: 'paragraph', content: text })
+    }
+  }
+  return pages.filter(page => page.blocks.length)
+}
 
 export default function Edit() {
-  const { id } = useParams<{ id: string }>()
-  const initial = useMemo(() => findPublisherBook(id || '') || findBookById(id || ''), [id])
-  const [title, setTitle] = useState(initial?.title || '')
-  const [description, setDescription] = useState(initial?.description || '')
-  const [chapterTitle, setChapterTitle] = useState(initial?.pages?.[0]?.title || 'فصل ۱')
-  const [body, setBody] = useState(initial?.pages?.[0]?.blocks?.find((b:any)=>b.type==='paragraph')?.content || '')
-  const [saved, setSaved] = useState(false)
+  const { id = '' } = useParams<{ id: string }>()
+  const localInitial = useMemo(() => findPublisherBook(id) || findBookById(id), [id])
+  const [book, setBook] = useState<any>(localInitial)
+  const [title, setTitle] = useState(localInitial?.title || '')
+  const [description, setDescription] = useState(localInitial?.description || '')
+  const [savedAt, setSavedAt] = useState<Date | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [fontSize, setFontSize] = useState(18)
+  const loadedRef = useRef(false)
 
-  if (!initial) return <div className="max-w-4xl mx-auto px-4 py-20 text-center"><h1 className="text-2xl font-bold">کتاب یافت نشد</h1></div>
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      Underline,
+      Subscript,
+      Superscript,
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
+    ],
+    content: pagesToHtml(localInitial?.pages || []),
+    editorProps: { attributes: { class: 'book-document-prose', dir: 'rtl', spellcheck: 'true' } },
+  })
 
-  const save = () => {
-    if (id) updatePublisherBook(id, {
-      title,
-      description,
-      pages: [{ title: chapterTitle, blocks: [
-        { type: 'heading', level: 2, content: chapterTitle },
-        { type: 'paragraph', content: body },
-        { type: 'timeline', events: [{ year: '۱', title: 'شروع', description: 'مرحله اول کتاب' }, { year: '۲', title: 'تکمیل', description: 'مرحله دوم کتاب' }] },
-        { type: 'hotspot', image: `https://picsum.photos/seed/${id}-edit-hotspot/900/520`, caption: 'نمونه هات‌اسپات', points: [{x:25,y:35,title:'نقطه ۱',text:'توضیح نقطه اول'}, {x:65,y:55,title:'نقطه ۲',text:'توضیح نقطه دوم'}] },
-      ]}],
-      page_count: 1,
+  useEffect(() => {
+    if (localInitial || !import.meta.env.VITE_SUPABASE_URL?.startsWith('http')) return
+    ;(supabase as any).from('books').select('*').eq('id', id).maybeSingle().then(({ data }: { data: any }) => {
+      if (!data) return
+      setBook(data)
+      setTitle(data.title)
+      setDescription(data.description || '')
+      editor?.commands.setContent(pagesToHtml(data.pages || []))
+      loadedRef.current = true
     })
-    setSaved(true); setTimeout(()=>setSaved(false), 1800)
+  }, [editor, id, localInitial])
+
+  const save = async (quiet = false) => {
+    if (!editor || !id) return
+    setSaving(true)
+    const pages = editorJsonToPages(editor.getJSON())
+    const patch = { title, description, pages, page_count: pages.length, content_updated_at: new Date().toISOString() }
+    updatePublisherBook(id, patch as any)
+    if (import.meta.env.VITE_SUPABASE_URL?.startsWith('http') && /^[0-9a-f-]{36}$/i.test(id)) {
+      await (supabase as any).from('books').update({ title, description, pages, content_updated_at: patch.content_updated_at }).eq('id', id)
+    }
+    setBook((current: any) => ({ ...current, ...patch }))
+    setSavedAt(new Date())
+    setSaving(false)
+    if (!quiet) editor.commands.focus()
   }
 
+  useEffect(() => {
+    if (!editor) return
+    const onUpdate = () => {
+      window.clearTimeout((onUpdate as any).timer)
+      ;(onUpdate as any).timer = window.setTimeout(() => save(true), 1400)
+    }
+    editor.on('update', onUpdate)
+    return () => {
+      editor.off('update', onUpdate)
+      window.clearTimeout((onUpdate as any).timer)
+    }
+  })
+
+  if (!book && !localInitial) return <div className="max-w-4xl mx-auto px-4 py-20 text-center"><h1 className="text-2xl font-bold">در حال دریافت پیش‌نویس کتاب…</h1></div>
+
+  const command = (action: () => void) => { action(); editor?.commands.focus() }
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-      <div className="menu-glass-70 rounded-3xl p-6 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p className="text-sm text-muted-foreground">Builder / Editor</p>
-          <h1 className="text-3xl font-black font-display">ویرایش متن و محتوای کتاب</h1>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button onClick={save} className="gap-2"><Save className="w-4 h-4" />ذخیره</Button>
-          <Link to={`/read/${initial.id}`}><Button variant="outline" className="gap-2"><Eye className="w-4 h-4" />پیش‌نمایش</Button></Link>
-          <Link to={`/publish/${initial.id}`}><Button variant="outline" className="gap-2"><Sparkles className="w-4 h-4" />قیمت و انتشار</Button></Link>
-        </div>
+    <main className="book-editor-shell" dir="rtl">
+      <header className="book-editor-head menu-glass-70">
+        <div><p>ادیتور کتاب</p><input value={title} onChange={event => setTitle(event.target.value)} aria-label="عنوان کتاب" /></div>
+        <div className="book-save-state"><Save />{saving ? 'در حال ذخیره…' : savedAt ? `ذخیره شد ${savedAt.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })}` : 'ذخیره خودکار فعال است'}</div>
+        <div><Button variant="outline" onClick={() => save()}><Save />ذخیره</Button><Link to={`/read/${id}`}><Button variant="outline"><Eye />پیش‌نمایش</Button></Link><Link to={`/publish/${id}`}><Button><Sparkles />انتشار</Button></Link></div>
+      </header>
+
+      <div className="book-editor-toolbar menu-glass-70">
+        <button title="بازگشت" onClick={() => command(() => editor?.chain().focus().undo().run())}><Undo2 /></button>
+        <button title="انجام دوباره" onClick={() => command(() => editor?.chain().focus().redo().run())}><Redo2 /></button>
+        <i />
+        <button title="تیتر اصلی" className={editor?.isActive('heading', { level: 1 }) ? 'active' : ''} onClick={() => command(() => editor?.chain().focus().toggleHeading({ level: 1 }).run())}><Heading1 /></button>
+        <button title="تیتر فرعی" className={editor?.isActive('heading', { level: 2 }) ? 'active' : ''} onClick={() => command(() => editor?.chain().focus().toggleHeading({ level: 2 }).run())}><Heading2 /></button>
+        <button title="پررنگ" className={editor?.isActive('bold') ? 'active' : ''} onClick={() => command(() => editor?.chain().focus().toggleBold().run())}><Bold /></button>
+        <button title="مورب" className={editor?.isActive('italic') ? 'active' : ''} onClick={() => command(() => editor?.chain().focus().toggleItalic().run())}><Italic /></button>
+        <button title="زیرخط" className={editor?.isActive('underline') ? 'active' : ''} onClick={() => command(() => editor?.chain().focus().toggleUnderline().run())}><UnderlineIcon /></button>
+        <button title="خط‌خورده" onClick={() => command(() => editor?.chain().focus().toggleStrike().run())}><Strikethrough /></button>
+        <button title="بالانویس" onClick={() => command(() => editor?.chain().focus().toggleSuperscript().run())}><SuperIcon /></button>
+        <button title="زیرنویس" onClick={() => command(() => editor?.chain().focus().toggleSubscript().run())}><SubIcon /></button>
+        <i />
+        <button title="راست‌چین" onClick={() => command(() => editor?.chain().focus().setTextAlign('right').run())}><AlignRight /></button>
+        <button title="وسط‌چین" onClick={() => command(() => editor?.chain().focus().setTextAlign('center').run())}><AlignCenter /></button>
+        <button title="چپ‌چین" onClick={() => command(() => editor?.chain().focus().setTextAlign('left').run())}><AlignLeft /></button>
+        <button title="تراز کامل" onClick={() => command(() => editor?.chain().focus().setTextAlign('justify').run())}><AlignJustify /></button>
+        <button title="فهرست نقطه‌ای" onClick={() => command(() => editor?.chain().focus().toggleBulletList().run())}><List /></button>
+        <button title="فهرست شماره‌ای" onClick={() => command(() => editor?.chain().focus().toggleOrderedList().run())}><ListOrdered /></button>
+        <i />
+        <button title="کوچک کردن متن" onClick={() => setFontSize(value => Math.max(14, value - 1))}><Minus /></button>
+        <span>{fontSize.toLocaleString('fa-IR')}</span>
+        <button title="بزرگ کردن متن" onClick={() => setFontSize(value => Math.min(28, value + 1))}><Plus /></button>
       </div>
 
-      {saved && <div className="rounded-xl bg-success/15 text-success p-3 text-sm">✅ تغییرات ذخیره شد</div>}
-
-      <div className="grid lg:grid-cols-[280px_1fr_340px] gap-6">
-        <aside className="space-y-4">
-          <div className="menu-glass-70 rounded-2xl p-4">
-            <h2 className="font-bold mb-3">ابزارهای محتوا</h2>
-            <div className="grid grid-cols-2 gap-2">
-              {blockTools.map(tool => <button key={tool.type} className="rounded-xl bg-background/55 p-3 text-xs hover:bg-primary/10 transition-colors"><tool.icon className="w-5 h-5 mx-auto mb-1 text-primary" />{tool.label}</button>)}
-            </div>
-          </div>
-          <div className="menu-glass-70 rounded-2xl p-4 space-y-2 text-sm">
-            <h2 className="font-bold mb-2">AI و اتوماسیون</h2>
-            <Button variant="outline" className="w-full gap-2"><Bot className="w-4 h-4" />پیشنهاد متن</Button>
-            <Button variant="outline" className="w-full gap-2"><WandSparkles className="w-4 h-4" />تشخیص فهرست</Button>
-            <Button variant="outline" className="w-full gap-2"><Image className="w-4 h-4" />جایگذاری تصویر</Button>
-          </div>
+      <div className="book-editor-layout">
+        <aside className="book-editor-side menu-glass-70">
+          <h3>مشخصات کتاب</h3>
+          <label>توضیح کوتاه<textarea value={description} onChange={event => setDescription(event.target.value)} /></label>
+          <div><b>{book?.page_count || book?.pages?.length || 1}</b><span>صفحه در پیش‌نویس</span></div>
+          <p>متن مانند Word به‌صورت پیوسته و پاراگراف‌بندی‌شده ویرایش می‌شود. ذخیره خودکار پس از توقف کوتاه در تایپ انجام می‌شود.</p>
         </aside>
-
-        <section className="menu-glass-70 rounded-3xl p-6 space-y-4">
-          <input value={title} onChange={e=>setTitle(e.target.value)} className="w-full rounded-xl border bg-background/70 p-3 text-2xl font-black" placeholder="عنوان کتاب" />
-          <textarea value={description} onChange={e=>setDescription(e.target.value)} className="w-full rounded-xl border bg-background/70 p-3" placeholder="توضیح کتاب" />
-          <input value={chapterTitle} onChange={e=>setChapterTitle(e.target.value)} className="w-full rounded-xl border bg-background/70 p-3 font-bold" placeholder="عنوان فصل" />
-          <textarea value={body} onChange={e=>setBody(e.target.value)} className="w-full min-h-[420px] rounded-2xl border bg-background/80 p-5 leading-loose text-lg" placeholder="متن فصل را اینجا ویرایش کنید..." />
+        <section className="book-document-stage">
+          <div className="book-document-paper" style={{ '--editor-font-size': `${fontSize}px` } as React.CSSProperties}>
+            <EditorContent editor={editor} />
+          </div>
         </section>
-
-        <aside className="space-y-4">
-          <div className="menu-glass-70 rounded-2xl p-4">
-            <h2 className="font-bold mb-3">پیش‌نمایش فصل</h2>
-            <div className="rounded-2xl bg-background/70 p-4 max-h-[520px] overflow-y-auto">
-              <h3 className="font-black text-xl mb-4">{chapterTitle}</h3>
-              <p className="text-sm leading-loose text-muted-foreground whitespace-pre-wrap">{body}</p>
-            </div>
-          </div>
-          <div className="menu-glass-70 rounded-2xl p-4">
-            <h2 className="font-bold mb-3">چک‌لیست انتشار</h2>
-            {['متن اصلی', 'فهرست فصل‌ها', 'جلد', 'قیمت', 'پیش‌نمایش', 'کامنت و نقد'].map((x,i)=><div key={x} className="flex items-center gap-2 text-sm py-1"><span className={`w-2.5 h-2.5 rounded-full ${i<2?'bg-success':'bg-muted-foreground/30'}`} />{x}</div>)}
-          </div>
-          <Button variant="outline" className="w-full gap-2"><MessageSquare className="w-4 h-4" />یادداشت ویراستار</Button>
-        </aside>
       </div>
-    </div>
+    </main>
   )
 }
