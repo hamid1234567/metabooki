@@ -142,12 +142,14 @@ export interface LocalImportProject {
   sourceFile: File
   analysis: WordImportAnalysis
   title: string
+  subtitle: string
   author: string
   authors: string[]
   translators: string[]
   category: string
   description: string
-  bookType: 'تألیف' | 'ترجمه' | 'گردآوری' | 'ویرایش'
+  bookTypes: Array<'تألیف' | 'ترجمه' | 'گردآوری' | 'ویرایش'>
+  publisherName: string
   isbn: string
   publicationYear: string
   edition: string

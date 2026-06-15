@@ -46,10 +46,12 @@ create index if not exists book_import_jobs_queue_idx on public.book_import_jobs
 alter table public.book_import_projects enable row level security;
 alter table public.book_import_jobs enable row level security;
 
+drop policy if exists "Owners manage import projects" on public.book_import_projects;
 create policy "Owners manage import projects" on public.book_import_projects for all to authenticated
 using (owner_id = auth.uid() or public.is_admin(auth.uid()))
 with check (owner_id = auth.uid() or public.is_admin(auth.uid()));
 
+drop policy if exists "Owners view import jobs" on public.book_import_jobs;
 create policy "Owners view import jobs" on public.book_import_jobs for select to authenticated
 using (exists(select 1 from public.book_import_projects p where p.id = project_id and (p.owner_id = auth.uid() or public.is_admin(auth.uid()))));
 
@@ -60,13 +62,17 @@ insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 values ('book-imports', 'book-imports', false, 209715200, null)
 on conflict (id) do update set public = false, file_size_limit = 209715200;
 
+drop policy if exists "Owners upload private book imports" on storage.objects;
 create policy "Owners upload private book imports" on storage.objects for insert to authenticated
 with check (bucket_id = 'book-imports' and (storage.foldername(name))[1] = auth.uid()::text);
+drop policy if exists "Owners update private book imports" on storage.objects;
 create policy "Owners update private book imports" on storage.objects for update to authenticated
 using (bucket_id = 'book-imports' and (storage.foldername(name))[1] = auth.uid()::text)
 with check (bucket_id = 'book-imports' and (storage.foldername(name))[1] = auth.uid()::text);
+drop policy if exists "Owners read private book imports" on storage.objects;
 create policy "Owners read private book imports" on storage.objects for select to authenticated
 using (bucket_id = 'book-imports' and ((storage.foldername(name))[1] = auth.uid()::text or public.is_admin(auth.uid())));
+drop policy if exists "Owners delete private book imports" on storage.objects;
 create policy "Owners delete private book imports" on storage.objects for delete to authenticated
 using (bucket_id = 'book-imports' and ((storage.foldername(name))[1] = auth.uid()::text or public.is_admin(auth.uid())));
 

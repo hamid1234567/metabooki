@@ -35,13 +35,13 @@ export function getPublisherBooks(): PublisherBook[] {
   return [...custom, ...seeded.filter(b => !ids.has(b.id))]
 }
 
-export function createPublisherBook(input: { title: string; author: string; category: string; description: string; fileName?: string; pages?: MockBook['pages']; importProjectId?: string; bookType?: string; metadata?: Record<string, unknown> }) {
+export function createPublisherBook(input: { title: string; subtitle?: string; author: string; category: string; description: string; publisherName?: string; fileName?: string; pages?: MockBook['pages']; importProjectId?: string; bookTypes?: string[]; metadata?: Record<string, unknown> }) {
   const now = new Date().toISOString()
   const id = `pub-${Date.now()}`
   const book: PublisherBook = {
     id,
     title: input.title || 'کتاب بدون عنوان',
-    subtitle: input.fileName ? `ایجاد شده از فایل ${input.fileName}` : 'کتاب جدید',
+    subtitle: input.subtitle || (input.fileName ? `ایجاد شده از فایل ${input.fileName}` : 'کتاب جدید'),
     description: input.description || 'کتاب جدید آماده ویرایش و تکمیل محتوا است.',
     cover_url: `https://picsum.photos/seed/${id}/400/560`,
     back_cover_url: null,
@@ -62,8 +62,8 @@ export function createPublisherBook(input: { title: string; author: string; cate
     category: input.category,
     series_id: null,
     series_order: null,
-    publisher_name: 'انتشارات دانش نو',
-    book_type: input.bookType || 'تألیف',
+    publisher_name: input.publisherName || 'ناشر متابوکی',
+    book_type: input.bookTypes?.join('، ') || 'تألیف',
     page_count: input.pages?.length || 1,
     created_at: now,
     stage: 'editing',

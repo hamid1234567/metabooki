@@ -3,12 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import { AlertTriangle, Check, ChevronLeft, CircleGauge, FileSearch, ListTree, MonitorSmartphone, RefreshCcw, ShieldCheck, UploadCloud, WandSparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuthContext } from '@/lib/auth-context'
-import { confirmAndUploadImport, type UploadProgress } from '@/lib/import-upload'
+import { confirmAndUploadImport, uploadErrorMessage, type UploadProgress } from '@/lib/import-upload'
 import { clearExpiredLocalImports, deleteLocalImport, saveLocalImport, updateLocalAnalysis } from '@/lib/local-import-store'
 import { applyWordStyleMapping } from '@/lib/word-style-mapping'
 import type { ImportBookMetadata, LocalImportProject, WordImportAnalysis, ImportWorkerMessage } from '@/lib/word-import-types'
 
 type Stage = 'choose' | 'analyzing' | 'review' | 'uploading' | 'complete'
+type BookType = ImportBookMetadata['bookTypes'][number]
+const BOOK_TYPES: BookType[] = ['تألیف', 'ترجمه', 'گردآوری', 'ویرایش']
 
 function bytes(value: number) {
   return new Intl.NumberFormat('fa-IR', { style: 'unit', unit: 'megabyte', maximumFractionDigits: 1 }).format(value / 1024 / 1024)
@@ -34,11 +36,13 @@ export default function Upload() {
   const [error, setError] = useState('')
   const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null)
   const [title, setTitle] = useState('')
+  const [subtitle, setSubtitle] = useState('')
   const [authorsText, setAuthorsText] = useState('')
   const [translatorsText, setTranslatorsText] = useState('')
   const [category, setCategory] = useState('ادبیات')
   const [description, setDescription] = useState('')
-  const [bookType, setBookType] = useState<ImportBookMetadata['bookType']>('تألیف')
+  const [bookTypes, setBookTypes] = useState<BookType[]>(['تألیف'])
+  const [publisherName, setPublisherName] = useState('')
   const [isbn, setIsbn] = useState('')
   const [publicationYear, setPublicationYear] = useState('')
   const [edition, setEdition] = useState('')
@@ -50,12 +54,14 @@ export default function Upload() {
     const authors = parseLines(authorsText)
     return {
       title,
+      subtitle,
       author: authors.join('، '),
       authors,
       translators: parseLines(translatorsText),
       category,
       description,
-      bookType,
+      bookTypes,
+      publisherName,
       isbn,
       publicationYear,
       edition,
@@ -71,19 +77,21 @@ export default function Upload() {
   useEffect(() => {
     metadataRef.current = {
       title,
+      subtitle,
       author: parseLines(authorsText).join('، '),
       authors: parseLines(authorsText),
       translators: parseLines(translatorsText),
       category,
       description,
-      bookType,
+      bookTypes,
+      publisherName,
       isbn,
       publicationYear,
       edition,
       language,
       keywords: parseKeywords(keywordsText),
     }
-  }, [title, authorsText, translatorsText, category, description, bookType, isbn, publicationYear, edition, language, keywordsText])
+  }, [title, subtitle, authorsText, translatorsText, category, description, bookTypes, publisherName, isbn, publicationYear, edition, language, keywordsText])
 
   const imageUrls = useMemo(() => {
     const urls: Record<string, string> = {}
@@ -95,11 +103,13 @@ export default function Upload() {
 
   const resetBookMetadata = () => {
     setTitle('')
+    setSubtitle('')
     setAuthorsText('')
     setTranslatorsText('')
     setCategory('ادبیات')
     setDescription('')
-    setBookType('تألیف')
+    setBookTypes(['تألیف'])
+    setPublisherName('')
     setIsbn('')
     setPublicationYear('')
     setEdition('')
@@ -135,8 +145,8 @@ export default function Upload() {
         setStage('review')
         const project: LocalImportProject = {
           id: result.id, sourceFile: selected, analysis: result,
-          title: suggestedTitle, author: '', authors: [], translators: [], category: 'ادبیات', description: '',
-          bookType: 'تألیف', isbn: '', publicationYear: '', edition: '', language: 'fa', keywords: [],
+          title: suggestedTitle, subtitle: '', author: '', authors: [], translators: [], category: 'ادبیات', description: '',
+          bookTypes: ['تألیف'], publisherName: '', isbn: '', publicationYear: '', edition: '', language: 'fa', keywords: [],
           updatedAt: new Date().toISOString(),
         }
         await saveLocalImport(project)
@@ -230,11 +240,15 @@ export default function Upload() {
       })
       setStage('complete')
       await deleteLocalImport(project.id)
-      setTimeout(() => navigate(`/edit/${book.id}`), 900)
+      navigate(`/edit/${book.id}`, { replace: true })
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : 'آپلود بسته ناموفق بود. با تلاش مجدد از ادامه مسیر ارسال می‌شود.')
+      setError(`آپلود متوقف شد: ${uploadErrorMessage(uploadError)}. با تلاش مجدد، ارسال از بخش‌های ثبت‌شده ادامه پیدا می‌کند.`)
       setStage('review')
     }
+  }
+
+  const toggleBookType = (value: BookType) => {
+    setBookTypes(current => current.includes(value) ? (current.length === 1 ? current : current.filter(item => item !== value)) : [...current, value])
   }
 
   return (
@@ -325,13 +339,13 @@ export default function Upload() {
               <h3>مشخصات کتاب‌شناسی</h3>
               {stage === 'uploading' && <p className="word-meta-upload-note"><UploadCloud />ارسال فایل در حال انجام است؛ می‌توانید هم‌زمان این اطلاعات را تکمیل کنید.</p>}
               <label>عنوان کتاب<input value={title} onChange={event => setTitle(event.target.value)} /></label>
+              <label>زیرعنوان<input value={subtitle} onChange={event => setSubtitle(event.target.value)} /></label>
               <label>نویسندگان؛ نام هر نویسنده در یک خط<textarea value={authorsText} onChange={event => setAuthorsText(event.target.value)} placeholder={'نام نویسنده اول\nنام نویسنده دوم'} /></label>
               {parseLines(authorsText).length > 0 && <div className="word-meta-chips">{parseLines(authorsText).map(authorName => <span key={authorName}>{authorName}</span>)}</div>}
               <label>مترجمان؛ نام هر مترجم در یک خط<textarea value={translatorsText} onChange={event => setTranslatorsText(event.target.value)} placeholder="برای کتاب ترجمه‌شده" /></label>
-              <div className="word-meta-pair">
-                <label>نوع کتاب<select value={bookType} onChange={event => setBookType(event.target.value as ImportBookMetadata['bookType'])}>{['تألیف', 'ترجمه', 'گردآوری', 'ویرایش'].map(item => <option key={item}>{item}</option>)}</select></label>
-                <label>زبان<select value={language} onChange={event => setLanguage(event.target.value)}><option value="fa">فارسی</option><option value="en">انگلیسی</option><option value="ar">عربی</option></select></label>
-              </div>
+              <fieldset className="word-book-types"><legend>نوع کتاب؛ امکان انتخاب چند مورد</legend>{BOOK_TYPES.map(item => <label key={item}><input type="checkbox" checked={bookTypes.includes(item)} onChange={() => toggleBookType(item)} /><span>{item}</span></label>)}</fieldset>
+              <label>انتشارات<input value={publisherName} onChange={event => setPublisherName(event.target.value)} /></label>
+              <label>زبان<select value={language} onChange={event => setLanguage(event.target.value)}><option value="fa">فارسی</option><option value="en">انگلیسی</option><option value="ar">عربی</option></select></label>
               <label>شابک (ISBN)<input value={isbn} onChange={event => setIsbn(event.target.value)} inputMode="numeric" /></label>
               <div className="word-meta-pair">
                 <label>سال انتشار<input value={publicationYear} onChange={event => setPublicationYear(event.target.value)} inputMode="numeric" /></label>
@@ -342,6 +356,12 @@ export default function Upload() {
               <label>توضیح کوتاه<textarea value={description} onChange={event => setDescription(event.target.value)} /></label>
             </div>
           </section>
+
+          {stage === 'uploading' && <section className="word-upload-stage menu-glass-70" aria-live="polite">
+            <div className="word-upload-stage-head"><div className="word-upload-pulse"><UploadCloud /></div><span><small>ارسال امن و ادامه‌پذیر</small><b>{uploadProgress?.label || 'آماده‌سازی بسته کتاب'}</b><em>{bytes(uploadProgress?.uploaded || 0)} از {bytes(uploadProgress?.total || file?.size || 0)}</em></span><strong>{(uploadProgress?.percent || 0).toLocaleString('fa-IR')}٪</strong></div>
+            <div className="word-upload-stage-track"><span style={{ width: `${uploadProgress?.percent || 0}%` }} /></div>
+            <p>در صورت قطع اینترنت، بخش‌های ارسال‌شده دوباره آپلود نمی‌شوند. می‌توانید هم‌زمان مشخصات کتاب‌شناسی را تکمیل کنید.</p>
+          </section>}
 
           <section className="word-style-mapper menu-glass-70">
             <header><div><h3>نگاشت Styleهای Word به ساختار کتاب</h3><p>همه Styleهای استفاده‌شده در فایل را بررسی کنید. هر Style را می‌توانید به متن عادی یا یکی از سطوح H1 تا H6 تبدیل کنید؛ فهرست و پیش‌نمایش بلافاصله به‌روز می‌شوند.</p></div><span>{analysis.styles.filter(style => style.usedCount > 0).length.toLocaleString('fa-IR')} Style استفاده‌شده</span></header>
