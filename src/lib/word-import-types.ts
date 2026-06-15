@@ -26,6 +26,7 @@ export interface ImportParagraph {
     bold?: boolean
     italic?: boolean
     alignment?: 'right' | 'left' | 'center' | 'justify'
+    direction?: 'rtl' | 'ltr'
   }
   imageWidthPercent?: number
   imageWidthPx?: number

@@ -192,6 +192,8 @@ export default function Reader() {
   const isPreview = book.preview_pages.includes(currentPage)
   const page = book.pages[currentPage] || { title: '', blocks: [] }
   const dir = book.language === 'fa' ? 'rtl' : 'ltr'
+  const pageBackgroundUrl = page.background_url || (book as any).metadata?.page_background_url
+  const pageBackgroundAlpha = Number(page.background_alpha ?? (book as any).metadata?.page_background_alpha ?? 0)
 
   const getReaderBgClass = () => {
     if (book.category.includes('ادبیات') || book.category.includes('شعر')) return 'reader-bg-literature'
@@ -644,7 +646,7 @@ export default function Reader() {
     const qKey = `${currentPage}-${idx}`
     const renderInline = () => block.inline?.length ? block.inline.map((span: any, inlineIndex: number) => {
       const content = span.footnoteId ? <sup className="word-footnote-reference">{span.footnoteId}</sup> : span.superscript ? <sup>{span.text}</sup> : span.subscript ? <sub>{span.text}</sub> : span.text
-      const formatted = <span style={{ fontWeight: span.bold ? 800 : undefined, fontStyle: span.italic ? 'italic' : undefined }}>{content}</span>
+      const formatted = <span style={{ fontWeight: span.bold ? 800 : undefined, fontStyle: span.italic ? 'italic' : undefined, color: span.color, fontFamily: span.fontFamily, fontSize: span.fontSize }}>{content}</span>
       if (span.footnoteId && span.footnoteText) return <span key={inlineIndex} className="citation-reference footnote-reference" role="button" tabIndex={0}>{formatted}<span className="citation-tooltip">{span.footnoteText}</span></span>
       if (span.referenceText) return <span key={inlineIndex} className="citation-reference" role="button" tabIndex={0}>{formatted}<span className="citation-tooltip">{span.referenceText}</span></span>
       return span.href ? <a key={inlineIndex} href={span.href} target={String(span.href).startsWith('#') ? undefined : '_blank'} rel="noreferrer" className="reader-inline-link">{formatted}</a> : <span key={inlineIndex}>{formatted}</span>
@@ -652,10 +654,10 @@ export default function Reader() {
     switch (block.type) {
       case 'paragraph': {
         const blockKey = `p:${idx}:${block.content.length}:${block.content.slice(0, 16)}`
-        return <p key={idx} id={block.anchor} data-reader-text="true" data-reader-block={blockKey} className={`mb-5 leading-loose text-justify ${block.semantic === 'caption' ? 'reader-figure-caption' : block.semantic === 'table-title' ? 'reader-table-title' : block.semantic === 'footnote' ? 'reader-footnote' : ''}`} style={{fontSize: `${fontSize}px`, lineHeight: '2.2'}}>{block.anchors?.filter((anchor: string) => anchor !== block.anchor).map((anchor: string) => <span key={anchor} id={anchor} className="word-bookmark-anchor" />)}{block.inline?.length ? renderInline() : renderHighlightedText(block.content, blockKey)}</p>
+        return <p key={idx} id={block.anchor} dir={block.format?.direction} data-reader-text="true" data-reader-block={blockKey} className={`mb-5 leading-loose text-justify ${block.semantic === 'caption' ? 'reader-figure-caption' : block.semantic === 'table-title' ? 'reader-table-title' : block.semantic === 'footnote' ? 'reader-footnote' : block.semantic ? `reader-${block.semantic}` : ''}`} style={{fontSize: block.format?.fontSizePt ? `${block.format.fontSizePt}pt` : `${fontSize}px`, lineHeight: '2.2', color: block.format?.color ? `#${block.format.color}` : undefined, fontWeight: block.format?.bold ? 800 : undefined, fontStyle: block.format?.italic ? 'italic' : undefined, textAlign: block.format?.alignment}}>{block.anchors?.filter((anchor: string) => anchor !== block.anchor).map((anchor: string) => <span key={anchor} id={anchor} className="word-bookmark-anchor" />)}{block.inline?.length ? renderInline() : renderHighlightedText(block.content, blockKey)}</p>
       }
-      case 'heading': return <div key={idx} className="mb-8"><h2 id={block.anchor} className="text-2xl font-bold font-display mb-5 text-primary border-r-4 border-primary pr-4">{block.anchors?.filter((anchor: string) => anchor !== block.anchor).map((anchor: string) => <span key={anchor} id={anchor} className="word-bookmark-anchor" />)}{block.inline?.length ? renderInline() : block.content}</h2>{block.blocks?.map((b:any,i:number)=>renderBlock(b,i))}</div>
-      case 'image': return <div key={idx} className="mb-8 flex flex-col items-center"><img src={block.url} alt={block.caption||''} className="h-auto max-w-full rounded-2xl shadow-book" style={{ width: block.widthPx ? `${block.widthPx}px` : '100%' }} loading="lazy" />{block.caption && <p className="text-center text-sm text-muted-foreground mt-3">{block.caption}</p>}</div>
+      case 'heading': return <div key={idx} className="mb-8"><h2 id={block.anchor} dir={block.format?.direction} className="font-bold font-display mb-5 text-primary border-r-4 border-primary pr-4" style={{fontSize: block.format?.fontSizePt ? `${block.format.fontSizePt}pt` : `${Math.max(20, 32 - (block.level || 2) * 2)}px`, color: block.format?.color ? `#${block.format.color}` : undefined, textAlign: block.format?.alignment}}>{block.anchors?.filter((anchor: string) => anchor !== block.anchor).map((anchor: string) => <span key={anchor} id={anchor} className="word-bookmark-anchor" />)}{block.inline?.length ? renderInline() : block.content}</h2>{block.blocks?.map((b:any,i:number)=>renderBlock(b,i))}</div>
+      case 'image': return <div key={idx} className="mb-8 flex flex-col items-center"><img src={block.url} alt={block.caption||''} className="h-auto max-w-full rounded-2xl shadow-book" style={{ width: block.widthPx ? (String(block.widthPx).endsWith('%') || String(block.widthPx).endsWith('px') ? String(block.widthPx) : `${block.widthPx}px`) : block.widthPercent ? `${block.widthPercent}%` : '100%' }} loading="lazy" />{block.caption && <p className="text-center text-sm text-muted-foreground mt-3">{block.caption}</p>}</div>
       case 'quiz': {
         const ua = quizAnswers[qKey]; const answered = ua !== undefined
         return (
@@ -665,6 +667,9 @@ export default function Reader() {
             {answered&&<p className={`mt-3 text-sm font-medium ${ua===block.correct?'text-success':'text-destructive'}`}>{ua===block.correct?'✅ پاسخ صحیح! آفرین!':'❌ پاسخ نادرست'}</p>}
           </div>)
       }
+      case 'flashcard': return <div key={idx} className="reader-interactive menu-glass-70 rounded-2xl p-5 mb-8"><h3 className="font-semibold mb-4">فلش‌کارت‌ها</h3><div className="grid sm:grid-cols-2 gap-3">{(block.cards || []).map((card:any, cardIndex:number)=><details key={cardIndex} className="rounded-xl border bg-background/55 p-4 cursor-pointer"><summary className="font-bold">{card.front}</summary><p className="mt-3 text-sm text-muted-foreground">{card.back}</p></details>)}</div></div>
+      case 'steps': return <div key={idx} className="reader-interactive menu-glass-70 rounded-2xl p-5 mb-8"><h3 className="font-semibold mb-4">{block.title || 'مراحل فرآیند'}</h3><div className="grid gap-3">{(block.steps || []).map((step:any, stepIndex:number)=><div key={stepIndex} className="grid grid-cols-[2.5rem_1fr] gap-3 items-start rounded-xl bg-background/55 p-3"><span className="w-10 h-10 rounded-full bg-primary text-primary-foreground grid place-items-center font-bold">{stepIndex+1}</span><div>{step.image && <img src={step.image} alt={step.title || ''} className="max-h-44 rounded-lg mb-2" />}<h4 className="font-bold">{step.title}</h4><p className="text-sm text-muted-foreground">{step.description}</p></div></div>)}</div></div>
+      case 'gallery': return <div key={idx} className="reader-interactive menu-glass-70 rounded-2xl p-4 mb-8"><div className="grid sm:grid-cols-2 gap-3">{(block.images || []).map((image:any, imageIndex:number)=><figure key={imageIndex} className="rounded-xl overflow-hidden bg-background/55">{image.url && <img src={image.url} alt={image.caption || ''} className="w-full h-auto" />}<figcaption className="p-3 text-sm text-muted-foreground">{image.caption}</figcaption></figure>)}</div></div>
       case 'table': return <div key={idx} className="overflow-x-auto mb-8"><table className="w-full glass rounded-2xl overflow-hidden"><thead><tr className="bg-primary/10">{block.headers.map((h:string,i:number)=><th key={i} className="p-4 text-right font-semibold text-sm">{h}</th>)}</tr></thead><tbody>{block.rows.map((row:string[],ri:number)=><tr key={ri} className="border-t border-border">{row.map((c:string,ci:number)=><td key={ci} className="p-4 text-sm">{c}</td>)}</tr>)}</tbody></table></div>
       case 'math': return <div key={idx} className="glass rounded-2xl p-6 mb-8 text-center text-lg font-mono bg-muted/30 overflow-x-auto">{block.content}</div>
       case 'code': return <div key={idx} className="mb-8"><div className="glass rounded-2xl overflow-hidden"><div className="bg-muted px-4 py-2 text-xs flex items-center justify-between"><span>{block.language}</span><button onClick={()=>navigator.clipboard.writeText(block.code)} className="text-xs hover:text-primary">📋 کپی</button></div><pre className="p-5 text-sm font-mono overflow-x-auto" dir="ltr">{block.code}</pre></div></div>
@@ -827,7 +832,8 @@ export default function Reader() {
         <div className="reader-main min-w-0 w-full flex-1 max-w-3xl mx-auto px-4 sm:px-8 py-10 pb-32" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
           <div
             ref={contentRef}
-            className={`reader-content-protected mb-10 min-h-[65vh] ${highlightActive ? `reader-highlight-mode reader-highlight-${selectedHighlightColor}` : ''} ${highlightArmed ? 'reader-highlight-armed' : ''} ${highlightHolding ? 'reader-highlight-holding' : ''}`}
+            className={`reader-content-protected reader-page-background mb-10 min-h-[65vh] ${highlightActive ? `reader-highlight-mode reader-highlight-${selectedHighlightColor}` : ''} ${highlightArmed ? 'reader-highlight-armed' : ''} ${highlightHolding ? 'reader-highlight-holding' : ''}`}
+            style={{ '--reader-page-bg': pageBackgroundUrl ? `url("${pageBackgroundUrl}")` : 'none', '--reader-page-bg-alpha': pageBackgroundAlpha } as React.CSSProperties}
             onPointerDown={startHighlightStroke}
             onPointerMove={moveHighlightStroke}
             onPointerUp={finishHighlightStroke}

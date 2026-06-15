@@ -1,10 +1,13 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Link, useNavigate } from 'react-router-dom'
 import { BarChart3, BookOpen, CheckCircle, Eye, FileText, MessageSquare, Plus, RefreshCcw, Rocket, Settings, Share2, Store, Trash2, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { deletePublisherBook, getPublisherBooks, type PublisherBook } from '@/lib/publisher-books'
 import { getAllComments } from '@/lib/mock-comments'
 import metabookiMark from '@/assets/metabooki-mark.png'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { supabase } from '@/integrations/supabase/client'
+import { useAuthContext } from '@/lib/auth-context'
 
 const stageMeta = {
   editing: { label: 'در حال ویرایش', className: 'bg-blue-500 text-white', icon: FileText },
@@ -13,14 +16,57 @@ const stageMeta = {
   published: { label: 'انتشار نهایی', className: 'bg-primary text-primary-foreground', icon: CheckCircle },
 }
 
+const openBookPreview = (id: string) => window.open(`${window.location.origin}${window.location.pathname}${window.location.search}#/read/${id}`, '_blank', 'noopener,noreferrer')
+
 export default function Publisher() {
   const navigate = useNavigate()
+  const { user } = useAuthContext()
   const [books, setBooks] = useState<PublisherBook[]>(() => getPublisherBooks())
   const comments = getAllComments()
   const totalReaders = books.reduce((sum, b) => sum + b.readers, 0)
   const inStore = books.filter(b => b.stage === 'store' || b.stage === 'published').length
   const ready = books.filter(b => b.stage === 'pricing').length
   const revenue = books.reduce((sum, b) => sum + b.revenue, 0)
+
+  useEffect(() => {
+    if (!user || !import.meta.env.VITE_SUPABASE_URL?.startsWith('http')) return
+    ;(async () => {
+      const ownPublisher = await (supabase as any).from('publisher_profiles').select('id').eq('user_id', user.id).maybeSingle()
+      const roles = await (supabase as any).from('user_roles').select('role').eq('user_id', user.id)
+      const isAdmin = roles.data?.some((item: { role: string }) => item.role === 'admin' || item.role === 'super_admin')
+      let query = (supabase as any).from('books').select('*').order('created_at', { ascending: false })
+      if (ownPublisher.data?.id) query = query.eq('publisher_id', ownPublisher.data.id)
+      else if (!isAdmin) return
+      const result = await query
+      if (result.error) return
+      const remote: PublisherBook[] = (result.data || []).map((row: any) => ({
+        ...row,
+        cover_url: row.cover_url || `https://picsum.photos/seed/${row.id}/400/560`,
+        back_cover_url: row.back_cover_url || null,
+        category: row.metadata?.category || row.tags?.[0] || 'عمومی',
+        publisher_name: row.metadata?.publisher_name || 'ناشر متابوکی',
+        book_type: row.metadata?.book_type || 'تألیف',
+        author: row.metadata?.author || 'نویسنده نامشخص',
+        page_count: row.pages?.length || 0,
+        stage: row.status === 'published' ? 'published' : 'editing',
+        readers: 0, sales: 0, revenue: 0,
+        importStatus: row.metadata?.import_project_id ? 'word-imported' : 'manual',
+      }))
+      setBooks(current => {
+        const remoteIds = new Set(remote.map(item => item.id))
+        return [...remote, ...current.filter(item => !remoteIds.has(item.id))]
+      })
+    })()
+  }, [user])
+
+  const reconvert = async (book: PublisherBook) => {
+    const importId = book.metadata?.import_project_id
+    if (!importId) return
+    const reset = await (supabase as any).from('book_import_projects').update({ status: 'uploading', error_message: null }).eq('id', importId)
+    if (reset.error) return
+    await (supabase as any).from('book_import_projects').update({ status: 'queued', error_message: null }).eq('id', importId)
+    setBooks(current => current.map(item => item.id === book.id ? { ...item, importStatus: 'needs-review' } : item))
+  }
 
   const removeBook = (id: string) => {
     deletePublisherBook(id)
@@ -91,9 +137,9 @@ export default function Publisher() {
                   <div className="flex flex-wrap gap-2 mt-auto">
                     <Button onClick={() => navigate(`/edit/${book.id}`)} className="gap-2 flex-1 sm:min-w-56"><FileText className="w-4 h-4" />ویرایش متن و محتوا</Button>
                     <Button onClick={() => navigate(`/publish/${book.id}`)} className="gap-2 bg-amber-500 hover:bg-amber-600 flex-1 sm:min-w-56"><Rocket className="w-4 h-4" />قیمت، سهام و انتشار</Button>
-                    <Button variant="outline" onClick={() => navigate(`/read/${book.id}`)} className="gap-2"><Eye className="w-4 h-4" />پیش‌نمایش</Button>
+                    <Button variant="outline" onClick={() => openBookPreview(book.id)} className="gap-2"><Eye className="w-4 h-4" />پیش‌نمایش</Button>
                     <Button variant="outline" className="gap-2"><MessageSquare className="w-4 h-4" />نظرات</Button>
-                    <Button variant="outline" className="gap-2"><RefreshCcw className="w-4 h-4" />تبدیل مجدد</Button>
+                    <Button variant="outline" disabled={!book.metadata?.import_project_id} onClick={() => reconvert(book)} className="gap-2"><RefreshCcw className="w-4 h-4" />تبدیل مجدد از فایل سرور</Button>
                     <Button variant="ghost" onClick={() => removeBook(book.id)} className="text-destructive"><Trash2 className="w-4 h-4" /></Button>
                   </div>
                 </div>
