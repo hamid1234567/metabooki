@@ -66,6 +66,7 @@ export interface ImportImage {
   previewBlockId?: string
   contextBefore?: string
   contextAfter?: string
+  isReferenced?: boolean
 }
 
 export interface ImportFootnote {

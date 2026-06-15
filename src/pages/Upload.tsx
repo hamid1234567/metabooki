@@ -140,7 +140,7 @@ export default function Upload() {
 
   const confirmUpload = async () => {
     if (!analysis || !file || !user) return
-    if (analysis.images.some(image => image.conversionStatus === 'conversion-failed')) {
+    if (analysis.images.some(image => image.isReferenced !== false && image.conversionStatus === 'conversion-failed')) {
       setError('پیش از تأیید و آپلود، تصاویر ناموفق را با فایل مناسب وب جایگزین کنید.')
       return
     }
@@ -226,15 +226,15 @@ export default function Upload() {
               <div className="word-image-conversion-summary">
                 <span><Check />{analysis.images.filter(image => image.conversionStatus === 'converted-local').length.toLocaleString('fa-IR')} تصویر محلی تبدیل‌شده</span>
                 <span>{analysis.images.filter(image => image.conversionStatus === 'original-web').length.toLocaleString('fa-IR')} تصویر مناسب وب</span>
-                {analysis.images.some(image => image.conversionStatus === 'conversion-failed') && <span className="has-error"><AlertTriangle />{analysis.images.filter(image => image.conversionStatus === 'conversion-failed').length.toLocaleString('fa-IR')} تبدیل ناموفق</span>}
+                {analysis.images.some(image => image.isReferenced !== false && image.conversionStatus === 'conversion-failed') && <span className="has-error"><AlertTriangle />{analysis.images.filter(image => image.isReferenced !== false && image.conversionStatus === 'conversion-failed').length.toLocaleString('fa-IR')} تبدیل ناموفق</span>}
               </div>
               <div className="word-issues">
                 <h3>موارد نیازمند توجه</h3>
                 {analysis.issues.length ? analysis.issues.map(issue => <button key={issue.id} onClick={() => document.getElementById(`preview-page-${issue.page}`)?.scrollIntoView({ behavior: 'smooth' })}><AlertTriangle /><span>{issue.message}</span><ChevronLeft /></button>) : <p className="word-ok"><Check />مشکل مهمی در پیش‌نمایش پیدا نشد.</p>}
               </div>
-              {analysis.images.some(image => image.conversionStatus === 'conversion-failed') && <div className="word-failed-images">
+              {analysis.images.some(image => image.isReferenced !== false && image.conversionStatus === 'conversion-failed') && <div className="word-failed-images">
                 <h3>تصاویر نیازمند جایگزینی</h3>
-                {analysis.images.filter(image => image.conversionStatus === 'conversion-failed').map(image => <div key={image.id}>
+                {analysis.images.filter(image => image.isReferenced !== false && image.conversionStatus === 'conversion-failed').map(image => <div key={image.id}>
                   <span>
                     <b>{image.caption || image.originalName || image.name}</b>
                     <small>صفحه چاپی Word: {image.wordPages?.map(page => page.toLocaleString('fa-IR')).join('، ') || 'نامشخص'} · {image.conversionError}</small>

@@ -46,7 +46,7 @@ function safeFileName(value: string) {
 async function uploadPreparedImages(userId: string, projectId: string, project: LocalImportProject, onProgress: (progress: UploadProgress) => void) {
   const storage = (supabase as any).storage.from('book-imports')
   const paths: Record<string, string> = {}
-  const readyImages = project.analysis.images.filter(image => image.conversionStatus !== 'conversion-failed')
+  const readyImages = project.analysis.images.filter(image => image.isReferenced !== false && image.conversionStatus !== 'conversion-failed')
   const folder = `${userId}/${projectId}/images`
   const { data: existing } = await storage.list(folder, { limit: Math.min(1000, readyImages.length) })
   const uploadedNames = new Set((existing || []).map((item: { name: string }) => item.name))

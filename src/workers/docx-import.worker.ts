@@ -86,6 +86,7 @@ async function sha256(file: File) {
 
 function collectText(value: unknown): string {
   if (typeof value === 'string') return value.split('¬').join('\u200B')
+  if (typeof value === 'number' || typeof value === 'bigint') return String(value)
   if (Array.isArray(value)) return value.map(collectText).join('')
   if (!value || typeof value !== 'object') return ''
   const record = value as Record<string, unknown>
@@ -159,6 +160,25 @@ function firstSentence(text: string) {
 
 function isCitationLabel(text: string) {
   return /^[\s[(（{]*[\d۰-۹٠-٩]+(?:\s*[-–,،؛;]\s*[\d۰-۹٠-٩]+)*[\s\])）}.,،؛;]*$/.test(text.trim())
+}
+
+function enrichPlainCitations(inline: ImportInlineSpan[]) {
+  const citationPattern = /([[(（]\s*[\d۰-۹٠-٩]+(?:\s*[-–,،؛;]\s*[\d۰-۹٠-٩]+)*\s*[\])）])/g
+  return inline.flatMap(span => {
+    if (span.href || span.footnoteId || span.superscript || span.subscript || !citationPattern.test(span.text)) {
+      citationPattern.lastIndex = 0
+      return [span]
+    }
+    citationPattern.lastIndex = 0
+    return span.text.split(citationPattern).filter(Boolean).map(text => {
+      if (!isCitationLabel(text)) return { ...span, text }
+      return {
+        ...span,
+        text,
+        referenceText: `ارجاع ${text.trim()}؛ متن کامل منبع در این فایل Word موجود نیست.`,
+      }
+    })
+  })
 }
 
 function parseAlignment(value: unknown): WordStyleDefinition['alignment'] {
@@ -317,7 +337,7 @@ function normalizeParagraph(node: unknown, number: number, imageRelations: Map<s
   const style = getStyle(node)
   const definition = styles.get(style)
   const level = definition?.selectedLevel || headingLevel(style)
-  const inline = parseInline(node, hyperlinks)
+  const inline = enrichPlainCitations(parseInline(node, hyperlinks))
   const text = inline.map(span => span.text).join('').replace(/[ \t]+\n/g, '\n').trim()
   const anchors = findElementAttributes(node, 'w:bookmarkStart')
     .map(attrs => String(attrs['@_w:name'] || attrs['@_name'] || ''))
@@ -540,6 +560,7 @@ async function analyze(file: File): Promise<WordImportAnalysis> {
   }))
   images.forEach(image => {
     const usage = imageUsage.get(image.id)
+    image.isReferenced = Boolean(usage)
     image.wordPages = usage ? [...usage.pages] : []
     image.caption = usage?.caption
     image.previewBlockId = usage?.previewBlockId
@@ -550,7 +571,7 @@ async function analyze(file: File): Promise<WordImportAnalysis> {
   if (!toc.length) issues.push({ id: 'missing-toc', code: 'missing-toc', severity: 'warning', message: 'تیتر خودکار پیدا نشد؛ از بخش نگاشت Style، استایل‌های فصل را به H1 تا H6 متصل کنید.', page: 1 })
   const convertedImageCount = images.filter(image => image.conversionStatus === 'converted-local').length
   if (convertedImageCount) issues.push({ id: 'image-format-summary', code: 'converted-image', severity: 'info', message: `از مجموع ${images.length.toLocaleString('fa-IR')} تصویر، ${convertedImageCount.toLocaleString('fa-IR')} تصویر پیش از آپلود به‌صورت محلی تبدیل و در پیش‌نمایش جایگزین شد.`, page: 1 })
-  images.filter(image => image.conversionStatus === 'conversion-failed').forEach(image => {
+  images.filter(image => image.isReferenced && image.conversionStatus === 'conversion-failed').forEach(image => {
     const page = image.wordPages?.[0] || 1
     issues.push({
       id: `image-conversion-failed-${image.id}`,
