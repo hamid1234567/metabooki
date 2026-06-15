@@ -143,10 +143,20 @@ export interface LocalImportProject {
   analysis: WordImportAnalysis
   title: string
   author: string
+  authors: string[]
+  translators: string[]
   category: string
   description: string
+  bookType: 'تألیف' | 'ترجمه' | 'گردآوری' | 'ویرایش'
+  isbn: string
+  publicationYear: string
+  edition: string
+  language: string
+  keywords: string[]
   updatedAt: string
 }
+
+export type ImportBookMetadata = Omit<LocalImportProject, 'id' | 'sourceFile' | 'analysis' | 'updatedAt'>
 
 export interface ImportWorkerProgress {
   type: 'progress'

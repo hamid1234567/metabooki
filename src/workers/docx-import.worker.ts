@@ -90,7 +90,9 @@ function collectText(value: unknown): string {
   if (Array.isArray(value)) return value.map(collectText).join('')
   if (!value || typeof value !== 'object') return ''
   const record = value as Record<string, unknown>
-  if (typeof record['#text'] === 'string') return record['#text']
+  if (typeof record['#text'] === 'string' || typeof record['#text'] === 'number' || typeof record['#text'] === 'bigint') {
+    return String(record['#text']).split('¬').join('\u200B')
+  }
   return Object.entries(record)
     .filter(([key]) => key !== ':@' && key !== '#text')
     .map(([key, item]) => key === 'w:tab' ? '\t' : key === 'w:br' ? '\n' : collectText(item))
@@ -112,15 +114,7 @@ function deepFind(value: unknown, key: string): unknown[] {
 function findElementAttributes(value: unknown, key: string): Record<string, unknown>[] {
   const found: Record<string, unknown>[] = []
   if (Array.isArray(value)) {
-    value.forEach((item, index) => {
-      if (item && typeof item === 'object' && key in (item as Record<string, unknown>)) {
-        const next = value[index + 1]
-        if (next && typeof next === 'object' && ':@' in (next as Record<string, unknown>)) {
-          found.push((next as Record<string, Record<string, unknown>>)[':@'])
-        }
-      }
-      found.push(...findElementAttributes(item, key))
-    })
+    value.forEach(item => found.push(...findElementAttributes(item, key)))
   }
   else if (value && typeof value === 'object') {
     const record = value as Record<string, unknown>
@@ -269,10 +263,9 @@ function parseInline(node: unknown, hyperlinks: Map<string, string>, inheritedHr
   const visit = (value: unknown, href?: string) => {
     if (!value) return
     if (Array.isArray(value)) {
-      value.forEach((item, index) => {
+      value.forEach(item => {
         if (item && typeof item === 'object' && 'w:hyperlink' in (item as Record<string, unknown>)) {
-          const next = value[index + 1]
-          const attrs = next && typeof next === 'object' ? (next as Record<string, Record<string, unknown>>)[':@'] : undefined
+          const attrs = (item as Record<string, Record<string, unknown>>)[':@']
           const relationId = String(attrs?.['@_r:id'] || '')
           const anchor = String(attrs?.['@_w:anchor'] || '')
           visit((item as Record<string, unknown>)['w:hyperlink'], hyperlinks.get(relationId) || (anchor ? `#${anchor}` : href))
@@ -334,7 +327,7 @@ function parseInline(node: unknown, hyperlinks: Map<string, string>, inheritedHr
 }
 
 function normalizeParagraph(node: unknown, number: number, imageRelations: Map<string, string>, hyperlinks: Map<string, string>, styles: Map<string, WordStyleDefinition>): ImportParagraph[] {
-  const style = getStyle(node)
+  const style = getStyle(node) || '__no_style__'
   const definition = styles.get(style)
   const level = definition?.selectedLevel || headingLevel(style)
   const inline = enrichPlainCitations(parseInline(node, hyperlinks))
@@ -380,7 +373,7 @@ function normalizeParagraph(node: unknown, number: number, imageRelations: Map<s
       pageBreakBefore: groupIndex > 0 || (groupIndex === 0 && leadingPageBreak) || undefined,
     })
   })
-  relationIds(node).forEach((relationId, index) => {
+  relationIds(node).filter(relationId => imageRelations.has(relationId)).forEach((relationId, index) => {
     const imageId = imageRelations.get(relationId)
     const extent = findElementAttributes(node, 'wp:extent')[index]
     const widthEmu = Number(extent?.['@_cx'] || extent?.['@_wp:cx'] || 0)
@@ -440,6 +433,15 @@ async function analyze(file: File): Promise<WordImportAnalysis> {
 
   progress(20, 'استخراج ساختار و ارتباط تصاویر')
   const styles = parseStyles(await zip.file('word/styles.xml')?.async('text'))
+  styles.set('__no_style__', {
+    id: '__no_style__',
+    name: 'بدون Style صریح (متن عادی)',
+    usedCount: 0,
+    suggestedLevel: null,
+    selectedLevel: null,
+    selectedRole: 'body',
+    titleCandidate: false,
+  })
   const relationships = new Map<string, string>()
   const hyperlinks = new Map<string, string>()
   const relsEntry = zip.file('word/_rels/document.xml.rels')
@@ -469,7 +471,7 @@ async function analyze(file: File): Promise<WordImportAnalysis> {
     const mimeType = mimeTypes[extension] || 'application/octet-stream'
     const id = `image-${index + 1}`
     extractedImages.push({ id, name: entry.name.split('/').pop() || id, mimeType, data: await entry.async('arraybuffer') })
-    imageByPath.set(entry.name.replace('word/', ''), id)
+    if (extension !== 'wdp') imageByPath.set(entry.name.replace('word/', ''), id)
   }
   const images: ImportImage[] = []
   for (const [index, image] of extractedImages.entries()) {

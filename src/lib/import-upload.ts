@@ -2,7 +2,7 @@
 import { supabase } from '@/integrations/supabase/client'
 import { createPublisherBook } from '@/lib/publisher-books'
 import { analysisToReaderPages } from '@/lib/import-document'
-import type { LocalImportProject } from '@/lib/word-import-types'
+import type { ImportBookMetadata, LocalImportProject } from '@/lib/word-import-types'
 
 const CHUNK_SIZE = 5 * 1024 * 1024
 
@@ -80,21 +80,25 @@ export async function confirmAndUploadImport(
   project: LocalImportProject,
   userId: string,
   onProgress: (progress: UploadProgress) => void,
+  getLatestMetadata?: () => ImportBookMetadata,
 ) {
   if (!hasSupabase()) {
+    const metadata = getLatestMetadata?.() || project
     const localImageUrls = Object.fromEntries(project.analysis.images
       .filter(image => image.conversionStatus !== 'conversion-failed')
       .map(image => [image.id, URL.createObjectURL(new Blob([image.data], { type: image.mimeType }))]))
     const readerPages = analysisToReaderPages(project.analysis, localImageUrls)
     onProgress({ uploaded: project.sourceFile.size, total: project.sourceFile.size, percent: 100, label: 'پیش‌نویس محلی آماده شد' })
     return createPublisherBook({
-      title: project.title,
-      author: project.author,
-      category: project.category,
-      description: project.description,
+      title: metadata.title,
+      author: metadata.author,
+      category: metadata.category,
+      description: metadata.description,
       fileName: project.sourceFile.name,
       pages: readerPages,
       importProjectId: project.id,
+      bookType: metadata.bookType,
+      metadata: { ...metadata },
     })
   }
 
@@ -129,10 +133,13 @@ export async function confirmAndUploadImport(
   await uploadChunked(userId, importRow.id, project.sourceFile, onProgress)
   const uploadedImages = await uploadPreparedImages(userId, importRow.id, project, onProgress)
   const readerPages = analysisToReaderPages(project.analysis, uploadedImages.urls)
+  const metadata = getLatestMetadata?.() || project
+
+  await client.from('book_import_projects').update({ title: metadata.title }).eq('id', importRow.id)
 
   const manifest = new Blob([JSON.stringify({
     version: 1,
-    project: { title: project.title, author: project.author, category: project.category, description: project.description },
+    project: metadata,
     analysis: {
       ...project.analysis,
       images: project.analysis.images.map(image => ({
@@ -149,6 +156,26 @@ export async function confirmAndUploadImport(
   onProgress({ uploaded: project.sourceFile.size, total: project.sourceFile.size, percent: 92, label: 'ثبت بسته تبدیل و ساخت پیش‌نویس' })
 
   if (importRow.book_id) {
+    await client.from('books').update({
+      title: metadata.title,
+      description: metadata.description,
+      language: metadata.language,
+      tags: [metadata.category, ...metadata.keywords],
+      metadata: {
+        author: metadata.author,
+        authors: metadata.authors,
+        translators: metadata.translators,
+        category: metadata.category,
+        book_type: metadata.bookType,
+        isbn: metadata.isbn,
+        publication_year: metadata.publicationYear,
+        edition: metadata.edition,
+        keywords: metadata.keywords,
+        import_project_id: importRow.id,
+        source_checksum: project.analysis.checksum,
+        total_source_pages: project.analysis.totalPages,
+      },
+    }).eq('id', importRow.book_id)
     await client.from('book_import_projects').update({ status: 'queued', uploaded_at: new Date().toISOString() }).eq('id', importRow.id)
     const { data: existingBook } = await client.from('books').select('*').eq('id', importRow.book_id).single()
     onProgress({ uploaded: project.sourceFile.size, total: project.sourceFile.size, percent: 100, label: 'ارسال قبلی بازیابی شد' })
@@ -156,17 +183,24 @@ export async function confirmAndUploadImport(
   }
 
   const { data: book, error: bookError } = await client.from('books').insert({
-    title: project.title || project.sourceFile.name.replace(/\.docx$/i, ''),
+    title: metadata.title || project.sourceFile.name.replace(/\.docx$/i, ''),
     subtitle: `واردشده از ${project.sourceFile.name}`,
-    description: project.description,
+    description: metadata.description,
     pages: readerPages,
     preview_pages: readerPages.slice(0, 3).map((_, index) => index),
     publisher_id: publisher.id,
-    language: 'fa',
-    tags: [project.category],
+    language: metadata.language,
+    tags: [metadata.category, ...metadata.keywords],
     metadata: {
-      author: project.author,
-      category: project.category,
+      author: metadata.author,
+      authors: metadata.authors,
+      translators: metadata.translators,
+      category: metadata.category,
+      book_type: metadata.bookType,
+      isbn: metadata.isbn,
+      publication_year: metadata.publicationYear,
+      edition: metadata.edition,
+      keywords: metadata.keywords,
       import_project_id: importRow.id,
       source_checksum: project.analysis.checksum,
       total_source_pages: project.analysis.totalPages,

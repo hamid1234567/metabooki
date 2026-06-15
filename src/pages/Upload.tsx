@@ -6,12 +6,20 @@ import { useAuthContext } from '@/lib/auth-context'
 import { confirmAndUploadImport, type UploadProgress } from '@/lib/import-upload'
 import { clearExpiredLocalImports, deleteLocalImport, saveLocalImport, updateLocalAnalysis } from '@/lib/local-import-store'
 import { applyWordStyleMapping } from '@/lib/word-style-mapping'
-import type { LocalImportProject, WordImportAnalysis, ImportWorkerMessage } from '@/lib/word-import-types'
+import type { ImportBookMetadata, LocalImportProject, WordImportAnalysis, ImportWorkerMessage } from '@/lib/word-import-types'
 
 type Stage = 'choose' | 'analyzing' | 'review' | 'uploading' | 'complete'
 
 function bytes(value: number) {
   return new Intl.NumberFormat('fa-IR', { style: 'unit', unit: 'megabyte', maximumFractionDigits: 1 }).format(value / 1024 / 1024)
+}
+
+function parseLines(value: string) {
+  return value.split(/\r?\n/).map(item => item.trim()).filter(Boolean)
+}
+
+function parseKeywords(value: string) {
+  return value.split(/[،,\n]/).map(item => item.trim()).filter(Boolean)
 }
 
 export default function Upload() {
@@ -26,14 +34,56 @@ export default function Upload() {
   const [error, setError] = useState('')
   const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null)
   const [title, setTitle] = useState('')
-  const [author, setAuthor] = useState('')
+  const [authorsText, setAuthorsText] = useState('')
+  const [translatorsText, setTranslatorsText] = useState('')
   const [category, setCategory] = useState('ادبیات')
   const [description, setDescription] = useState('')
+  const [bookType, setBookType] = useState<ImportBookMetadata['bookType']>('تألیف')
+  const [isbn, setIsbn] = useState('')
+  const [publicationYear, setPublicationYear] = useState('')
+  const [edition, setEdition] = useState('')
+  const [language, setLanguage] = useState('fa')
+  const [keywordsText, setKeywordsText] = useState('')
+  const metadataRef = useRef<ImportBookMetadata | null>(null)
 
+  const currentMetadata = (): ImportBookMetadata => {
+    const authors = parseLines(authorsText)
+    return {
+      title,
+      author: authors.join('، '),
+      authors,
+      translators: parseLines(translatorsText),
+      category,
+      description,
+      bookType,
+      isbn,
+      publicationYear,
+      edition,
+      language,
+      keywords: parseKeywords(keywordsText),
+    }
+  }
   useEffect(() => {
     clearExpiredLocalImports()
     return () => workerRef.current?.terminate()
   }, [])
+
+  useEffect(() => {
+    metadataRef.current = {
+      title,
+      author: parseLines(authorsText).join('، '),
+      authors: parseLines(authorsText),
+      translators: parseLines(translatorsText),
+      category,
+      description,
+      bookType,
+      isbn,
+      publicationYear,
+      edition,
+      language,
+      keywords: parseKeywords(keywordsText),
+    }
+  }, [title, authorsText, translatorsText, category, description, bookType, isbn, publicationYear, edition, language, keywordsText])
 
   const imageUrls = useMemo(() => {
     const urls: Record<string, string> = {}
@@ -43,11 +93,28 @@ export default function Upload() {
 
   useEffect(() => () => Object.values(imageUrls).forEach(URL.revokeObjectURL), [imageUrls])
 
-  const analyze = (selected: File) => {
+  const resetBookMetadata = () => {
+    setTitle('')
+    setAuthorsText('')
+    setTranslatorsText('')
+    setCategory('ادبیات')
+    setDescription('')
+    setBookType('تألیف')
+    setIsbn('')
+    setPublicationYear('')
+    setEdition('')
+    setLanguage('fa')
+    setKeywordsText('')
+  }
+
+  const analyze = async (selected: File) => {
     workerRef.current?.terminate()
+    if (analysis?.id) await deleteLocalImport(analysis.id)
+    resetBookMetadata()
     setFile(selected)
     setAnalysis(null)
     setError('')
+    setUploadProgress(null)
     setProgress(0)
     setStage('analyzing')
     const worker = new Worker(new URL('../workers/docx-import.worker.ts', import.meta.url), { type: 'module' })
@@ -62,12 +129,14 @@ export default function Upload() {
         setStage('choose')
       } else {
         const result = message.analysis
+        const suggestedTitle = result.suggestedTitle || selected.name.replace(/\.docx$/i, '')
         setAnalysis(result)
-        setTitle(current => current || result.suggestedTitle || selected.name.replace(/\.docx$/i, ''))
+        setTitle(suggestedTitle)
         setStage('review')
         const project: LocalImportProject = {
           id: result.id, sourceFile: selected, analysis: result,
-          title: title || selected.name.replace(/\.docx$/i, ''), author, category, description,
+          title: suggestedTitle, author: '', authors: [], translators: [], category: 'ادبیات', description: '',
+          bookType: 'تألیف', isbn: '', publicationYear: '', edition: '', language: 'fa', keywords: [],
           updatedAt: new Date().toISOString(),
         }
         await saveLocalImport(project)
@@ -146,13 +215,19 @@ export default function Upload() {
     }
     setError('')
     setStage('uploading')
+    const metadata = currentMetadata()
     const project: LocalImportProject = {
-      id: analysis.id, sourceFile: file, analysis, title: title || file.name.replace(/\.docx$/i, ''),
-      author, category, description, updatedAt: new Date().toISOString(),
+      id: analysis.id, sourceFile: file, analysis,
+      ...metadata,
+      title: metadata.title || file.name.replace(/\.docx$/i, ''),
+      updatedAt: new Date().toISOString(),
     }
     await saveLocalImport(project)
     try {
-      const book = await confirmAndUploadImport(project, user.id, setUploadProgress)
+      const book = await confirmAndUploadImport(project, user.id, setUploadProgress, () => {
+        const latest = metadataRef.current || metadata
+        return { ...latest, title: latest.title || file.name.replace(/\.docx$/i, '') }
+      })
       setStage('complete')
       await deleteLocalImport(project.id)
       setTimeout(() => navigate(`/edit/${book.id}`), 900)
@@ -247,10 +322,23 @@ export default function Upload() {
               </div>}
             </div>
             <div className="word-book-meta menu-glass-70">
-              <h3>اطلاعات پیش‌نویس</h3>
+              <h3>مشخصات کتاب‌شناسی</h3>
+              {stage === 'uploading' && <p className="word-meta-upload-note"><UploadCloud />ارسال فایل در حال انجام است؛ می‌توانید هم‌زمان این اطلاعات را تکمیل کنید.</p>}
               <label>عنوان کتاب<input value={title} onChange={event => setTitle(event.target.value)} /></label>
-              <label>نویسنده<input value={author} onChange={event => setAuthor(event.target.value)} /></label>
+              <label>نویسندگان؛ نام هر نویسنده در یک خط<textarea value={authorsText} onChange={event => setAuthorsText(event.target.value)} placeholder={'نام نویسنده اول\nنام نویسنده دوم'} /></label>
+              {parseLines(authorsText).length > 0 && <div className="word-meta-chips">{parseLines(authorsText).map(authorName => <span key={authorName}>{authorName}</span>)}</div>}
+              <label>مترجمان؛ نام هر مترجم در یک خط<textarea value={translatorsText} onChange={event => setTranslatorsText(event.target.value)} placeholder="برای کتاب ترجمه‌شده" /></label>
+              <div className="word-meta-pair">
+                <label>نوع کتاب<select value={bookType} onChange={event => setBookType(event.target.value as ImportBookMetadata['bookType'])}>{['تألیف', 'ترجمه', 'گردآوری', 'ویرایش'].map(item => <option key={item}>{item}</option>)}</select></label>
+                <label>زبان<select value={language} onChange={event => setLanguage(event.target.value)}><option value="fa">فارسی</option><option value="en">انگلیسی</option><option value="ar">عربی</option></select></label>
+              </div>
+              <label>شابک (ISBN)<input value={isbn} onChange={event => setIsbn(event.target.value)} inputMode="numeric" /></label>
+              <div className="word-meta-pair">
+                <label>سال انتشار<input value={publicationYear} onChange={event => setPublicationYear(event.target.value)} inputMode="numeric" /></label>
+                <label>نوبت ویرایش / چاپ<input value={edition} onChange={event => setEdition(event.target.value)} /></label>
+              </div>
               <label>دسته‌بندی<select value={category} onChange={event => setCategory(event.target.value)}>{['ادبیات', 'علمی', 'برنامه‌نویسی', 'تاریخ', 'هنر', 'مدیریت'].map(item => <option key={item}>{item}</option>)}</select></label>
+              <label>کلیدواژه‌ها؛ با ویرگول یا خط جدید جدا کنید<textarea value={keywordsText} onChange={event => setKeywordsText(event.target.value)} /></label>
               <label>توضیح کوتاه<textarea value={description} onChange={event => setDescription(event.target.value)} /></label>
             </div>
           </section>
@@ -312,7 +400,10 @@ export default function Upload() {
 
           <section className="word-confirm-bar menu-glass-70">
             <div><ShieldCheck /><span><b>{stage === 'uploading' ? uploadProgress?.label : stage === 'complete' ? 'پیش‌نویس آماده شد' : 'آماده تأیید شما'}</b><small>{stage === 'review' ? 'با تأیید، فایل و بسته تبدیل فقط یک‌بار و به‌صورت ادامه‌پذیر ارسال می‌شوند.' : `${uploadProgress?.percent || 100}٪`}</small></span></div>
-            {stage === 'review' && <div className="word-confirm-actions"><label className="replace-word"><RefreshCcw />اصلاح کردم؛ فایل جدید را بررسی کن<input type="file" accept=".docx" onChange={event => event.target.files?.[0] && analyze(event.target.files[0])} /></label><Button onClick={confirmUpload} className="gap-2"><UploadCloud />تأیید و ارسال یک‌مرحله‌ای</Button></div>}
+            {stage === 'review' && <div className="word-confirm-actions">
+              <label className="replace-word"><RefreshCcw />بررسی فایل جدید<input type="file" accept=".docx" onChange={event => event.target.files?.[0] && analyze(event.target.files[0])} /></label>
+              <Button onClick={confirmUpload} className="gap-2"><UploadCloud />تأیید و ارسال یک‌مرحله‌ای</Button>
+            </div>}
             {stage === 'uploading' && <div className="word-upload-progress"><span style={{ width: `${uploadProgress?.percent || 0}%` }} /></div>}
             {stage === 'complete' && <Check className="word-complete-check" />}
           </section>

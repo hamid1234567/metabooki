@@ -35,7 +35,7 @@ export function getPublisherBooks(): PublisherBook[] {
   return [...custom, ...seeded.filter(b => !ids.has(b.id))]
 }
 
-export function createPublisherBook(input: { title: string; author: string; category: string; description: string; fileName?: string; pages?: any[]; importProjectId?: string }) {
+export function createPublisherBook(input: { title: string; author: string; category: string; description: string; fileName?: string; pages?: MockBook['pages']; importProjectId?: string; bookType?: string; metadata?: Record<string, unknown> }) {
   const now = new Date().toISOString()
   const id = `pub-${Date.now()}`
   const book: PublisherBook = {
@@ -63,7 +63,7 @@ export function createPublisherBook(input: { title: string; author: string; cate
     series_id: null,
     series_order: null,
     publisher_name: 'انتشارات دانش نو',
-    book_type: 'تألیف',
+    book_type: input.bookType || 'تألیف',
     page_count: input.pages?.length || 1,
     created_at: now,
     stage: 'editing',
@@ -72,7 +72,7 @@ export function createPublisherBook(input: { title: string; author: string; cate
     revenue: 0,
     author: input.author || 'نویسنده نامشخص',
     importStatus: input.fileName ? 'word-imported' : 'manual',
-    metadata: input.importProjectId ? { import_project_id: input.importProjectId } : undefined,
+    metadata: input.metadata ? { ...input.metadata, import_project_id: input.importProjectId } : input.importProjectId ? { import_project_id: input.importProjectId } : undefined,
   }
   const items = read()
   items.unshift(book)
