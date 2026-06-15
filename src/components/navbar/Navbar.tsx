@@ -58,6 +58,8 @@ export function Navbar() {
             <div className="desktop-primary-nav" aria-label="منوهای اصلی">
               <NavLink to="/" end onClick={closeMenu} className={desktopLinkClass}><Home className="w-4 h-4" />خانه</NavLink>
               <NavLink to="/store" onClick={closeMenu} className={desktopLinkClass}><Store className="w-4 h-4" />فروشگاه</NavLink>
+              {user && <NavLink to="/library" onClick={closeMenu} className={desktopLinkClass}><BookOpen className="w-4 h-4" />قفسه من</NavLink>}
+              {(isPublisher || isEditor || isAdmin) && <NavLink to="/publisher/me" onClick={closeMenu} className={desktopLinkClass}><Building2 className="w-4 h-4" />انتشارات</NavLink>}
             </div>
 
             <div className="top-nav-actions">

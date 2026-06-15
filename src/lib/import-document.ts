@@ -1,11 +1,11 @@
 import type { ImportPage, ImportParagraph, WordImportAnalysis } from '@/lib/word-import-types'
 
 export function blockToReaderBlock(block: ImportParagraph, imageUrls: Record<string, string> = {}) {
-  if (block.type === 'heading') return { type: 'heading', level: block.level || 2, content: block.text || '', inline: block.inline, anchor: block.anchor }
+  if (block.type === 'heading') return { type: 'heading', level: block.level || 2, content: block.text || '', inline: block.inline, anchor: block.anchor, anchors: block.anchors }
   if (block.type === 'image') return { type: 'image', url: imageUrls[block.imageId || ''] || '', caption: '' }
   if (block.type === 'table') return { type: 'table', headers: block.rows?.[0] || [], rows: block.rows?.slice(1) || [] }
   if (block.type === 'math') return { type: 'math', expression: block.text || '' }
-  return { type: 'paragraph', content: block.text || '', inline: block.inline, semantic: block.type, anchor: block.anchor }
+  return { type: 'paragraph', content: block.text || '', inline: block.inline, semantic: block.type, anchor: block.anchor, anchors: block.anchors }
 }
 
 export function analysisToReaderPages(analysis: WordImportAnalysis, imageUrls: Record<string, string> = {}) {
@@ -55,6 +55,7 @@ function inlineToHtml(block: ImportParagraph) {
     if (span.superscript) content = `<sup>${content}</sup>`
     if (span.subscript) content = `<sub>${content}</sub>`
     if (span.footnoteId) content = `<sup data-footnote-id="${escapeHtml(span.footnoteId)}">${escapeHtml(span.footnoteId)}</sup>`
+    if (span.referenceText) content = `<span data-reference-anchor="${escapeHtml(span.referenceAnchor)}" title="${escapeHtml(span.referenceText)}">${content}</span>`
     if (span.href) content = `<a href="${escapeHtml(span.href)}">${content}</a>`
     return content
   }).join('')

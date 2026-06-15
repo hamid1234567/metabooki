@@ -645,14 +645,15 @@ export default function Reader() {
     const renderInline = () => block.inline?.length ? block.inline.map((span: any, inlineIndex: number) => {
       const content = span.footnoteId ? <sup className="word-footnote-reference">{span.footnoteId}</sup> : span.superscript ? <sup>{span.text}</sup> : span.subscript ? <sub>{span.text}</sub> : span.text
       const formatted = <span style={{ fontWeight: span.bold ? 800 : undefined, fontStyle: span.italic ? 'italic' : undefined }}>{content}</span>
+      if (span.referenceText) return <span key={inlineIndex} className="citation-reference" role="button" tabIndex={0}>{formatted}<span className="citation-tooltip">{span.referenceText}</span></span>
       return span.href ? <a key={inlineIndex} href={span.href} target={String(span.href).startsWith('#') ? undefined : '_blank'} rel="noreferrer" className="reader-inline-link">{formatted}</a> : <span key={inlineIndex}>{formatted}</span>
     }) : null
     switch (block.type) {
       case 'paragraph': {
         const blockKey = `p:${idx}:${block.content.length}:${block.content.slice(0, 16)}`
-        return <p key={idx} id={block.anchor} data-reader-text="true" data-reader-block={blockKey} className={`mb-5 leading-loose text-justify ${block.semantic === 'caption' ? 'reader-figure-caption' : block.semantic === 'table-title' ? 'reader-table-title' : block.semantic === 'footnote' ? 'reader-footnote' : ''}`} style={{fontSize: `${fontSize}px`, lineHeight: '2.2'}}>{block.inline?.length ? renderInline() : renderHighlightedText(block.content, blockKey)}</p>
+        return <p key={idx} id={block.anchor} data-reader-text="true" data-reader-block={blockKey} className={`mb-5 leading-loose text-justify ${block.semantic === 'caption' ? 'reader-figure-caption' : block.semantic === 'table-title' ? 'reader-table-title' : block.semantic === 'footnote' ? 'reader-footnote' : ''}`} style={{fontSize: `${fontSize}px`, lineHeight: '2.2'}}>{block.anchors?.filter((anchor: string) => anchor !== block.anchor).map((anchor: string) => <span key={anchor} id={anchor} className="word-bookmark-anchor" />)}{block.inline?.length ? renderInline() : renderHighlightedText(block.content, blockKey)}</p>
       }
-      case 'heading': return <div key={idx} className="mb-8"><h2 id={block.anchor} className="text-2xl font-bold font-display mb-5 text-primary border-r-4 border-primary pr-4">{block.inline?.length ? renderInline() : block.content}</h2>{block.blocks?.map((b:any,i:number)=>renderBlock(b,i))}</div>
+      case 'heading': return <div key={idx} className="mb-8"><h2 id={block.anchor} className="text-2xl font-bold font-display mb-5 text-primary border-r-4 border-primary pr-4">{block.anchors?.filter((anchor: string) => anchor !== block.anchor).map((anchor: string) => <span key={anchor} id={anchor} className="word-bookmark-anchor" />)}{block.inline?.length ? renderInline() : block.content}</h2>{block.blocks?.map((b:any,i:number)=>renderBlock(b,i))}</div>
       case 'image': return <div key={idx} className="mb-8"><img src={block.url} alt={block.caption||''} className="w-full rounded-2xl shadow-book" loading="lazy" />{block.caption && <p className="text-center text-sm text-muted-foreground mt-3">{block.caption}</p>}</div>
       case 'quiz': {
         const ua = quizAnswers[qKey]; const answered = ua !== undefined

@@ -17,6 +17,7 @@ export interface ImportParagraph {
   level?: number
   style?: string
   anchor?: string
+  anchors?: string[]
   imageId?: string
   rows?: string[][]
   format?: {
@@ -39,6 +40,8 @@ export interface ImportInlineSpan {
   href?: string
   footnoteId?: string
   pageBreakBefore?: boolean
+  referenceText?: string
+  referenceAnchor?: string
 }
 
 export interface ImportPage {

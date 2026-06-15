@@ -112,6 +112,7 @@ export default function Upload() {
     return block.inline.map((span, index) => {
       const content = span.footnoteId ? <sup className="word-footnote-reference">{span.footnoteId}</sup> : span.superscript ? <sup>{span.text}</sup> : span.subscript ? <sub>{span.text}</sub> : span.text
       const formatted = <span key={index} style={{ fontWeight: span.bold ? 800 : undefined, fontStyle: span.italic ? 'italic' : undefined }}>{content}</span>
+      if (span.referenceText) return <span key={index} className="citation-reference" role="button" tabIndex={0}>{formatted}<span className="citation-tooltip">{span.referenceText}</span></span>
       return span.href ? <a key={index} href={span.href} target={span.href.startsWith('#') ? undefined : '_blank'} rel="noreferrer">{formatted}</a> : formatted
     })
   }
@@ -286,11 +287,11 @@ export default function Upload() {
                   {page.blocks.map(block => {
                     if (block.type === 'heading') {
                       const Tag = `h${Math.min(6, block.level || 2)}` as keyof React.JSX.IntrinsicElements
-                      return <Tag key={block.id} id={`preview-${block.id}`} className={`web-heading web-heading-${block.level || 2}`} style={{ textAlign: block.format?.alignment }}>{block.anchor && <span id={block.anchor} className="word-bookmark-anchor" />}{renderInline(block)}</Tag>
+                      return <Tag key={block.id} id={`preview-${block.id}`} className={`web-heading web-heading-${block.level || 2}`} style={{ textAlign: block.format?.alignment }}>{block.anchors?.map(anchor => <span key={anchor} id={anchor} className="word-bookmark-anchor" />)}{renderInline(block)}</Tag>
                     }
                     if (block.type === 'image') return imageUrls[block.imageId || ''] ? <figure key={block.id} id={`preview-${block.id}`} style={{ width: `${block.imageWidthPercent || 80}%` }}><img src={imageUrls[block.imageId || '']} alt="تصویر استخراج‌شده از کتاب" /></figure> : null
                     if (block.type === 'table') return <div className="word-table-wrap final-table" key={block.id} id={`preview-${block.id}`}><table><tbody>{block.rows?.map((row, rowIndex) => <tr key={rowIndex}>{row.map((cell, cellIndex) => rowIndex === 0 ? <th key={cellIndex}>{cell}</th> : <td key={cellIndex}>{cell}</td>)}</tr>)}</tbody></table></div>
-                    return <p key={block.id} id={`preview-${block.id}`} className={block.type === 'math' ? 'word-math' : block.type === 'caption' ? 'word-figure-caption' : block.type === 'table-title' ? 'word-table-title' : ''} style={blockStyle(block)}>{block.anchor && <span id={block.anchor} className="word-bookmark-anchor" />}{renderInline(block)}</p>
+                    return <p key={block.id} id={`preview-${block.id}`} className={block.type === 'math' ? 'word-math' : block.type === 'caption' ? 'word-figure-caption' : block.type === 'table-title' ? 'word-table-title' : ''} style={blockStyle(block)}>{block.anchors?.map(anchor => <span key={anchor} id={anchor} className="word-bookmark-anchor" />)}{renderInline(block)}</p>
                   })}
                   {pageFootnoteIds.length > 0 && <footer className="word-footnotes">{pageFootnoteIds.map(id => {
                     const note = analysis.footnotes?.find(item => item.id === id)

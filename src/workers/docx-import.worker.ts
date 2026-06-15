@@ -157,6 +157,10 @@ function firstSentence(text: string) {
   return (match?.[0] || normalized.slice(0, 180)).trim()
 }
 
+function isCitationLabel(text: string) {
+  return /^[\s[(（{]*[\d۰-۹٠-٩]+(?:\s*[-–,،؛;]\s*[\d۰-۹٠-٩]+)*[\s\])）}.,،؛;]*$/.test(text.trim())
+}
+
 function parseAlignment(value: unknown): WordStyleDefinition['alignment'] {
   const alignment = String(value || '').toLowerCase()
   if (alignment === 'both' || alignment === 'distribute') return 'justify'
@@ -245,7 +249,15 @@ function parseInline(node: unknown, hyperlinks: Map<string, string>, inheritedHr
   const visit = (value: unknown, href?: string) => {
     if (!value) return
     if (Array.isArray(value)) {
-      value.forEach(item => visit(item, href))
+      value.forEach((item, index) => {
+        if (item && typeof item === 'object' && 'w:hyperlink' in (item as Record<string, unknown>)) {
+          const next = value[index + 1]
+          const attrs = next && typeof next === 'object' ? (next as Record<string, Record<string, unknown>>)[':@'] : undefined
+          const relationId = String(attrs?.['@_r:id'] || '')
+          const anchor = String(attrs?.['@_w:anchor'] || '')
+          visit((item as Record<string, unknown>)['w:hyperlink'], hyperlinks.get(relationId) || (anchor ? `#${anchor}` : href))
+        } else visit(item, href)
+      })
       return
     }
     if (typeof value !== 'object') return
@@ -256,7 +268,8 @@ function parseInline(node: unknown, hyperlinks: Map<string, string>, inheritedHr
     }
     if ('w:instrText' in record || 'w:delText' in record) return
     if ('w:hyperlink' in record) {
-      const attrs = record[':@'] as Record<string, unknown> | undefined
+      const hyperlink = record['w:hyperlink'] as Record<string, unknown> | undefined
+      const attrs = hyperlink && typeof hyperlink === 'object' ? hyperlink : record[':@'] as Record<string, unknown> | undefined
       const relationId = String(attrs?.['@_r:id'] || '')
       const anchor = String(attrs?.['@_w:anchor'] || '')
       visit(record['w:hyperlink'], hyperlinks.get(relationId) || (anchor ? `#${anchor}` : href))
@@ -306,8 +319,10 @@ function normalizeParagraph(node: unknown, number: number, imageRelations: Map<s
   const level = definition?.selectedLevel || headingLevel(style)
   const inline = parseInline(node, hyperlinks)
   const text = inline.map(span => span.text).join('').replace(/[ \t]+\n/g, '\n').trim()
-  const rawAnchor = String(elementAttribute(node, 'w:bookmarkStart', '@_w:name', '@_name') || '')
-  const anchor = rawAnchor && rawAnchor !== '_GoBack' ? rawAnchor : undefined
+  const anchors = findElementAttributes(node, 'w:bookmarkStart')
+    .map(attrs => String(attrs['@_w:name'] || attrs['@_name'] || ''))
+    .filter(anchor => anchor && anchor !== '_GoBack')
+  const anchor = anchors[0]
   const blocks: ImportParagraph[] = []
   if (definition) {
     definition.usedCount += 1
@@ -339,6 +354,7 @@ function normalizeParagraph(node: unknown, number: number, imageRelations: Map<s
       level: level || undefined,
       style: style || undefined,
       anchor: groupIndex ? undefined : anchor,
+      anchors: groupIndex ? undefined : anchors,
       format,
       pageBreakBefore: groupIndex > 0 || undefined,
     })
@@ -485,6 +501,19 @@ async function analyze(file: File): Promise<WordImportAnalysis> {
       }))
 
   const paragraphs = contentPages.flatMap(page => page.blocks)
+  const anchorTargets = new Map<string, string>()
+  paragraphs.forEach(block => block.anchors?.forEach(anchor => {
+    if (block.text) anchorTargets.set(anchor, block.text)
+  }))
+  paragraphs.forEach(block => block.inline?.forEach(span => {
+    if (!span.href?.startsWith('#') || !isCitationLabel(span.text)) return
+    const targetAnchor = span.href.slice(1)
+    const targetText = anchorTargets.get(targetAnchor)
+    if (targetText) {
+      span.referenceAnchor = targetAnchor
+      span.referenceText = targetText.slice(0, 800)
+    }
+  }))
   const imageUsage = new Map<string, { pages: Set<number>; caption?: string }>()
   contentPages.forEach(page => page.blocks.forEach((block, index, blocks) => {
     if (block.type !== 'image' || !block.imageId) return
