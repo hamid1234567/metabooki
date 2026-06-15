@@ -339,6 +339,7 @@ function normalizeParagraph(node: unknown, number: number, imageRelations: Map<s
     alignment: parseAlignment(directAlignment) || definition?.alignment,
   }
   const semanticType: ImportParagraph['type'] = level ? 'heading' : definition?.selectedRole === 'caption' ? 'caption' : definition?.selectedRole === 'table-title' ? 'table-title' : 'paragraph'
+  const leadingPageBreak = Boolean(inline[0]?.pageBreakBefore)
   const inlineGroups = inline.reduce<ImportInlineSpan[][]>((groups, span) => {
     if (span.pageBreakBefore && groups[groups.length - 1]?.length) groups.push([])
     groups[groups.length - 1].push({ ...span, pageBreakBefore: undefined })
@@ -356,14 +357,20 @@ function normalizeParagraph(node: unknown, number: number, imageRelations: Map<s
       anchor: groupIndex ? undefined : anchor,
       anchors: groupIndex ? undefined : anchors,
       format,
-      pageBreakBefore: groupIndex > 0 || undefined,
+      pageBreakBefore: groupIndex > 0 || (groupIndex === 0 && leadingPageBreak) || undefined,
     })
   })
   relationIds(node).forEach((relationId, index) => {
     const imageId = imageRelations.get(relationId)
     const extent = findElementAttributes(node, 'wp:extent')[index]
     const widthEmu = Number(extent?.['@_cx'] || extent?.['@_wp:cx'] || 0)
-    if (imageId) blocks.push({ id: `p-${number}-image-${index}`, type: 'image', imageId, imageWidthPercent: widthEmu ? Math.min(100, Math.max(18, widthEmu / 914400 / 6.5 * 100)) : undefined })
+    if (imageId) blocks.push({
+      id: `p-${number}-image-${index}`,
+      type: 'image',
+      imageId,
+      imageWidthPercent: widthEmu ? Math.min(100, widthEmu / 914400 / 6.5 * 100) : undefined,
+      imageWidthPx: widthEmu ? Math.round(widthEmu / 914400 * 96) : undefined,
+    })
   })
   if (deepFind(node, 'm:oMath').length || deepFind(node, 'm:oMathPara').length) {
     blocks.push({ id: `p-${number}-math`, type: 'math', text: text || 'فرمول استخراج‌شده از Word' })

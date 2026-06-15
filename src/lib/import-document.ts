@@ -2,7 +2,7 @@ import type { ImportPage, ImportParagraph, WordImportAnalysis } from '@/lib/word
 
 export function blockToReaderBlock(block: ImportParagraph, imageUrls: Record<string, string> = {}) {
   if (block.type === 'heading') return { type: 'heading', level: block.level || 2, content: block.text || '', inline: block.inline, anchor: block.anchor, anchors: block.anchors }
-  if (block.type === 'image') return { type: 'image', url: imageUrls[block.imageId || ''] || '', caption: '' }
+  if (block.type === 'image') return { type: 'image', url: imageUrls[block.imageId || ''] || '', caption: '', widthPx: block.imageWidthPx }
   if (block.type === 'table') return { type: 'table', headers: block.rows?.[0] || [], rows: block.rows?.slice(1) || [] }
   if (block.type === 'math') return { type: 'math', expression: block.text || '' }
   return { type: 'paragraph', content: block.text || '', inline: block.inline, semantic: block.type, anchor: block.anchor, anchors: block.anchors }

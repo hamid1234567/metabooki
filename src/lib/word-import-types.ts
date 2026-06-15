@@ -28,6 +28,7 @@ export interface ImportParagraph {
     alignment?: 'right' | 'left' | 'center' | 'justify'
   }
   imageWidthPercent?: number
+  imageWidthPx?: number
   pageBreakBefore?: boolean
 }
 
