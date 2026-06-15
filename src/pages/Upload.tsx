@@ -110,8 +110,10 @@ export default function Upload() {
   const renderInline = (block: WordImportAnalysis['previewPages'][number]['blocks'][number]) => {
     if (!block.inline?.length) return block.text
     return block.inline.map((span, index) => {
+      const footnoteText = span.footnoteText || (span.footnoteId ? analysis?.footnotes?.find(note => note.id === span.footnoteId)?.text : undefined)
       const content = span.footnoteId ? <sup className="word-footnote-reference">{span.footnoteId}</sup> : span.superscript ? <sup>{span.text}</sup> : span.subscript ? <sub>{span.text}</sub> : span.text
       const formatted = <span key={index} style={{ fontWeight: span.bold ? 800 : undefined, fontStyle: span.italic ? 'italic' : undefined }}>{content}</span>
+      if (span.footnoteId && footnoteText) return <span key={index} className="citation-reference footnote-reference" role="button" tabIndex={0}>{formatted}<span className="citation-tooltip">{footnoteText}</span></span>
       if (span.referenceText) return <span key={index} className="citation-reference" role="button" tabIndex={0}>{formatted}<span className="citation-tooltip">{span.referenceText}</span></span>
       return span.href ? <a key={index} href={span.href} target={span.href.startsWith('#') ? undefined : '_blank'} rel="noreferrer">{formatted}</a> : formatted
     })
@@ -233,7 +235,13 @@ export default function Upload() {
               {analysis.images.some(image => image.conversionStatus === 'conversion-failed') && <div className="word-failed-images">
                 <h3>تصاویر نیازمند جایگزینی</h3>
                 {analysis.images.filter(image => image.conversionStatus === 'conversion-failed').map(image => <div key={image.id}>
-                  <span><b>{image.caption || image.originalName || image.name}</b><small>صفحه چاپی: {image.wordPages?.map(page => page.toLocaleString('fa-IR')).join('، ') || 'نامشخص'} · {image.conversionError}</small></span>
+                  <span>
+                    <b>{image.caption || image.originalName || image.name}</b>
+                    <small>صفحه چاپی Word: {image.wordPages?.map(page => page.toLocaleString('fa-IR')).join('، ') || 'نامشخص'} · {image.conversionError}</small>
+                    {image.contextBefore && <small><strong>متن قبل:</strong> {image.contextBefore}</small>}
+                    {image.contextAfter && <small><strong>متن بعد:</strong> {image.contextAfter}</small>}
+                    {image.previewBlockId && <button type="button" className="word-image-locate" onClick={() => scrollToPreviewBlock(image.previewBlockId!)}>نمایش محل در پیش‌نمایش</button>}
+                  </span>
                   <label>بارگذاری جایگزین<input type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" onChange={event => event.target.files?.[0] && replaceFailedImage(image.id, event.target.files[0])} /></label>
                 </div>)}
               </div>}
@@ -281,7 +289,6 @@ export default function Upload() {
               </header>
               <article className="word-web-preview">
                 {analysis.previewPages.map((page, pageIndex) => {
-                  const pageFootnoteIds = [...new Set(page.blocks.flatMap(block => block.inline?.map(span => span.footnoteId).filter((id): id is string => Boolean(id)) || []))]
                   return <section key={page.number} id={`preview-page-${page.number}`} className="word-preview-page-section">
                   {pageIndex > 0 && <div className="word-page-divider"><span>صفحه چاپی {(page.printNumber || page.number).toLocaleString('fa-IR')}</span></div>}
                   {page.blocks.map(block => {
@@ -289,14 +296,15 @@ export default function Upload() {
                       const Tag = `h${Math.min(6, block.level || 2)}` as keyof React.JSX.IntrinsicElements
                       return <Tag key={block.id} id={`preview-${block.id}`} className={`web-heading web-heading-${block.level || 2}`} style={{ textAlign: block.format?.alignment }}>{block.anchors?.map(anchor => <span key={anchor} id={anchor} className="word-bookmark-anchor" />)}{renderInline(block)}</Tag>
                     }
-                    if (block.type === 'image') return imageUrls[block.imageId || ''] ? <figure key={block.id} id={`preview-${block.id}`} style={{ width: `${block.imageWidthPercent || 80}%` }}><img src={imageUrls[block.imageId || '']} alt="تصویر استخراج‌شده از کتاب" /></figure> : null
+                    if (block.type === 'image') {
+                      const image = analysis.images.find(item => item.id === block.imageId)
+                      return image?.conversionStatus === 'conversion-failed'
+                        ? <figure key={block.id} id={`preview-${block.id}`} className="word-failed-image-placeholder"><AlertTriangle /><b>تصویر نیازمند جایگزینی است</b><span>{image.caption || image.originalName || image.name}</span></figure>
+                        : imageUrls[block.imageId || ''] ? <figure key={block.id} id={`preview-${block.id}`} style={{ width: `${block.imageWidthPercent || 80}%` }}><img src={imageUrls[block.imageId || '']} alt="تصویر استخراج‌شده از کتاب" /></figure> : null
+                    }
                     if (block.type === 'table') return <div className="word-table-wrap final-table" key={block.id} id={`preview-${block.id}`}><table><tbody>{block.rows?.map((row, rowIndex) => <tr key={rowIndex}>{row.map((cell, cellIndex) => rowIndex === 0 ? <th key={cellIndex}>{cell}</th> : <td key={cellIndex}>{cell}</td>)}</tr>)}</tbody></table></div>
                     return <p key={block.id} id={`preview-${block.id}`} className={block.type === 'math' ? 'word-math' : block.type === 'caption' ? 'word-figure-caption' : block.type === 'table-title' ? 'word-table-title' : ''} style={blockStyle(block)}>{block.anchors?.map(anchor => <span key={anchor} id={anchor} className="word-bookmark-anchor" />)}{renderInline(block)}</p>
                   })}
-                  {pageFootnoteIds.length > 0 && <footer className="word-footnotes">{pageFootnoteIds.map(id => {
-                    const note = analysis.footnotes?.find(item => item.id === id)
-                    return note ? <p key={id}><sup>{id}</sup>{note.text}</p> : null
-                  })}</footer>}
                 </section>})}
               </article>
             </section>

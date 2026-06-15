@@ -9,19 +9,10 @@ export function blockToReaderBlock(block: ImportParagraph, imageUrls: Record<str
 }
 
 export function analysisToReaderPages(analysis: WordImportAnalysis, imageUrls: Record<string, string> = {}) {
-  return analysis.previewPages.map(page => {
-    const footnoteIds = [...new Set(page.blocks.flatMap(block => block.inline?.map(span => span.footnoteId).filter((id): id is string => Boolean(id)) || []))]
-    const footnoteBlocks = footnoteIds.map(id => analysis.footnotes?.find(note => note.id === id)).filter(Boolean).map(note => ({
-      type: 'paragraph',
-      content: `${note!.id}. ${note!.text}`,
-      inline: note!.inline,
-      semantic: 'footnote',
-    }))
-    return {
-      title: page.blocks.find(block => block.type === 'heading')?.text || `صفحه ${(page.printNumber || page.number).toLocaleString('fa-IR')}`,
-      blocks: [...page.blocks.map(block => blockToReaderBlock(block, imageUrls)), ...footnoteBlocks],
-    }
-  })
+  return analysis.previewPages.map(page => ({
+    title: page.blocks.find(block => block.type === 'heading')?.text || `صفحه ${(page.printNumber || page.number).toLocaleString('fa-IR')}`,
+    blocks: page.blocks.map(block => blockToReaderBlock(block, imageUrls)),
+  }))
 }
 
 export function analysisToEditorHtml(analysis: WordImportAnalysis) {
@@ -54,7 +45,7 @@ function inlineToHtml(block: ImportParagraph) {
     if (span.italic) content = `<em>${content}</em>`
     if (span.superscript) content = `<sup>${content}</sup>`
     if (span.subscript) content = `<sub>${content}</sub>`
-    if (span.footnoteId) content = `<sup data-footnote-id="${escapeHtml(span.footnoteId)}">${escapeHtml(span.footnoteId)}</sup>`
+    if (span.footnoteId) content = `<sup data-footnote-id="${escapeHtml(span.footnoteId)}"${span.footnoteText ? ` title="${escapeHtml(span.footnoteText)}"` : ''}>${escapeHtml(span.footnoteId)}</sup>`
     if (span.referenceText) content = `<span data-reference-anchor="${escapeHtml(span.referenceAnchor)}" title="${escapeHtml(span.referenceText)}">${content}</span>`
     if (span.href) content = `<a href="${escapeHtml(span.href)}">${content}</a>`
     return content

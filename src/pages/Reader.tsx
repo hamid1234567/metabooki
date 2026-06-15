@@ -645,6 +645,7 @@ export default function Reader() {
     const renderInline = () => block.inline?.length ? block.inline.map((span: any, inlineIndex: number) => {
       const content = span.footnoteId ? <sup className="word-footnote-reference">{span.footnoteId}</sup> : span.superscript ? <sup>{span.text}</sup> : span.subscript ? <sub>{span.text}</sub> : span.text
       const formatted = <span style={{ fontWeight: span.bold ? 800 : undefined, fontStyle: span.italic ? 'italic' : undefined }}>{content}</span>
+      if (span.footnoteId && span.footnoteText) return <span key={inlineIndex} className="citation-reference footnote-reference" role="button" tabIndex={0}>{formatted}<span className="citation-tooltip">{span.footnoteText}</span></span>
       if (span.referenceText) return <span key={inlineIndex} className="citation-reference" role="button" tabIndex={0}>{formatted}<span className="citation-tooltip">{span.referenceText}</span></span>
       return span.href ? <a key={inlineIndex} href={span.href} target={String(span.href).startsWith('#') ? undefined : '_blank'} rel="noreferrer" className="reader-inline-link">{formatted}</a> : <span key={inlineIndex}>{formatted}</span>
     }) : null

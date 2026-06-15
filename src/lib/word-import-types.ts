@@ -39,6 +39,7 @@ export interface ImportInlineSpan {
   subscript?: boolean
   href?: string
   footnoteId?: string
+  footnoteText?: string
   pageBreakBefore?: boolean
   referenceText?: string
   referenceAnchor?: string
@@ -61,6 +62,9 @@ export interface ImportImage {
   conversionError?: string
   wordPages?: number[]
   caption?: string
+  previewBlockId?: string
+  contextBefore?: string
+  contextAfter?: string
 }
 
 export interface ImportFootnote {

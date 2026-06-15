@@ -501,6 +501,10 @@ async function analyze(file: File): Promise<WordImportAnalysis> {
       }))
 
   const paragraphs = contentPages.flatMap(page => page.blocks)
+  const footnoteTargets = new Map(footnotes.map(note => [note.id, note.text]))
+  paragraphs.forEach(block => block.inline?.forEach(span => {
+    if (span.footnoteId) span.footnoteText = footnoteTargets.get(span.footnoteId)
+  }))
   const anchorTargets = new Map<string, string>()
   paragraphs.forEach(block => block.anchors?.forEach(anchor => {
     if (block.text) anchorTargets.set(anchor, block.text)
@@ -514,7 +518,7 @@ async function analyze(file: File): Promise<WordImportAnalysis> {
       span.referenceText = targetText.slice(0, 800)
     }
   }))
-  const imageUsage = new Map<string, { pages: Set<number>; caption?: string }>()
+  const imageUsage = new Map<string, { pages: Set<number>; caption?: string; previewBlockId?: string; contextBefore?: string; contextAfter?: string }>()
   contentPages.forEach(page => page.blocks.forEach((block, index, blocks) => {
     if (block.type !== 'image' || !block.imageId) return
     const usage = imageUsage.get(block.imageId) || { pages: new Set<number>() }
@@ -522,12 +526,18 @@ async function analyze(file: File): Promise<WordImportAnalysis> {
     const next = blocks[index + 1]
     const previous = blocks[index - 1]
     usage.caption ||= next?.type === 'caption' ? next.text : previous?.type === 'caption' ? previous.text : undefined
+    usage.previewBlockId ||= block.id
+    usage.contextBefore ||= previous?.text?.slice(0, 180)
+    usage.contextAfter ||= next?.text?.slice(0, 180)
     imageUsage.set(block.imageId, usage)
   }))
   images.forEach(image => {
     const usage = imageUsage.get(image.id)
     image.wordPages = usage ? [...usage.pages] : []
     image.caption = usage?.caption
+    image.previewBlockId = usage?.previewBlockId
+    image.contextBefore = usage?.contextBefore
+    image.contextAfter = usage?.contextAfter
   })
   const suggestedTitleBlock = contentPages.flatMap(page => page.blocks).find(block => block.text && styles.get(block.style || '')?.titleCandidate)
   if (!toc.length) issues.push({ id: 'missing-toc', code: 'missing-toc', severity: 'warning', message: 'تیتر خودکار پیدا نشد؛ از بخش نگاشت Style، استایل‌های فصل را به H1 تا H6 متصل کنید.', page: 1 })
