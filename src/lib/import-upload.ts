@@ -114,6 +114,7 @@ export async function confirmAndUploadImport(
     source_checksum: project.analysis.checksum,
     local_analysis: {
       ...project.analysis,
+      documentPages: undefined,
       images: project.analysis.images.map(image => ({
         id: image.id, name: image.name, mimeType: image.mimeType, originalName: image.originalName,
         originalMimeType: image.originalMimeType, conversionStatus: image.conversionStatus,

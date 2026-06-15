@@ -80,6 +80,7 @@ export interface TocEntry {
   page: number
   included: boolean
   styleId?: string
+  previewAvailable?: boolean
 }
 
 export interface WordStyleDefinition {
@@ -114,6 +115,7 @@ export interface WordImportAnalysis {
   checksum: string
   createdAt: string
   totalPages: number
+  documentPages?: ImportPage[]
   previewPages: ImportPage[]
   toc: TocEntry[]
   styles: WordStyleDefinition[]

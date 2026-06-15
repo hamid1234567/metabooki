@@ -8,7 +8,7 @@ export function applyWordStyleMapping(
   const selectedLevel = mapping.startsWith('h') ? Number(mapping.slice(1)) : null
   const selectedRole: WordStyleDefinition['selectedRole'] = mapping.startsWith('h') ? 'heading' : mapping === 'caption' ? 'caption' : mapping === 'table-title' ? 'table-title' : mapping === 'ignore' ? 'ignore' : 'body'
   const styles = analysis.styles.map(style => style.id === styleId ? { ...style, selectedLevel, selectedRole } : style)
-  const mappedPages = analysis.previewPages.map(page => ({
+  const mappedPages = (analysis.documentPages || analysis.previewPages).map(page => ({
     ...page,
     blocks: page.blocks.map(block => {
       if (block.style !== styleId || !block.text) return block
@@ -19,7 +19,7 @@ export function applyWordStyleMapping(
       }
     }),
   }))
-  const toc = mappedPages.flatMap(page => page.blocks
+  const toc = mappedPages.flatMap((page, pageIndex) => page.blocks
     .filter(block => block.type === 'heading' && block.text)
     .map(block => ({
       id: block.id,
@@ -28,11 +28,13 @@ export function applyWordStyleMapping(
       page: page.printNumber || page.number,
       included: analysis.toc.find(item => item.id === block.id)?.included ?? true,
       styleId: block.style,
+      previewAvailable: pageIndex < 50,
     })))
   return {
     ...analysis,
     styles,
-    previewPages: mappedPages,
+    documentPages: mappedPages,
+    previewPages: mappedPages.slice(0, 50),
     toc,
     stats: { ...analysis.stats, headings: toc.length },
     issues: toc.length

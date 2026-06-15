@@ -572,8 +572,12 @@ async function analyze(file: File): Promise<WordImportAnalysis> {
     checksum: await sha256(file),
     createdAt: new Date().toISOString(),
     totalPages: contentPages.length,
+    documentPages: contentPages,
     previewPages: contentPages.slice(0, 50),
-    toc,
+    toc: toc.map(item => ({
+      ...item,
+      previewAvailable: contentPages.slice(0, 50).some(page => page.blocks.some(block => block.id === item.id)),
+    })),
     styles: [...styles.values()].filter(style => style.usedCount > 0).sort((a, b) => {
       const priority = (style: WordStyleDefinition) => style.selectedRole === 'heading' ? 0 : style.selectedRole === 'caption' || style.selectedRole === 'table-title' ? 1 : style.usedCount ? 2 : 3
       return priority(a) - priority(b) || (a.selectedLevel || 99) - (b.selectedLevel || 99) || b.usedCount - a.usedCount || a.name.localeCompare(b.name)

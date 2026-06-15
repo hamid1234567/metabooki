@@ -9,14 +9,14 @@ export function blockToReaderBlock(block: ImportParagraph, imageUrls: Record<str
 }
 
 export function analysisToReaderPages(analysis: WordImportAnalysis, imageUrls: Record<string, string> = {}) {
-  return analysis.previewPages.map(page => ({
+  return (analysis.documentPages || analysis.previewPages).map(page => ({
     title: page.blocks.find(block => block.type === 'heading')?.text || `صفحه ${(page.printNumber || page.number).toLocaleString('fa-IR')}`,
     blocks: page.blocks.map(block => blockToReaderBlock(block, imageUrls)),
   }))
 }
 
 export function analysisToEditorHtml(analysis: WordImportAnalysis) {
-  return analysis.previewPages.map(page => page.blocks.map(blockToHtml).join('')).join('<hr data-page-break="true">')
+  return (analysis.documentPages || analysis.previewPages).map(page => page.blocks.map(blockToHtml).join('')).join('<hr data-page-break="true">')
 }
 
 function escapeHtml(text = '') {
