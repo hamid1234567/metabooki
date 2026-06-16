@@ -85,13 +85,13 @@ async function sha256(file: File) {
 }
 
 function collectText(value: unknown): string {
-  if (typeof value === 'string') return value.split('¬').join('\u200B')
+  if (typeof value === 'string') return value.replace(/Â¬|¬/g, '\u200C')
   if (typeof value === 'number' || typeof value === 'bigint') return String(value)
   if (Array.isArray(value)) return value.map(collectText).join('')
   if (!value || typeof value !== 'object') return ''
   const record = value as Record<string, unknown>
   if (typeof record['#text'] === 'string' || typeof record['#text'] === 'number' || typeof record['#text'] === 'bigint') {
-    return String(record['#text']).split('¬').join('\u200B')
+    return String(record['#text']).replace(/Â¬|¬/g, '\u200C')
   }
   return Object.entries(record)
     .filter(([key]) => key !== ':@' && key !== '#text')

@@ -29,6 +29,7 @@ function toBook(row: Record<string, unknown>): MockBook {
     book_type: String(metadata.book_type || 'تألیف'),
     page_count: pages.length,
     created_at: String(row.created_at || ''),
+    metadata,
   }
 }
 

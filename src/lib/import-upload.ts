@@ -94,6 +94,9 @@ async function uploadPreparedImages(userId: string, projectId: string, project: 
 }
 
 function bookRecord(project: LocalImportProject, metadata: ImportBookMetadata, publisherId: string, readerPages: unknown[], importProjectId?: string) {
+  const confirmedToc = project.analysis.toc
+    .filter(item => item.included)
+    .map(item => ({ id: item.id, title: item.title, level: item.level, page: item.page, styleId: item.styleId }))
   return {
     title: metadata.title || project.sourceFile.name.replace(/\.docx$/i, ''),
     subtitle: metadata.subtitle || `واردشده از ${project.sourceFile.name}`,
@@ -118,6 +121,7 @@ function bookRecord(project: LocalImportProject, metadata: ImportBookMetadata, p
       import_project_id: importProjectId,
       source_checksum: project.analysis.checksum,
       total_source_pages: project.analysis.totalPages,
+      confirmed_toc: confirmedToc,
     },
     publish_complexity_factor: Math.max(1, project.analysis.complexity.score / 20),
   }
@@ -184,7 +188,12 @@ export async function confirmAndUploadImport(
       subtitle: metadata.subtitle,
       publisherName: metadata.publisherName,
       bookTypes: metadata.bookTypes,
-      metadata: { ...metadata },
+      metadata: {
+        ...metadata,
+        confirmed_toc: project.analysis.toc
+          .filter(item => item.included)
+          .map(item => ({ id: item.id, title: item.title, level: item.level, page: item.page, styleId: item.styleId })),
+      },
     })
   }
 
@@ -272,6 +281,9 @@ export async function confirmAndUploadImport(
         import_project_id: importRow.id,
         source_checksum: project.analysis.checksum,
         total_source_pages: project.analysis.totalPages,
+        confirmed_toc: project.analysis.toc
+          .filter(item => item.included)
+          .map(item => ({ id: item.id, title: item.title, level: item.level, page: item.page, styleId: item.styleId })),
       },
     }).eq('id', importRow.book_id)
     if (bookUpdateError) throw bookUpdateError
