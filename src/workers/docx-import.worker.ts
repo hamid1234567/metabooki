@@ -521,13 +521,7 @@ async function analyze(file: File): Promise<WordImportAnalysis> {
   let lastContentPageIndex = pages.length - 1
   while (lastContentPageIndex > 0 && !pages[lastContentPageIndex].blocks.length) lastContentPageIndex -= 1
   const physicalPages = pages.slice(0, Math.max(1, lastContentPageIndex + 1))
-  const contentPages = physicalPages.length > 1
-    ? physicalPages
-    : Array.from({ length: Math.max(1, Math.ceil((physicalPages[0]?.blocks.length || 0) / 14)) }, (_, index) => ({
-        number: index + 1,
-        printNumber: index + 1,
-        blocks: (physicalPages[0]?.blocks || []).slice(index * 14, (index + 1) * 14),
-      }))
+  const contentPages = physicalPages
 
   const paragraphs = contentPages.flatMap(page => page.blocks)
   const footnoteTargets = new Map(footnotes.map(note => [note.id, note.text]))
