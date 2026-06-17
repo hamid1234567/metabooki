@@ -192,8 +192,22 @@ export default function Reader() {
   const isPreview = book.preview_pages.includes(currentPage)
   const page = book.pages[currentPage] || { title: '', blocks: [] }
   const dir = book.language === 'fa' ? 'rtl' : 'ltr'
-  const pageBackgroundUrl = page.background_url || (book as any).metadata?.page_background_url
-  const pageBackgroundAlpha = Number(page.background_alpha ?? (book as any).metadata?.page_background_alpha ?? 0)
+  const pageBackgroundUrl = page.background_url || book.metadata?.page_background_url
+  const pageBackgroundAlpha = Number(page.background_alpha ?? book.metadata?.page_background_alpha ?? 0)
+  const confirmedToc = Array.isArray(book.metadata?.confirmed_toc) ? book.metadata.confirmed_toc as Array<{ id?: string; title?: string; level?: number; page?: number }> : []
+  const readerToc = confirmedToc.length
+    ? confirmedToc.map((item, index) => ({
+        key: item.id || `${item.title || 'toc'}-${index}`,
+        title: item.title || `بخش ${index + 1}`,
+        level: Math.max(1, Math.min(6, Number(item.level || 1))),
+        pageIndex: Math.max(0, Math.min(book.pages.length - 1, Number(item.page || 1) - 1)),
+      }))
+    : book.pages.map((p: any, i: number) => ({
+        key: `page-${i}`,
+        title: p.title || `صفحه ${i + 1}`,
+        level: 1,
+        pageIndex: i,
+      }))
 
   const getReaderBgClass = () => {
     if (book.category.includes('ادبیات') || book.category.includes('شعر')) return 'reader-bg-literature'
@@ -824,7 +838,7 @@ export default function Reader() {
           <div className={`reader-toc-panel fixed top-0 ${dir==='rtl'?'right-0 border-l':'left-0 border-r'} z-[70] h-full w-80 frosted-menu-surface p-5 overflow-y-auto animate-slide-in-right shadow-glass`} style={{paddingTop:'4rem'}}>
             <div className="flex items-center justify-between mb-5"><h2 className="font-bold font-display text-lg">📑 فهرست</h2><button title="بستن فهرست" onClick={()=>setShowToc(false)} className="p-1.5 rounded-lg hover:bg-muted"><X className="w-4 h-4"/></button></div>
             <div className="relative mb-4"><Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"/><input placeholder="جستجو در عناوین..." className="w-full pr-10 pl-3 py-2 rounded-xl border bg-background text-sm" onChange={e=>setSearchQuery(e.target.value)}/></div>
-            {book.pages.map((p:any,i:number)=>(<button key={i} onClick={()=>goPage(i)} className={`block w-full text-right p-2.5 rounded-xl text-sm mb-1 transition-all ${currentPage===i?'bg-primary/10 text-primary font-bold':'hover:bg-muted'}`}><div className="flex items-center justify-between"><span>{p.title||`صفحه ${i+1}`}</span>{!canReadFull&&!book.preview_pages.includes(i)&&<Lock className="w-3 h-3 text-muted-foreground"/>}</div></button>))}
+            {readerToc.map(item => (<button key={item.key} onClick={()=>goPage(item.pageIndex)} className={`block w-full text-right p-2.5 rounded-xl text-sm mb-1 transition-all ${currentPage===item.pageIndex?'bg-primary/10 text-primary font-bold':'hover:bg-muted'}`} style={{ paddingInlineStart: `${0.85 + (item.level - 1) * 0.7}rem` }}><div className="flex items-center justify-between gap-3"><span className="truncate">{item.title}</span>{!canReadFull&&!book.preview_pages.includes(item.pageIndex)&&<Lock className="w-3 h-3 shrink-0 text-muted-foreground"/>}</div></button>))}
           </div>
         )}
 
