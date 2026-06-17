@@ -1,8 +1,21 @@
 import type { ImportPage, ImportParagraph, WordImportAnalysis } from '@/lib/word-import-types'
 
-export function blockToReaderBlock(block: ImportParagraph, imageUrls: Record<string, string> = {}) {
+export function blockToReaderBlock(block: ImportParagraph, imageUrls: Record<string, string> = {}, page?: ImportPage, analysis?: WordImportAnalysis) {
   if (block.type === 'heading') return { type: 'heading', level: block.level || 2, content: block.text || '', inline: block.inline, anchor: block.anchor, anchors: block.anchors, format: block.format }
-  if (block.type === 'image') return { type: 'image', url: imageUrls[block.imageId || ''] || '', caption: '', widthPx: block.imageWidthPx, widthPercent: block.imageWidthPercent }
+  if (block.type === 'image') {
+    const image = analysis?.images.find(item => item.id === block.imageId)
+    return {
+      type: 'image',
+      url: imageUrls[block.imageId || ''] || '',
+      caption: image?.caption || '',
+      imageId: block.imageId,
+      printPage: page?.printNumber || page?.number,
+      conversionStatus: image?.conversionStatus,
+      conversionError: image?.conversionError,
+      widthPx: block.imageWidthPx,
+      widthPercent: block.imageWidthPercent,
+    }
+  }
   if (block.type === 'table') return { type: 'table', headers: block.rows?.[0] || [], rows: block.rows?.slice(1) || [] }
   if (block.type === 'math') return { type: 'math', expression: block.text || '' }
   return { type: 'paragraph', content: block.text || '', inline: block.inline, semantic: block.type, anchor: block.anchor, anchors: block.anchors, format: block.format }
@@ -11,11 +24,8 @@ export function blockToReaderBlock(block: ImportParagraph, imageUrls: Record<str
 export function analysisToReaderPages(analysis: WordImportAnalysis, imageUrls: Record<string, string> = {}) {
   return (analysis.documentPages || analysis.previewPages).map(page => ({
     title: page.blocks.find(block => block.type === 'heading')?.text || `صفحه ${(page.printNumber || page.number).toLocaleString('fa-IR')}`,
-    blocks: page.blocks.map(block => {
-      const converted = blockToReaderBlock(block, imageUrls)
-      if (block.type !== 'image') return converted
-      return { ...converted, caption: analysis.images.find(image => image.id === block.imageId)?.caption || '' }
-    }),
+    printNumber: page.printNumber || page.number,
+    blocks: page.blocks.map(block => blockToReaderBlock(block, imageUrls, page, analysis)),
   }))
 }
 

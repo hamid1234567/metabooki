@@ -97,6 +97,18 @@ function bookRecord(project: LocalImportProject, metadata: ImportBookMetadata, p
   const confirmedToc = project.analysis.toc
     .filter(item => item.included)
     .map(item => ({ id: item.id, title: item.title, level: item.level, page: item.page, styleId: item.styleId }))
+  const importImages = project.analysis.images.map(image => ({
+    id: image.id,
+    name: image.name,
+    originalName: image.originalName,
+    mimeType: image.mimeType,
+    originalMimeType: image.originalMimeType,
+    conversionStatus: image.conversionStatus,
+    conversionError: image.conversionError,
+    wordPages: image.wordPages,
+    caption: image.caption,
+    isReferenced: image.isReferenced,
+  }))
   return {
     title: metadata.title || project.sourceFile.name.replace(/\.docx$/i, ''),
     subtitle: metadata.subtitle || `واردشده از ${project.sourceFile.name}`,
@@ -122,6 +134,7 @@ function bookRecord(project: LocalImportProject, metadata: ImportBookMetadata, p
       source_checksum: project.analysis.checksum,
       total_source_pages: project.analysis.totalPages,
       confirmed_toc: confirmedToc,
+      import_images: importImages,
     },
     publish_complexity_factor: Math.max(1, project.analysis.complexity.score / 20),
   }
@@ -190,6 +203,18 @@ export async function confirmAndUploadImport(
       bookTypes: metadata.bookTypes,
       metadata: {
         ...metadata,
+        import_images: project.analysis.images.map(image => ({
+          id: image.id,
+          name: image.name,
+          originalName: image.originalName,
+          mimeType: image.mimeType,
+          originalMimeType: image.originalMimeType,
+          conversionStatus: image.conversionStatus,
+          conversionError: image.conversionError,
+          wordPages: image.wordPages,
+          caption: image.caption,
+          isReferenced: image.isReferenced,
+        })),
         confirmed_toc: project.analysis.toc
           .filter(item => item.included)
           .map(item => ({ id: item.id, title: item.title, level: item.level, page: item.page, styleId: item.styleId })),
@@ -281,6 +306,18 @@ export async function confirmAndUploadImport(
         import_project_id: importRow.id,
         source_checksum: project.analysis.checksum,
         total_source_pages: project.analysis.totalPages,
+        import_images: project.analysis.images.map(image => ({
+          id: image.id,
+          name: image.name,
+          originalName: image.originalName,
+          mimeType: image.mimeType,
+          originalMimeType: image.originalMimeType,
+          conversionStatus: image.conversionStatus,
+          conversionError: image.conversionError,
+          wordPages: image.wordPages,
+          caption: image.caption,
+          isReferenced: image.isReferenced,
+        })),
         confirmed_toc: project.analysis.toc
           .filter(item => item.included)
           .map(item => ({ id: item.id, title: item.title, level: item.level, page: item.page, styleId: item.styleId })),
