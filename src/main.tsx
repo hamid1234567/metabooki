@@ -17,6 +17,13 @@ const queryClient = new QueryClient({
   },
 })
 
+const LAST_ROUTE_KEY = 'metabooki_last_hash_route'
+
+function rememberHashRoute() {
+  if (!window.location.hash.startsWith('#/')) return
+  localStorage.setItem(LAST_ROUTE_KEY, window.location.hash)
+}
+
 function preserveRouteForHashRouter() {
   if (window.location.hash.startsWith('#/')) return true
 
@@ -27,6 +34,12 @@ function preserveRouteForHashRouter() {
   ])
   const pathParts = window.location.pathname.split('/').filter(Boolean)
   const routeIndex = pathParts.findIndex(part => routeRoots.has(part))
+  const isReload = performance.getEntriesByType('navigation').some(entry => (entry as PerformanceNavigationTiming).type === 'reload')
+  const lastRoute = localStorage.getItem(LAST_ROUTE_KEY)
+  if (routeIndex < 0 && isReload && lastRoute?.startsWith('#/')) {
+    window.location.replace(`${window.location.origin}${window.location.pathname}${window.location.search}${lastRoute}`)
+    return false
+  }
   if (routeIndex < 0) return true
 
   const basePath = `/${pathParts.slice(0, routeIndex).join('/')}`
@@ -37,6 +50,9 @@ function preserveRouteForHashRouter() {
 }
 
 if (preserveRouteForHashRouter()) {
+  rememberHashRoute()
+  window.addEventListener('hashchange', rememberHashRoute)
+
   const isLatestVersion = await ensureLatestOnlineVersion()
   if (isLatestVersion) await refreshVersionedCaches()
 

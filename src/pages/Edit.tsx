@@ -363,7 +363,11 @@ export default function Edit() {
   const [backgroundUrl, setBackgroundUrl] = useState('')
   const [backgroundAlpha, setBackgroundAlpha] = useState(0)
   const [imagePanelOpen, setImagePanelOpen] = useState(false)
+  const [editingTocIndex, setEditingTocIndex] = useState<number | null>(null)
+  const [editingTocTitle, setEditingTocTitle] = useState('')
+  const [confirmTocDelete, setConfirmTocDelete] = useState<number | null>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
+  const documentStageRef = useRef<HTMLElement>(null)
   const switchingSegmentRef = useRef(false)
   const tocEntries = useMemo(() => confirmedTocFromBook(book), [book])
   const segments = useMemo(() => buildConfirmedTocSegments(allPages, tocEntries), [allPages, tocEntries])
@@ -428,6 +432,7 @@ export default function Edit() {
     window.setTimeout(() => {
       refreshHeadings()
       switchingSegmentRef.current = false
+      documentStageRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }, 50)
   }
 
@@ -691,16 +696,23 @@ export default function Edit() {
     if (!item) return
     updateTocEntry(tocIndex, { level: Math.min(6, Math.max(1, Number(item.level || 1) + delta)) })
   }
-  const renameTocEntry = (tocIndex: number, currentTitle: string) => {
-    const nextTitle = window.prompt('عنوان جدید این سرفصل', currentTitle)
-    if (nextTitle === null || !nextTitle.trim() || nextTitle.trim() === currentTitle.trim()) return
-    updateTocEntry(tocIndex, { title: nextTitle.trim() })
+  const startInlineTocEdit = (tocIndex: number, currentTitle: string) => {
+    setEditingTocIndex(tocIndex)
+    setEditingTocTitle(currentTitle)
+  }
+  const submitInlineTocEdit = () => {
+    if (editingTocIndex === null) return
+    const title = editingTocTitle.trim()
+    if (title) updateTocEntry(editingTocIndex, { title })
+    setEditingTocIndex(null)
+    setEditingTocTitle('')
   }
   const removeTocEntry = (tocIndex: number) => {
     const item = tocEntries[tocIndex]
-    if (!item || !window.confirm(`«${item.title}» از فهرست حذف شود؟ متن کتاب حذف نمی‌شود.`)) return
+    if (!item) return
     persistTocEntries(tocEntries.filter((_, index) => index !== tocIndex))
     setActiveSegmentIndex(index => Math.max(0, Math.min(index, tocEntries.length - 2)))
+    setConfirmTocDelete(null)
   }
   const handleInteractiveAction = async (value: string) => {
     if (!value) return
@@ -755,13 +767,20 @@ export default function Edit() {
             {tocEntries.length === 0 && <p className="book-editor-empty-state">برای این کتاب فهرست تاییدشده‌ای ثبت نشده است.</p>}
             {segments.map((segment, index) => (
               <div className={`book-editor-toc-row ${index === activeSegmentIndex ? 'is-active' : ''}`} key={segment.key} style={{ paddingInlineStart: `${((segment.level || 1) - 1) * 10}px` }}>
-                <button className="book-editor-toc-link" onClick={() => changeActiveSegment(index)}><Bookmark />{segment.label || 'سرفصل بدون عنوان'}</button>
+                {editingTocIndex === segment.tocIndex ? (
+                  <form className="book-editor-toc-inline-edit" onSubmit={event => { event.preventDefault(); submitInlineTocEdit() }}>
+                    <input value={editingTocTitle} autoFocus onChange={event => setEditingTocTitle(event.target.value)} onKeyDown={event => { if (event.key === 'Escape') { setEditingTocIndex(null); setEditingTocTitle('') } }} />
+                    <button type="submit">ثبت</button>
+                  </form>
+                ) : (
+                  <button className="book-editor-toc-link" onClick={() => changeActiveSegment(index)}><Bookmark />{segment.label || 'سرفصل بدون عنوان'}</button>
+                )}
                 {typeof segment.tocIndex === 'number' ? (
                   <span className="book-editor-toc-actions">
                     <button title="کاهش سطح" onClick={() => shiftTocEntryLevel(segment.tocIndex!, -1)}><ArrowUp /></button>
                     <button title="افزایش سطح" onClick={() => shiftTocEntryLevel(segment.tocIndex!, 1)}><ArrowDown /></button>
-                    <button title="ویرایش عنوان" onClick={() => renameTocEntry(segment.tocIndex!, segment.label || '')}><Edit3 /></button>
-                    <button title="حذف از فهرست" onClick={() => removeTocEntry(segment.tocIndex!)}><Trash2 /></button>
+                    <button title="ویرایش عنوان" onClick={() => startInlineTocEdit(segment.tocIndex!, segment.label || '')}><Edit3 /></button>
+                    <button title="حذف از فهرست" onClick={() => setConfirmTocDelete(segment.tocIndex!)}><Trash2 /></button>
                   </span>
                 ) : <span className="book-editor-toc-jump"><ChevronLeft /></span>}
               </div>
@@ -782,9 +801,22 @@ export default function Edit() {
             ))}
           </div>
         </aside>}
-        <section className="book-document-stage"><div className="book-document-paper" style={{ '--editor-font-size': `${fontSize}px`, '--page-bg': backgroundUrl ? `url("${backgroundUrl}")` : 'none', '--page-bg-alpha': backgroundAlpha } as CSSProperties}><EditorContent editor={editor} /></div></section>
+        <section ref={documentStageRef} className="book-document-stage"><div className="book-document-paper" style={{ '--editor-font-size': `${fontSize}px`, '--page-bg': backgroundUrl ? `url("${backgroundUrl}")` : 'none', '--page-bg-alpha': backgroundAlpha } as CSSProperties}><EditorContent editor={editor} /></div></section>
       </div>
-      <button className="book-editor-scroll-top" title="بازگشت به ابتدای ادیتور" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}><ArrowUp /></button>
+      {confirmTocDelete !== null && <div className="app-modal-backdrop" role="dialog" aria-modal="true">
+        <section className="app-message-modal menu-glass-70">
+          <div className="app-message-art"><AlertTriangle /></div>
+          <div>
+            <h3>حذف سرفصل از فهرست</h3>
+            <p>«{tocEntries[confirmTocDelete]?.title}» فقط از فهرست کتاب حذف می‌شود و متن اصلی کتاب دست‌نخورده باقی می‌ماند.</p>
+          </div>
+          <footer>
+            <button className="app-modal-secondary" onClick={() => setConfirmTocDelete(null)}>انصراف</button>
+            <button className="app-modal-danger" onClick={() => removeTocEntry(confirmTocDelete)}>حذف از فهرست</button>
+          </footer>
+        </section>
+      </div>}
+      <button className="book-editor-scroll-top" title="بازگشت به ابتدای پنل محتوا" onClick={() => documentStageRef.current?.scrollIntoView({ top: 0, behavior: 'smooth' })}><ArrowUp /></button>
     </main>
   )
 }

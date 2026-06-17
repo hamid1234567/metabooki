@@ -195,12 +195,25 @@ export default function Reader() {
   const pageBackgroundUrl = page.background_url || book.metadata?.page_background_url
   const pageBackgroundAlpha = Number(page.background_alpha ?? book.metadata?.page_background_alpha ?? 0)
   const confirmedToc = Array.isArray(book.metadata?.confirmed_toc) ? book.metadata.confirmed_toc as Array<{ id?: string; title?: string; level?: number; page?: number }> : []
+  const findTocPageIndex = (item: { id?: string; title?: string; page?: number }) => {
+    if (item.id) {
+      const byId = book.pages.findIndex((candidatePage: any) => (candidatePage.blocks || []).some((block: any) => block.id === item.id || block.anchor === item.id || block.anchors?.includes?.(item.id)))
+      if (byId >= 0) return byId
+    }
+    const title = String(item.title || '').trim()
+    if (title) {
+      const byTitle = book.pages.findIndex((candidatePage: any) => (candidatePage.blocks || []).some((block: any) => block.type === 'heading' && String(block.content || block.text || '').trim() === title))
+      if (byTitle >= 0) return byTitle
+    }
+    const byPrintNumber = book.pages.findIndex((candidatePage: any, index: number) => Number(candidatePage.printNumber || candidatePage.number || index + 1) === Number(item.page || 1))
+    return Math.max(0, Math.min(book.pages.length - 1, byPrintNumber >= 0 ? byPrintNumber : Number(item.page || 1) - 1))
+  }
   const readerToc = confirmedToc.length
     ? confirmedToc.map((item, index) => ({
         key: item.id || `${item.title || 'toc'}-${index}`,
         title: item.title || `بخش ${index + 1}`,
         level: Math.max(1, Math.min(6, Number(item.level || 1))),
-        pageIndex: Math.max(0, Math.min(book.pages.length - 1, Number(item.page || 1) - 1)),
+        pageIndex: findTocPageIndex(item),
       }))
     : book.pages.map((p: any, i: number) => ({
         key: `page-${i}`,
