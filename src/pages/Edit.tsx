@@ -351,6 +351,18 @@ export default function Edit() {
     if (!quiet) editor.commands.focus()
   }
 
+  const previewCurrentBook = async () => {
+    const previewUrl = `${window.location.origin}${window.location.pathname}${window.location.search}#/read/${id}`
+    const previewWindow = window.open('about:blank', '_blank')
+    await save(true)
+    if (previewWindow) {
+      previewWindow.opener = null
+      previewWindow.location.href = previewUrl
+      return
+    }
+    openBookPreview(id)
+  }
+
   useEffect(() => {
     if (!editor) return
     const onUpdate = () => {
@@ -554,7 +566,7 @@ export default function Edit() {
           <select className="book-editor-segment-select" title="بخش فعال ادیتور" value={Math.min(activeSegmentIndex, Math.max(0, segments.length - 1))} onChange={event => changeActiveSegment(Number(event.target.value))}>
             {segments.map((segment, index) => <option key={segment.key} value={index}>{segment.label}</option>)}
           </select>
-          <Button variant="outline" onClick={() => setMetadataOpen(value => !value)}><PanelTopClose />مشخصات</Button><Button variant="outline" onClick={() => openBookPreview(id)}><Eye />پیش‌نمایش</Button><Button onClick={() => save()}><Save />ذخیره</Button>
+          <Button variant="outline" onClick={() => setMetadataOpen(value => !value)}><PanelTopClose />مشخصات</Button><Button variant="outline" onClick={() => void previewCurrentBook()}><Eye />پیش‌نمایش</Button><Button onClick={() => save()}><Save />ذخیره</Button>
         </div>
       </header>
 
@@ -586,8 +598,10 @@ export default function Edit() {
           <div className="book-editor-side-card">
             <h3><BookOpen />فهرست کتاب</h3>
             <p>هر عنوان را می‌توانید از همین‌جا بازچینش کنید. دکمه‌های کناری برای کم‌کردن سطح، زیادکردن سطح، تغییر عنوان و حذف از فهرست هستند.</p>
+            <span className="book-editor-segment-note">در حال ویرایش: {activeSegment?.label || 'سند'} · صفحات {(activeSegment?.start ?? 0) + 1} تا {Math.max(activeSegment?.end ?? 1, 1)}</span>
           </div>
           <div className="book-editor-toc-list">
+            {headings.length === 0 && <p className="book-editor-empty-state">در این بخش هنوز سرفصل قابل نمایش وجود ندارد.</p>}
             {headings.map((heading, index) => (
               <div className="book-editor-toc-row" key={`${heading.pos}-${index}`} style={{ paddingInlineStart: `${(heading.level - 1) * 8}px` }}>
                 <button className="book-editor-toc-link" onClick={() => editor?.chain().focus().setTextSelection(heading.pos + 1).scrollIntoView().run()}>{heading.text || 'سرفصل بدون عنوان'}</button>
