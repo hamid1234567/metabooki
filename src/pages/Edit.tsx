@@ -816,7 +816,7 @@ export default function Edit() {
           </footer>
         </section>
       </div>}
-      <button className="book-editor-scroll-top" title="بازگشت به ابتدای پنل محتوا" onClick={() => documentStageRef.current?.scrollIntoView({ top: 0, behavior: 'smooth' })}><ArrowUp /></button>
+      <button className="book-editor-scroll-top" title="بازگشت به ابتدای پنل محتوا" onClick={() => documentStageRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}><ArrowUp /></button>
     </main>
   )
 }
