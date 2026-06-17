@@ -13,7 +13,7 @@ import Link from '@tiptap/extension-link'
 import Color from '@tiptap/extension-color'
 import { TextStyle } from '@tiptap/extension-text-style'
 import { TableKit } from '@tiptap/extension-table'
-import { AlertTriangle, AlignCenter, AlignJustify, AlignLeft, AlignRight, Bold, BookOpen, ChevronDown, ChevronUp, Eye, FileImage, Heading1, Heading2, ImagePlus, Images, Italic, LayoutTemplate, Link2, List, ListOrdered, Minus, PanelTopClose, Pencil, Plus, Redo2, Save, Strikethrough, Subscript as SubIcon, Superscript as SuperIcon, Table2, Trash2, Underline as UnderlineIcon, Undo2 } from 'lucide-react'
+import { AlertTriangle, AlignCenter, AlignJustify, AlignLeft, AlignRight, ArrowUp, Bold, BookOpen, Bookmark, ChevronLeft, ChevronUp, Eye, FileImage, Heading1, Heading2, ImagePlus, Images, Italic, LayoutTemplate, Link2, List, ListOrdered, Minus, PanelTopClose, Plus, Redo2, Save, Strikethrough, Subscript as SubIcon, Superscript as SuperIcon, Table2, Underline as UnderlineIcon, Undo2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { findPublisherBook, updatePublisherBook } from '@/lib/publisher-books'
 import { findBookById } from '@/lib/mock-data'
@@ -168,10 +168,37 @@ function pagesToHtml(pages: any[] = []) {
 }
 
 type EditorSegmentMode = 'chapter' | 'page'
-type EditorSegment = { key: string; label: string; start: number; end: number }
+type EditorSegment = { key: string; label: string; level?: number; start: number; end: number; page?: number }
+type ConfirmedTocEntry = { id?: string; title: string; level: number; page?: number; styleId?: string }
 
 function pageTitle(page: any, index: number) {
   return page?.title || page?.blocks?.find((block: any) => block.type === 'heading')?.content || `صفحه ${index + 1}`
+}
+
+function pageIndexForPrintPage(pages: any[] = [], printPage?: number) {
+  if (!printPage) return 0
+  const exact = pages.findIndex((page, index) => Number(page.printNumber || page.number || index + 1) === Number(printPage))
+  return exact >= 0 ? exact : Math.max(0, Math.min(pages.length - 1, Number(printPage) - 1))
+}
+
+function confirmedTocFromBook(book: any): ConfirmedTocEntry[] {
+  const toc = book?.metadata?.confirmed_toc
+  if (!Array.isArray(toc)) return []
+  return toc
+    .filter((item: any) => item?.title)
+    .map((item: any) => ({ id: item.id, title: item.title, level: Math.min(6, Math.max(1, Number(item.level || 1))), page: item.page, styleId: item.styleId }))
+}
+
+function buildConfirmedTocSegments(pages: any[] = [], toc: ConfirmedTocEntry[] = []): EditorSegment[] {
+  if (!pages.length) return [{ key: 'empty', label: 'سند خالی', level: 1, start: 0, end: 0 }]
+  if (!toc.length) return [{ key: 'all', label: 'کل متن کتاب', level: 1, start: 0, end: pages.length }]
+  return toc.map((item, index) => {
+    const start = pageIndexForPrintPage(pages, item.page)
+    const next = toc.slice(index + 1).find(nextItem => Number(nextItem.level || 1) <= Number(item.level || 1))
+    const nextStart = next ? pageIndexForPrintPage(pages, next.page) : pages.length
+    const end = Math.max(start + 1, Math.min(pages.length, nextStart || pages.length))
+    return { key: item.id || `${index}-${item.title}`, label: item.title, level: item.level || 1, start, end, page: item.page }
+  })
 }
 
 function buildEditorSegments(pages: any[] = [], mode: EditorSegmentMode): EditorSegment[] {
@@ -256,7 +283,6 @@ export default function Edit() {
   const [saving, setSaving] = useState(false)
   const [fontSize, setFontSize] = useState(18)
   const [allPages, setAllPages] = useState<any[]>(localInitial?.pages || [])
-  const [segmentMode, setSegmentMode] = useState<EditorSegmentMode>('chapter')
   const [activeSegmentIndex, setActiveSegmentIndex] = useState(0)
   const [headings, setHeadings] = useState<Array<{ text: string; level: number; pos: number }>>([])
   const [backgroundUrl, setBackgroundUrl] = useState('')
@@ -264,7 +290,8 @@ export default function Edit() {
   const [imagePanelOpen, setImagePanelOpen] = useState(false)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const switchingSegmentRef = useRef(false)
-  const segments = useMemo(() => buildEditorSegments(allPages, segmentMode), [allPages, segmentMode])
+  const tocEntries = useMemo(() => confirmedTocFromBook(book), [book])
+  const segments = useMemo(() => buildConfirmedTocSegments(allPages, tocEntries), [allPages, tocEntries])
   const activeSegment = segments[Math.min(activeSegmentIndex, Math.max(0, segments.length - 1))] || segments[0]
   const bookImages = useMemo(() => {
     const pageImages = allPages.flatMap((page: any, pageIndex: number) => (page.blocks || [])
@@ -331,17 +358,9 @@ export default function Edit() {
     }, 50)
   }
 
-  const changeSegmentMode = (mode: EditorSegmentMode) => {
-    const merged = mergeCurrentSegment()
-    setAllPages(merged)
-    setSegmentMode(mode)
-    setActiveSegmentIndex(0)
-    window.setTimeout(() => loadSegment(buildEditorSegments(merged, mode)[0], merged), 0)
-  }
-
   const changeActiveSegment = (index: number) => {
     const merged = mergeCurrentSegment()
-    const nextSegments = buildEditorSegments(merged, segmentMode)
+    const nextSegments = buildConfirmedTocSegments(merged, tocEntries)
     const nextIndex = Math.max(0, Math.min(nextSegments.length - 1, index))
     setAllPages(merged)
     setActiveSegmentIndex(nextIndex)
@@ -356,7 +375,7 @@ export default function Edit() {
       setBackgroundUrl(data.metadata?.page_background_url || ''); setBackgroundAlpha(Number(data.metadata?.page_background_alpha || 0))
       setAllPages(data.pages || [])
       setActiveSegmentIndex(0)
-      loadSegment(buildEditorSegments(data.pages || [], segmentMode)[0], data.pages || [])
+      loadSegment(buildConfirmedTocSegments(data.pages || [], confirmedTocFromBook(data))[0], data.pages || [])
     })
   }, [editor, id, localInitial])
 
@@ -597,13 +616,6 @@ export default function Edit() {
         <div><p>ادیتور کتاب · پیش‌نویس منتشرنشده</p><input value={title} onChange={event => setTitle(event.target.value)} aria-label="عنوان کتاب" /></div>
         <div className="book-save-state"><Save />{saving ? 'در حال ذخیره…' : savedAt ? `ذخیره شد ${savedAt.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })}` : 'ذخیره خودکار فعال است'}</div>
         <div>
-          <select className="book-editor-segment-select" title="حالت بارگذاری متن" value={segmentMode} onChange={event => changeSegmentMode(event.target.value as EditorSegmentMode)}>
-            <option value="chapter">فصل به فصل</option>
-            <option value="page">صفحه به صفحه</option>
-          </select>
-          <select className="book-editor-segment-select" title="بخش فعال ادیتور" value={Math.min(activeSegmentIndex, Math.max(0, segments.length - 1))} onChange={event => changeActiveSegment(Number(event.target.value))}>
-            {segments.map((segment, index) => <option key={segment.key} value={index}>{segment.label}</option>)}
-          </select>
           <Button variant="outline" onClick={() => setMetadataOpen(value => !value)}><PanelTopClose />مشخصات</Button><Button variant="outline" onClick={() => void previewCurrentBook()}><Eye />پیش‌نمایش</Button><Button onClick={() => save()}><Save />ذخیره</Button>
         </div>
       </header>
@@ -635,20 +647,15 @@ export default function Edit() {
         <aside className="book-editor-side menu-glass-70">
           <div className="book-editor-side-card">
             <h3><BookOpen />فهرست کتاب</h3>
-            <p>هر عنوان را می‌توانید از همین‌جا بازچینش کنید. دکمه‌های کناری برای کم‌کردن سطح، زیادکردن سطح، تغییر عنوان و حذف از فهرست هستند.</p>
-            <span className="book-editor-segment-note">در حال ویرایش: {activeSegment?.label || 'سند'} · صفحات {(activeSegment?.start ?? 0) + 1} تا {Math.max(activeSegment?.end ?? 1, 1)}</span>
+            <p>این همان فهرستی است که در زمان تبدیل Word تایید شده است.</p>
+            <span className="book-editor-segment-note">در حال ویرایش: {activeSegment?.label || 'سند'} · صفحه {activeSegment?.page || (activeSegment?.start ?? 0) + 1}</span>
           </div>
           <div className="book-editor-toc-list">
-            {headings.length === 0 && <p className="book-editor-empty-state">در این بخش هنوز سرفصل قابل نمایش وجود ندارد.</p>}
-            {headings.map((heading, index) => (
-              <div className="book-editor-toc-row" key={`${heading.pos}-${index}`} style={{ paddingInlineStart: `${(heading.level - 1) * 8}px` }}>
-                <button className="book-editor-toc-link" onClick={() => editor?.chain().focus().setTextSelection(heading.pos + 1).scrollIntoView().run()}>{heading.text || 'سرفصل بدون عنوان'}</button>
-                <div className="book-editor-toc-actions">
-                  <button title="یک سطح بالاتر" onClick={() => shiftHeadingLevel(heading.pos, -1)} disabled={heading.level <= 1}><ChevronUp /></button>
-                  <button title="یک سطح پایین‌تر" onClick={() => shiftHeadingLevel(heading.pos, 1)} disabled={heading.level >= 6}><ChevronDown /></button>
-                  <button title="ویرایش عنوان" onClick={() => renameHeading(heading.pos, heading.text)}><Pencil /></button>
-                  <button title="حذف از فهرست" onClick={() => removeHeadingFromToc(heading.pos)}><Trash2 /></button>
-                </div>
+            {tocEntries.length === 0 && <p className="book-editor-empty-state">برای این کتاب فهرست تاییدشده‌ای ثبت نشده است.</p>}
+            {segments.map((segment, index) => (
+              <div className={`book-editor-toc-row ${index === activeSegmentIndex ? 'is-active' : ''}`} key={segment.key} style={{ paddingInlineStart: `${((segment.level || 1) - 1) * 10}px` }}>
+                <button className="book-editor-toc-link" onClick={() => changeActiveSegment(index)}><Bookmark />{segment.label || 'سرفصل بدون عنوان'}</button>
+                <span className="book-editor-toc-jump"><ChevronLeft /></span>
               </div>
             ))}
           </div>
@@ -669,6 +676,7 @@ export default function Edit() {
         </aside>}
         <section className="book-document-stage"><div className="book-document-paper" style={{ '--editor-font-size': `${fontSize}px`, '--page-bg': backgroundUrl ? `url("${backgroundUrl}")` : 'none', '--page-bg-alpha': backgroundAlpha } as CSSProperties}><EditorContent editor={editor} /></div></section>
       </div>
+      <button className="book-editor-scroll-top" title="بازگشت به ابتدای ادیتور" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}><ArrowUp /></button>
     </main>
   )
 }
