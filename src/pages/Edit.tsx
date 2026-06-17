@@ -495,9 +495,7 @@ export default function Edit() {
     if (title !== null) payload.title = title
     updateInteractivePayload(attrs, payload)
   }
-  const addImage = async (file: File) => {
-    const activeEditor = getEditor()
-    if (!activeEditor) return
+  const prepareEditorImage = async (file: File) => {
     let src = ''
     if (user && import.meta.env.VITE_SUPABASE_URL?.startsWith('http')) {
       const path = `${user.id}/${id}/editor/${Date.now()}-${file.name.replace(/[^\p{L}\p{N}._-]+/gu, '-')}`
@@ -505,6 +503,12 @@ export default function Edit() {
       if (!uploaded.error) src = (await (supabase as any).storage.from('book-imports').createSignedUrl(path, 60 * 60 * 24 * 365)).data?.signedUrl || ''
     }
     if (!src) src = await new Promise(resolve => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.readAsDataURL(file) })
+    return src
+  }
+  const addImage = async (file: File) => {
+    const activeEditor = getEditor()
+    if (!activeEditor) return
+    const src = await prepareEditorImage(file)
     activeEditor.chain().focus().setImage({ src, alt: file.name, width: '100%' } as any).run()
   }
   const promoteSelection = (level: 1 | 2 | 3 | 4 | 5 | 6) => { command(activeEditor => activeEditor.chain().focus().toggleHeading({ level }).run()); window.setTimeout(refreshHeadings, 20) }
@@ -532,14 +536,7 @@ export default function Edit() {
       picker.click()
     })
     if (!selected) return null
-    await addImage(selected)
-    let src = ''
-    if (user && import.meta.env.VITE_SUPABASE_URL?.startsWith('http')) {
-      const path = `${user.id}/${id}/editor/${Date.now()}-${selected.name.replace(/[^\p{L}\p{N}._-]+/gu, '-')}`
-      const uploaded = await (supabase as any).storage.from('book-imports').upload(path, selected, { upsert: true, contentType: selected.type })
-      if (!uploaded.error) src = (await (supabase as any).storage.from('book-imports').createSignedUrl(path, 60 * 60 * 24 * 365)).data?.signedUrl || ''
-    }
-    if (!src) src = await new Promise(resolve => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.readAsDataURL(selected) })
+    const src = await prepareEditorImage(selected)
     applyImageToInteractive(src)
     return src
   }
