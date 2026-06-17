@@ -207,15 +207,73 @@ function confirmedTocFromBook(book: any): ConfirmedTocEntry[] {
 }
 
 function buildConfirmedTocSegments(pages: any[] = [], toc: ConfirmedTocEntry[] = []): EditorSegment[] {
-  if (!pages.length) return [{ key: 'empty', label: 'سند خالی', level: 1, start: 0, end: 0 }]
-  if (!toc.length) return [{ key: 'all', label: 'کل متن کتاب', level: 1, start: 0, end: pages.length }]
-  return toc.map((item, index) => {
-    const start = pageIndexForPrintPage(pages, item.page)
-    const next = toc.slice(index + 1).find(nextItem => Number(nextItem.level || 1) <= Number(item.level || 1))
-    const nextStart = next ? pageIndexForPrintPage(pages, next.page) : pages.length
-    const end = Math.max(start + 1, Math.min(pages.length, nextStart || pages.length))
-    return { key: item.id || `${index}-${item.title}`, label: item.title, level: item.level || 1, start, end, page: item.page }
+  if (!pages.length) return [{ key: 'empty', label: 'سند خالی', level: 1, start: 0, end: 0, startBlock: 0, endBlock: 0 }]
+  if (!toc.length) return [{ key: 'all', label: 'کل متن کتاب', level: 1, start: 0, end: pages.length, startBlock: 0, endBlock: pages[pages.length - 1]?.blocks?.length || 0 }]
+  const positions = toc.map(item => findTocPosition(pages, item))
+  const segments: EditorSegment[] = []
+  const first = positions[0]
+  if (first && (first.pageIndex > 0 || first.blockIndex > 0)) {
+    segments.push({
+      key: 'prelude',
+      label: 'ابتدای کتاب',
+      level: 1,
+      start: 0,
+      end: first.pageIndex + 1,
+      startBlock: 0,
+      endBlock: first.blockIndex,
+      page: pages[0]?.printNumber || pages[0]?.number || 1,
+      isPrelude: true,
+    })
+  }
+  toc.forEach((item, index) => {
+    const position = positions[index] || { pageIndex: 0, blockIndex: 0 }
+    const nextIndex = toc.findIndex((nextItem, nextPosition) => nextPosition > index && Number(nextItem.level || 1) <= Number(item.level || 1))
+    const nextPosition = nextIndex >= 0 ? positions[nextIndex] : null
+    const endPageIndex = nextPosition ? nextPosition.pageIndex : pages.length - 1
+    const endBlock = nextPosition ? nextPosition.blockIndex : (pages[endPageIndex]?.blocks?.length || 0)
+    segments.push({
+      key: item.id || `${index}-${item.title}`,
+      label: item.title,
+      level: item.level || 1,
+      start: position.pageIndex,
+      end: endPageIndex + 1,
+      startBlock: position.blockIndex,
+      endBlock,
+      page: item.page || pages[position.pageIndex]?.printNumber || pages[position.pageIndex]?.number || position.pageIndex + 1,
+      tocIndex: index,
+    })
   })
+  return segments
+}
+
+function extractSegmentPages(pages: any[] = [], segment?: EditorSegment) {
+  if (!segment) return []
+  return pages.slice(segment.start, segment.end).map((page, index, selectedPages) => {
+    const isFirst = index === 0
+    const isLast = index === selectedPages.length - 1
+    const from = isFirst ? (segment.startBlock ?? 0) : 0
+    const to = isLast ? (segment.endBlock ?? (page.blocks || []).length) : (page.blocks || []).length
+    return { ...page, blocks: (page.blocks || []).slice(from, to) }
+  }).filter(page => (page.blocks || []).length)
+}
+
+function mergeSegmentPages(sourcePages: any[] = [], segment: EditorSegment | undefined, editedPages: any[]) {
+  if (!segment) return sourcePages
+  const before = sourcePages.slice(0, segment.start)
+  const after = sourcePages.slice(segment.end)
+  const firstSource = sourcePages[segment.start] || { blocks: [] }
+  const lastSource = sourcePages[Math.max(segment.start, segment.end - 1)] || firstSource
+  const prefix = (firstSource.blocks || []).slice(0, segment.startBlock ?? 0)
+  const suffix = (lastSource.blocks || []).slice(segment.endBlock ?? (lastSource.blocks || []).length)
+  if (!editedPages.length) return [...before, { ...firstSource, blocks: [...prefix, ...suffix] }, ...after]
+  if (editedPages.length === 1) {
+    return [...before, { ...firstSource, ...editedPages[0], blocks: [...prefix, ...(editedPages[0].blocks || []), ...suffix] }, ...after]
+  }
+  const firstEdited = { ...firstSource, ...editedPages[0], blocks: [...prefix, ...(editedPages[0].blocks || [])] }
+  const middleEdited = editedPages.slice(1, -1)
+  const lastEditedPage = editedPages[editedPages.length - 1]
+  const lastEdited = { ...lastSource, ...lastEditedPage, blocks: [...(lastEditedPage.blocks || []), ...suffix] }
+  return [...before, firstEdited, ...middleEdited, lastEdited, ...after]
 }
 
 function buildEditorSegments(pages: any[] = [], mode: EditorSegmentMode): EditorSegment[] {
@@ -359,16 +417,14 @@ export default function Edit() {
     const activeEditor = getEditor()
     if (!activeEditor || !activeSegment) return sourcePages
     const editedPages = editorJsonToPages(activeEditor.getJSON())
-    const before = sourcePages.slice(0, activeSegment.start)
-    const after = sourcePages.slice(activeSegment.end)
-    return [...before, ...editedPages, ...after]
+    return mergeSegmentPages(sourcePages, activeSegment, editedPages)
   }
 
   const loadSegment = (segment: EditorSegment | undefined, pages = allPages) => {
     const activeEditor = getEditor()
     if (!activeEditor || !segment) return
     switchingSegmentRef.current = true
-    activeEditor.commands.setContent(pagesToHtml(pages.slice(segment.start, segment.end)))
+    activeEditor.commands.setContent(pagesToHtml(extractSegmentPages(pages, segment)))
     window.setTimeout(() => {
       refreshHeadings()
       switchingSegmentRef.current = false
@@ -618,6 +674,34 @@ export default function Edit() {
     editor.chain().focus().setTextSelection({ from: pos + 1, to: pos + 1 + heading.text.length }).insertContent(nextText.trim()).run()
     window.setTimeout(refreshHeadings, 20)
   }
+  const persistTocEntries = (nextToc: ConfirmedTocEntry[]) => {
+    const metadata = { ...(book?.metadata || {}), confirmed_toc: nextToc }
+    setBook((current: any) => ({ ...current, metadata }))
+    updatePublisherBook(id, { metadata } as any)
+    if (import.meta.env.VITE_SUPABASE_URL?.startsWith('http') && /^[0-9a-f-]{36}$/i.test(id)) {
+      void (supabase as any).from('books').update({ metadata }).eq('id', id)
+    }
+  }
+  const updateTocEntry = (tocIndex: number, patch: Partial<ConfirmedTocEntry>) => {
+    if (tocIndex < 0) return
+    persistTocEntries(tocEntries.map((item, index) => index === tocIndex ? { ...item, ...patch } : item))
+  }
+  const shiftTocEntryLevel = (tocIndex: number, delta: -1 | 1) => {
+    const item = tocEntries[tocIndex]
+    if (!item) return
+    updateTocEntry(tocIndex, { level: Math.min(6, Math.max(1, Number(item.level || 1) + delta)) })
+  }
+  const renameTocEntry = (tocIndex: number, currentTitle: string) => {
+    const nextTitle = window.prompt('عنوان جدید این سرفصل', currentTitle)
+    if (nextTitle === null || !nextTitle.trim() || nextTitle.trim() === currentTitle.trim()) return
+    updateTocEntry(tocIndex, { title: nextTitle.trim() })
+  }
+  const removeTocEntry = (tocIndex: number) => {
+    const item = tocEntries[tocIndex]
+    if (!item || !window.confirm(`«${item.title}» از فهرست حذف شود؟ متن کتاب حذف نمی‌شود.`)) return
+    persistTocEntries(tocEntries.filter((_, index) => index !== tocIndex))
+    setActiveSegmentIndex(index => Math.max(0, Math.min(index, tocEntries.length - 2)))
+  }
   const handleInteractiveAction = async (value: string) => {
     if (!value) return
     if (value === 'edit-current') {
@@ -672,7 +756,14 @@ export default function Edit() {
             {segments.map((segment, index) => (
               <div className={`book-editor-toc-row ${index === activeSegmentIndex ? 'is-active' : ''}`} key={segment.key} style={{ paddingInlineStart: `${((segment.level || 1) - 1) * 10}px` }}>
                 <button className="book-editor-toc-link" onClick={() => changeActiveSegment(index)}><Bookmark />{segment.label || 'سرفصل بدون عنوان'}</button>
-                <span className="book-editor-toc-jump"><ChevronLeft /></span>
+                {typeof segment.tocIndex === 'number' ? (
+                  <span className="book-editor-toc-actions">
+                    <button title="کاهش سطح" onClick={() => shiftTocEntryLevel(segment.tocIndex!, -1)}><ArrowUp /></button>
+                    <button title="افزایش سطح" onClick={() => shiftTocEntryLevel(segment.tocIndex!, 1)}><ArrowDown /></button>
+                    <button title="ویرایش عنوان" onClick={() => renameTocEntry(segment.tocIndex!, segment.label || '')}><Edit3 /></button>
+                    <button title="حذف از فهرست" onClick={() => removeTocEntry(segment.tocIndex!)}><Trash2 /></button>
+                  </span>
+                ) : <span className="book-editor-toc-jump"><ChevronLeft /></span>}
               </div>
             ))}
           </div>
