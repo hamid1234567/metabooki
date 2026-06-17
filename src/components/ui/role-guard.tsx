@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom'
 import { useAuthContext } from '@/lib/auth-context'
 import { useI18n } from '@/lib/i18n'
 import { useRoles } from '@/hooks/useRoles'
+import { Button } from '@/components/ui/button'
 
 interface RoleGuardProps { children: React.ReactNode; roles: string[]; redirectTo?: string }
 
@@ -25,7 +26,19 @@ export function RoleGuard({ children, roles, redirectTo = '/auth' }: RoleGuardPr
   if (!user) return <Navigate to={redirectTo} replace />
 
   const hasRole = userRoles.some(role => roles.includes(role))
-  if (!hasRole) return <Navigate to="/" replace />
+  if (!hasRole) {
+    return (
+      <div className="mx-auto max-w-xl px-4 py-20 text-center">
+        <div className="menu-glass-70 rounded-3xl p-8">
+          <h1 className="mb-3 text-2xl font-black">دسترسی این بخش برای حساب شما فعال نیست</h1>
+          <p className="mb-6 text-sm leading-8 text-muted-foreground">
+            اگر تازه وارد شده‌اید، چند ثانیه صبر کنید و دوباره همین صفحه را تازه‌سازی کنید. مسیر صفحه حفظ می‌شود و به خانه منتقل نمی‌شوید.
+          </p>
+          <Button onClick={() => window.location.reload()}>تلاش دوباره</Button>
+        </div>
+      </div>
+    )
+  }
 
   return <>{children}</>
 }
