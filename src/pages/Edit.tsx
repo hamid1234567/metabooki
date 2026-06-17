@@ -291,7 +291,7 @@ export default function Edit() {
   const addInteractive = (kind: string) => editor?.chain().focus().insertContent({ type: 'interactiveBlock', attrs: { kind, payload: encodePayload(interactiveTemplate(kind)) } }).run()
   const editInteractive = () => {
     if (!editor?.isActive('interactiveBlock')) return
-    const attrs = editor.getAttributes('interactiveBlock')
+    const attrs = editor.getAttributes('interactiveBlock') as { kind: string; payload: string }
     const payload = decodePayload(attrs.payload)
     if (attrs.kind === 'quiz') {
       const question = window.prompt('متن سؤال', payload.question || '') ?? payload.question
@@ -305,6 +305,66 @@ export default function Edit() {
       if (title !== null) payload.title = title
     }
     editor.chain().focus().updateAttributes('interactiveBlock', { payload: encodePayload(payload) }).run()
+  }
+  const openInteractiveEditor = async () => {
+    if (!editor?.isActive('interactiveBlock')) return
+    const attrs = editor.getAttributes('interactiveBlock') as { kind: string; payload: string }
+    const payload = decodePayload(attrs.payload)
+    if (attrs.kind === 'quiz') {
+      const question = window.prompt('متن سوال', payload.question || '') ?? payload.question
+      const optionsText = window.prompt('گزینه‌ها؛ هر گزینه در یک خط', (payload.options || []).join('\n'))
+      payload.question = question
+      if (optionsText) payload.options = optionsText.split(/\r?\n/).map((item: string) => item.trim()).filter(Boolean)
+      const correct = window.prompt('شماره گزینه صحیح', String((payload.correct ?? 0) + 1))
+      if (correct && !Number.isNaN(Number(correct))) payload.correct = Math.max(0, Number(correct) - 1)
+      updateInteractivePayload(attrs, payload)
+      return
+    }
+    if (attrs.kind === 'timeline') {
+      const rawEvents = window.prompt('رویدادها؛ هر خط به شکل عنوان | توضیح | زمان', (payload.events || []).map((event: any) => `${event.title || ''} | ${event.description || ''} | ${event.year || ''}`).join('\n'))
+      if (rawEvents) payload.events = rawEvents.split(/\r?\n/).map((line: string) => line.split('|').map(part => part.trim())).filter((parts: string[]) => parts[0]).map((parts: string[]) => ({ title: parts[0], description: parts[1] || '', year: parts[2] || '' }))
+      updateInteractivePayload(attrs, payload)
+      return
+    }
+    if (attrs.kind === 'gallery') {
+      const rawImages = window.prompt('کپشن‌های گالری؛ هر خط یک کپشن', (payload.images || []).map((image: any) => image.caption || '').join('\n'))
+      if (rawImages) payload.images = rawImages.split(/\r?\n/).map((line: string) => line.trim()).filter(Boolean).map((caption: string, index: number) => ({ url: payload.images?.[index]?.url || '', caption }))
+      if (window.confirm('می‌خواهید یک تصویر جدید هم به گالری اضافه کنید؟')) await insertImageIntoInteractive(attrs)
+      updateInteractivePayload(attrs, payload)
+      return
+    }
+    if (attrs.kind === 'flashcard') {
+      const rawCards = window.prompt('فلش‌کارت‌ها؛ هر خط به شکل روی کارت | پشت کارت', (payload.cards || []).map((card: any) => `${card.front || ''} | ${card.back || ''}`).join('\n'))
+      if (rawCards) payload.cards = rawCards.split(/\r?\n/).map((line: string) => line.split('|').map(part => part.trim())).filter((parts: string[]) => parts[0]).map((parts: string[]) => ({ front: parts[0], back: parts[1] || '' }))
+      updateInteractivePayload(attrs, payload)
+      return
+    }
+    if (attrs.kind === 'scrollytelling' || attrs.kind === 'steps') {
+      const rawSteps = window.prompt('مرحله‌ها؛ هر خط به شکل عنوان | توضیح', (payload.steps || []).map((step: any) => `${step.title || step.text || ''} | ${step.description || ''}`).join('\n'))
+      if (rawSteps) {
+        payload.steps = rawSteps.split(/\r?\n/).map((line: string, index: number) => line.split('|').map(part => part.trim())).filter((parts: string[]) => parts[0]).map((parts: string[], index: number) => ({
+          ...(payload.steps?.[index] || {}),
+          title: attrs.kind === 'steps' ? parts[0] : undefined,
+          text: attrs.kind === 'scrollytelling' ? parts[0] : undefined,
+          description: parts[1] || '',
+        }))
+      }
+      if (window.confirm('می‌خواهید برای مرحله نخست تصویر هم اضافه کنید؟')) await insertImageIntoInteractive(attrs)
+      updateInteractivePayload(attrs, payload)
+      return
+    }
+    if (attrs.kind === 'hotspot') {
+      const caption = window.prompt('عنوان یا کپشن تصویر', payload.caption || payload.title || '') ?? payload.caption
+      const rawPoints = window.prompt('نقاط تعاملی؛ هر خط به شکل عنوان | توضیح | x | y', (payload.points || []).map((point: any) => `${point.title || ''} | ${point.text || ''} | ${point.x ?? 50} | ${point.y ?? 50}`).join('\n'))
+      payload.caption = caption
+      if (rawPoints) payload.points = rawPoints.split(/\r?\n/).map((line: string) => line.split('|').map(part => part.trim())).filter((parts: string[]) => parts[0]).map((parts: string[]) => ({ title: parts[0], text: parts[1] || '', x: Number(parts[2] || 50), y: Number(parts[3] || 50) }))
+      if (window.confirm('می‌خواهید تصویر اصلی هات‌اسپات را هم تغییر دهید؟')) await insertImageIntoInteractive(attrs)
+      updateInteractivePayload(attrs, payload)
+      return
+    }
+    const title = window.prompt('عنوان بخش تعاملی', payload.title || payload.caption || interactiveLabel(attrs.kind))
+    if (title !== null) payload.title = title
+    updateInteractivePayload(attrs, payload)
   }
   const addImage = async (file: File) => {
     if (!editor) return
@@ -356,7 +416,7 @@ export default function Edit() {
   }
   const applyImageToInteractive = (url: string) => {
     if (!editor?.isActive('interactiveBlock') || !url) return
-    const attrs = editor.getAttributes('interactiveBlock')
+    const attrs = editor.getAttributes('interactiveBlock') as { kind: string; payload: string }
     const payload = decodePayload(attrs.payload)
     if (attrs.kind === 'gallery') payload.images = [...(payload.images || []), { url, caption: 'تصویر انتخاب‌شده از کتاب' }]
     else if (attrs.kind === 'scrollytelling') payload.steps = (payload.steps || [{ text: 'روایت تصویری' }]).map((step: any, index: number) => index === 0 ? { ...step, image: url } : step)
@@ -398,7 +458,7 @@ export default function Edit() {
   const handleInteractiveAction = async (value: string) => {
     if (!value) return
     if (value === 'edit-current') {
-      editInteractive()
+      await openInteractiveEditor()
       return
     }
     addInteractive(value)
@@ -427,17 +487,36 @@ export default function Edit() {
         <button title="پررنگ" onClick={() => command(() => editor?.chain().focus().toggleBold().run())}><Bold /></button><button title="مورب" onClick={() => command(() => editor?.chain().focus().toggleItalic().run())}><Italic /></button><button title="زیرخط" onClick={() => command(() => editor?.chain().focus().toggleUnderline().run())}><UnderlineIcon /></button><button title="خط‌خورده" onClick={() => command(() => editor?.chain().focus().toggleStrike().run())}><Strikethrough /></button><button title="بالانویس" onClick={() => command(() => editor?.chain().focus().toggleSuperscript().run())}><SuperIcon /></button><button title="زیرنویس" onClick={() => command(() => editor?.chain().focus().toggleSubscript().run())}><SubIcon /></button><button title="افزودن یا ویرایش پیوند" onClick={setLink}><Link2 /></button><i />
         <select title="فونت" onChange={event => editor?.chain().focus().setMark('textStyle', { fontFamily: event.target.value }).run()}><option value="Vazirmatn">وزیرمتن</option><option value="Tahoma">Tahoma</option><option value="Arial">Arial</option><option value="Georgia">Georgia</option></select>
         <select title="اندازه متن انتخاب‌شده" defaultValue="" onChange={event => { if (event.target.value) editor?.chain().focus().setMark('textStyle', { fontSize: event.target.value }).run(); event.target.value = '' }}><option value="" disabled>اندازه متن</option>{[12,14,16,18,20,24,28,32,40].map(size => <option key={size} value={`${size}px`}>{size}</option>)}</select>
-        <select title="تایپوگرافی آماده" defaultValue="" onChange={event => { setTypography(event.target.value); event.target.value = '' }}><option value="" disabled>تایپوگرافی</option><option value="lead">متن آغازین</option><option value="note">نکته</option><option value="quote">نقل‌قول</option><option value="normal">متن عادی</option></select>
+        <select title="تایپوگرافی آماده" defaultValue="" onChange={event => { setTypography(event.target.value); event.target.value = '' }}><option value="" disabled>تایپوگرافی</option>{TYPOGRAPHY_PRESETS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
         <input title="رنگ متن" type="color" onChange={event => editor?.chain().focus().setColor(event.target.value).run()} /><button title="راست‌به‌چپ کردن پاراگراف" onClick={() => setDirection('rtl')}>RTL</button><button title="چپ‌به‌راست کردن پاراگراف" onClick={() => setDirection('ltr')}>LTR</button><i />
         <button title="راست‌چین" onClick={() => command(() => editor?.chain().focus().setTextAlign('right').run())}><AlignRight /></button><button title="وسط‌چین" onClick={() => command(() => editor?.chain().focus().setTextAlign('center').run())}><AlignCenter /></button><button title="چپ‌چین" onClick={() => command(() => editor?.chain().focus().setTextAlign('left').run())}><AlignLeft /></button><button title="تراز کامل" onClick={() => command(() => editor?.chain().focus().setTextAlign('justify').run())}><AlignJustify /></button><button title="فهرست نقطه‌ای" onClick={() => command(() => editor?.chain().focus().toggleBulletList().run())}><List /></button><button title="فهرست شماره‌ای" onClick={() => command(() => editor?.chain().focus().toggleOrderedList().run())}><ListOrdered /></button><i />
         <button title="افزودن تصویر" onClick={() => imageInputRef.current?.click()}><ImagePlus /></button><input ref={imageInputRef} hidden type="file" accept="image/*" onChange={event => event.target.files?.[0] && addImage(event.target.files[0])} /><select title="اندازه تصویر انتخاب‌شده" defaultValue="" onChange={event => { if (event.target.value) editor?.chain().focus().updateAttributes('image', { width: event.target.value }).run(); event.target.value = '' }}><option value="" disabled>اندازه عکس</option><option value="25%">۲۵٪</option><option value="50%">۵۰٪</option><option value="75%">۷۵٪</option><option value="100%">۱۰۰٪</option></select><button title="جدول جدید" onClick={() => editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}><Table2 /></button><select title="ویرایش جدول انتخاب‌شده" defaultValue="" onChange={event => { tableAction(event.target.value); event.target.value = '' }}><option value="" disabled>ویرایش جدول</option><option value="row-after">افزودن ردیف</option><option value="column-after">افزودن ستون</option><option value="delete-row">حذف ردیف</option><option value="delete-column">حذف ستون</option><option value="delete-table">حذف جدول</option></select><button title="صفحه جدید" onClick={() => editor?.chain().focus().setHorizontalRule().run()}><FileImage /></button>
-        <select title="افزودن بخش تعاملی" defaultValue="" onChange={event => { if (event.target.value) addInteractive(event.target.value); event.target.value = '' }}><option value="" disabled>تعاملی +</option>{INTERACTIVE_TYPES.map(item => <option key={item[0]} value={item[0]}>{item[1]}</option>)}</select><button title="ویرایش بخش تعاملی انتخاب‌شده" onClick={editInteractive}><LayoutTemplate /></button>{bookImages.length > 0 && <select title="استفاده از تصویر کتاب در بخش تعاملی انتخاب‌شده" defaultValue="" onChange={event => { applyImageToInteractive(event.target.value); event.target.value = '' }}><option value="" disabled>تصویر برای تعاملی</option>{bookImages.slice(0, 100).map((image: any, index: number) => <option key={`${image.url}-${index}`} value={image.url}>{image.caption || `تصویر ${index + 1}`}</option>)}</select>}<i />
+        <select title="بخش تعاملی" defaultValue="" onChange={event => { void handleInteractiveAction(event.target.value); event.target.value = '' }}><option value="" disabled>تعاملی</option><option value="edit-current">ویرایش بخش انتخاب‌شده</option>{INTERACTIVE_TYPES.map(item => <option key={item[0]} value={item[0]}>{`افزودن ${item[1]}`}</option>)}</select>{bookImages.length > 0 && <select title="استفاده از تصویر کتاب در بخش تعاملی انتخاب‌شده" defaultValue="" onChange={event => { applyImageToInteractive(event.target.value); event.target.value = '' }}><option value="" disabled>تصویر برای تعاملی</option>{bookImages.slice(0, 100).map((image: any, index: number) => <option key={`${image.url}-${index}`} value={image.url}>{image.caption || `تصویر ${index + 1}`}</option>)}</select>}<button title="ویرایش جزئیات بخش تعاملی انتخاب‌شده" onClick={() => void openInteractiveEditor()}><LayoutTemplate /></button><i />
         <button title="کوچک کردن متن" onClick={() => setFontSize(value => Math.max(12, value - 1))}><Minus /></button><span>{fontSize.toLocaleString('fa-IR')}</span><button title="بزرگ کردن متن" onClick={() => setFontSize(value => Math.min(34, value + 1))}><Plus /></button>
       </div>
 
       <div className="book-editor-layout">
-        <aside className="book-editor-side menu-glass-70"><h3><BookOpen />فهرست کتاب</h3><p>برای رفتن به هر بخش کلیک کنید. سطح هر عنوان را همین‌جا تغییر دهید؛ انتخاب متن و زدن H1/H2 نیز آن را به فهرست اضافه می‌کند.</p>{headings.map((heading, index) => <div className="book-editor-toc-row" key={`${heading.pos}-${index}`} style={{ paddingInlineStart: `${(heading.level - 1) * 8}px` }}><button onClick={() => editor?.chain().focus().setTextSelection(heading.pos + 1).scrollIntoView().run()}>{heading.text || 'سرفصل بدون عنوان'}</button><select value={heading.level} onChange={event => changeHeadingLevel(heading.pos, event.target.value)}>{[1,2,3,4,5,6].map(level => <option key={level} value={level}>H{level}</option>)}<option value="body">متن عادی</option></select></div>)}{bookImages.length > 0 && <div className="book-editor-images"><h3><ImagePlus />تصاویر کتاب</h3><div>{bookImages.map((image: any, index: number) => <button key={`${image.url}-${index}`} title="افزودن دوباره این تصویر" onClick={() => editor?.chain().focus().setImage({ src: image.url, alt: image.caption || '', width: image.widthPx ? `${image.widthPx}px` : image.widthPercent ? `${image.widthPercent}%` : '100%' } as any).run()}><img src={image.url} alt={image.caption || ''} /></button>)}</div></div>}</aside>
-        <section className="book-document-stage"><div className="book-document-paper" style={{ '--editor-font-size': `${fontSize}px`, '--page-bg': backgroundUrl ? `url("${backgroundUrl}")` : 'none', '--page-bg-alpha': backgroundAlpha } as React.CSSProperties}><EditorContent editor={editor} /></div></section>
+        <aside className="book-editor-side menu-glass-70">
+          <div className="book-editor-side-card">
+            <h3><BookOpen />فهرست کتاب</h3>
+            <p>هر عنوان را می‌توانید از همین‌جا بازچینش کنید. دکمه‌های کناری برای کم‌کردن سطح، زیادکردن سطح، تغییر عنوان و حذف از فهرست هستند.</p>
+          </div>
+          <div className="book-editor-toc-list">
+            {headings.map((heading, index) => (
+              <div className="book-editor-toc-row" key={`${heading.pos}-${index}`} style={{ paddingInlineStart: `${(heading.level - 1) * 8}px` }}>
+                <button className="book-editor-toc-link" onClick={() => editor?.chain().focus().setTextSelection(heading.pos + 1).scrollIntoView().run()}>{heading.text || 'سرفصل بدون عنوان'}</button>
+                <div className="book-editor-toc-actions">
+                  <button title="یک سطح بالاتر" onClick={() => shiftHeadingLevel(heading.pos, -1)} disabled={heading.level <= 1}><ChevronUp /></button>
+                  <button title="یک سطح پایین‌تر" onClick={() => shiftHeadingLevel(heading.pos, 1)} disabled={heading.level >= 6}><ChevronDown /></button>
+                  <button title="ویرایش عنوان" onClick={() => renameHeading(heading.pos, heading.text)}><Pencil /></button>
+                  <button title="حذف از فهرست" onClick={() => removeHeadingFromToc(heading.pos)}><Trash2 /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+          {bookImages.length > 0 && <div className="book-editor-images"><h3><ImagePlus />تصاویر کتاب</h3><div>{bookImages.map((image: any, index: number) => <button key={`${image.url}-${index}`} title="افزودن دوباره این تصویر" onClick={() => editor?.chain().focus().setImage({ src: image.url, alt: image.caption || '', width: image.widthPx ? `${image.widthPx}px` : image.widthPercent ? `${image.widthPercent}%` : '100%' } as any).run()}><img src={image.url} alt={image.caption || ''} /></button>)}</div></div>}
+        </aside>
+        <section className="book-document-stage"><div className="book-document-paper" style={{ '--editor-font-size': `${fontSize}px`, '--page-bg': backgroundUrl ? `url("${backgroundUrl}")` : 'none', '--page-bg-alpha': backgroundAlpha } as CSSProperties}><EditorContent editor={editor} /></div></section>
       </div>
     </main>
   )
