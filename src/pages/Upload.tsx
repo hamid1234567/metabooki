@@ -98,6 +98,7 @@ export default function Upload() {
     analysis?.images.forEach(image => { urls[image.id] = URL.createObjectURL(new Blob([image.data], { type: image.mimeType })) })
     return urls
   }, [analysis])
+  const confirmedToc = useMemo(() => (analysis?.toc || []).filter(item => item.included), [analysis])
 
   useEffect(() => () => Object.values(imageUrls).forEach(URL.revokeObjectURL), [imageUrls])
 
@@ -387,7 +388,7 @@ export default function Upload() {
 
           <section className="word-preview-workspace">
             <aside className="word-toc menu-glass-70">
-              <div><h3><ListTree />فهرست پیشنهادی</h3><span>{analysis.toc.length.toLocaleString('fa-IR')} عنوان</span></div>
+              <div><h3><ListTree />فهرست پیشنهادی</h3><span>{confirmedToc.length.toLocaleString('fa-IR')} عنوان تاییدشده</span></div>
               {analysis.toc.length ? analysis.toc.map(item => <label key={item.id} className={item.previewAvailable === false ? 'is-outside-preview' : ''} style={{ paddingInlineStart: `${Math.min(4, item.level - 1) * 12 + 8}px` }}><input type="checkbox" checked={item.included} onChange={() => toggleToc(item.id)} /><button disabled={item.previewAvailable === false} title={item.previewAvailable === false ? 'این عنوان بعد از محدوده ۵۰ صفحه‌ای پیش‌نمایش است و در کتاب نهایی حفظ می‌شود.' : undefined} onClick={() => scrollToPreviewBlock(item.id)}>{item.title}</button><span className={`word-toc-level level-${item.level}`}>H{item.level.toLocaleString('fa-IR')}</span><small>{item.page.toLocaleString('fa-IR')}{item.previewAvailable === false ? ' · خارج پیش‌نمایش' : ''}</small></label>) : <p>یکی از Styleهای فصل را در بخش بالا به H1 تا H6 متصل کنید.</p>}
             </aside>
 
