@@ -164,6 +164,31 @@ function pagesToHtml(pages: any[] = []) {
   return pages.map((page, index) => `${index ? '<hr>' : ''}${(page.blocks || []).map(blockHtml).join('')}`).join('')
 }
 
+type EditorSegmentMode = 'chapter' | 'page'
+type EditorSegment = { key: string; label: string; start: number; end: number }
+
+function pageTitle(page: any, index: number) {
+  return page?.title || page?.blocks?.find((block: any) => block.type === 'heading')?.content || `صفحه ${index + 1}`
+}
+
+function buildEditorSegments(pages: any[] = [], mode: EditorSegmentMode): EditorSegment[] {
+  if (!pages.length) return [{ key: 'empty', label: 'سند خالی', start: 0, end: 0 }]
+  if (mode === 'page') {
+    return pages.map((page, index) => ({ key: `page-${index}`, label: pageTitle(page, index), start: index, end: index + 1 }))
+  }
+  const starts = pages
+    .map((page, index) => ({ page, index }))
+    .filter(({ page }) => (page.blocks || []).some((block: any) => block.type === 'heading' && Number(block.level || 2) === 1))
+    .map(({ index }) => index)
+  const uniqueStarts = [...new Set(starts)]
+  const boundaries = uniqueStarts[0] === 0 ? uniqueStarts : [0, ...uniqueStarts]
+  if (!boundaries.length) boundaries.push(0)
+  return boundaries.map((start, index) => {
+    const end = boundaries[index + 1] ?? pages.length
+    return { key: `chapter-${start}-${end}`, label: pageTitle(pages[start], start), start, end }
+  })
+}
+
 function inlineFromNode(node: any) {
   return (node.content || []).flatMap((part: any) => {
     if (part.type === 'hardBreak') return [{ text: '\n' }]
@@ -227,18 +252,24 @@ export default function Edit() {
   const [savedAt, setSavedAt] = useState<Date | null>(null)
   const [saving, setSaving] = useState(false)
   const [fontSize, setFontSize] = useState(18)
+  const [allPages, setAllPages] = useState<any[]>(localInitial?.pages || [])
+  const [segmentMode, setSegmentMode] = useState<EditorSegmentMode>('chapter')
+  const [activeSegmentIndex, setActiveSegmentIndex] = useState(0)
   const [headings, setHeadings] = useState<Array<{ text: string; level: number; pos: number }>>([])
   const [backgroundUrl, setBackgroundUrl] = useState('')
   const [backgroundAlpha, setBackgroundAlpha] = useState(0)
   const imageInputRef = useRef<HTMLInputElement>(null)
-  const bookImages = useMemo(() => (book?.pages || []).flatMap((page: any) => page.blocks || []).filter((block: any) => block.type === 'image' && block.url), [book])
+  const switchingSegmentRef = useRef(false)
+  const segments = useMemo(() => buildEditorSegments(allPages, segmentMode), [allPages, segmentMode])
+  const activeSegment = segments[Math.min(activeSegmentIndex, Math.max(0, segments.length - 1))] || segments[0]
+  const bookImages = useMemo(() => allPages.flatMap((page: any) => page.blocks || []).filter((block: any) => block.type === 'image' && block.url), [allPages])
 
   const editor = useEditor({
     extensions: [
       StarterKit, Underline, Subscript, Superscript, ResizableImage.configure({ allowBase64: true }), Link.configure({ openOnClick: false }),
       TextStyle, Color, RichTextStyle, BlockFormatting, InteractiveBlock, TableKit.configure({ table: { resizable: true } }), TextAlign.configure({ types: ['heading', 'paragraph'] }),
     ],
-    content: pagesToHtml(localInitial?.pages || []),
+    content: pagesToHtml((localInitial?.pages || []).slice(0, 1)),
     editorProps: { attributes: { class: 'book-document-prose', dir: 'rtl', spellcheck: 'true' } },
   })
 
@@ -249,35 +280,81 @@ export default function Edit() {
     setHeadings(result)
   }
 
+  const mergeCurrentSegment = (sourcePages = allPages) => {
+    if (!editor || !activeSegment) return sourcePages
+    const editedPages = editorJsonToPages(editor.getJSON())
+    const before = sourcePages.slice(0, activeSegment.start)
+    const after = sourcePages.slice(activeSegment.end)
+    return [...before, ...editedPages, ...after]
+  }
+
+  const loadSegment = (segment: EditorSegment | undefined, pages = allPages) => {
+    if (!editor || !segment) return
+    switchingSegmentRef.current = true
+    editor.commands.setContent(pagesToHtml(pages.slice(segment.start, segment.end)))
+    window.setTimeout(() => {
+      refreshHeadings()
+      switchingSegmentRef.current = false
+    }, 50)
+  }
+
+  const changeSegmentMode = (mode: EditorSegmentMode) => {
+    const merged = mergeCurrentSegment()
+    setAllPages(merged)
+    setSegmentMode(mode)
+    setActiveSegmentIndex(0)
+    window.setTimeout(() => loadSegment(buildEditorSegments(merged, mode)[0], merged), 0)
+  }
+
+  const changeActiveSegment = (index: number) => {
+    const merged = mergeCurrentSegment()
+    const nextSegments = buildEditorSegments(merged, segmentMode)
+    const nextIndex = Math.max(0, Math.min(nextSegments.length - 1, index))
+    setAllPages(merged)
+    setActiveSegmentIndex(nextIndex)
+    window.setTimeout(() => loadSegment(nextSegments[nextIndex], merged), 0)
+  }
+
   useEffect(() => {
     if (localInitial || !import.meta.env.VITE_SUPABASE_URL?.startsWith('http')) return
     ;(supabase as any).from('books').select('*').eq('id', id).maybeSingle().then(({ data }: { data: any }) => {
       if (!data) return
       setBook(data); setTitle(data.title); setSubtitle(data.subtitle || ''); setDescription(data.description || '')
       setBackgroundUrl(data.metadata?.page_background_url || ''); setBackgroundAlpha(Number(data.metadata?.page_background_alpha || 0))
-      editor?.commands.setContent(pagesToHtml(data.pages || [])); window.setTimeout(refreshHeadings, 50)
+      setAllPages(data.pages || [])
+      setActiveSegmentIndex(0)
+      loadSegment(buildEditorSegments(data.pages || [], segmentMode)[0], data.pages || [])
     })
   }, [editor, id, localInitial])
 
-  useEffect(() => { if (editor) window.setTimeout(refreshHeadings, 50) }, [editor])
+  useEffect(() => {
+    if (!editor) return
+    loadSegment(activeSegment, allPages)
+  }, [editor])
+
+  useEffect(() => {
+    if (activeSegmentIndex <= segments.length - 1) return
+    setActiveSegmentIndex(Math.max(0, segments.length - 1))
+  }, [activeSegmentIndex, segments.length])
 
   const save = async (quiet = false) => {
     if (!editor || !id) return
     setSaving(true)
-    const pages = editorJsonToPages(editor.getJSON())
+    const pages = mergeCurrentSegment()
     const metadata = { ...(book?.metadata || {}), page_background_url: backgroundUrl, page_background_alpha: backgroundAlpha }
     const patch = { title, subtitle, description, pages, metadata, page_count: pages.length, content_updated_at: new Date().toISOString() }
     updatePublisherBook(id, patch as any)
     if (import.meta.env.VITE_SUPABASE_URL?.startsWith('http') && /^[0-9a-f-]{36}$/i.test(id)) {
       await (supabase as any).from('books').update({ title, subtitle, description, pages, metadata, content_updated_at: patch.content_updated_at }).eq('id', id)
     }
-    setBook((current: any) => ({ ...current, ...patch })); setSavedAt(new Date()); setSaving(false); refreshHeadings()
+    setAllPages(pages); setBook((current: any) => ({ ...current, ...patch })); setSavedAt(new Date()); setSaving(false); refreshHeadings()
     if (!quiet) editor.commands.focus()
   }
 
   useEffect(() => {
     if (!editor) return
     const onUpdate = () => {
+      if (switchingSegmentRef.current) return
       window.clearTimeout((onUpdate as any).timer)
       ;(onUpdate as any).timer = window.setTimeout(() => save(true), 1400)
     }
@@ -469,7 +546,16 @@ export default function Edit() {
       <header className="book-editor-head menu-glass-70">
         <div><p>ادیتور کتاب · پیش‌نویس منتشرنشده</p><input value={title} onChange={event => setTitle(event.target.value)} aria-label="عنوان کتاب" /></div>
         <div className="book-save-state"><Save />{saving ? 'در حال ذخیره…' : savedAt ? `ذخیره شد ${savedAt.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })}` : 'ذخیره خودکار فعال است'}</div>
-        <div><Button variant="outline" onClick={() => setMetadataOpen(value => !value)}><PanelTopClose />مشخصات</Button><Button variant="outline" onClick={() => openBookPreview(id)}><Eye />پیش‌نمایش</Button><Button onClick={() => save()}><Save />ذخیره</Button></div>
+        <div>
+          <select className="book-editor-segment-select" title="حالت بارگذاری متن" value={segmentMode} onChange={event => changeSegmentMode(event.target.value as EditorSegmentMode)}>
+            <option value="chapter">فصل به فصل</option>
+            <option value="page">صفحه به صفحه</option>
+          </select>
+          <select className="book-editor-segment-select" title="بخش فعال ادیتور" value={Math.min(activeSegmentIndex, Math.max(0, segments.length - 1))} onChange={event => changeActiveSegment(Number(event.target.value))}>
+            {segments.map((segment, index) => <option key={segment.key} value={index}>{segment.label}</option>)}
+          </select>
+          <Button variant="outline" onClick={() => setMetadataOpen(value => !value)}><PanelTopClose />مشخصات</Button><Button variant="outline" onClick={() => openBookPreview(id)}><Eye />پیش‌نمایش</Button><Button onClick={() => save()}><Save />ذخیره</Button>
+        </div>
       </header>
 
       {metadataOpen && <section className="book-editor-meta menu-glass-70">
