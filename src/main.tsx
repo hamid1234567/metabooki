@@ -1,6 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter } from 'react-router-dom'
+import { HashRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
 import './index.css'
@@ -17,19 +17,12 @@ const queryClient = new QueryClient({
   },
 })
 
-const routerBasename = import.meta.env.BASE_URL === '/' ? '/' : import.meta.env.BASE_URL.replace(/\/$/, '')
-const restoredPath = sessionStorage.getItem('metabooki_restore_path')
-if (restoredPath && restoredPath !== `${window.location.pathname}${window.location.search}${window.location.hash}`) {
-  sessionStorage.removeItem('metabooki_restore_path')
-  window.history.replaceState(null, '', restoredPath)
-}
-
 const isLatestVersion = await ensureLatestOnlineVersion()
 if (isLatestVersion) await refreshVersionedCaches()
 
 if (isLatestVersion) createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter basename={routerBasename}>
+    <HashRouter>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
           <I18nProvider>
@@ -40,7 +33,7 @@ if (isLatestVersion) createRoot(document.getElementById('root')!).render(
           </I18nProvider>
         </ThemeProvider>
       </QueryClientProvider>
-    </BrowserRouter>
+    </HashRouter>
   </StrictMode>,
 )
 
