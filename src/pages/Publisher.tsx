@@ -2,7 +2,8 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { BarChart3, BookOpen, CheckCircle, Eye, FileText, MessageSquare, Plus, RefreshCcw, Rocket, Settings, Share2, Store, Trash2, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { deletePublisherBook, getPublisherBooks, type PublisherBook } from '@/lib/publisher-books'
+import { getPublisherBooks, type PublisherBook } from '@/lib/publisher-books'
+import { canDeletePublisherBook, deletePublisherBookCompletely } from '@/lib/publisher-delete'
 import { getAllComments } from '@/lib/mock-comments'
 import metabookiMark from '@/assets/metabooki-mark.png'
 import { useEffect, useState } from 'react'
@@ -22,6 +23,7 @@ export default function Publisher() {
   const navigate = useNavigate()
   const { user } = useAuthContext()
   const [books, setBooks] = useState<PublisherBook[]>(() => getPublisherBooks())
+  const [deletingBookId, setDeletingBookId] = useState<string | null>(null)
   const comments = getAllComments()
   const totalReaders = books.reduce((sum, b) => sum + b.readers, 0)
   const inStore = books.filter(b => b.stage === 'store' || b.stage === 'published').length
@@ -48,7 +50,7 @@ export default function Publisher() {
         book_type: row.metadata?.book_type || 'تألیف',
         author: row.metadata?.author || 'نویسنده نامشخص',
         page_count: row.pages?.length || 0,
-        stage: row.status === 'published' ? 'published' : 'editing',
+        stage: row.status === 'published' && row.review_status === 'approved' ? 'published' : 'editing',
         readers: 0, sales: 0, revenue: 0,
         importStatus: row.metadata?.import_project_id ? 'word-imported' : 'manual',
       }))
@@ -68,9 +70,20 @@ export default function Publisher() {
     setBooks(current => current.map(item => item.id === book.id ? { ...item, importStatus: 'needs-review' } : item))
   }
 
-  const removeBook = (id: string) => {
-    deletePublisherBook(id)
-    setBooks(getPublisherBooks())
+  const removeBook = async (book: PublisherBook) => {
+    if (!canDeletePublisherBook(book)) return
+    const confirmed = window.confirm(`کتاب «${book.title}» و همه محتوای وابسته، فایل‌ها و تصاویر واردشده حذف شود؟ این کار قابل برگشت نیست.`)
+    if (!confirmed) return
+    setDeletingBookId(book.id)
+    try {
+      await deletePublisherBookCompletely(book, user?.id)
+      setBooks(current => current.filter(item => item.id !== book.id))
+    } catch (error) {
+      console.error(error)
+      window.alert(error instanceof Error ? error.message : 'حذف کتاب ناموفق بود.')
+    } finally {
+      setDeletingBookId(null)
+    }
   }
 
   return (
@@ -116,6 +129,7 @@ export default function Publisher() {
         {books.map(book => {
           const meta = stageMeta[book.stage]
           const commentsCount = comments.filter(c => c.bookId === book.id).length
+          const canDelete = canDeletePublisherBook(book)
           return (
             <div key={book.id} className="menu-glass-70 rounded-3xl overflow-hidden border border-primary/20">
               <div className="grid md:grid-cols-[140px_1fr] gap-5">
@@ -140,7 +154,7 @@ export default function Publisher() {
                     <Button variant="outline" onClick={() => openBookPreview(book.id)} className="gap-2"><Eye className="w-4 h-4" />پیش‌نمایش</Button>
                     <Button variant="outline" className="gap-2"><MessageSquare className="w-4 h-4" />نظرات</Button>
                     <Button variant="outline" disabled={!book.metadata?.import_project_id} onClick={() => reconvert(book)} className="gap-2"><RefreshCcw className="w-4 h-4" />تبدیل مجدد از فایل سرور</Button>
-                    <Button variant="ghost" onClick={() => removeBook(book.id)} className="text-destructive"><Trash2 className="w-4 h-4" /></Button>
+                    {canDelete && <Button variant="ghost" disabled={deletingBookId === book.id} onClick={() => removeBook(book)} className="text-destructive"><Trash2 className="w-4 h-4" />{deletingBookId === book.id ? 'در حال حذف...' : ''}</Button>}
                   </div>
                 </div>
               </div>
