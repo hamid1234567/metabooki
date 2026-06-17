@@ -85,6 +85,17 @@ const INTERACTIVE_TYPES = [
   ['flashcard', 'فلش‌کارت'], ['steps', 'مرحله‌سازی'], ['gallery', 'گالری عکس'], ['scrollytelling', 'استوری‌تلینگ'],
   ['quiz', 'کوییز ساده'], ['timeline', 'تایم‌لاین'], ['hotspot', 'هات‌اسپات تعاملی'],
 ] as const
+const TYPOGRAPHY_PRESETS = [
+  ['lead', 'متن آغازین'],
+  ['note', 'نکته'],
+  ['quote', 'نقل‌قول'],
+  ['definition', 'تعریف'],
+  ['example', 'مثال'],
+  ['summary', 'جمع‌بندی'],
+  ['poetry', 'شعر'],
+  ['aside', 'حاشیه'],
+  ['normal', 'متن عادی'],
+] as const
 function interactiveLabel(kind: string) { return INTERACTIVE_TYPES.find(item => item[0] === kind)?.[1] || kind }
 function interactiveTemplate(kind: string) {
   if (kind === 'quiz') return { type: kind, question: 'سؤال را اینجا بنویسید', options: ['گزینه صحیح', 'گزینه دوم', 'گزینه سوم'], correct: 0 }
@@ -314,7 +325,33 @@ export default function Edit() {
     if (!href.trim()) editor.chain().focus().unsetLink().run()
     else editor.chain().focus().extendMarkRange('link').setLink({ href: href.trim() }).run()
   }
-  const setTypography = (semantic: string) => editor?.chain().focus().updateAttributes('paragraph', { semantic: semantic === 'normal' ? null : semantic }).run()
+  const setTypography = (semantic: string) => {
+    const nodeType = editor?.isActive('heading') ? 'heading' : 'paragraph'
+    editor?.chain().focus().updateAttributes(nodeType, { semantic: semantic === 'normal' ? null : semantic }).run()
+  }
+  const updateInteractivePayload = (attrs: { kind: string; payload: string }, payload: Record<string, unknown>) => {
+    editor?.chain().focus().updateAttributes('interactiveBlock', { kind: attrs.kind, payload: encodePayload(payload) }).run()
+  }
+  const insertImageIntoInteractive = async (attrs: { kind: string; payload: string }) => {
+    const selected = await new Promise<File | null>(resolve => {
+      const picker = document.createElement('input')
+      picker.type = 'file'
+      picker.accept = 'image/*'
+      picker.onchange = () => resolve(picker.files?.[0] || null)
+      picker.click()
+    })
+    if (!selected) return null
+    await addImage(selected)
+    let src = ''
+    if (user && import.meta.env.VITE_SUPABASE_URL?.startsWith('http')) {
+      const path = `${user.id}/${id}/editor/${Date.now()}-${selected.name.replace(/[^\p{L}\p{N}._-]+/gu, '-')}`
+      const uploaded = await (supabase as any).storage.from('book-imports').upload(path, selected, { upsert: true, contentType: selected.type })
+      if (!uploaded.error) src = (await (supabase as any).storage.from('book-imports').createSignedUrl(path, 60 * 60 * 24 * 365)).data?.signedUrl || ''
+    }
+    if (!src) src = await new Promise(resolve => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.readAsDataURL(selected) })
+    applyImageToInteractive(src)
+    return src
+  }
   const applyImageToInteractive = (url: string) => {
     if (!editor?.isActive('interactiveBlock') || !url) return
     const attrs = editor.getAttributes('interactiveBlock')
@@ -340,6 +377,29 @@ export default function Edit() {
     if (value === 'body') chain.setParagraph().run()
     else chain.setHeading({ level: Number(value) as 1 | 2 | 3 | 4 | 5 | 6 }).run()
     window.setTimeout(refreshHeadings, 20)
+  }
+  const shiftHeadingLevel = (pos: number, delta: -1 | 1) => {
+    const heading = headings.find(item => item.pos === pos)
+    if (!heading) return
+    changeHeadingLevel(pos, String(Math.min(6, Math.max(1, heading.level + delta))))
+  }
+  const removeHeadingFromToc = (pos: number) => changeHeadingLevel(pos, 'body')
+  const renameHeading = (pos: number, currentText: string) => {
+    if (!editor) return
+    const nextText = window.prompt('عنوان جدید این سرفصل', currentText)
+    if (nextText === null || nextText.trim() === currentText.trim()) return
+    const heading = headings.find(item => item.pos === pos)
+    if (!heading) return
+    editor.chain().focus().setTextSelection({ from: pos + 1, to: pos + 1 + heading.text.length }).insertContent(nextText.trim()).run()
+    window.setTimeout(refreshHeadings, 20)
+  }
+  const handleInteractiveAction = async (value: string) => {
+    if (!value) return
+    if (value === 'edit-current') {
+      editInteractive()
+      return
+    }
+    addInteractive(value)
   }
 
   return (
