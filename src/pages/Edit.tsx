@@ -13,7 +13,7 @@ import Link from '@tiptap/extension-link'
 import Color from '@tiptap/extension-color'
 import { TextStyle } from '@tiptap/extension-text-style'
 import { TableKit } from '@tiptap/extension-table'
-import { AlignCenter, AlignJustify, AlignLeft, AlignRight, Bold, BookOpen, ChevronDown, ChevronUp, Eye, FileImage, Heading1, Heading2, ImagePlus, Italic, LayoutTemplate, Link2, List, ListOrdered, Minus, PanelTopClose, Pencil, Plus, Redo2, Save, Strikethrough, Subscript as SubIcon, Superscript as SuperIcon, Table2, Trash2, Underline as UnderlineIcon, Undo2 } from 'lucide-react'
+import { AlertTriangle, AlignCenter, AlignJustify, AlignLeft, AlignRight, Bold, BookOpen, ChevronDown, ChevronUp, Eye, FileImage, Heading1, Heading2, ImagePlus, Images, Italic, LayoutTemplate, Link2, List, ListOrdered, Minus, PanelTopClose, Pencil, Plus, Redo2, Save, Strikethrough, Subscript as SubIcon, Superscript as SuperIcon, Table2, Trash2, Underline as UnderlineIcon, Undo2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { findPublisherBook, updatePublisherBook } from '@/lib/publisher-books'
 import { findBookById } from '@/lib/mock-data'
@@ -77,6 +77,9 @@ const ResizableImage = Image.extend({
         parseHTML: element => element.getAttribute('width') || element.style.width || '100%',
         renderHTML: attrs => ({ width: attrs.width, style: `width:${attrs.width};max-width:100%;height:auto` }),
       },
+      imageId: { default: null, parseHTML: element => element.getAttribute('data-image-id'), renderHTML: attrs => attrs.imageId ? { 'data-image-id': attrs.imageId } : {} },
+      printPage: { default: null, parseHTML: element => element.getAttribute('data-print-page'), renderHTML: attrs => attrs.printPage ? { 'data-print-page': attrs.printPage } : {} },
+      conversionStatus: { default: null, parseHTML: element => element.getAttribute('data-conversion-status'), renderHTML: attrs => attrs.conversionStatus ? { 'data-conversion-status': attrs.conversionStatus } : {} },
     }
   },
 })
@@ -155,7 +158,7 @@ function blockAttributes(block: any) {
 function blockHtml(block: any) {
   if (block.type === 'heading') return `<h${Math.min(6, block.level || 2)}${blockAttributes(block)}>${inlineHtml(block)}</h${Math.min(6, block.level || 2)}>`
   if (block.type === 'table') return `<table><thead><tr>${(block.headers || []).map((cell: string) => `<th>${escape(cell)}</th>`).join('')}</tr></thead><tbody>${(block.rows || []).map((row: string[]) => `<tr>${row.map(cell => `<td>${escape(cell)}</td>`).join('')}</tr>`).join('')}</tbody></table>`
-  if (block.type === 'image' && block.url) return `<img src="${escape(block.url)}" alt="${escape(block.caption || '')}" width="${block.widthPx ? `${block.widthPx}px` : block.widthPercent ? `${block.widthPercent}%` : '100%'}">${block.caption ? `<p data-semantic="caption">${escape(block.caption)}</p>` : ''}`
+  if (block.type === 'image' && block.url) return `<img src="${escape(block.url)}" alt="${escape(block.caption || '')}" width="${block.widthPx ? `${block.widthPx}px` : block.widthPercent ? `${block.widthPercent}%` : '100%'}"${block.imageId ? ` data-image-id="${escape(block.imageId)}"` : ''}${block.printPage ? ` data-print-page="${escape(block.printPage)}"` : ''}${block.conversionStatus ? ` data-conversion-status="${escape(block.conversionStatus)}"` : ''}>${block.caption ? `<p data-semantic="caption">${escape(block.caption)}</p>` : ''}`
   if (['quiz', 'timeline', 'flashcard', 'steps', 'gallery', 'scrollytelling', 'hotspot'].includes(block.type)) return `<section data-interactive-kind="${block.type}" kind="${block.type}" payload="${encodePayload(block)}"></section>`
   return `<p${blockAttributes(block)}>${inlineHtml(block)}</p>`
 }
@@ -226,7 +229,7 @@ function editorJsonToPages(json: any) {
       if (page.blocks.length === 1) page.title = content || page.title
     } else if (node.type === 'image') {
       const width = String(node.attrs?.width || '100%')
-      page.blocks.push({ type: 'image', url: node.attrs?.src, caption: node.attrs?.alt || '', ...(width.endsWith('%') ? { widthPercent: Number.parseFloat(width) } : { widthPx: Number.parseFloat(width) }) })
+      page.blocks.push({ type: 'image', url: node.attrs?.src, caption: node.attrs?.alt || '', imageId: node.attrs?.imageId || undefined, printPage: node.attrs?.printPage || undefined, conversionStatus: node.attrs?.conversionStatus || undefined, ...(width.endsWith('%') ? { widthPercent: Number.parseFloat(width) } : { widthPx: Number.parseFloat(width) }) })
     }
     else if (node.type === 'interactiveBlock') page.blocks.push({ ...decodePayload(node.attrs?.payload), type: node.attrs?.kind })
     else if (node.type === 'table') {
@@ -258,11 +261,36 @@ export default function Edit() {
   const [headings, setHeadings] = useState<Array<{ text: string; level: number; pos: number }>>([])
   const [backgroundUrl, setBackgroundUrl] = useState('')
   const [backgroundAlpha, setBackgroundAlpha] = useState(0)
+  const [imagePanelOpen, setImagePanelOpen] = useState(false)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const switchingSegmentRef = useRef(false)
   const segments = useMemo(() => buildEditorSegments(allPages, segmentMode), [allPages, segmentMode])
   const activeSegment = segments[Math.min(activeSegmentIndex, Math.max(0, segments.length - 1))] || segments[0]
-  const bookImages = useMemo(() => allPages.flatMap((page: any) => page.blocks || []).filter((block: any) => block.type === 'image' && block.url), [allPages])
+  const bookImages = useMemo(() => {
+    const pageImages = allPages.flatMap((page: any, pageIndex: number) => (page.blocks || [])
+      .filter((block: any) => block.type === 'image')
+      .map((block: any, blockIndex: number) => ({
+        ...block,
+        key: block.imageId || `${pageIndex}-${blockIndex}-${block.url || 'missing'}`,
+        pageIndex,
+        printPage: block.printPage || page.printNumber || page.number || pageIndex + 1,
+        issue: !block.url ? 'تصویر در متن کتاب آدرس ندارد' : !block.caption ? 'کپشن برای این تصویر شناخته نشده' : block.conversionStatus === 'conversion-failed' ? 'تبدیل تصویر ناموفق بوده' : '',
+      })))
+    const knownIds = new Set(pageImages.map((image: any) => image.imageId).filter(Boolean))
+    const metadataImages = Array.isArray(book?.metadata?.import_images) ? book.metadata.import_images : []
+    const missingImages = metadataImages
+      .filter((image: any) => image.conversionStatus === 'conversion-failed' && !knownIds.has(image.id))
+      .map((image: any, index: number) => ({
+        key: `failed-${image.id || index}`,
+        imageId: image.id,
+        url: '',
+        caption: image.caption || image.originalName || image.name || 'تصویر تبدیل‌نشده',
+        printPage: image.wordPages?.[0] || 'نامشخص',
+        conversionStatus: image.conversionStatus,
+        issue: image.conversionError || 'تصویر در تبدیل محلی/سروری آماده نشده است',
+      }))
+    return [...pageImages, ...missingImages]
+  }, [allPages, book?.metadata])
 
   const editor = useEditor({
     extensions: [
@@ -273,25 +301,30 @@ export default function Edit() {
     editorProps: { attributes: { class: 'book-document-prose', dir: 'rtl', spellcheck: 'true' } },
   })
 
+  const getEditor = () => editor && !editor.isDestroyed ? editor : null
+
   const refreshHeadings = () => {
-    if (!editor) return
+    const activeEditor = getEditor()
+    if (!activeEditor) return
     const result: Array<{ text: string; level: number; pos: number }> = []
-    editor.state.doc.descendants((node, pos) => { if (node.type.name === 'heading') result.push({ text: node.textContent, level: node.attrs.level, pos }) })
+    activeEditor.state.doc.descendants((node, pos) => { if (node.type.name === 'heading') result.push({ text: node.textContent, level: node.attrs.level, pos }) })
     setHeadings(result)
   }
 
   const mergeCurrentSegment = (sourcePages = allPages) => {
-    if (!editor || !activeSegment) return sourcePages
-    const editedPages = editorJsonToPages(editor.getJSON())
+    const activeEditor = getEditor()
+    if (!activeEditor || !activeSegment) return sourcePages
+    const editedPages = editorJsonToPages(activeEditor.getJSON())
     const before = sourcePages.slice(0, activeSegment.start)
     const after = sourcePages.slice(activeSegment.end)
     return [...before, ...editedPages, ...after]
   }
 
   const loadSegment = (segment: EditorSegment | undefined, pages = allPages) => {
-    if (!editor || !segment) return
+    const activeEditor = getEditor()
+    if (!activeEditor || !segment) return
     switchingSegmentRef.current = true
-    editor.commands.setContent(pagesToHtml(pages.slice(segment.start, segment.end)))
+    activeEditor.commands.setContent(pagesToHtml(pages.slice(segment.start, segment.end)))
     window.setTimeout(() => {
       refreshHeadings()
       switchingSegmentRef.current = false
@@ -338,7 +371,8 @@ export default function Edit() {
   }, [activeSegmentIndex, segments.length])
 
   const save = async (quiet = false) => {
-    if (!editor || !id) return
+    const activeEditor = getEditor()
+    if (!activeEditor || !id) return
     setSaving(true)
     const pages = mergeCurrentSegment()
     const metadata = { ...(book?.metadata || {}), page_background_url: backgroundUrl, page_background_alpha: backgroundAlpha }
@@ -348,7 +382,7 @@ export default function Edit() {
       await (supabase as any).from('books').update({ title, subtitle, description, pages, metadata, content_updated_at: patch.content_updated_at }).eq('id', id)
     }
     setAllPages(pages); setBook((current: any) => ({ ...current, ...patch })); setSavedAt(new Date()); setSaving(false); refreshHeadings()
-    if (!quiet) editor.commands.focus()
+    if (!quiet) activeEditor.commands.focus()
   }
 
   const previewCurrentBook = async () => {
@@ -364,20 +398,26 @@ export default function Edit() {
   }
 
   useEffect(() => {
-    if (!editor) return
+    const activeEditor = getEditor()
+    if (!activeEditor) return
     const onUpdate = () => {
       if (switchingSegmentRef.current) return
       window.clearTimeout((onUpdate as any).timer)
       ;(onUpdate as any).timer = window.setTimeout(() => save(true), 1400)
     }
-    editor.on('update', onUpdate)
-    return () => { editor.off('update', onUpdate); window.clearTimeout((onUpdate as any).timer) }
+    activeEditor.on('update', onUpdate)
+    return () => { activeEditor.off('update', onUpdate); window.clearTimeout((onUpdate as any).timer) }
   })
 
   if (!book && !localInitial) return <div className="max-w-4xl mx-auto px-4 py-20 text-center"><h1 className="text-2xl font-bold">در حال دریافت پیش‌نویس کتاب…</h1></div>
 
-  const command = (action: () => void) => { action(); editor?.commands.focus() }
-  const addInteractive = (kind: string) => editor?.chain().focus().insertContent({ type: 'interactiveBlock', attrs: { kind, payload: encodePayload(interactiveTemplate(kind)) } }).run()
+  const command = (action: (activeEditor: NonNullable<typeof editor>) => void) => {
+    const activeEditor = getEditor()
+    if (!activeEditor) return
+    action(activeEditor)
+    activeEditor.commands.focus()
+  }
+  const addInteractive = (kind: string) => command(activeEditor => activeEditor.chain().focus().insertContent({ type: 'interactiveBlock', attrs: { kind, payload: encodePayload(interactiveTemplate(kind)) } }).run())
   const editInteractive = () => {
     if (!editor?.isActive('interactiveBlock')) return
     const attrs = editor.getAttributes('interactiveBlock') as { kind: string; payload: string }
@@ -456,7 +496,8 @@ export default function Edit() {
     updateInteractivePayload(attrs, payload)
   }
   const addImage = async (file: File) => {
-    if (!editor) return
+    const activeEditor = getEditor()
+    if (!activeEditor) return
     let src = ''
     if (user && import.meta.env.VITE_SUPABASE_URL?.startsWith('http')) {
       const path = `${user.id}/${id}/editor/${Date.now()}-${file.name.replace(/[^\p{L}\p{N}._-]+/gu, '-')}`
@@ -464,10 +505,10 @@ export default function Edit() {
       if (!uploaded.error) src = (await (supabase as any).storage.from('book-imports').createSignedUrl(path, 60 * 60 * 24 * 365)).data?.signedUrl || ''
     }
     if (!src) src = await new Promise(resolve => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.readAsDataURL(file) })
-    editor.chain().focus().setImage({ src, alt: file.name, width: '100%' } as any).run()
+    activeEditor.chain().focus().setImage({ src, alt: file.name, width: '100%' } as any).run()
   }
-  const promoteSelection = (level: 1 | 2 | 3 | 4 | 5 | 6) => { editor?.chain().focus().toggleHeading({ level }).run(); window.setTimeout(refreshHeadings, 20) }
-  const setDirection = (direction: 'rtl' | 'ltr') => editor?.chain().focus().updateAttributes(editor.isActive('heading') ? 'heading' : 'paragraph', { dir: direction }).run()
+  const promoteSelection = (level: 1 | 2 | 3 | 4 | 5 | 6) => { command(activeEditor => activeEditor.chain().focus().toggleHeading({ level }).run()); window.setTimeout(refreshHeadings, 20) }
+  const setDirection = (direction: 'rtl' | 'ltr') => command(activeEditor => activeEditor.chain().focus().updateAttributes(activeEditor.isActive('heading') ? 'heading' : 'paragraph', { dir: direction }).run())
   const setLink = () => {
     if (!editor) return
     const current = editor.getAttributes('link').href || ''
@@ -477,11 +518,10 @@ export default function Edit() {
     else editor.chain().focus().extendMarkRange('link').setLink({ href: href.trim() }).run()
   }
   const setTypography = (semantic: string) => {
-    const nodeType = editor?.isActive('heading') ? 'heading' : 'paragraph'
-    editor?.chain().focus().updateAttributes(nodeType, { semantic: semantic === 'normal' ? null : semantic }).run()
+    command(activeEditor => activeEditor.chain().focus().updateAttributes(activeEditor.isActive('heading') ? 'heading' : 'paragraph', { semantic: semantic === 'normal' ? null : semantic }).run())
   }
   const updateInteractivePayload = (attrs: { kind: string; payload: string }, payload: Record<string, unknown>) => {
-    editor?.chain().focus().updateAttributes('interactiveBlock', { kind: attrs.kind, payload: encodePayload(payload) }).run()
+    command(activeEditor => activeEditor.chain().focus().updateAttributes('interactiveBlock', { kind: attrs.kind, payload: encodePayload(payload) }).run())
   }
   const insertImageIntoInteractive = async (attrs: { kind: string; payload: string }) => {
     const selected = await new Promise<File | null>(resolve => {
@@ -504,14 +544,15 @@ export default function Edit() {
     return src
   }
   const applyImageToInteractive = (url: string) => {
-    if (!editor?.isActive('interactiveBlock') || !url) return
-    const attrs = editor.getAttributes('interactiveBlock') as { kind: string; payload: string }
+    const activeEditor = getEditor()
+    if (!activeEditor?.isActive('interactiveBlock') || !url) return
+    const attrs = activeEditor.getAttributes('interactiveBlock') as { kind: string; payload: string }
     const payload = decodePayload(attrs.payload)
     if (attrs.kind === 'gallery') payload.images = [...(payload.images || []), { url, caption: 'تصویر انتخاب‌شده از کتاب' }]
     else if (attrs.kind === 'scrollytelling') payload.steps = (payload.steps || [{ text: 'روایت تصویری' }]).map((step: any, index: number) => index === 0 ? { ...step, image: url } : step)
     else if (attrs.kind === 'steps') payload.steps = (payload.steps || [{ title: 'مرحله ۱' }]).map((step: any, index: number) => index === 0 ? { ...step, image: url } : step)
     else payload.image = url
-    editor.chain().focus().updateAttributes('interactiveBlock', { payload: encodePayload(payload) }).run()
+    activeEditor.chain().focus().updateAttributes('interactiveBlock', { payload: encodePayload(payload) }).run()
   }
   const tableAction = (action: string) => {
     if (!editor) return
@@ -580,15 +621,15 @@ export default function Edit() {
       </section>}
 
       <div className="book-editor-toolbar menu-glass-70">
-        <button title="بازگشت" onClick={() => command(() => editor?.chain().focus().undo().run())}><Undo2 /></button><button title="انجام دوباره" onClick={() => command(() => editor?.chain().focus().redo().run())}><Redo2 /></button><i />
+        <button title="بازگشت" onClick={() => command(activeEditor => activeEditor.chain().focus().undo().run())}><Undo2 /></button><button title="انجام دوباره" onClick={() => command(activeEditor => activeEditor.chain().focus().redo().run())}><Redo2 /></button><i />
         <button title="سرفصل اصلی" onClick={() => promoteSelection(1)}><Heading1 /></button><button title="سرفصل فرعی" onClick={() => promoteSelection(2)}><Heading2 /></button>
-        <button title="پررنگ" onClick={() => command(() => editor?.chain().focus().toggleBold().run())}><Bold /></button><button title="مورب" onClick={() => command(() => editor?.chain().focus().toggleItalic().run())}><Italic /></button><button title="زیرخط" onClick={() => command(() => editor?.chain().focus().toggleUnderline().run())}><UnderlineIcon /></button><button title="خط‌خورده" onClick={() => command(() => editor?.chain().focus().toggleStrike().run())}><Strikethrough /></button><button title="بالانویس" onClick={() => command(() => editor?.chain().focus().toggleSuperscript().run())}><SuperIcon /></button><button title="زیرنویس" onClick={() => command(() => editor?.chain().focus().toggleSubscript().run())}><SubIcon /></button><button title="افزودن یا ویرایش پیوند" onClick={setLink}><Link2 /></button><i />
-        <select title="فونت" onChange={event => editor?.chain().focus().setMark('textStyle', { fontFamily: event.target.value }).run()}><option value="Vazirmatn">وزیرمتن</option><option value="Tahoma">Tahoma</option><option value="Arial">Arial</option><option value="Georgia">Georgia</option></select>
-        <select title="اندازه متن انتخاب‌شده" defaultValue="" onChange={event => { if (event.target.value) editor?.chain().focus().setMark('textStyle', { fontSize: event.target.value }).run(); event.target.value = '' }}><option value="" disabled>اندازه متن</option>{[12,14,16,18,20,24,28,32,40].map(size => <option key={size} value={`${size}px`}>{size}</option>)}</select>
+        <button title="پررنگ" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleBold().run())}><Bold /></button><button title="مورب" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleItalic().run())}><Italic /></button><button title="زیرخط" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleUnderline().run())}><UnderlineIcon /></button><button title="خط‌خورده" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleStrike().run())}><Strikethrough /></button><button title="بالانویس" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleSuperscript().run())}><SuperIcon /></button><button title="زیرنویس" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleSubscript().run())}><SubIcon /></button><button title="افزودن یا ویرایش پیوند" onClick={setLink}><Link2 /></button><i />
+        <select title="فونت" onChange={event => command(activeEditor => activeEditor.chain().focus().setMark('textStyle', { fontFamily: event.target.value }).run())}><option value="Vazirmatn">وزیرمتن</option><option value="Tahoma">Tahoma</option><option value="Arial">Arial</option><option value="Georgia">Georgia</option></select>
+        <select title="اندازه متن انتخاب‌شده" defaultValue="" onChange={event => { if (event.target.value) command(activeEditor => activeEditor.chain().focus().setMark('textStyle', { fontSize: event.target.value }).run()); event.target.value = '' }}><option value="" disabled>اندازه متن</option>{[12,14,16,18,20,24,28,32,40].map(size => <option key={size} value={`${size}px`}>{size}</option>)}</select>
         <select title="تایپوگرافی آماده" defaultValue="" onChange={event => { setTypography(event.target.value); event.target.value = '' }}><option value="" disabled>تایپوگرافی</option>{TYPOGRAPHY_PRESETS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
-        <input title="رنگ متن" type="color" onChange={event => editor?.chain().focus().setColor(event.target.value).run()} /><button title="راست‌به‌چپ کردن پاراگراف" onClick={() => setDirection('rtl')}>RTL</button><button title="چپ‌به‌راست کردن پاراگراف" onClick={() => setDirection('ltr')}>LTR</button><i />
-        <button title="راست‌چین" onClick={() => command(() => editor?.chain().focus().setTextAlign('right').run())}><AlignRight /></button><button title="وسط‌چین" onClick={() => command(() => editor?.chain().focus().setTextAlign('center').run())}><AlignCenter /></button><button title="چپ‌چین" onClick={() => command(() => editor?.chain().focus().setTextAlign('left').run())}><AlignLeft /></button><button title="تراز کامل" onClick={() => command(() => editor?.chain().focus().setTextAlign('justify').run())}><AlignJustify /></button><button title="فهرست نقطه‌ای" onClick={() => command(() => editor?.chain().focus().toggleBulletList().run())}><List /></button><button title="فهرست شماره‌ای" onClick={() => command(() => editor?.chain().focus().toggleOrderedList().run())}><ListOrdered /></button><i />
-        <button title="افزودن تصویر" onClick={() => imageInputRef.current?.click()}><ImagePlus /></button><input ref={imageInputRef} hidden type="file" accept="image/*" onChange={event => event.target.files?.[0] && addImage(event.target.files[0])} /><select title="اندازه تصویر انتخاب‌شده" defaultValue="" onChange={event => { if (event.target.value) editor?.chain().focus().updateAttributes('image', { width: event.target.value }).run(); event.target.value = '' }}><option value="" disabled>اندازه عکس</option><option value="25%">۲۵٪</option><option value="50%">۵۰٪</option><option value="75%">۷۵٪</option><option value="100%">۱۰۰٪</option></select><button title="جدول جدید" onClick={() => editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}><Table2 /></button><select title="ویرایش جدول انتخاب‌شده" defaultValue="" onChange={event => { tableAction(event.target.value); event.target.value = '' }}><option value="" disabled>ویرایش جدول</option><option value="row-after">افزودن ردیف</option><option value="column-after">افزودن ستون</option><option value="delete-row">حذف ردیف</option><option value="delete-column">حذف ستون</option><option value="delete-table">حذف جدول</option></select><button title="صفحه جدید" onClick={() => editor?.chain().focus().setHorizontalRule().run()}><FileImage /></button>
+        <input title="رنگ متن" type="color" onChange={event => command(activeEditor => activeEditor.chain().focus().setColor(event.target.value).run())} /><button title="راست‌به‌چپ کردن پاراگراف" onClick={() => setDirection('rtl')}>RTL</button><button title="چپ‌به‌راست کردن پاراگراف" onClick={() => setDirection('ltr')}>LTR</button><i />
+        <button title="راست‌چین" onClick={() => command(activeEditor => activeEditor.chain().focus().setTextAlign('right').run())}><AlignRight /></button><button title="وسط‌چین" onClick={() => command(activeEditor => activeEditor.chain().focus().setTextAlign('center').run())}><AlignCenter /></button><button title="چپ‌چین" onClick={() => command(activeEditor => activeEditor.chain().focus().setTextAlign('left').run())}><AlignLeft /></button><button title="تراز کامل" onClick={() => command(activeEditor => activeEditor.chain().focus().setTextAlign('justify').run())}><AlignJustify /></button><button title="فهرست نقطه‌ای" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleBulletList().run())}><List /></button><button title="فهرست شماره‌ای" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleOrderedList().run())}><ListOrdered /></button><i />
+        <button title="افزودن تصویر" onClick={() => imageInputRef.current?.click()}><ImagePlus /></button><button title="نمایش تصاویر کتاب" onClick={() => setImagePanelOpen(value => !value)} className={imagePanelOpen ? 'active' : ''}><Images /></button><input ref={imageInputRef} hidden type="file" accept="image/*" onChange={event => event.target.files?.[0] && addImage(event.target.files[0])} /><select title="اندازه تصویر انتخاب‌شده" defaultValue="" onChange={event => { if (event.target.value) command(activeEditor => activeEditor.chain().focus().updateAttributes('image', { width: event.target.value }).run()); event.target.value = '' }}><option value="" disabled>اندازه عکس</option><option value="25%">۲۵٪</option><option value="50%">۵۰٪</option><option value="75%">۷۵٪</option><option value="100%">۱۰۰٪</option></select><button title="جدول جدید" onClick={() => command(activeEditor => activeEditor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())}><Table2 /></button><select title="ویرایش جدول انتخاب‌شده" defaultValue="" onChange={event => { tableAction(event.target.value); event.target.value = '' }}><option value="" disabled>ویرایش جدول</option><option value="row-after">افزودن ردیف</option><option value="column-after">افزودن ستون</option><option value="delete-row">حذف ردیف</option><option value="delete-column">حذف ستون</option><option value="delete-table">حذف جدول</option></select><button title="صفحه جدید" onClick={() => command(activeEditor => activeEditor.chain().focus().setHorizontalRule().run())}><FileImage /></button>
         <select title="بخش تعاملی" defaultValue="" onChange={event => { void handleInteractiveAction(event.target.value); event.target.value = '' }}><option value="" disabled>تعاملی</option><option value="edit-current">ویرایش بخش انتخاب‌شده</option>{INTERACTIVE_TYPES.map(item => <option key={item[0]} value={item[0]}>{`افزودن ${item[1]}`}</option>)}</select>{bookImages.length > 0 && <select title="استفاده از تصویر کتاب در بخش تعاملی انتخاب‌شده" defaultValue="" onChange={event => { applyImageToInteractive(event.target.value); event.target.value = '' }}><option value="" disabled>تصویر برای تعاملی</option>{bookImages.slice(0, 100).map((image: any, index: number) => <option key={`${image.url}-${index}`} value={image.url}>{image.caption || `تصویر ${index + 1}`}</option>)}</select>}<button title="ویرایش جزئیات بخش تعاملی انتخاب‌شده" onClick={() => void openInteractiveEditor()}><LayoutTemplate /></button><i />
         <button title="کوچک کردن متن" onClick={() => setFontSize(value => Math.max(12, value - 1))}><Minus /></button><span>{fontSize.toLocaleString('fa-IR')}</span><button title="بزرگ کردن متن" onClick={() => setFontSize(value => Math.min(34, value + 1))}><Plus /></button>
       </div>
@@ -614,8 +655,21 @@ export default function Edit() {
               </div>
             ))}
           </div>
-          {bookImages.length > 0 && <div className="book-editor-images"><h3><ImagePlus />تصاویر کتاب</h3><div>{bookImages.map((image: any, index: number) => <button key={`${image.url}-${index}`} title="افزودن دوباره این تصویر" onClick={() => editor?.chain().focus().setImage({ src: image.url, alt: image.caption || '', width: image.widthPx ? `${image.widthPx}px` : image.widthPercent ? `${image.widthPercent}%` : '100%' } as any).run()}><img src={image.url} alt={image.caption || ''} /></button>)}</div></div>}
         </aside>
+        {imagePanelOpen && <aside className="book-editor-image-drawer menu-glass-70">
+          <header><h3><Images />تصاویر کتاب</h3><button onClick={() => setImagePanelOpen(false)}>بستن</button></header>
+          {bookImages.length === 0 && <p className="book-editor-empty-state">هنوز تصویری برای این کتاب ثبت نشده است.</p>}
+          <div>
+            {bookImages.map((image: any, index: number) => (
+              <button key={image.key || `${image.url}-${index}`} className={image.issue ? 'has-issue' : ''} disabled={!image.url} title={image.issue || 'افزودن تصویر در محل نشانگر'} onClick={() => image.url && command(activeEditor => activeEditor.chain().focus().setImage({ src: image.url, alt: image.caption || '', width: image.widthPx ? `${image.widthPx}px` : image.widthPercent ? `${image.widthPercent}%` : '100%', imageId: image.imageId || undefined, printPage: image.printPage || undefined, conversionStatus: image.conversionStatus || undefined } as any).run())}>
+                {image.url ? <img src={image.url} alt={image.caption || ''} /> : <span><AlertTriangle /></span>}
+                <b>{image.caption || image.originalName || image.name || `تصویر ${index + 1}`}</b>
+                <small>صفحه چاپی: {String(image.printPage || 'نامشخص')}</small>
+                {image.issue && <em>{image.issue}</em>}
+              </button>
+            ))}
+          </div>
+        </aside>}
         <section className="book-document-stage"><div className="book-document-paper" style={{ '--editor-font-size': `${fontSize}px`, '--page-bg': backgroundUrl ? `url("${backgroundUrl}")` : 'none', '--page-bg-alpha': backgroundAlpha } as CSSProperties}><EditorContent editor={editor} /></div></section>
       </div>
     </main>
