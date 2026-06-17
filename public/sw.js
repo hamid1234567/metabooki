@@ -1,4 +1,4 @@
-const APP_VERSION = '1.0.68'
+const APP_VERSION = '1.0.71'
 const CACHE_NAME = `metabooki-${APP_VERSION}`
 
 const PRECACHE_URLS = [
@@ -34,8 +34,8 @@ self.addEventListener('fetch', (event) => {
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request, { cache: 'no-store' })
-        .then((response) => response.ok ? response : caches.match('./index.html'))
-        .catch(() => caches.match('./index.html'))
+        .then((response) => response.ok ? response : caches.match('index.html'))
+        .catch(() => caches.match('index.html'))
     )
     return
   }
@@ -49,6 +49,6 @@ self.addEventListener('fetch', (event) => {
         }
         return response
       })
-      .catch(() => caches.match(event.request).then((cached) => cached || caches.match('./index.html')))
+      .catch(() => caches.match(event.request).then((cached) => cached || caches.match('index.html')))
   )
 })

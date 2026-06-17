@@ -95,7 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithGoogle = useCallback(async () => {
     if (hasSupabase) {
-      const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}/auth/callback` } })
+      const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}${import.meta.env.BASE_URL}auth/callback` } })
       return { error }
     }
     return { error: new Error('ورود با گوگل در حالت دمو پشتیبانی نمی‌شود') }

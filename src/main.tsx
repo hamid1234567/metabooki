@@ -17,6 +17,7 @@ const queryClient = new QueryClient({
   },
 })
 
+const routerBasename = import.meta.env.BASE_URL === '/' ? '/' : import.meta.env.BASE_URL.replace(/\/$/, '')
 const restoredPath = sessionStorage.getItem('metabooki_restore_path')
 if (restoredPath && restoredPath !== `${window.location.pathname}${window.location.search}${window.location.hash}`) {
   sessionStorage.removeItem('metabooki_restore_path')
@@ -28,7 +29,7 @@ if (isLatestVersion) await refreshVersionedCaches()
 
 if (isLatestVersion) createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter>
+    <BrowserRouter basename={routerBasename}>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
           <I18nProvider>
@@ -45,6 +46,6 @@ if (isLatestVersion) createRoot(document.getElementById('root')!).render(
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register(`./sw.js?v=${APP_VERSION}`, { updateViaCache: 'none' }).then(registration => registration.update()).catch(() => {})
+    navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js?v=${APP_VERSION}`, { updateViaCache: 'none', scope: import.meta.env.BASE_URL }).then(registration => registration.update()).catch(() => {})
   })
 }

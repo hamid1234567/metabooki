@@ -63,8 +63,8 @@ function preserveStandardBackdropFilterPlugin() {
 }
 
 // https://vite.dev/config/
-export default defineConfig({
-  base: '/',
+export default defineConfig(({ command }) => ({
+  base: command === 'build' ? '/metabooki/' : '/',
   plugins: [
     react(),
     tailwindcss(),
@@ -79,4 +79,4 @@ export default defineConfig({
   server: {
     port: 8080,
   },
-})
+}))

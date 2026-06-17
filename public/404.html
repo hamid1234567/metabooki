@@ -9,7 +9,7 @@
       const parts = location.pathname.split('/').filter(Boolean)
       const routeIndex = parts.findIndex(part => routeRoots.includes(part))
       const basePath = routeIndex > 0 ? `/${parts.slice(0, routeIndex).join('/')}/` : '/'
-      const restorePath = routeIndex >= 0 ? `/${parts.slice(routeIndex).join('/')}${location.search}${location.hash}` : `${location.pathname}${location.search}${location.hash}`
+      const restorePath = `${location.pathname}${location.search}${location.hash}`
       sessionStorage.setItem('metabooki_restore_path', restorePath)
       location.replace(basePath)
     </script>
