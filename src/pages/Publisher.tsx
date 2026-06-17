@@ -17,7 +17,7 @@ const stageMeta = {
   published: { label: 'انتشار نهایی', className: 'bg-primary text-primary-foreground', icon: CheckCircle },
 }
 
-const openBookPreview = (id: string) => window.open(`${window.location.origin}${window.location.pathname}${window.location.search}#/read/${id}`, '_blank', 'noopener,noreferrer')
+const openBookPreview = (id: string) => window.open(`${window.location.origin}/read/${id}`, '_blank', 'noopener,noreferrer')
 
 export default function Publisher() {
   const navigate = useNavigate()

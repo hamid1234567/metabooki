@@ -23,7 +23,7 @@ import { useAuthContext } from '@/lib/auth-context'
 const escape = (value = '') => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 const encodePayload = (value: unknown) => encodeURIComponent(JSON.stringify(value))
 const decodePayload = (value = '') => { try { return JSON.parse(decodeURIComponent(value)) } catch { return {} } }
-const openBookPreview = (id: string) => window.open(`${window.location.origin}${window.location.pathname}${window.location.search}#/read/${id}`, '_blank', 'noopener,noreferrer')
+const openBookPreview = (id: string) => window.open(`${window.location.origin}/read/${id}`, '_blank', 'noopener,noreferrer')
 
 const RichTextStyle = Extension.create({
   name: 'richTextStyle',
@@ -483,7 +483,7 @@ export default function Edit() {
   }
 
   const previewCurrentBook = async () => {
-    const previewUrl = `${window.location.origin}${window.location.pathname}${window.location.search}#/read/${id}`
+    const previewUrl = `${window.location.origin}/read/${id}`
     const previewWindow = window.open('about:blank', '_blank')
     await save(true)
     if (previewWindow) {

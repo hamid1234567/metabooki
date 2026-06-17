@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Metabooki</title>
+    <script>
+      const routeRoots = ['auth','store','library','read','b','upload','edit','publish','publisher','admin','credits','editor-requests','profile','install','word-addin','audio-studio','audio']
+      const parts = location.pathname.split('/').filter(Boolean)
+      const routeIndex = parts.findIndex(part => routeRoots.includes(part))
+      const basePath = routeIndex > 0 ? `/${parts.slice(0, routeIndex).join('/')}/` : '/'
+      const restorePath = routeIndex >= 0 ? `/${parts.slice(routeIndex).join('/')}${location.search}${location.hash}` : `${location.pathname}${location.search}${location.hash}`
+      sessionStorage.setItem('metabooki_restore_path', restorePath)
+      location.replace(basePath)
+    </script>
+  </head>
+  <body></body>
+</html>
