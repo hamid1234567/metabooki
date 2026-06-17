@@ -13,7 +13,7 @@ import Link from '@tiptap/extension-link'
 import Color from '@tiptap/extension-color'
 import { TextStyle } from '@tiptap/extension-text-style'
 import { TableKit } from '@tiptap/extension-table'
-import { AlertTriangle, AlignCenter, AlignJustify, AlignLeft, AlignRight, ArrowUp, Bold, BookOpen, Bookmark, ChevronLeft, ChevronUp, Eye, FileImage, Heading1, Heading2, ImagePlus, Images, Italic, LayoutTemplate, Link2, List, ListOrdered, Minus, PanelTopClose, Plus, Redo2, Save, Strikethrough, Subscript as SubIcon, Superscript as SuperIcon, Table2, Underline as UnderlineIcon, Undo2 } from 'lucide-react'
+import { AlertTriangle, AlignCenter, AlignJustify, AlignLeft, AlignRight, ArrowDown, ArrowUp, Bold, BookOpen, Bookmark, ChevronLeft, ChevronUp, Edit3, Eye, FileImage, Heading1, Heading2, ImagePlus, Images, Italic, LayoutTemplate, Link2, List, ListOrdered, Minus, PanelTopClose, Plus, Redo2, Save, Strikethrough, Subscript as SubIcon, Superscript as SuperIcon, Table2, Trash2, Underline as UnderlineIcon, Undo2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { findPublisherBook, updatePublisherBook } from '@/lib/publisher-books'
 import { findBookById } from '@/lib/mock-data'
@@ -168,7 +168,7 @@ function pagesToHtml(pages: any[] = []) {
 }
 
 type EditorSegmentMode = 'chapter' | 'page'
-type EditorSegment = { key: string; label: string; level?: number; start: number; end: number; page?: number }
+type EditorSegment = { key: string; label: string; level?: number; start: number; end: number; startBlock?: number; endBlock?: number; page?: number; tocIndex?: number; isPrelude?: boolean }
 type ConfirmedTocEntry = { id?: string; title: string; level: number; page?: number; styleId?: string }
 
 function pageTitle(page: any, index: number) {
@@ -179,6 +179,23 @@ function pageIndexForPrintPage(pages: any[] = [], printPage?: number) {
   if (!printPage) return 0
   const exact = pages.findIndex((page, index) => Number(page.printNumber || page.number || index + 1) === Number(printPage))
   return exact >= 0 ? exact : Math.max(0, Math.min(pages.length - 1, Number(printPage) - 1))
+}
+
+function findTocPosition(pages: any[] = [], item: ConfirmedTocEntry) {
+  if (item.id) {
+    for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
+      const blockIndex = (pages[pageIndex].blocks || []).findIndex((block: any) => block.anchor === item.id || block.id === item.id || block.anchors?.includes?.(item.id))
+      if (blockIndex >= 0) return { pageIndex, blockIndex }
+    }
+  }
+  const title = String(item.title || '').trim()
+  if (title) {
+    for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
+      const blockIndex = (pages[pageIndex].blocks || []).findIndex((block: any) => block.type === 'heading' && String(block.content || block.text || '').trim() === title)
+      if (blockIndex >= 0) return { pageIndex, blockIndex }
+    }
+  }
+  return { pageIndex: pageIndexForPrintPage(pages, item.page), blockIndex: 0 }
 }
 
 function confirmedTocFromBook(book: any): ConfirmedTocEntry[] {
