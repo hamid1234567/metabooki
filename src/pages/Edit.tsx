@@ -298,6 +298,8 @@ export default function Edit() {
       const optionsText = window.prompt('گزینه‌ها؛ هر گزینه در یک خط', (payload.options || []).join('\n'))
       payload.question = question
       if (optionsText) payload.options = optionsText.split(/\r?\n/).map((item: string) => item.trim()).filter(Boolean)
+      const correct = window.prompt('شماره گزینه صحیح', String((payload.correct ?? 0) + 1))
+      if (correct && !Number.isNaN(Number(correct))) payload.correct = Math.max(0, Number(correct) - 1)
     } else {
       const title = window.prompt('عنوان بخش تعاملی', payload.title || payload.caption || interactiveLabel(attrs.kind))
       if (title !== null) payload.title = title
