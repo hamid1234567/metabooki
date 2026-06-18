@@ -281,7 +281,12 @@ function paragraphListInfo(node: unknown, numberingFormats: NumberingFormats) {
 }
 
 function wordSymbolText(node: unknown) {
-  const char = String(elementAttribute(node, 'w:sym', '@_w:char', '@_char') || '').replace(/^0x/i, '')
+  const directAttrs = node && typeof node === 'object'
+    ? ((node as Record<string, unknown>)[':@'] as Record<string, unknown> | undefined)
+      || ((node as Record<string, Record<string, unknown>>)['w:sym']?.[':@'] as Record<string, unknown> | undefined)
+      || ((node as Record<string, Record<string, unknown>>)['w:sym'] as Record<string, unknown> | undefined)
+    : undefined
+  const char = String(directAttrs?.['@_w:char'] || directAttrs?.['@_char'] || elementAttribute(node, 'w:sym', '@_w:char', '@_char') || '').replace(/^0x/i, '')
   if (/^(00)?AC$/i.test(char)) return '\u200C'
   const codePoint = Number.parseInt(char, 16)
   if (!Number.isFinite(codePoint) || codePoint <= 0 || codePoint > 0x10ffff) return ''
@@ -359,7 +364,7 @@ function parseInline(node: unknown, hyperlinks: Map<string, string>, inheritedHr
         const item = part as Record<string, unknown>
         if ('w:instrText' in item || 'w:fldChar' in item || 'w:delText' in item) return
         if ('w:t' in item) textParts.push(collectText(item['w:t']))
-        else if ('w:sym' in item) textParts.push(wordSymbolText([item]))
+        else if ('w:sym' in item) textParts.push(wordSymbolText(item))
         else if ('w:tab' in item) textParts.push(' ')
         else if ('w:br' in item) textParts.push('\n')
         else Object.values(item).forEach(collectVisible)

@@ -69,6 +69,9 @@ export function normalizeBookText(value = '') {
   return String(value)
     .replace(LEGACY_ZWS_PATTERN, '\u200C')
     .replace(/\u00AD/g, '\u200C')
+    .replace(/([\u0600-\u06FF]{2,})(هاي|های|هاى|هایی|هايي)(?=$|[\s،؛,.!?؟])/g, '$1\u200C$2')
+    .replace(/(نمونه)(بردار[\u0600-\u06FF]*)/g, '$1\u200C$2')
+    .replace(/(رادون)(خوار[\u0600-\u06FF]*)/g, '$1\u200C$2')
     .replace(/\u200C{2,}/g, '\u200C')
 }
 
