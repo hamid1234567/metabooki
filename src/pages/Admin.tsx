@@ -21,6 +21,8 @@ export default function Admin() {
   const [aiSettings, setAiSettings] = useState<AiGatewaySettings>(() => loadAiGatewaySettings())
   const [connectionTest, setConnectionTest] = useState<'idle' | 'testing' | 'ok' | 'error'>('idle')
   const [connectionMessage, setConnectionMessage] = useState('')
+  const [filterSettings, setFilterSettings] = useState<BookFilterSettings>(emptyFilterSettings)
+  const [filterDraft, setFilterDraft] = useState({ categories: '', tags: '', bookTypes: '' })
   const supabaseUrl = String(import.meta.env.VITE_SUPABASE_URL || '')
   const hasSupabaseUrl = supabaseUrl.startsWith('https://') && !supabaseUrl.includes('your_supabase')
   const hasSupabaseKey = Boolean(import.meta.env.VITE_SUPABASE_ANON_KEY && !String(import.meta.env.VITE_SUPABASE_ANON_KEY).includes('your_supabase'))
@@ -30,6 +32,18 @@ export default function Admin() {
     if (!isAdmin || user?.mockData) return
     loadAiGatewaySettingsRemote().then(setAiSettings).catch(error => setMessage(error instanceof Error ? error.message : 'خطا در دریافت تنظیمات AI'))
   }, [isAdmin, user])
+
+  useEffect(() => {
+    if (!isAdmin) return
+    loadBookFilterSettings().then(settings => {
+      setFilterSettings(settings)
+      setFilterDraft({
+        categories: settings.categories.join('\n'),
+        tags: settings.tags.join('\n'),
+        bookTypes: settings.bookTypes.join('\n'),
+      })
+    })
+  }, [isAdmin])
 
   if (rolesLoading) return null
   if (!isAdmin) {
@@ -67,6 +81,33 @@ export default function Admin() {
       setMessage(error instanceof Error ? error.message : 'ذخیره تنظیمات ناموفق بود')
     }
     setTimeout(() => setMessage(''), 3000)
+  }
+
+  const saveFilterOptions = async () => {
+    const next = {
+      categories: parseFilterLines(filterDraft.categories),
+      tags: parseFilterLines(filterDraft.tags),
+      bookTypes: parseFilterLines(filterDraft.bookTypes),
+    }
+    try {
+      await saveBookFilterSettings(next)
+      setFilterSettings(next)
+      setMessage('گزینه‌های فیلتر کتاب ذخیره شد.')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'ذخیره گزینه‌های فیلتر ناموفق بود.')
+    }
+    setTimeout(() => setMessage(''), 3000)
+  }
+
+  const fillFiltersFromBooks = () => {
+    const categories = Array.from(new Set(mockBooks.map(book => book.category).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'fa'))
+    const tags = Array.from(new Set(mockBooks.flatMap(book => book.tags || []).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'fa'))
+    const bookTypes = Array.from(new Set(mockBooks.map(book => book.book_type || 'تألیف').filter(Boolean))).sort((a, b) => a.localeCompare(b, 'fa'))
+    setFilterDraft({
+      categories: categories.join('\n'),
+      tags: tags.join('\n'),
+      bookTypes: bookTypes.join('\n'),
+    })
   }
 
   const testSupabaseConnection = async () => {
