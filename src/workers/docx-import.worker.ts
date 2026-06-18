@@ -284,6 +284,60 @@ function hasPageBreak(node: unknown) {
     || deepFind(node, 'w:lastRenderedPageBreak').length > 0
 }
 
+type PrintNumberState = { value: number; format: string }
+
+function romanNumber(value: number) {
+  if (!Number.isFinite(value) || value <= 0 || value >= 4000) return String(value)
+  const pairs: Array<[number, string]> = [[1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'], [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']]
+  let remaining = Math.floor(value)
+  let output = ''
+  for (const [number, label] of pairs) {
+    while (remaining >= number) {
+      output += label
+      remaining -= number
+    }
+  }
+  return output
+}
+
+function alphaNumber(value: number, uppercase = false) {
+  if (!Number.isFinite(value) || value <= 0) return String(value)
+  let remaining = Math.floor(value)
+  let output = ''
+  while (remaining > 0) {
+    remaining -= 1
+    output = String.fromCharCode((uppercase ? 65 : 97) + (remaining % 26)) + output
+    remaining = Math.floor(remaining / 26)
+  }
+  return output
+}
+
+function formatPrintNumber(value: number, format = 'decimal') {
+  const normalized = String(format || 'decimal').toLowerCase()
+  if (normalized.includes('roman')) {
+    const roman = romanNumber(value)
+    return normalized.includes('upper') ? roman : roman.toLowerCase()
+  }
+  if (normalized.includes('letter')) return alphaNumber(value, normalized.includes('upper'))
+  return value
+}
+
+function printPageLabel(value: number | string | undefined) {
+  if (value === undefined || value === null || value === '') return 'نامشخص'
+  return Number.isFinite(Number(value)) ? Number(value).toLocaleString('fa-IR') : String(value)
+}
+
+function pageNumberSettings(node: unknown) {
+  const matches = deepFind(node, 'w:pgNumType')
+    .map(item => item && typeof item === 'object' ? (item as Record<string, unknown>)[':@'] as Record<string, unknown> | undefined : undefined)
+    .filter(Boolean)
+  const attrs = matches[matches.length - 1]
+  if (!attrs) return null
+  const start = Number(attrs['@_w:start'] ?? attrs['@_start'] ?? 0)
+  const format = String(attrs['@_w:fmt'] ?? attrs['@_fmt'] ?? 'decimal')
+  return { start: Number.isFinite(start) && start > 0 ? start : undefined, format }
+}
+
 function relationIds(node: unknown) {
   const ids = new Set<string>()
   for (const attrs of [...findElementAttributes(node, 'a:blip'), ...findElementAttributes(node, 'v:imagedata')]) {
@@ -526,15 +580,19 @@ async function analyze(file: File): Promise<WordImportAnalysis> {
   const parsed = orderedParser.parse(await documentEntry.async('text'))
   const body = deepFind(parsed, 'w:body')[0] || parsed
   const bodyItems = Array.isArray(body) ? body : [body]
-  const pages: ImportPage[] = [{ number: 1, printNumber: 1, blocks: [] }]
+  let printState: PrintNumberState | null = null
+  const printNumberForState = () => printState ? formatPrintNumber(printState.value, printState.format) : undefined
+  const pages: ImportPage[] = [{ number: 1, printNumber: printNumberForState(), blocks: [] }]
   const toc: TocEntry[] = []
   const issues: ImportIssue[] = []
   let paragraphNumber = 0
   let tableNumber = 0
 
-  const pushPage = (printNumber?: number) => {
+  const pushPage = (settings?: { start?: number; format?: string } | null) => {
     if (pages.length >= 2000) return
-    pages.push({ number: pages.length + 1, printNumber: printNumber ?? (pages[pages.length - 1].printNumber || pages.length) + 1, blocks: [] })
+    if (settings?.start) printState = { value: settings.start, format: settings.format || 'decimal' }
+    else if (printState) printState = { ...printState, value: printState.value + 1 }
+    pages.push({ number: pages.length + 1, printNumber: printNumberForState(), blocks: [] })
   }
 
   const append = (block: ImportParagraph) => {
@@ -555,7 +613,11 @@ async function analyze(file: File): Promise<WordImportAnalysis> {
       }
     }
     pages[pages.length - 1].blocks.push(block)
-    if (block.type === 'heading' && block.text) toc.push({ id: block.id, title: block.text, level: block.level || 1, page: pages[pages.length - 1].printNumber || pages.length, included: true, styleId: block.style })
+    if (block.type === 'heading' && block.text) {
+      const page = pages[pages.length - 1]
+      const numericPrintNumber = Number(page.printNumber)
+      toc.push({ id: block.id, title: block.text, level: block.level || 1, page: Number.isFinite(numericPrintNumber) ? numericPrintNumber : page.number, included: true, styleId: block.style })
+    }
   }
 
   for (const item of bodyItems.flatMap(value => Array.isArray(value) ? value : [value])) {
@@ -566,8 +628,8 @@ async function analyze(file: File): Promise<WordImportAnalysis> {
       const node = record['w:p']
       const normalized = normalizeParagraph(node, paragraphNumber, imageRelations, hyperlinks, styles, numberingFormats)
       normalized.forEach(append)
-      const sectionPageStart = Number(elementAttribute(node, 'w:pgNumType', '@_w:start', '@_start') || 0)
-      if (sectionPageStart && pages[pages.length - 1].blocks.length) pushPage(sectionPageStart)
+      const sectionPageStart = pageNumberSettings(node)
+      if (sectionPageStart?.start && pages[pages.length - 1].blocks.length) pushPage(sectionPageStart)
       else if (hasPageBreak(node) && !normalized.some(block => block.pageBreakBefore)) pushPage()
     } else if ('w:tbl' in record) {
       tableNumber += 1
@@ -579,6 +641,23 @@ async function analyze(file: File): Promise<WordImportAnalysis> {
   while (lastContentPageIndex > 0 && !pages[lastContentPageIndex].blocks.length) lastContentPageIndex -= 1
   const physicalPages = pages.slice(0, Math.max(1, lastContentPageIndex + 1))
   const contentPages = physicalPages
+  const hasExplicitPrintNumbers = contentPages.some(page => page.printNumber !== undefined)
+  if (!hasExplicitPrintNumbers) {
+    const firstTextPageIndex = contentPages.findIndex(page => (page.blocks || []).some(block => block.type === 'heading'))
+    if (firstTextPageIndex >= 0) {
+      contentPages.forEach((page, index) => {
+        page.printNumber = index >= firstTextPageIndex ? index - firstTextPageIndex + 1 : undefined
+      })
+    }
+  }
+  const pageForBlockId = new Map<string, ImportPage>()
+  contentPages.forEach(page => page.blocks.forEach(block => pageForBlockId.set(block.id, page)))
+  toc.forEach(item => {
+    const page = pageForBlockId.get(item.id)
+    if (!page) return
+    const printNumber = Number(page.printNumber)
+    item.page = Number.isFinite(printNumber) ? printNumber : page.number
+  })
 
   const paragraphs = contentPages.flatMap(page => page.blocks)
   const footnoteTargets = new Map(footnotes.map(note => [note.id, note.text]))
@@ -598,11 +677,11 @@ async function analyze(file: File): Promise<WordImportAnalysis> {
       span.referenceText = targetText.slice(0, 800)
     }
   }))
-  const imageUsage = new Map<string, { pages: Set<number>; caption?: string; previewBlockId?: string; contextBefore?: string; contextAfter?: string }>()
+  const imageUsage = new Map<string, { pages: Set<number | string>; caption?: string; previewBlockId?: string; contextBefore?: string; contextAfter?: string }>()
   contentPages.forEach(page => page.blocks.forEach((block, index, blocks) => {
     if (block.type !== 'image' || !block.imageId) return
     const usage = imageUsage.get(block.imageId) || { pages: new Set<number>() }
-    usage.pages.add(page.printNumber || page.number)
+    usage.pages.add(page.printNumber ?? page.number)
     const next = blocks[index + 1]
     const previous = blocks[index - 1]
     usage.caption ||= next?.type === 'caption' ? next.text : previous?.type === 'caption' ? previous.text : undefined
@@ -625,14 +704,15 @@ async function analyze(file: File): Promise<WordImportAnalysis> {
   const convertedImageCount = images.filter(image => image.conversionStatus === 'converted-local').length
   if (convertedImageCount) issues.push({ id: 'image-format-summary', code: 'converted-image', severity: 'info', message: `از مجموع ${images.length.toLocaleString('fa-IR')} تصویر، ${convertedImageCount.toLocaleString('fa-IR')} تصویر پیش از آپلود به‌صورت محلی تبدیل و در پیش‌نمایش جایگزین شد.`, page: 1 })
   images.filter(image => image.isReferenced && image.conversionStatus === 'conversion-failed').forEach(image => {
-    const page = image.wordPages?.[0] || 1
+    const printPage = image.wordPages?.[0] || 1
+    const issuePage = Number(printPage)
     issues.push({
       id: `image-conversion-failed-${image.id}`,
       imageId: image.id,
       code: 'unsupported-image',
       severity: 'warning',
-      page,
-      message: `${image.caption || image.originalName || image.name} در صفحه چاپی ${page.toLocaleString('fa-IR')} تبدیل نشد: ${image.conversionError || 'فرمت پشتیبانی نمی‌شود.'}`,
+      page: Number.isFinite(issuePage) ? issuePage : 1,
+      message: `${image.caption || image.originalName || image.name} در صفحه چاپی ${printPageLabel(printPage)} تبدیل نشد: ${image.conversionError || 'فرمت پشتیبانی نمی‌شود.'}`,
     })
   })
   const stats = {

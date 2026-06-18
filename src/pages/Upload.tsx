@@ -17,6 +17,11 @@ function bytes(value: number) {
   return new Intl.NumberFormat('fa-IR', { style: 'unit', unit: 'megabyte', maximumFractionDigits: 1 }).format(value / 1024 / 1024)
 }
 
+function printPageLabel(value: number | string | undefined) {
+  if (value === undefined || value === null || value === '') return 'نامشخص'
+  return Number.isFinite(Number(value)) ? Number(value).toLocaleString('fa-IR') : String(value)
+}
+
 function parseLines(value: string) {
   return value.split(/\r?\n/).map(item => item.trim()).filter(Boolean)
 }
@@ -329,7 +334,7 @@ export default function Upload() {
                 {analysis.images.filter(image => image.isReferenced !== false && image.conversionStatus === 'conversion-failed').map(image => <div key={image.id}>
                   <span>
                     <b>{image.caption || image.originalName || image.name}</b>
-                    <small>صفحه چاپی Word: {image.wordPages?.map(page => page.toLocaleString('fa-IR')).join('، ') || 'نامشخص'} · {image.conversionError}</small>
+                    <small>صفحه چاپی Word: {image.wordPages?.map(page => printPageLabel(page)).join('، ') || 'نامشخص'} · {image.conversionError}</small>
                     {image.contextBefore && <small><strong>متن قبل:</strong> {image.contextBefore}</small>}
                     {image.contextAfter && <small><strong>متن بعد:</strong> {image.contextAfter}</small>}
                     {image.previewBlockId && <button type="button" className="word-image-locate" onClick={() => scrollToPreviewBlock(image.previewBlockId!)}>نمایش محل در پیش‌نمایش</button>}
@@ -401,7 +406,7 @@ export default function Upload() {
               <article className="word-web-preview">
                 {analysis.previewPages.map((page, pageIndex) => {
                   return <section key={page.number} id={`preview-page-${page.number}`} className="word-preview-page-section">
-                  {pageIndex > 0 && <div className="word-page-divider"><span>صفحه چاپی {(page.printNumber || page.number).toLocaleString('fa-IR')}</span></div>}
+                  {pageIndex > 0 && page.printNumber !== undefined && <div className="word-page-divider"><span>صفحه چاپی {printPageLabel(page.printNumber)}</span></div>}
                   {page.blocks.map(block => {
                     if (block.type === 'heading') {
                       const Tag = `h${Math.min(6, block.level || 2)}` as keyof React.JSX.IntrinsicElements

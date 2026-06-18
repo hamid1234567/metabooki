@@ -59,7 +59,7 @@ export function blockToReaderBlock(block: ImportParagraph, imageUrls: Record<str
       url: imageUrls[block.imageId || ''] || '',
       caption: normalizeBookText(image?.caption || ''),
       imageId: block.imageId,
-      printPage: page?.printNumber || page?.number,
+      printPage: page?.printNumber,
       conversionStatus: image?.conversionStatus,
       conversionError: image?.conversionError,
       widthPx: block.imageWidthPx,

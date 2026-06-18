@@ -237,14 +237,17 @@ function blockHtml(block: any) {
 }
 
 function printPageLabel(page: any, fallback: number) {
-  const value = page?.printNumber || page?.number || fallback
+  const value = page?.printNumber
+  if (value === undefined || value === null || value === '') return ''
   return Number.isFinite(Number(value)) ? Number(value).toLocaleString('fa-IR') : String(value)
 }
 
 function pagesToHtml(pages: any[] = []) {
   return pages.map((page, index) => {
+    const beforeLabel = index ? printPageLabel(pages[index - 1], index) : ''
+    const afterLabel = index ? printPageLabel(page, index + 1) : ''
     const separator = index
-      ? `<hr data-page-break="true" data-before="پایان صفحه ${printPageLabel(pages[index - 1], index)}" data-after="شروع صفحه ${printPageLabel(page, index + 1)}">`
+      ? `<hr data-page-break="true" data-before="${beforeLabel ? `پایان صفحه ${beforeLabel}` : ''}" data-after="${afterLabel ? `شروع صفحه ${afterLabel}` : ''}">`
       : ''
     return `${separator}${(page.blocks || []).map(blockHtml).join('')}`
   }).join('')

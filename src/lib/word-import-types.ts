@@ -53,7 +53,7 @@ export interface ImportInlineSpan {
 
 export interface ImportPage {
   number: number
-  printNumber?: number
+  printNumber?: number | string
   blocks: ImportParagraph[]
 }
 
@@ -66,7 +66,7 @@ export interface ImportImage {
   originalMimeType?: string
   conversionStatus?: 'original-web' | 'converted-local' | 'conversion-failed'
   conversionError?: string
-  wordPages?: number[]
+  wordPages?: Array<number | string>
   caption?: string
   previewBlockId?: string
   contextBefore?: string

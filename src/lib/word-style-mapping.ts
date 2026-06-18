@@ -25,7 +25,7 @@ export function applyWordStyleMapping(
       id: block.id,
       title: block.text || '',
       level: block.level || 1,
-      page: page.printNumber || page.number,
+      page: Number.isFinite(Number(page.printNumber)) ? Number(page.printNumber) : page.number,
       included: analysis.toc.find(item => item.id === block.id)?.included ?? true,
       styleId: block.style,
       previewAvailable: pageIndex < 50,

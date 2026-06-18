@@ -231,8 +231,10 @@ export default function Reader() {
   const pageBackgroundAlpha = Number(page.background_alpha ?? book.metadata?.page_background_alpha ?? 0)
   const confirmedToc = Array.isArray(book.metadata?.confirmed_toc) ? book.metadata.confirmed_toc as Array<{ id?: string; title?: string; level?: number; page?: number }> : []
   const preludeTitle = book.metadata?.prelude_title || 'ابتدای کتاب'
-  const currentPrintNumber = page.printNumber || page.number || currentPage + 1
-  const currentPrintLabel = Number.isFinite(Number(currentPrintNumber)) ? Number(currentPrintNumber).toLocaleString('fa-IR') : String(currentPrintNumber)
+  const currentPrintNumber = page.printNumber
+  const currentPrintLabel = currentPrintNumber === undefined || currentPrintNumber === null || currentPrintNumber === ''
+    ? 'بدون شماره چاپی'
+    : Number.isFinite(Number(currentPrintNumber)) ? Number(currentPrintNumber).toLocaleString('fa-IR') : String(currentPrintNumber)
   const findTocPosition = (item: { id?: string; title?: string; page?: number }) => {
     if (item.id) {
       for (let pageIndex = 0; pageIndex < book.pages.length; pageIndex += 1) {
