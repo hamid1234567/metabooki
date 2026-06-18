@@ -1299,6 +1299,112 @@ body {
   backdrop-filter: blur(12px);
 }
 
+.publisher-sync-banner {
+  display: flex;
+  gap: 0.9rem;
+  align-items: flex-start;
+  border-radius: 1.25rem;
+  border: 1px solid hsl(210 38% 90% / 0.72);
+  background: hsl(0 0% 100% / 0.58);
+  box-shadow: var(--shadow-glass);
+  backdrop-filter: blur(18px) saturate(1.25);
+  -webkit-backdrop-filter: blur(18px) saturate(1.25);
+  padding: 1rem;
+}
+
+[data-theme="midnight"] .publisher-sync-banner {
+  background: hsl(222 30% 14% / 0.62);
+  border-color: hsl(222 30% 28% / 0.48);
+}
+
+.publisher-sync-icon {
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: hsl(201 90% 48%);
+  background: hsl(201 90% 48% / 0.12);
+  flex: 0 0 auto;
+}
+
+.publisher-sync-banner.is-error .publisher-sync-icon {
+  color: hsl(0 72% 48%);
+  background: hsl(0 72% 48% / 0.12);
+}
+
+.publisher-sync-banner.is-done .publisher-sync-icon {
+  color: hsl(145 64% 38%);
+  background: hsl(145 64% 38% / 0.12);
+}
+
+.publisher-sync-count,
+.publisher-list-state,
+.publisher-sync-card-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  border: 1px solid hsl(201 90% 48% / 0.22);
+  background: hsl(201 90% 48% / 0.1);
+  color: hsl(201 90% 36%);
+  padding: 0.25rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.publisher-list-state.is-error {
+  border-color: hsl(0 72% 48% / 0.25);
+  background: hsl(0 72% 48% / 0.1);
+  color: hsl(0 72% 42%);
+}
+
+.publisher-list-state.is-done {
+  border-color: hsl(145 64% 38% / 0.24);
+  background: hsl(145 64% 38% / 0.1);
+  color: hsl(145 64% 32%);
+}
+
+.publisher-sync-card-chip {
+  position: absolute;
+  top: 0.8rem;
+  inset-inline-end: 0.8rem;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.68rem;
+}
+
+.publisher-sync-progress {
+  position: relative;
+  height: 0.35rem;
+  border-radius: 999px;
+  background: hsl(201 90% 48% / 0.12);
+  overflow: hidden;
+  margin-top: 0.8rem;
+}
+
+.publisher-sync-progress span {
+  position: absolute;
+  inset-block: 0;
+  width: 42%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, hsl(201 90% 48% / 0.15), hsl(201 90% 48% / 0.82), hsl(201 90% 48% / 0.15));
+  animation: publisher-sync-sweep 1.35s ease-in-out infinite;
+}
+
+.publisher-sync-error {
+  margin-top: 0.65rem;
+  color: hsl(0 72% 42%);
+  font-size: 0.78rem;
+  direction: ltr;
+  text-align: left;
+}
+
+@keyframes publisher-sync-sweep {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(260%); }
+}
+
 .book-rating {
   display: inline-flex;
   align-items: center;
