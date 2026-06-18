@@ -6,9 +6,12 @@ export type BookInlineSpan = ImportInlineSpan & {
   fontSize?: string
 }
 
-const LEGACY_ZWS_PATTERN = /\s*(?:Ãƒâ€šÃ‚Â¬|Ã‚Â¬|Ãƒâ€šÂ¬|Ã‚¬|Â¬|¬|\u00AC)\s*/g
-
 export type PrintPageValue = number | string | null | undefined
+
+const LEGACY_ZWS_PATTERN = /\s*(?:Ãƒâ€šÃ‚Â¬|Ã‚Â¬|Ãƒâ€šÂ¬|Ã‚¬|Â¬|¬|\u00AC)\s*/g
+const WORD_SUFFIX_HAYE_PATTERN = /([\u0600-\u06FF]{2,})(\u0647\u0627\u064a|\u0647\u0627\u06cc|\u0647\u0627\u0649|\u0647\u0627\u06cc\u06cc|\u0647\u0627\u064a\u064a)(?=$|[\s\u060c\u061b,.!?\u061f])/g
+const SAMPLE_BARDARI_PATTERN = /(\u0646\u0645\u0648\u0646\u0647)(\u0628\u0631\u062f\u0627\u0631[\u0600-\u06FF]*)/g
+const RADON_KHAR_PATTERN = /(\u0631\u0627\u062f\u0648\u0646)(\u062e\u0648\u0627\u0631[\u0600-\u06FF]*)/g
 
 function romanNumber(value: number) {
   if (!Number.isFinite(value) || value <= 0 || value >= 4000) return String(value)
@@ -55,8 +58,8 @@ export function printPageBoundaryLabels(previous?: { printNumber?: PrintPageValu
   const before = printPageLabel(previous?.printNumber)
   const after = printPageLabel(next?.printNumber)
   return {
-    before: before ? `پایان صفحه ${before}` : 'پایان صفحه بدون شماره چاپی',
-    after: after ? `شروع صفحه ${after}` : 'شروع صفحه بدون شماره چاپی',
+    before: before ? `\u067e\u0627\u06cc\u0627\u0646 \u0635\u0641\u062d\u0647 ${before}` : '\u067e\u0627\u06cc\u0627\u0646 \u0635\u0641\u062d\u0647 \u0628\u062f\u0648\u0646 \u0634\u0645\u0627\u0631\u0647 \u0686\u0627\u067e\u06cc',
+    after: after ? `\u0634\u0631\u0648\u0639 \u0635\u0641\u062d\u0647 ${after}` : '\u0634\u0631\u0648\u0639 \u0635\u0641\u062d\u0647 \u0628\u062f\u0648\u0646 \u0634\u0645\u0627\u0631\u0647 \u0686\u0627\u067e\u06cc',
   }
 }
 
@@ -69,9 +72,9 @@ export function normalizeBookText(value = '') {
   return String(value)
     .replace(LEGACY_ZWS_PATTERN, '\u200C')
     .replace(/\u00AD/g, '\u200C')
-    .replace(/([\u0600-\u06FF]{2,})(هاي|های|هاى|هایی|هايي)(?=$|[\s،؛,.!?؟])/g, '$1\u200C$2')
-    .replace(/(نمونه)(بردار[\u0600-\u06FF]*)/g, '$1\u200C$2')
-    .replace(/(رادون)(خوار[\u0600-\u06FF]*)/g, '$1\u200C$2')
+    .replace(WORD_SUFFIX_HAYE_PATTERN, '$1\u200C$2')
+    .replace(SAMPLE_BARDARI_PATTERN, '$1\u200C$2')
+    .replace(RADON_KHAR_PATTERN, '$1\u200C$2')
     .replace(/\u200C{2,}/g, '\u200C')
 }
 
@@ -143,7 +146,7 @@ export function blockToHtml(block: ImportParagraph | any) {
     return `<table><tbody>${rows.map((row: string[]) => `<tr>${row.map(cell => `<td>${escapeHtml(cell)}</td>`).join('')}</tr>`).join('')}</tbody></table>`
   }
   if (block.type === 'math') return `<p data-math="true">${escapeHtml(block.text || block.expression || '')}</p>`
-  if (block.type === 'image') return `<p data-image-id="${escapeHtml(block.imageId)}">[تصویر کتاب]</p>`
+  if (block.type === 'image') return `<p data-image-id="${escapeHtml(block.imageId)}">[\u062a\u0635\u0648\u06cc\u0631 \u06a9\u062a\u0627\u0628]</p>`
   if (block.type === 'list') {
     const tag = block.ordered ? 'ol' : 'ul'
     return `<${tag}>${(block.items || []).map((item: any) => `<li>${inlineToHtml(item.inline, item.text)}</li>`).join('')}</${tag}>`
