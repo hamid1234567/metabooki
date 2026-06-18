@@ -3,7 +3,7 @@ import JSZip from 'jszip'
 import { XMLParser } from 'fast-xml-parser'
 import UTIF from 'utif'
 import { convertEmfToDataUrl, convertWmfToDataUrl } from 'emf-converter'
-import { formatPrintNumber, printPageLabel } from '@/lib/book-content'
+import { formatPrintNumber, normalizeBookText, printPageLabel } from '@/lib/book-content'
 import type { ImportFootnote, ImportImage, ImportInlineSpan, ImportIssue, ImportPage, ImportParagraph, TocEntry, WordImportAnalysis, WordStyleDefinition } from '@/lib/word-import-types'
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope
