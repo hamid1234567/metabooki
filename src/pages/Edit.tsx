@@ -322,6 +322,31 @@ function buildConfirmedTocSegments(pages: any[] = [], toc: ConfirmedTocEntry[] =
   return segments
 }
 
+function segmentHasChildren(segments: EditorSegment[], index: number) {
+  const level = Number(segments[index]?.level || 1)
+  for (let cursor = index + 1; cursor < segments.length; cursor++) {
+    const nextLevel = Number(segments[cursor]?.level || 1)
+    if (nextLevel <= level) return false
+    if (nextLevel > level) return true
+  }
+  return false
+}
+
+function buildTocTreeRows(segments: EditorSegment[], collapsedKeys: Set<string>) {
+  let h1Counter = 0
+  const hiddenByLevels: number[] = []
+  return segments.map((segment, index) => {
+    const level = Math.min(6, Math.max(1, Number(segment.level || 1)))
+    while (hiddenByLevels.length && hiddenByLevels[hiddenByLevels.length - 1] >= level) hiddenByLevels.pop()
+    const hidden = hiddenByLevels.length > 0
+    const hasChildren = segmentHasChildren(segments, index)
+    const collapsed = collapsedKeys.has(segment.key)
+    if (!hidden && hasChildren && collapsed) hiddenByLevels.push(level)
+    if (level === 1) h1Counter += 1
+    return { segment, index, level, hidden, hasChildren, collapsed, h1Counter }
+  })
+}
+
 function extractSegmentPages(pages: any[] = [], segment?: EditorSegment) {
   if (!segment) return []
   return pages.slice(segment.start, segment.end).map((page, index, selectedPages) => {
@@ -469,11 +494,13 @@ export default function Edit() {
   const [editingTocIndex, setEditingTocIndex] = useState<number | null>(null)
   const [editingTocTitle, setEditingTocTitle] = useState('')
   const [confirmTocDelete, setConfirmTocDelete] = useState<number | null>(null)
+  const [collapsedTocKeys, setCollapsedTocKeys] = useState<Set<string>>(() => new Set())
   const imageInputRef = useRef<HTMLInputElement>(null)
   const documentStageRef = useRef<HTMLElement>(null)
   const switchingSegmentRef = useRef(false)
   const tocEntries = useMemo(() => confirmedTocFromBook(book), [book])
   const segments = useMemo(() => buildConfirmedTocSegments(allPages, tocEntries, preludeTitle), [allPages, tocEntries, preludeTitle])
+  const tocTreeRows = useMemo(() => buildTocTreeRows(segments, collapsedTocKeys), [segments, collapsedTocKeys])
   const activeSegment = segments[Math.min(activeSegmentIndex, Math.max(0, segments.length - 1))] || segments[0]
   const bookImages = useMemo(() => {
     const pageImages = allPages.flatMap((page: any, pageIndex: number) => (page.blocks || [])
@@ -835,6 +862,25 @@ export default function Edit() {
     setActiveSegmentIndex(index => Math.max(0, Math.min(index, tocEntries.length - 2)))
     setConfirmTocDelete(null)
   }
+  const toggleTocBranch = (key: string) => {
+    setCollapsedTocKeys(current => {
+      const next = new Set(current)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+  const collapseTocByLevel = (maxLevel: number) => {
+    setCollapsedTocKeys(new Set(segments
+      .filter((segment, index) => Number(segment.level || 1) <= maxLevel && segmentHasChildren(segments, index))
+      .map(segment => segment.key)))
+  }
+  const collapseAllToc = () => {
+    setCollapsedTocKeys(new Set(segments
+      .filter((_, index) => segmentHasChildren(segments, index))
+      .map(segment => segment.key)))
+  }
+  const expandAllToc = () => setCollapsedTocKeys(new Set())
   const handleInteractiveAction = async (value: string) => {
     if (!value) return
     if (value === 'edit-current') {
