@@ -6,9 +6,10 @@ import { getPublisherBooks, type PublisherBook } from '@/lib/publisher-books'
 import { canDeletePublisherBook, deletePublisherBookCompletely } from '@/lib/publisher-delete'
 import { getAllComments } from '@/lib/mock-comments'
 import metabookiMark from '@/assets/metabooki-mark.png'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { useAuthContext } from '@/lib/auth-context'
+import { BOOK_LIST_PAGE_SIZE, filterByValue, normalizeBookType, pageNumbers, paginate, searchBooks, sortBooks, uniqueBookValues, type BookSortKey } from '@/lib/book-listing'
 
 const stageMeta = {
   editing: { label: 'در حال ویرایش', className: 'bg-blue-500 text-white', icon: FileText },
@@ -28,6 +29,12 @@ export default function Publisher() {
   const [remoteLoaded, setRemoteLoaded] = useState(false)
   const [remoteError, setRemoteError] = useState('')
   const [deletingBookId, setDeletingBookId] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+  const [stageFilter, setStageFilter] = useState('all')
+  const [categoryFilter, setCategoryFilter] = useState('all')
+  const [typeFilter, setTypeFilter] = useState('all')
+  const [sort, setSort] = useState<BookSortKey>('newest')
+  const [page, setPage] = useState(1)
   const comments = getAllComments()
   const totalReaders = books.reduce((sum, b) => sum + b.readers, 0)
   const inStore = books.filter(b => b.stage === 'store' || b.stage === 'published').length
@@ -41,6 +48,24 @@ export default function Publisher() {
       : remoteLoaded && isRemoteConfigured
         ? 'فهرست کامل شد'
         : 'فهرست محلی'
+  const categories = useMemo(() => uniqueBookValues(books, book => book.category), [books])
+  const bookTypes = useMemo(() => uniqueBookValues(books, book => normalizeBookType(book.book_type)), [books])
+  const filteredBooks = useMemo(() => {
+    const byStage = stageFilter === 'published'
+      ? books.filter(book => book.stage === 'published' || book.stage === 'store' || book.status === 'published')
+      : stageFilter === 'unpublished'
+        ? books.filter(book => book.stage !== 'published' && book.stage !== 'store' && book.status !== 'published')
+        : books
+    const byCategory = filterByValue(byStage, categoryFilter, book => book.category)
+    const byType = filterByValue(byCategory, typeFilter, book => normalizeBookType(book.book_type))
+    return sortBooks(searchBooks(byType, search), sort)
+  }, [books, categoryFilter, search, sort, stageFilter, typeFilter])
+  const pagedBooks = paginate(filteredBooks, page, BOOK_LIST_PAGE_SIZE)
+
+  useEffect(() => setPage(1), [categoryFilter, search, sort, stageFilter, typeFilter])
+  useEffect(() => {
+    if (page > pagedBooks.pageCount) setPage(pagedBooks.pageCount)
+  }, [page, pagedBooks.pageCount])
 
   useEffect(() => {
     if (!user || !import.meta.env.VITE_SUPABASE_URL?.startsWith('http')) {
@@ -187,7 +212,20 @@ export default function Publisher() {
             <span>درآمد نمونه: <b className="text-primary">{revenue.toLocaleString('fa-IR')}</b> کردیت</span>
           </div>
         </div>
-        {books.map(book => {
+
+        <div className="list-control-panel">
+          <label className="is-wide"><span>جستجو</span><input value={search} onChange={event => setSearch(event.target.value)} placeholder="عنوان، نویسنده، ناشر یا برچسب..." /></label>
+          <label><span>وضعیت</span><select value={stageFilter} onChange={event => setStageFilter(event.target.value)}><option value="all">همه</option><option value="published">منتشر شده / فروشگاه</option><option value="unpublished">منتشر نشده</option></select></label>
+          <label><span>دسته‌بندی</span><select value={categoryFilter} onChange={event => setCategoryFilter(event.target.value)}><option value="all">همه دسته‌ها</option>{categories.map(category => <option key={category} value={category}>{category}</option>)}</select></label>
+          <label><span>نوع کتاب</span><select value={typeFilter} onChange={event => setTypeFilter(event.target.value)}><option value="all">همه نوع‌ها</option>{bookTypes.map(type => <option key={type} value={type}>{type}</option>)}</select></label>
+          <label><span>مرتب‌سازی</span><select value={sort} onChange={event => setSort(event.target.value as BookSortKey)}><option value="newest">جدیدترین</option><option value="oldest">قدیمی‌ترین</option><option value="title-asc">عنوان: الف تا ی</option><option value="title-desc">عنوان: ی تا الف</option><option value="price-asc">قیمت: کم به زیاد</option><option value="price-desc">قیمت: زیاد به کم</option><option value="pages-desc">صفحات: زیاد به کم</option><option value="pages-asc">صفحات: کم به زیاد</option></select></label>
+        </div>
+
+        <div className="text-sm text-muted-foreground">
+          {filteredBooks.length.toLocaleString('fa-IR')} کتاب مطابق فیلترها؛ نمایش {pagedBooks.start.toLocaleString('fa-IR')} تا {pagedBooks.end.toLocaleString('fa-IR')} در صفحه ۵۰تایی
+        </div>
+
+        {pagedBooks.items.map(book => {
           const meta = stageMeta[book.stage]
           const commentsCount = comments.filter(c => c.bookId === book.id).length
           const canDelete = canDeletePublisherBook(book)
@@ -227,6 +265,18 @@ export default function Publisher() {
             </div>
           )
         })}
+
+        {filteredBooks.length === 0 && (
+          <div className="menu-glass-70 rounded-3xl p-12 text-center text-muted-foreground">کتابی با این فیلترها پیدا نشد.</div>
+        )}
+
+        {pagedBooks.pageCount > 1 && (
+          <div className="book-pagination">
+            <Button variant="outline" size="icon" onClick={() => setPage(current => Math.max(1, current - 1))} disabled={pagedBooks.page === 1}>‹</Button>
+            {pageNumbers(pagedBooks.page, pagedBooks.pageCount).map(number => <Button key={number} variant={pagedBooks.page === number ? 'default' : 'outline'} size="icon" onClick={() => setPage(number)}>{number.toLocaleString('fa-IR')}</Button>)}
+            <Button variant="outline" size="icon" onClick={() => setPage(current => Math.min(pagedBooks.pageCount, current + 1))} disabled={pagedBooks.page === pagedBooks.pageCount}>›</Button>
+          </div>
+        )}
       </section>
 
       <section className="grid md:grid-cols-3 gap-5">

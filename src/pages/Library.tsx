@@ -6,40 +6,25 @@ import { useAuthContext } from '@/lib/auth-context'
 import { useI18n } from '@/lib/i18n'
 import { getAllReadingProgress, getMockLibraryEntries } from '@/lib/mock-library'
 import { mockBooks, type MockBook } from '@/lib/mock-data'
-import { ArrowLeft, BookOpen, CheckCircle, Clock, PlayCircle, ShoppingCart, Sparkles } from 'lucide-react'
+import { BOOK_LIST_PAGE_SIZE, filterByValue, normalizeBookType, pageNumbers, paginate, searchBooks, sortBooks, uniqueBookValues, type BookSortKey } from '@/lib/book-listing'
+import { ArrowLeft, BookOpen, CheckCircle, ChevronLeft, ChevronRight, Clock, PlayCircle, Search, ShoppingCart, Sparkles } from 'lucide-react'
 import { getUserLibrary } from '@/lib/book-repository'
 
 type ProgressMap = Record<string, { currentPage: number; totalPages: number; lastReadAt: string }>
+type ShelfItem = { book: MockBook; isPurchased: boolean }
 
-function ShelfBookCard({
-  book,
-  isPurchased,
-  progress,
-  index,
-}: {
-  book: MockBook
-  isPurchased: boolean
-  progress?: ProgressMap[string]
-  index: number
-}) {
+function ShelfBookCard({ book, isPurchased, progress, index }: { book: MockBook; isPurchased: boolean; progress?: ProgressMap[string]; index: number }) {
   const percent = progress ? Math.round(((progress.currentPage + 1) / book.pages.length) * 100) : 0
   const isFinished = percent >= 100
   const lastRead = progress?.lastReadAt ? new Date(progress.lastReadAt).toLocaleDateString('fa-IR') : null
-  const actionText = isPurchased
-    ? progress ? 'ادامه خواندن' : 'شروع خواندن'
-    : 'افزودن به قفسه'
+  const actionText = isPurchased ? progress ? 'ادامه خواندن' : 'شروع خواندن' : 'افزودن به قفسه'
 
   return (
-    <article
-      className="shelf-card group"
-      style={{ animationDelay: `${Math.min(index, 8) * 45}ms` }}
-    >
+    <article className="shelf-card group" style={{ animationDelay: `${Math.min(index, 8) * 45}ms` }}>
       <Link to={`/b/${book.id}`} className="shelf-cover">
         <BookCover src={book.cover_url} title={book.title} category={book.category} loading={index < 8 ? 'eager' : 'lazy'} fetchPriority={index < 4 ? 'high' : 'auto'} />
         <div className="book-card-sheen" />
-        <span className={isPurchased ? 'book-pill book-pill-primary' : 'book-pill book-pill-success'}>
-          {isPurchased ? 'در قفسه شما' : 'رایگان'}
-        </span>
+        <span className={isPurchased ? 'book-pill book-pill-primary' : 'book-pill book-pill-success'}>{isPurchased ? 'در قفسه شما' : 'رایگان'}</span>
       </Link>
 
       <div className="shelf-content">
@@ -60,34 +45,20 @@ function ShelfBookCard({
               <span className="font-bold text-primary">{percent.toLocaleString('fa-IR')}٪</span>
             </div>
             <div className="h-2 overflow-hidden rounded-full bg-background">
-              <div
-                className={`h-full rounded-full transition-all duration-500 ${isFinished ? 'bg-success' : 'bg-primary'}`}
-                style={{ width: `${Math.min(percent, 100)}%` }}
-              />
+              <div className={`h-full rounded-full transition-all duration-500 ${isFinished ? 'bg-success' : 'bg-primary'}`} style={{ width: `${Math.min(percent, 100)}%` }} />
             </div>
             <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
-              <span>صفحه {progress ? progress.currentPage + 1 : 1} از {book.pages.length}</span>
+              <span>صفحه {progress ? (progress.currentPage + 1).toLocaleString('fa-IR') : '۱'} از {book.pages.length.toLocaleString('fa-IR')}</span>
               {lastRead && <span className="inline-flex items-center gap-1"><Clock className="w-3 h-3" />{lastRead}</span>}
             </div>
           </div>
         ) : (
-          <div className="book-tags">
-            {book.tags.slice(0, 3).map(tag => <span key={tag}>{tag}</span>)}
-          </div>
+          <div className="book-tags">{book.tags.slice(0, 3).map(tag => <span key={tag}>{tag}</span>)}</div>
         )}
 
         <div className="mt-auto grid grid-cols-[1fr_auto] gap-2">
-          <Link to={`/read/${book.id}`}>
-            <Button className="w-full gap-2 rounded-xl">
-              <PlayCircle className="w-4 h-4" />
-              {actionText}
-            </Button>
-          </Link>
-          <Link to={`/b/${book.id}`}>
-            <Button variant="outline" size="icon" className="rounded-xl" title="جزئیات کتاب">
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-          </Link>
+          <Link to={`/read/${book.id}`}><Button className="w-full gap-2 rounded-xl"><PlayCircle className="w-4 h-4" />{actionText}</Button></Link>
+          <Link to={`/b/${book.id}`}><Button variant="outline" size="icon" className="rounded-xl" title="جزئیات کتاب"><ArrowLeft className="w-4 h-4" /></Button></Link>
         </div>
       </div>
     </article>
@@ -99,15 +70,22 @@ export default function Library() {
   const { t } = useI18n()
   const [libraryBooks, setLibraryBooks] = useState<MockBook[]>([])
   const [progress, setProgress] = useState<ProgressMap>({})
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [ownershipFilter, setOwnershipFilter] = useState('all')
+  const [categoryFilter, setCategoryFilter] = useState('all')
+  const [typeFilter, setTypeFilter] = useState('all')
+  const [sort, setSort] = useState<BookSortKey>('newest')
+  const [page, setPage] = useState(1)
 
   useEffect(() => {
+    setLoading(true)
     if (user?.mockData) {
       const entries = getMockLibraryEntries(user.mockData.id)
-      const books = entries
-        .map(entry => mockBooks.find(book => book.id === entry.bookId))
-        .filter(Boolean) as MockBook[]
+      const books = entries.map(entry => mockBooks.find(book => book.id === entry.bookId)).filter(Boolean) as MockBook[]
       setLibraryBooks(books)
       setProgress(getAllReadingProgress(user.mockData.id))
+      setLoading(false)
     } else if (user) {
       getUserLibrary(user.id).then(result => {
         setLibraryBooks(result.books)
@@ -115,9 +93,38 @@ export default function Library() {
       }).catch(() => {
         setLibraryBooks([])
         setProgress({})
-      })
+      }).finally(() => setLoading(false))
+    } else {
+      setLoading(false)
     }
   }, [user])
+
+  const freeBooks = mockBooks.filter(book => book.price === 0 && !libraryBooks.find(item => item.id === book.id))
+  const shelfItems: ShelfItem[] = [
+    ...libraryBooks.map(book => ({ book, isPurchased: true })),
+    ...freeBooks.map(book => ({ book, isPurchased: false })),
+  ]
+  const totalBooks = shelfItems.length
+  const activeBooks = libraryBooks.filter(book => progress[book.id] && progress[book.id].currentPage + 1 < book.pages.length).length
+  const categories = uniqueBookValues(shelfItems.map(item => item.book), book => book.category)
+  const bookTypes = uniqueBookValues(shelfItems.map(item => item.book), book => normalizeBookType(book.book_type))
+  const byOwnership = ownershipFilter === 'purchased'
+    ? shelfItems.filter(item => item.isPurchased)
+    : ownershipFilter === 'free'
+      ? shelfItems.filter(item => !item.isPurchased)
+      : shelfItems
+  const byCategory = filterByValue(byOwnership, categoryFilter, item => item.book.category)
+  const byType = filterByValue(byCategory, typeFilter, item => normalizeBookType(item.book.book_type))
+  const searched = searchBooks(byType.map(item => item.book), search)
+  const ids = new Set(searched.map(book => book.id))
+  const sortedBooks = sortBooks(byType.filter(item => ids.has(item.book.id)).map(item => item.book), sort)
+  const filteredItems = sortedBooks.map(book => byType.find(item => item.book.id === book.id)!).filter(Boolean)
+  const paged = paginate(filteredItems, page, BOOK_LIST_PAGE_SIZE)
+
+  useEffect(() => setPage(1), [categoryFilter, ownershipFilter, search, sort, typeFilter])
+  useEffect(() => {
+    if (page > paged.pageCount) setPage(paged.pageCount)
+  }, [page, paged.pageCount])
 
   if (!user) {
     return (
@@ -130,21 +137,13 @@ export default function Library() {
     )
   }
 
-  const freeBooks = mockBooks.filter(book => book.price === 0 && !libraryBooks.find(item => item.id === book.id))
-  const totalBooks = libraryBooks.length + freeBooks.length
-  const activeBooks = libraryBooks.filter(book => progress[book.id] && progress[book.id].currentPage + 1 < book.pages.length).length
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
       <section className="library-hero">
         <div>
-          <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary">
-            <Sparkles className="w-4 h-4" /> قفسه شخصی شما
-          </span>
+          <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary"><Sparkles className="w-4 h-4" /> قفسه شخصی شما</span>
           <h1 className="mt-5 text-3xl sm:text-4xl md:text-5xl font-black font-display">{t('nav_library')}</h1>
-          <p className="mt-3 max-w-2xl text-muted-foreground leading-relaxed">
-            کتاب‌هایی که خریده‌ای یا رایگان در دسترس‌اند اینجا مرتب شده‌اند؛ مستقیم ادامه بده یا کتاب تازه‌ای به قفسه اضافه کن.
-          </p>
+          <p className="mt-3 max-w-2xl text-muted-foreground leading-relaxed">کتاب‌هایی که خریده‌ای یا رایگان در دسترس‌اند اینجا مرتب شده‌اند؛ مستقیم ادامه بده یا کتاب تازه‌ای به قفسه اضافه کن.</p>
         </div>
         <div className="library-stats">
           <div><b>{totalBooks.toLocaleString('fa-IR')}</b><span>کتاب در دسترس</span></div>
@@ -154,66 +153,41 @@ export default function Library() {
       </section>
 
       <div className="flex justify-end">
-        <Link to="/store">
-          <Button variant="outline" className="gap-2 rounded-full px-5">
-            <ShoppingCart className="w-4 h-4" /> کشف کتاب‌های بیشتر
-          </Button>
-        </Link>
+        <Link to="/store"><Button variant="outline" className="gap-2 rounded-full px-5"><ShoppingCart className="w-4 h-4" /> کشف کتاب‌های بیشتر</Button></Link>
       </div>
 
-      {libraryBooks.length === 0 && freeBooks.length === 0 ? (
+      <section className="list-control-panel">
+        <label className="is-wide"><span>جستجو</span><div className="relative"><Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="عنوان، نویسنده یا برچسب..." className="pr-9" /></div></label>
+        <label><span>نوع قفسه</span><select value={ownershipFilter} onChange={event => setOwnershipFilter(event.target.value)}><option value="all">همه</option><option value="purchased">خریداری‌شده</option><option value="free">رایگان</option></select></label>
+        <label><span>دسته‌بندی</span><select value={categoryFilter} onChange={event => setCategoryFilter(event.target.value)}><option value="all">همه دسته‌ها</option>{categories.map(category => <option key={category} value={category}>{category}</option>)}</select></label>
+        <label><span>نوع کتاب</span><select value={typeFilter} onChange={event => setTypeFilter(event.target.value)}><option value="all">همه نوع‌ها</option>{bookTypes.map(type => <option key={type} value={type}>{type}</option>)}</select></label>
+        <label><span>مرتب‌سازی</span><select value={sort} onChange={event => setSort(event.target.value as BookSortKey)}><option value="newest">جدیدترین</option><option value="oldest">قدیمی‌ترین</option><option value="title-asc">عنوان: الف تا ی</option><option value="title-desc">عنوان: ی تا الف</option><option value="pages-desc">صفحات: زیاد به کم</option><option value="pages-asc">صفحات: کم به زیاد</option></select></label>
+      </section>
+
+      {loading ? (
+        <div className="library-book-grid">{Array.from({ length: 8 }).map((_, index) => <div key={index} className="h-64 animate-pulse rounded-2xl bg-muted/70" />)}</div>
+      ) : filteredItems.length === 0 ? (
         <div className="menu-glass-70 rounded-3xl p-12 text-center">
           <BookOpen className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-          <h2 className="text-xl font-semibold mb-2">قفسه هنوز خالی است</h2>
-          <p className="text-muted-foreground mb-6">از فروشگاه شروع کن و اولین کتابت را اضافه کن.</p>
+          <h2 className="text-xl font-semibold mb-2">کتابی پیدا نشد</h2>
+          <p className="text-muted-foreground mb-6">فیلترها را تغییر بده یا از فروشگاه کتاب تازه‌ای انتخاب کن.</p>
           <Link to="/store"><Button className="gap-2"><ShoppingCart className="w-4 h-4" />مشاهده فروشگاه</Button></Link>
         </div>
       ) : (
-        <>
-          {libraryBooks.length > 0 && (
-            <section>
-              <div className="mb-5 flex items-center justify-between gap-3">
-                <h2 className="text-2xl font-black font-display flex items-center gap-2">
-                  <CheckCircle className="w-5 h-5 text-success" /> خریداری شده‌ها
-                </h2>
-                <span className="text-sm text-muted-foreground">{libraryBooks.length.toLocaleString('fa-IR')} کتاب</span>
-              </div>
-              <div className="library-book-grid">
-                {libraryBooks.map((book, index) => (
-                  <ShelfBookCard
-                    key={book.id}
-                    book={book}
-                    isPurchased={true}
-                    progress={progress[book.id]}
-                    index={index}
-                  />
-                ))}
-              </div>
-            </section>
+        <section>
+          <div className="mb-5 flex items-center justify-between gap-3">
+            <h2 className="text-2xl font-black font-display flex items-center gap-2"><CheckCircle className="w-5 h-5 text-success" /> قفسه من</h2>
+            <span className="text-sm text-muted-foreground">{filteredItems.length.toLocaleString('fa-IR')} کتاب؛ نمایش {paged.start.toLocaleString('fa-IR')} تا {paged.end.toLocaleString('fa-IR')}</span>
+          </div>
+          <div className="library-book-grid">{paged.items.map((item, index) => <ShelfBookCard key={`${item.book.id}-${item.isPurchased ? 'owned' : 'free'}`} book={item.book} isPurchased={item.isPurchased} progress={progress[item.book.id]} index={index} />)}</div>
+          {paged.pageCount > 1 && (
+            <div className="book-pagination">
+              <Button variant="outline" size="icon" onClick={() => setPage(current => Math.max(1, current - 1))} disabled={paged.page === 1}><ChevronRight className="w-4 h-4" /></Button>
+              {pageNumbers(paged.page, paged.pageCount).map(number => <Button key={number} variant={paged.page === number ? 'default' : 'outline'} size="icon" onClick={() => setPage(number)}>{number.toLocaleString('fa-IR')}</Button>)}
+              <Button variant="outline" size="icon" onClick={() => setPage(current => Math.min(paged.pageCount, current + 1))} disabled={paged.page === paged.pageCount}><ChevronLeft className="w-4 h-4" /></Button>
+            </div>
           )}
-
-          {freeBooks.length > 0 && (
-            <section>
-              <div className="mb-5 flex items-center justify-between gap-3">
-                <h2 className="text-2xl font-black font-display flex items-center gap-2">
-                  <BookOpen className="w-5 h-5 text-primary" /> رایگان برای شروع
-                </h2>
-                <span className="text-sm text-muted-foreground">بدون پرداخت، مستقیم بخوانید</span>
-              </div>
-              <div className="library-book-grid">
-                {freeBooks.map((book, index) => (
-                  <ShelfBookCard
-                    key={book.id}
-                    book={book}
-                    isPurchased={false}
-                    progress={undefined}
-                    index={index}
-                  />
-                ))}
-              </div>
-            </section>
-          )}
-        </>
+        </section>
       )}
     </div>
   )

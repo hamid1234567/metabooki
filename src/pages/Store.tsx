@@ -5,9 +5,8 @@ import { BookCover } from '@/components/BookCover'
 import { useI18n } from '@/lib/i18n'
 import { bookCategories, type MockBook } from '@/lib/mock-data'
 import { getPublishedBooks } from '@/lib/book-repository'
+import { BOOK_LIST_PAGE_SIZE, filterByValue, normalizeBookType, pageNumbers, paginate, searchBooks, sortBooks, uniqueBookValues, type BookSortKey } from '@/lib/book-listing'
 import { ArrowLeft, BookOpen, ChevronLeft, ChevronRight, Eye, Search, ShoppingCart, Sparkles, Star } from 'lucide-react'
-
-const PAGE_SIZE = 16
 
 function BookShowcaseCard({ book, index }: { book: MockBook; index: number }) {
   const isFree = book.price === 0
@@ -21,15 +20,12 @@ function BookShowcaseCard({ book, index }: { book: MockBook; index: number }) {
     >
       <div className="book-card-cover">
         <BookCover src={book.cover_url} title={book.title} category={book.category} loading={index < 8 ? 'eager' : 'lazy'} fetchPriority={index < 4 ? 'high' : 'auto'} />
-
         <div className="book-card-sheen" />
-
         <div className="absolute top-3 right-3 flex flex-col gap-2">
           <span className={isFree ? 'book-pill book-pill-success' : 'book-pill book-pill-primary'}>
             {isFree ? 'رایگان' : `${book.price.toLocaleString('fa-IR')} کردیت`}
           </span>
         </div>
-
         <div className="book-card-hover">
           <Button size="sm" className="gap-2 rounded-full px-4 shadow-glow">
             {isFree ? <BookOpen className="w-4 h-4" /> : <ShoppingCart className="w-4 h-4" />}
@@ -51,16 +47,10 @@ function BookShowcaseCard({ book, index }: { book: MockBook; index: number }) {
         </div>
 
         <p className="book-card-description">{book.book_type || 'تألیف'} · {book.publisher_name}</p>
-
-        <div className="book-tags">
-          {book.tags.slice(0, 3).map(tag => <span key={tag}>{tag}</span>)}
-        </div>
-
+        <div className="book-tags">{book.tags.slice(0, 3).map(tag => <span key={tag}>{tag}</span>)}</div>
         <div className="book-card-footer">
           <span className="text-xs text-muted-foreground">{book.publisher_name}</span>
-          <span className="book-card-link">
-            جزئیات <ArrowLeft className="w-4 h-4" />
-          </span>
+          <span className="book-card-link">جزئیات <ArrowLeft className="w-4 h-4" /></span>
         </div>
       </div>
     </Link>
@@ -69,10 +59,13 @@ function BookShowcaseCard({ book, index }: { book: MockBook; index: number }) {
 
 export default function Store() {
   const [search, setSearch] = useState('')
+  const [typeFilter, setTypeFilter] = useState('all')
+  const [priceFilter, setPriceFilter] = useState('all')
+  const [sort, setSort] = useState<BookSortKey>('newest')
+  const [featuredSeed] = useState(() => new Date().getDate() * 24 + new Date().getHours())
   const [searchParams, setSearchParams] = useSearchParams()
   const { t } = useI18n()
   const activeCategory = searchParams.get('cat') || 'all'
-
   const [allBooks, setAllBooks] = useState<MockBook[]>([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
@@ -82,26 +75,26 @@ export default function Store() {
     getPublishedBooks().then(setAllBooks).catch(() => setAllBooks([])).finally(() => setLoading(false))
   }, [])
 
+  const bookTypes = useMemo(() => uniqueBookValues(allBooks, book => normalizeBookType(book.book_type)), [allBooks])
+
   const filtered = useMemo(() => {
-    const byCategory = activeCategory === 'all'
-      ? allBooks
-      : allBooks.filter(book => book.category === activeCategory)
+    const byCategory = activeCategory === 'all' ? allBooks : allBooks.filter(book => book.category === activeCategory)
+    const byType = filterByValue(byCategory, typeFilter, book => normalizeBookType(book.book_type))
+    const byPrice = priceFilter === 'free'
+      ? byType.filter(book => book.price === 0)
+      : priceFilter === 'paid'
+        ? byType.filter(book => book.price > 0)
+        : byType
+    return sortBooks(searchBooks(byPrice, search), sort)
+  }, [activeCategory, allBooks, priceFilter, search, sort, typeFilter])
 
-    if (!search.trim()) return byCategory
-    const q = search.toLowerCase()
-    return byCategory.filter(book =>
-      book.title.toLowerCase().includes(q) ||
-      book.subtitle?.toLowerCase().includes(q) ||
-      book.description.toLowerCase().includes(q) ||
-      book.tags?.some(tag => tag.toLowerCase().includes(q))
-    )
-  }, [activeCategory, allBooks, search])
+  const featuredPool = filtered.length ? filtered : allBooks
+  const featuredBook = featuredPool.length ? featuredPool[featuredSeed % featuredPool.length] : undefined
+  const paged = paginate(filtered, page, BOOK_LIST_PAGE_SIZE)
+  const pageCount = paged.pageCount
+  const visibleBooks = paged.items
 
-  const featuredBook = filtered[0] || allBooks[0]
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-  const visibleBooks = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-
-  useEffect(() => setPage(1), [activeCategory, search])
+  useEffect(() => setPage(1), [activeCategory, priceFilter, search, sort, typeFilter])
   useEffect(() => {
     if (page > pageCount) setPage(pageCount)
   }, [page, pageCount])
@@ -136,9 +129,7 @@ export default function Store() {
               <p className="text-xs text-primary font-bold">پیشنهاد ویژه</p>
               <h2 className="mt-1 text-xl font-black line-clamp-2">{featuredBook.title}</h2>
               <p className="mt-1 text-xs text-muted-foreground line-clamp-1">{featuredBook.author || 'نویسنده نامشخص'} · {featuredBook.book_type || 'تألیف'}</p>
-              <div className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-primary">
-                دیدن معرفی <ArrowLeft className="w-4 h-4" />
-              </div>
+              <div className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-primary">دیدن معرفی <ArrowLeft className="w-4 h-4" /></div>
             </div>
           </Link>
         )}
@@ -162,39 +153,35 @@ export default function Store() {
         ))}
       </div>
 
+      <section className="list-control-panel">
+        <label><span>نوع کتاب</span><select value={typeFilter} onChange={event => setTypeFilter(event.target.value)}><option value="all">همه نوع‌ها</option>{bookTypes.map(type => <option key={type} value={type}>{type}</option>)}</select></label>
+        <label><span>قیمت</span><select value={priceFilter} onChange={event => setPriceFilter(event.target.value)}><option value="all">همه</option><option value="free">رایگان</option><option value="paid">غیررایگان</option></select></label>
+        <label><span>مرتب‌سازی</span><select value={sort} onChange={event => setSort(event.target.value as BookSortKey)}><option value="newest">جدیدترین</option><option value="oldest">قدیمی‌ترین</option><option value="title-asc">عنوان: الف تا ی</option><option value="title-desc">عنوان: ی تا الف</option><option value="price-asc">قیمت: کم به زیاد</option><option value="price-desc">قیمت: زیاد به کم</option><option value="pages-desc">صفحات: زیاد به کم</option><option value="pages-asc">صفحات: کم به زیاد</option></select></label>
+      </section>
+
       <section>
         <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="text-2xl font-black font-display">کتاب‌های آماده خواندن</h2>
-            <p className="mt-1 text-sm text-muted-foreground">{filtered.length.toLocaleString('fa-IR')} کتاب برای انتخاب شما</p>
+            <p className="mt-1 text-sm text-muted-foreground">{filtered.length.toLocaleString('fa-IR')} کتاب؛ نمایش {paged.start.toLocaleString('fa-IR')} تا {paged.end.toLocaleString('fa-IR')} در صفحه ۵۰تایی</p>
           </div>
-          <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
-            <Eye className="w-4 h-4" /> روی جلدها حرکت کنید
-          </div>
+          <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground"><Eye className="w-4 h-4" /> روی جلدها حرکت کنید</div>
         </div>
 
         {loading ? (
-          <div className="store-book-grid">
-            {Array.from({ length: 12 }).map((_, index) => <div key={index} className="aspect-[3/5] animate-pulse rounded-xl bg-muted/70" />)}
-          </div>
+          <div className="store-book-grid">{Array.from({ length: 12 }).map((_, index) => <div key={index} className="aspect-[3/5] animate-pulse rounded-xl bg-muted/70" />)}</div>
         ) : filtered.length === 0 ? (
           <div className="menu-glass-70 rounded-3xl py-20 text-center">
             <BookOpen className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">
-              {search.trim() ? 'کتابی با این مشخصات پیدا نشد' : 'کتابی برای نمایش موجود نیست'}
-            </p>
+            <p className="text-muted-foreground">{search.trim() ? 'کتابی با این مشخصات پیدا نشد' : 'کتابی برای نمایش موجود نیست'}</p>
           </div>
         ) : (
           <>
-            <div className="store-book-grid">
-              {visibleBooks.map((book, index) => <BookShowcaseCard key={book.id} book={book} index={index} />)}
-            </div>
+            <div className="store-book-grid">{visibleBooks.map((book, index) => <BookShowcaseCard key={book.id} book={book} index={index} />)}</div>
             {pageCount > 1 && (
-              <div className="mt-8 flex items-center justify-center gap-2">
+              <div className="book-pagination">
                 <Button variant="outline" size="icon" onClick={() => setPage(current => Math.max(1, current - 1))} disabled={page === 1} title="صفحه قبل"><ChevronRight className="h-4 w-4" /></Button>
-                {Array.from({ length: pageCount }, (_, index) => index + 1).map(number => (
-                  <Button key={number} variant={page === number ? 'default' : 'outline'} size="icon" onClick={() => setPage(number)}>{number.toLocaleString('fa-IR')}</Button>
-                ))}
+                {pageNumbers(page, pageCount).map(number => <Button key={number} variant={page === number ? 'default' : 'outline'} size="icon" onClick={() => setPage(number)}>{number.toLocaleString('fa-IR')}</Button>)}
                 <Button variant="outline" size="icon" onClick={() => setPage(current => Math.min(pageCount, current + 1))} disabled={page === pageCount} title="صفحه بعد"><ChevronLeft className="h-4 w-4" /></Button>
               </div>
             )}
