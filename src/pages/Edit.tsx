@@ -842,7 +842,14 @@ export default function Edit() {
   return (
     <main className="book-editor-shell" dir="rtl">
       <header className="book-editor-head menu-glass-70">
-        <div><p>ادیتور کتاب · پیش‌نویس منتشرنشده</p><input value={title} onChange={event => setTitle(event.target.value)} aria-label="عنوان کتاب" /></div>
+        <div>
+          <RouterLink to="/publisher/me" className="mb-1 inline-flex w-max items-center gap-1 text-xs font-bold text-muted-foreground transition-colors hover:text-foreground">
+            <ArrowLeft className="h-4 w-4" />
+            بازگشت به انتشارات
+          </RouterLink>
+          <p>ادیتور کتاب · پیش‌نویس منتشرنشده</p>
+          <input value={title} onChange={event => setTitle(event.target.value)} aria-label="عنوان کتاب" />
+        </div>
         <div className="book-save-state"><Save />{saving ? 'در حال ذخیره…' : savedAt ? `ذخیره شد ${savedAt.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })}` : 'ذخیره خودکار فعال است'}</div>
         <div>
           <Button variant="outline" onClick={() => setMetadataOpen(value => !value)}><PanelTopClose />مشخصات</Button><Button variant="outline" onClick={() => void previewCurrentBook()}><Eye />پیش‌نمایش</Button><Button onClick={() => save()}><Save />ذخیره</Button>
