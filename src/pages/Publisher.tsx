@@ -201,21 +201,26 @@ export default function Publisher() {
                       <span className={`inline-flex items-center gap-1 text-xs px-3 py-1 rounded-full ${meta.className}`}><meta.icon className="w-3 h-3" />{meta.label}</span>
                       <h3 className="text-2xl font-black mt-3">{book.title}</h3>
                       <p className="text-sm text-muted-foreground mt-1">{book.author}</p>
-                      <div className="flex flex-wrap gap-3 text-xs text-muted-foreground mt-3"><span>ðŸ‘ {book.readers} Ø®ÙˆØ§Ù†Ù†Ø¯Ù‡</span><span>ðŸ›’ {book.sales} ÙØ±ÙˆØ´</span><span>ðŸ’¬ {commentsCount} Ù†Ø¸Ø±</span><span>{book.price === 0 ? 'Ø±Ø§ÛŒÚ¯Ø§Ù†' : `${book.price} Ú©Ø±Ø¯ÛŒØª`}</span></div>
+                      <div className="flex flex-wrap gap-3 text-xs text-muted-foreground mt-3">
+                        <span>{book.readers.toLocaleString('fa-IR')} خواننده</span>
+                        <span>{book.sales.toLocaleString('fa-IR')} فروش</span>
+                        <span>{commentsCount.toLocaleString('fa-IR')} نظر</span>
+                        <span>{book.price === 0 ? 'رایگان' : `${book.price.toLocaleString('fa-IR')} کردیت`}</span>
+                      </div>
                     </div>
                     <div className="grid grid-cols-3 gap-2 text-center">
-                      <div className="rounded-xl bg-background/50 p-3"><p className="font-bold">{book.readers}</p><p className="text-[10px] text-muted-foreground">Ø®ÙˆØ§Ù†Ù†Ø¯Ù‡</p></div>
-                      <div className="rounded-xl bg-background/50 p-3"><p className="font-bold">{book.sales}</p><p className="text-[10px] text-muted-foreground">ÙØ±ÙˆØ´</p></div>
-                      <div className="rounded-xl bg-background/50 p-3"><p className="font-bold">{book.revenue}</p><p className="text-[10px] text-muted-foreground">Ø³Ù‡Ù… Ø´Ù…Ø§</p></div>
+                      <div className="rounded-xl bg-background/50 p-3"><p className="font-bold">{book.readers.toLocaleString('fa-IR')}</p><p className="text-[10px] text-muted-foreground">خواننده</p></div>
+                      <div className="rounded-xl bg-background/50 p-3"><p className="font-bold">{book.sales.toLocaleString('fa-IR')}</p><p className="text-[10px] text-muted-foreground">فروش</p></div>
+                      <div className="rounded-xl bg-background/50 p-3"><p className="font-bold">{book.revenue.toLocaleString('fa-IR')}</p><p className="text-[10px] text-muted-foreground">سهم شما</p></div>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 mt-auto">
-                    <Button onClick={() => navigate(`/edit/${book.id}`)} className="gap-2 flex-1 sm:min-w-56"><FileText className="w-4 h-4" />ÙˆÛŒØ±Ø§ÛŒØ´ Ù…ØªÙ† Ùˆ Ù…Ø­ØªÙˆØ§</Button>
-                    <Button onClick={() => navigate(`/publish/${book.id}`)} className="gap-2 bg-amber-500 hover:bg-amber-600 flex-1 sm:min-w-56"><Rocket className="w-4 h-4" />Ù‚ÛŒÙ…ØªØŒ Ø³Ù‡Ø§Ù… Ùˆ Ø§Ù†ØªØ´Ø§Ø±</Button>
-                    <Button variant="outline" onClick={() => openBookPreview(book.id)} className="gap-2"><Eye className="w-4 h-4" />Ù¾ÛŒØ´â€ŒÙ†Ù…Ø§ÛŒØ´</Button>
-                    <Button variant="outline" className="gap-2"><MessageSquare className="w-4 h-4" />Ù†Ø¸Ø±Ø§Øª</Button>
-                    <Button variant="outline" disabled={!book.metadata?.import_project_id} onClick={() => reconvert(book)} className="gap-2"><RefreshCcw className="w-4 h-4" />ØªØ¨Ø¯ÛŒÙ„ Ù…Ø¬Ø¯Ø¯ Ø§Ø² ÙØ§ÛŒÙ„ Ø³Ø±ÙˆØ±</Button>
-                    {canDelete && <Button variant="ghost" disabled={deletingBookId === book.id} onClick={() => removeBook(book)} className="text-destructive"><Trash2 className="w-4 h-4" />{deletingBookId === book.id ? 'Ø¯Ø± Ø­Ø§Ù„ Ø­Ø°Ù...' : ''}</Button>}
+                    <Button onClick={() => navigate(`/edit/${book.id}`)} className="gap-2 flex-1 sm:min-w-56"><FileText className="w-4 h-4" />ویرایش متن و محتوا</Button>
+                    <Button onClick={() => navigate(`/publish/${book.id}`)} className="gap-2 bg-amber-500 hover:bg-amber-600 flex-1 sm:min-w-56"><Rocket className="w-4 h-4" />قیمت، سهام و انتشار</Button>
+                    <Button variant="outline" onClick={() => openBookPreview(book.id)} className="gap-2"><Eye className="w-4 h-4" />پیش‌نمایش</Button>
+                    <Button variant="outline" className="gap-2"><MessageSquare className="w-4 h-4" />نظرات</Button>
+                    <Button variant="outline" disabled={!book.metadata?.import_project_id} onClick={() => reconvert(book)} className="gap-2"><RefreshCcw className="w-4 h-4" />تبدیل مجدد از فایل سرور</Button>
+                    {canDelete && <Button variant="ghost" disabled={deletingBookId === book.id} onClick={() => removeBook(book)} className="text-destructive"><Trash2 className="w-4 h-4" />{deletingBookId === book.id ? 'در حال حذف...' : ''}</Button>}
                   </div>
                 </div>
               </div>
@@ -226,9 +231,9 @@ export default function Publisher() {
 
       <section className="grid md:grid-cols-3 gap-5">
         {[
-          { icon: BarChart3, title: 'Ø¢Ù…Ø§Ø± ÙØ±ÙˆØ´', desc: 'Ù†Ù…ÙˆØ¯Ø§Ø±Ù‡Ø§ÛŒ ÙØ±ÙˆØ´ØŒ Ø®ÙˆØ§Ù†Ø¯Ù‡â€ŒØ´Ø¯Ù† Ùˆ Ø¯Ø±Ø¢Ù…Ø¯ Ù‡Ø± Ú©ØªØ§Ø¨.' },
-          { icon: MessageSquare, title: 'Ù…Ø¯ÛŒØ±ÛŒØª Ø¯ÛŒØ¯Ú¯Ø§Ù‡', desc: 'Ø¯ÛŒØ¯Ú¯Ø§Ù‡â€ŒÙ‡Ø§ÛŒ Ú©Ø§Ø±Ø¨Ø±Ø§Ù† Ø±Ø§ Ø¨Ø±Ø±Ø³ÛŒØŒ Ù…Ø®ÙÛŒ ÛŒØ§ Ù¾Ø§Ø³Ø® Ø¯Ù‡ÛŒØ¯.' },
-          { icon: Store, title: 'ÙˆÛŒØªØ±ÛŒÙ† Ù†Ø§Ø´Ø±', desc: 'ØµÙØ­Ù‡ Ø¹Ù…ÙˆÙ…ÛŒ Ù†Ø§Ø´Ø± Ùˆ Ø¨Ø±Ù†Ø¯ÛŒÙ†Ú¯ Ø§Ø®ØªØµØ§ØµÛŒ Ø´Ù…Ø§.' },
+          { icon: BarChart3, title: 'آمار فروش', desc: 'نمودارهای فروش، خوانده‌شدن و درآمد هر کتاب.' },
+          { icon: MessageSquare, title: 'مدیریت دیدگاه', desc: 'دیدگاه‌های کاربران را بررسی، مخفی یا پاسخ دهید.' },
+          { icon: Store, title: 'ویترین ناشر', desc: 'صفحه عمومی ناشر و برندینگ اختصاصی شما.' },
         ].map(f => <div key={f.title} className="menu-glass-70 rounded-2xl p-6"><f.icon className="w-7 h-7 text-primary mb-3" /><h3 className="font-bold">{f.title}</h3><p className="text-sm text-muted-foreground mt-1">{f.desc}</p></div>)}
       </section>
     </div>
