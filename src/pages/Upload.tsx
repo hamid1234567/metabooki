@@ -189,13 +189,14 @@ export default function Upload() {
   })
 
   const renderInline = (block: WordImportAnalysis['previewPages'][number]['blocks'][number]) => {
-    if (!block.inline?.length) return block.text
+    if (!block.inline?.length) return normalizeBookText(block.text || '')
     return block.inline.map((span, index) => {
       const footnoteText = span.footnoteText || (span.footnoteId ? analysis?.footnotes?.find(note => note.id === span.footnoteId)?.text : undefined)
-      const content = span.footnoteId ? <sup className="word-footnote-reference">{span.footnoteId}</sup> : span.superscript ? <sup>{span.text}</sup> : span.subscript ? <sub>{span.text}</sub> : span.text
+      const spanText = normalizeBookText(span.text || '')
+      const content = span.footnoteId ? <sup className="word-footnote-reference">{span.footnoteId}</sup> : span.superscript ? <sup>{spanText}</sup> : span.subscript ? <sub>{spanText}</sub> : spanText
       const formatted = <span key={index} style={{ fontWeight: span.bold ? 800 : undefined, fontStyle: span.italic ? 'italic' : undefined }}>{content}</span>
-      if (span.footnoteId && footnoteText) return <span key={index} className="citation-reference footnote-reference" role="button" tabIndex={0}>{formatted}<span className="citation-tooltip">{footnoteText}</span></span>
-      if (span.referenceText) return <span key={index} className="citation-reference" role="button" tabIndex={0}>{formatted}<span className="citation-tooltip">{span.referenceText}</span></span>
+      if (span.footnoteId && footnoteText) return <span key={index} className="citation-reference footnote-reference" role="button" tabIndex={0}>{formatted}<span className="citation-tooltip">{normalizeBookText(footnoteText)}</span></span>
+      if (span.referenceText) return <span key={index} className="citation-reference" role="button" tabIndex={0}>{formatted}<span className="citation-tooltip">{normalizeBookText(span.referenceText)}</span></span>
       return span.href ? <a key={index} href={span.href} target={span.href.startsWith('#') ? undefined : '_blank'} rel="noreferrer">{formatted}</a> : formatted
     })
   }
@@ -413,6 +414,14 @@ export default function Upload() {
                         : imageUrls[block.imageId || ''] ? <figure key={block.id} id={`preview-${block.id}`} style={{ width: block.imageWidthPx ? `${block.imageWidthPx}px` : `${block.imageWidthPercent || 80}%`, maxWidth: '100%' }}><img src={imageUrls[block.imageId || '']} alt="تصویر استخراج‌شده از کتاب" /></figure> : null
                     }
                     if (block.type === 'table') return <div className="word-table-wrap final-table" key={block.id} id={`preview-${block.id}`}><table><tbody>{block.rows?.map((row, rowIndex) => <tr key={rowIndex}>{row.map((cell, cellIndex) => rowIndex === 0 ? <th key={cellIndex}>{cell}</th> : <td key={cellIndex}>{cell}</td>)}</tr>)}</tbody></table></div>
+                    if (block.type === 'list') {
+                      const Tag = block.ordered ? 'ol' : 'ul'
+                      return <Tag key={block.id} id={`preview-${block.id}`} className="reader-list" style={blockStyle(block)}>{(block.items || []).map((item, itemIndex) => <li key={itemIndex}>{item.inline?.length ? item.inline.map((span, index) => {
+                        const spanText = normalizeBookText(span.text || '')
+                        const content = span.footnoteId ? <sup className="word-footnote-reference">{span.footnoteId}</sup> : span.superscript ? <sup>{spanText}</sup> : span.subscript ? <sub>{spanText}</sub> : spanText
+                        return <span key={index} style={{ fontWeight: span.bold ? 800 : undefined, fontStyle: span.italic ? 'italic' : undefined }}>{content}</span>
+                      }) : normalizeBookText(item.text)}</li>)}</Tag>
+                    }
                     return <p key={block.id} id={`preview-${block.id}`} className={block.type === 'math' ? 'word-math' : block.type === 'caption' ? 'word-figure-caption' : block.type === 'table-title' ? 'word-table-title' : ''} style={blockStyle(block)}>{block.anchors?.map(anchor => <span key={anchor} id={anchor} className="word-bookmark-anchor" />)}{renderInline(block)}</p>
                   })}
                 </section>})}
