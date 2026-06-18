@@ -1,6 +1,6 @@
 ﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Link, useNavigate } from 'react-router-dom'
-import { BarChart3, BookOpen, CheckCircle, Eye, FileText, MessageSquare, Plus, RefreshCcw, Rocket, Settings, Share2, Store, Trash2, Users } from 'lucide-react'
+import { AlertTriangle, BarChart3, BookOpen, CheckCircle, Eye, FileText, Loader2, MessageSquare, Plus, RefreshCcw, Rocket, Settings, Share2, Store, Trash2, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { getPublisherBooks, type PublisherBook } from '@/lib/publisher-books'
 import { canDeletePublisherBook, deletePublisherBookCompletely } from '@/lib/publisher-delete'
@@ -33,6 +33,14 @@ export default function Publisher() {
   const inStore = books.filter(b => b.stage === 'store' || b.stage === 'published').length
   const ready = books.filter(b => b.stage === 'pricing').length
   const revenue = books.reduce((sum, b) => sum + b.revenue, 0)
+  const isRemoteConfigured = Boolean(user && import.meta.env.VITE_SUPABASE_URL?.startsWith('http'))
+  const listStatusLabel = remoteLoading
+    ? 'در حال تکمیل فهرست از سرور'
+    : remoteError
+      ? 'فهرست کامل دریافت نشد'
+      : remoteLoaded && isRemoteConfigured
+        ? 'فهرست کامل شد'
+        : 'فهرست محلی'
 
   useEffect(() => {
     if (!user || !import.meta.env.VITE_SUPABASE_URL?.startsWith('http')) {
@@ -41,6 +49,7 @@ export default function Publisher() {
     }
     let cancelled = false
     setRemoteLoading(true)
+    setRemoteLoaded(false)
     setRemoteError('')
     ;(async () => {
       try {
@@ -131,8 +140,36 @@ export default function Publisher() {
           { label: 'Ø¯Ø± ÙØ±ÙˆØ´Ú¯Ø§Ù‡', value: inStore, icon: CheckCircle },
           { label: 'Ø¢Ù…Ø§Ø¯Ù‡â€ŒØ³Ø§Ø²ÛŒ', value: ready, icon: FileText },
           { label: 'Ø®ÙˆØ§Ù†Ù†Ø¯Ú¯Ø§Ù†', value: totalReaders, icon: Users },
-        ].map(card => <div key={card.label} className="menu-glass-70 rounded-2xl p-6"><card.icon className="w-7 h-7 text-primary mb-4" /><p className="text-3xl font-black">{card.value.toLocaleString('fa-IR')}</p><p className="text-sm text-muted-foreground mt-1">{card.label}</p></div>)}
+        ].map(card => <div key={card.label} className="menu-glass-70 rounded-2xl p-6 relative overflow-hidden">
+          {remoteLoading && <span className="publisher-sync-card-chip"><Loader2 className="w-3 h-3 animate-spin" />در حال تکمیل</span>}
+          <card.icon className="w-7 h-7 text-primary mb-4" />
+          <p className="text-3xl font-black">{card.value.toLocaleString('fa-IR')}</p>
+          <p className="text-sm text-muted-foreground mt-1">{card.label}</p>
+        </div>)}
       </section>
+
+      {(remoteLoading || remoteError || (remoteLoaded && isRemoteConfigured)) && (
+        <section className={`publisher-sync-banner ${remoteError ? 'is-error' : remoteLoading ? 'is-loading' : 'is-done'}`} aria-live="polite">
+          <div className="publisher-sync-icon">
+            {remoteError ? <AlertTriangle className="w-5 h-5" /> : remoteLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle className="w-5 h-5" />}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="font-bold">{listStatusLabel}</h3>
+              <span className="publisher-sync-count">{books.length.toLocaleString('fa-IR')} کتاب فعلا نمایش داده شده</span>
+            </div>
+            <p className="text-sm text-muted-foreground mt-1">
+              {remoteLoading
+                ? 'فهرست اولیه سریع نمایش داده شده و سامانه هنوز کتاب‌ها و آمار کامل انتشارات را از دیتابیس دریافت می‌کند.'
+                : remoteError
+                  ? 'اگر اینترنت یا اتصال Supabase کند باشد، فعلا همان فهرست محلی نمایش داده می‌شود. با رفرش صفحه، دریافت از ادامه دوباره تلاش می‌شود.'
+                  : 'همگام‌سازی فهرست انتشارات با دیتابیس کامل شد.'}
+            </p>
+            {remoteLoading && <div className="publisher-sync-progress" role="progressbar" aria-label="در حال دریافت فهرست کامل کتاب‌ها"><span /></div>}
+            {remoteError && <p className="publisher-sync-error">{remoteError}</p>}
+          </div>
+        </section>
+      )}
 
       <section className="menu-glass-70 rounded-2xl p-5 grid md:grid-cols-3 gap-4">
         {[
@@ -145,7 +182,10 @@ export default function Publisher() {
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-black font-display">Ú©ØªØ§Ø¨â€ŒÙ‡Ø§ÛŒ Ù…Ù†</h2>
-          <div className="text-sm text-muted-foreground">Ø¯Ø±Ø¢Ù…Ø¯ Ù†Ù…ÙˆÙ†Ù‡: <b className="text-primary">{revenue.toLocaleString('fa-IR')}</b> Ú©Ø±Ø¯ÛŒØª</div>
+          <div className="flex flex-wrap items-center justify-end gap-2 text-sm text-muted-foreground">
+            <span className={`publisher-list-state ${remoteError ? 'is-error' : remoteLoading ? 'is-loading' : remoteLoaded && isRemoteConfigured ? 'is-done' : ''}`}>{listStatusLabel}</span>
+            <span>Ø¯Ø±Ø¢Ù…Ø¯ Ù†Ù…ÙˆÙ†Ù‡: <b className="text-primary">{revenue.toLocaleString('fa-IR')}</b> Ú©Ø±Ø¯ÛŒØª</span>
+          </div>
         </div>
         {books.map(book => {
           const meta = stageMeta[book.stage]
