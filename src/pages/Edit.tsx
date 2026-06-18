@@ -95,7 +95,7 @@ const ProtectedPageBreak = Node.create({
     }
   },
   renderHTML({ HTMLAttributes }) {
-    return ['hr', mergeAttributes(HTMLAttributes, { 'data-page-break': 'true', contenteditable: 'false' })]
+    return ['hr', mergeAttributes(HTMLAttributes, { class: 'book-page-break', 'data-page-break': 'true', contenteditable: 'false' })]
   },
   addCommands() {
     return {

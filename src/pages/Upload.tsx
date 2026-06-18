@@ -6,7 +6,7 @@ import { useAuthContext } from '@/lib/auth-context'
 import { confirmAndUploadImport, uploadErrorMessage, type UploadProgress } from '@/lib/import-upload'
 import { clearExpiredLocalImports, deleteLocalImport, saveLocalImport, updateLocalAnalysis } from '@/lib/local-import-store'
 import { applyWordStyleMapping } from '@/lib/word-style-mapping'
-import { bookTextDirection, normalizeBookText, printPageLabel } from '@/lib/book-content'
+import { bookTextDirection, normalizeBookText, pageDividerHtml, printPageLabel } from '@/lib/book-content'
 import type { ImportBookMetadata, LocalImportProject, WordImportAnalysis, ImportWorkerMessage } from '@/lib/word-import-types'
 
 type Stage = 'choose' | 'analyzing' | 'review' | 'uploading' | 'complete'
@@ -401,7 +401,7 @@ export default function Upload() {
               <article className="word-web-preview">
                 {analysis.previewPages.map((page, pageIndex) => {
                   return <section key={page.number} id={`preview-page-${page.number}`} className="word-preview-page-section">
-                  {pageIndex > 0 && page.printNumber !== undefined && <div className="word-page-divider"><span>صفحه چاپی {printPageLabel(page.printNumber)}</span></div>}
+                  {pageIndex > 0 && page.printNumber !== undefined && <div dangerouslySetInnerHTML={{ __html: pageDividerHtml(page) }} />}
                   {page.blocks.map(block => {
                     if (block.type === 'heading') {
                       const Tag = `h${Math.min(6, block.level || 2)}` as keyof React.JSX.IntrinsicElements

@@ -68,7 +68,12 @@ export function printPageBoundaryLabels(previous?: { printNumber?: PrintPageValu
 
 export function pageBreakHtml(previous?: { printNumber?: PrintPageValue }, next?: { printNumber?: PrintPageValue }) {
   const labels = printPageBoundaryLabels(previous, next)
-  return `<hr data-page-break="true" data-before="${escapeHtml(labels.before)}" data-after="${escapeHtml(labels.after)}" data-page-label="${escapeHtml(labels.page)}">`
+  return `<hr class="book-page-break" data-page-break="true" data-before="${escapeHtml(labels.before)}" data-after="${escapeHtml(labels.after)}" data-page-label="${escapeHtml(labels.page)}">`
+}
+
+export function pageDividerHtml(next?: { printNumber?: PrintPageValue }) {
+  const labels = printPageBoundaryLabels(undefined, next)
+  return `<div class="book-page-divider" data-page-label="${escapeHtml(labels.page)}"><span>${escapeHtml(labels.page)}</span></div>`
 }
 
 export function normalizeBookText(value = '') {
