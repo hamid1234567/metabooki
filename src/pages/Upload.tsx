@@ -6,7 +6,7 @@ import { useAuthContext } from '@/lib/auth-context'
 import { confirmAndUploadImport, uploadErrorMessage, type UploadProgress } from '@/lib/import-upload'
 import { clearExpiredLocalImports, deleteLocalImport, saveLocalImport, updateLocalAnalysis } from '@/lib/local-import-store'
 import { applyWordStyleMapping } from '@/lib/word-style-mapping'
-import { normalizeBookText, printPageLabel } from '@/lib/book-content'
+import { bookTextDirection, normalizeBookText, printPageLabel } from '@/lib/book-content'
 import type { ImportBookMetadata, LocalImportProject, WordImportAnalysis, ImportWorkerMessage } from '@/lib/word-import-types'
 
 type Stage = 'choose' | 'analyzing' | 'review' | 'uploading' | 'complete'
@@ -195,8 +195,8 @@ export default function Upload() {
       const spanText = normalizeBookText(span.text || '')
       const content = span.footnoteId ? <sup className="word-footnote-reference">{span.footnoteId}</sup> : span.superscript ? <sup>{spanText}</sup> : span.subscript ? <sub>{spanText}</sub> : spanText
       const formatted = <span key={index} style={{ fontWeight: span.bold ? 800 : undefined, fontStyle: span.italic ? 'italic' : undefined }}>{content}</span>
-      if (span.footnoteId && footnoteText) return <span key={index} className="citation-reference footnote-reference" role="button" tabIndex={0}>{formatted}<span className="citation-tooltip">{normalizeBookText(footnoteText)}</span></span>
-      if (span.referenceText) return <span key={index} className="citation-reference" role="button" tabIndex={0}>{formatted}<span className="citation-tooltip">{normalizeBookText(span.referenceText)}</span></span>
+      if (span.footnoteId && footnoteText) return <span key={index} className="citation-reference footnote-reference" role="button" tabIndex={0} data-tooltip-dir={bookTextDirection(footnoteText)}>{formatted}<span className="citation-tooltip" dir={bookTextDirection(footnoteText)}>{normalizeBookText(footnoteText)}</span></span>
+      if (span.referenceText) return <span key={index} className="citation-reference" role="button" tabIndex={0} data-tooltip-dir={bookTextDirection(span.referenceText)}>{formatted}<span className="citation-tooltip" dir={bookTextDirection(span.referenceText)}>{normalizeBookText(span.referenceText)}</span></span>
       return span.href ? <a key={index} href={span.href} target={span.href.startsWith('#') ? undefined : '_blank'} rel="noreferrer">{formatted}</a> : formatted
     })
   }

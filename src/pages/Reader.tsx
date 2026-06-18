@@ -9,7 +9,7 @@ import { ArrowLeft, BookOpen, Lock, Eye, List, Menu, Minus, Plus, X, Sparkles, F
 import { toast } from 'sonner'
 import { runAiThroughGateway, type AiStructuredContent, type ReaderAiAction, type RunAiResult } from '@/lib/ai-gateway'
 import { supabase } from '@/integrations/supabase/client'
-import { normalizeBookText, printPageLabel } from '@/lib/book-content'
+import { bookTextDirection, normalizeBookText, printPageLabel } from '@/lib/book-content'
 
 type HighlightColor = 'yellow' | 'green' | 'red'
 type HighlightEntry = {
@@ -730,8 +730,8 @@ export default function Reader() {
       const spanText = normalizeBookText(span.text || '')
       const content = span.footnoteId ? <sup className="word-footnote-reference">{span.footnoteId}</sup> : span.superscript ? <sup>{spanText}</sup> : span.subscript ? <sub>{spanText}</sub> : spanText
       const formatted = <span style={{ fontWeight: span.bold ? 800 : undefined, fontStyle: span.italic ? 'italic' : undefined, color: span.color, fontFamily: span.fontFamily, fontSize: span.fontSize }}>{content}</span>
-      if (span.footnoteId && span.footnoteText) return <span key={inlineIndex} className="citation-reference footnote-reference" role="button" tabIndex={0}>{formatted}<span className="citation-tooltip">{span.footnoteText}</span></span>
-      if (span.referenceText) return <span key={inlineIndex} className="citation-reference" role="button" tabIndex={0}>{formatted}<span className="citation-tooltip">{span.referenceText}</span></span>
+      if (span.footnoteId && span.footnoteText) return <span key={inlineIndex} className="citation-reference footnote-reference" role="button" tabIndex={0} data-tooltip-dir={bookTextDirection(span.footnoteText)}>{formatted}<span className="citation-tooltip" dir={bookTextDirection(span.footnoteText)}>{normalizeBookText(span.footnoteText)}</span></span>
+      if (span.referenceText) return <span key={inlineIndex} className="citation-reference" role="button" tabIndex={0} data-tooltip-dir={bookTextDirection(span.referenceText)}>{formatted}<span className="citation-tooltip" dir={bookTextDirection(span.referenceText)}>{normalizeBookText(span.referenceText)}</span></span>
       return span.href ? <a key={inlineIndex} href={span.href} target={String(span.href).startsWith('#') ? undefined : '_blank'} rel="noreferrer" className="reader-inline-link">{formatted}</a> : <span key={inlineIndex}>{formatted}</span>
     }) : null
     switch (block.type) {
@@ -745,8 +745,8 @@ export default function Reader() {
                   const spanText = normalizeBookText(span.text || '')
                   const content = span.footnoteId ? <sup className="word-footnote-reference">{span.footnoteId}</sup> : span.superscript ? <sup>{spanText}</sup> : span.subscript ? <sub>{spanText}</sub> : spanText
                   const formatted = <span style={{ fontWeight: span.bold ? 800 : undefined, fontStyle: span.italic ? 'italic' : undefined, color: span.color, fontFamily: span.fontFamily, fontSize: span.fontSize }}>{content}</span>
-                  if (span.footnoteId && span.footnoteText) return <span key={inlineIndex} className="citation-reference footnote-reference" role="button" tabIndex={0}>{formatted}<span className="citation-tooltip">{span.footnoteText}</span></span>
-                  if (span.referenceText) return <span key={inlineIndex} className="citation-reference" role="button" tabIndex={0}>{formatted}<span className="citation-tooltip">{span.referenceText}</span></span>
+                  if (span.footnoteId && span.footnoteText) return <span key={inlineIndex} className="citation-reference footnote-reference" role="button" tabIndex={0} data-tooltip-dir={bookTextDirection(span.footnoteText)}>{formatted}<span className="citation-tooltip" dir={bookTextDirection(span.footnoteText)}>{normalizeBookText(span.footnoteText)}</span></span>
+                  if (span.referenceText) return <span key={inlineIndex} className="citation-reference" role="button" tabIndex={0} data-tooltip-dir={bookTextDirection(span.referenceText)}>{formatted}<span className="citation-tooltip" dir={bookTextDirection(span.referenceText)}>{normalizeBookText(span.referenceText)}</span></span>
                   return span.href ? <a key={inlineIndex} href={span.href} target={String(span.href).startsWith('#') ? undefined : '_blank'} rel="noreferrer" className="reader-inline-link">{formatted}</a> : <span key={inlineIndex}>{formatted}</span>
                 }) : normalizeBookText(item.text)}
               </li>

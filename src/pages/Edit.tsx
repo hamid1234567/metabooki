@@ -20,7 +20,7 @@ import { findPublisherBook, updatePublisherBook } from '@/lib/publisher-books'
 import { findBookById } from '@/lib/mock-data'
 import { supabase } from '@/integrations/supabase/client'
 import { useAuthContext } from '@/lib/auth-context'
-import { inlineToHtml as sharedInlineToHtml, normalizeBookText, pageBreakHtml } from '@/lib/book-content'
+import { bookTextDirection, inlineToHtml as sharedInlineToHtml, normalizeBookText, pageBreakHtml } from '@/lib/book-content'
 
 const escape = (value = '') => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 const encodePayload = (value: unknown) => encodeURIComponent(JSON.stringify(value))
@@ -65,8 +65,8 @@ const CitationMark = Mark.create({
   addAttributes() {
     return {
       footnoteId: { default: null, parseHTML: element => element.getAttribute('data-footnote-id'), renderHTML: attrs => attrs.footnoteId ? { 'data-footnote-id': attrs.footnoteId } : {} },
-      footnoteText: { default: null, parseHTML: element => element.getAttribute('data-footnote-text') || element.getAttribute('title'), renderHTML: attrs => attrs.footnoteText ? { 'data-footnote-text': attrs.footnoteText, title: attrs.footnoteText } : {} },
-      referenceText: { default: null, parseHTML: element => element.getAttribute('data-reference-text') || element.getAttribute('title'), renderHTML: attrs => attrs.referenceText ? { 'data-reference-text': attrs.referenceText, title: attrs.referenceText } : {} },
+      footnoteText: { default: null, parseHTML: element => element.getAttribute('data-footnote-text') || element.getAttribute('title'), renderHTML: attrs => attrs.footnoteText ? { 'data-footnote-text': attrs.footnoteText, 'data-tooltip-dir': bookTextDirection(attrs.footnoteText), dir: bookTextDirection(attrs.footnoteText), title: attrs.footnoteText } : {} },
+      referenceText: { default: null, parseHTML: element => element.getAttribute('data-reference-text') || element.getAttribute('title'), renderHTML: attrs => attrs.referenceText ? { 'data-reference-text': attrs.referenceText, 'data-tooltip-dir': bookTextDirection(attrs.referenceText), dir: bookTextDirection(attrs.referenceText), title: attrs.referenceText } : {} },
       referenceAnchor: { default: null, parseHTML: element => element.getAttribute('data-reference-anchor'), renderHTML: attrs => attrs.referenceAnchor ? { 'data-reference-anchor': attrs.referenceAnchor } : {} },
     }
   },
@@ -91,6 +91,7 @@ const ProtectedPageBreak = Node.create({
     return {
       before: { default: null, parseHTML: element => element.getAttribute('data-before'), renderHTML: attrs => attrs.before ? { 'data-before': attrs.before } : {} },
       after: { default: null, parseHTML: element => element.getAttribute('data-after'), renderHTML: attrs => attrs.after ? { 'data-after': attrs.after } : {} },
+      pageLabel: { default: null, parseHTML: element => element.getAttribute('data-page-label'), renderHTML: attrs => attrs.pageLabel ? { 'data-page-label': attrs.pageLabel } : {} },
     }
   },
   renderHTML({ HTMLAttributes }) {

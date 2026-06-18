@@ -62,12 +62,13 @@ export function printPageBoundaryLabels(previous?: { printNumber?: PrintPageValu
   return {
     before: before ? `\u067e\u0627\u06cc\u0627\u0646 \u0635\u0641\u062d\u0647 ${before}` : '\u067e\u0627\u06cc\u0627\u0646 \u0635\u0641\u062d\u0647 \u0628\u062f\u0648\u0646 \u0634\u0645\u0627\u0631\u0647 \u0686\u0627\u067e\u06cc',
     after: after ? `\u0634\u0631\u0648\u0639 \u0635\u0641\u062d\u0647 ${after}` : '\u0634\u0631\u0648\u0639 \u0635\u0641\u062d\u0647 \u0628\u062f\u0648\u0646 \u0634\u0645\u0627\u0631\u0647 \u0686\u0627\u067e\u06cc',
+    page: after ? `\u0635\u0641\u062d\u0647 \u0686\u0627\u067e\u06cc ${after}` : '\u0635\u0641\u062d\u0647 \u0686\u0627\u067e\u06cc \u0628\u062f\u0648\u0646 \u0634\u0645\u0627\u0631\u0647',
   }
 }
 
 export function pageBreakHtml(previous?: { printNumber?: PrintPageValue }, next?: { printNumber?: PrintPageValue }) {
   const labels = printPageBoundaryLabels(previous, next)
-  return `<hr data-page-break="true" data-before="${escapeHtml(labels.before)}" data-after="${escapeHtml(labels.after)}">`
+  return `<hr data-page-break="true" data-before="${escapeHtml(labels.before)}" data-after="${escapeHtml(labels.after)}" data-page-label="${escapeHtml(labels.page)}">`
 }
 
 export function normalizeBookText(value = '') {
@@ -88,6 +89,25 @@ export function inlineText(inline?: Array<{ text?: string }>, fallback = '') {
   return inline?.length ? inline.map(span => normalizeBookText(span.text || '')).join('') : normalizeBookText(fallback)
 }
 
+export function bookTextDirection(value = ''): 'rtl' | 'ltr' {
+  const text = normalizeBookText(value)
+  const rtlMatches = text.match(/[\u0600-\u06FF]/g)?.length || 0
+  const latinMatches = text.match(/[A-Za-z]/g)?.length || 0
+  return rtlMatches >= latinMatches ? 'rtl' : 'ltr'
+}
+
+export function citationTooltipAttributes(text = '') {
+  const normalized = normalizeBookText(text)
+  const escaped = escapeHtml(normalized)
+  const direction = bookTextDirection(normalized)
+  return {
+    text: normalized,
+    escaped,
+    direction,
+    htmlAttributes: ` data-tooltip-dir="${direction}" dir="${direction}"`,
+  }
+}
+
 export function inlineToHtml(inline?: BookInlineSpan[], fallback = '') {
   if (!inline?.length) return escapeHtml(fallback)
   return inline.map(span => {
@@ -103,11 +123,12 @@ export function inlineToHtml(inline?: BookInlineSpan[], fallback = '') {
     if (span.superscript) content = `<sup>${content}</sup>`
     if (span.subscript) content = `<sub>${content}</sub>`
     if (span.footnoteId) {
-      const footnoteText = escapeHtml(span.footnoteText || '')
-      content = `<span class="citation-reference footnote-reference" data-footnote-id="${escapeHtml(span.footnoteId)}"${footnoteText ? ` data-footnote-text="${footnoteText}" title="${footnoteText}"` : ''}><sup class="word-footnote-reference">${escapeHtml(span.footnoteId)}</sup></span>`
+      const tooltip = citationTooltipAttributes(span.footnoteText || '')
+      content = `<span class="citation-reference footnote-reference" data-footnote-id="${escapeHtml(span.footnoteId)}"${tooltip.escaped ? ` data-footnote-text="${tooltip.escaped}" title="${tooltip.escaped}"${tooltip.htmlAttributes}` : ''}><sup class="word-footnote-reference">${escapeHtml(span.footnoteId)}</sup></span>`
     }
     if (span.referenceText) {
-      content = `<span class="citation-reference" data-reference-anchor="${escapeHtml(span.referenceAnchor || '')}" data-reference-text="${escapeHtml(span.referenceText)}" title="${escapeHtml(span.referenceText)}">${content}</span>`
+      const tooltip = citationTooltipAttributes(span.referenceText)
+      content = `<span class="citation-reference" data-reference-anchor="${escapeHtml(span.referenceAnchor || '')}" data-reference-text="${tooltip.escaped}" title="${tooltip.escaped}"${tooltip.htmlAttributes}>${content}</span>`
     }
     if (span.href) content = `<a href="${escapeHtml(span.href)}">${content}</a>`
     return content
