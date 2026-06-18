@@ -280,6 +280,14 @@ function paragraphListInfo(node: unknown, numberingFormats: NumberingFormats) {
   return { listId: numId, listLevel: Number.isFinite(level) ? level : 0, ordered: format ? !/bullet/i.test(format) : true }
 }
 
+function wordSymbolText(node: unknown) {
+  const char = String(elementAttribute(node, 'w:sym', '@_w:char', '@_char') || '').replace(/^0x/i, '')
+  if (/^(00)?AC$/i.test(char)) return '\u200C'
+  const codePoint = Number.parseInt(char, 16)
+  if (!Number.isFinite(codePoint) || codePoint <= 0 || codePoint > 0x10ffff) return ''
+  return String.fromCodePoint(codePoint)
+}
+
 function hasPageBreak(node: unknown) {
   return findElementAttributes(node, 'w:br').some(attrs => attrs['@_w:type'] === 'page' || attrs['@_type'] === 'page')
     || deepFind(node, 'w:lastRenderedPageBreak').length > 0
@@ -351,6 +359,7 @@ function parseInline(node: unknown, hyperlinks: Map<string, string>, inheritedHr
         const item = part as Record<string, unknown>
         if ('w:instrText' in item || 'w:fldChar' in item || 'w:delText' in item) return
         if ('w:t' in item) textParts.push(collectText(item['w:t']))
+        else if ('w:sym' in item) textParts.push(wordSymbolText([item]))
         else if ('w:tab' in item) textParts.push(' ')
         else if ('w:br' in item) textParts.push('\n')
         else Object.values(item).forEach(collectVisible)

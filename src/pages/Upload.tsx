@@ -163,14 +163,14 @@ export default function Upload() {
   }
 
   const toggleToc = async (id: string) => {
-    if (!analysis) return
+    if (!analysis || stage !== 'review') return
     const updated = { ...analysis, toc: analysis.toc.map(item => item.id === id ? { ...item, included: !item.included } : item) }
     setAnalysis(updated)
     await updateLocalAnalysis(updated.id, updated)
   }
 
   const mapStyle = async (styleId: string, mapping: string) => {
-    if (!analysis) return
+    if (!analysis || stage !== 'review') return
     const updated = applyWordStyleMapping(analysis, styleId, mapping)
     setAnalysis(updated)
     await updateLocalAnalysis(updated.id, updated)
@@ -376,7 +376,7 @@ export default function Upload() {
                   <span className="word-style-count">{style.usedCount ? `${style.usedCount.toLocaleString('fa-IR')} بار استفاده` : 'تعریف‌شده در Word'}</span>
                   <span className="word-style-example">{style.sampleText || 'نمونه‌ای در متن استفاده نشده است'}</span>
                   {style.titleCandidate && <span className="word-style-title-badge">پیشنهاد عنوان کتاب</span>}
-                  <select value={style.selectedRole === 'heading' ? `h${style.selectedLevel}` : style.selectedRole} onChange={event => mapStyle(style.id, event.target.value)} aria-label={`نگاشت ${style.name}`}>
+                  <select value={style.selectedRole === 'heading' ? `h${style.selectedLevel}` : style.selectedRole} onChange={event => mapStyle(style.id, event.target.value)} disabled={stage !== 'review'} aria-label={`نگاشت ${style.name}`}>
                     <option value="ignore">عدم استفاده در فهرست</option>
                     <option value="body">متن عادی</option>
                     {[1, 2, 3, 4, 5, 6].map(level => <option key={level} value={`h${level}`}>H{level}</option>)}
@@ -391,7 +391,7 @@ export default function Upload() {
           <section className="word-preview-workspace">
             <aside className="word-toc menu-glass-70">
               <div><h3><ListTree />فهرست پیشنهادی</h3><span>{confirmedToc.length.toLocaleString('fa-IR')} عنوان تاییدشده</span></div>
-              {analysis.toc.length ? analysis.toc.map(item => <label key={item.id} className={item.previewAvailable === false ? 'is-outside-preview' : ''} style={{ paddingInlineStart: `${Math.min(4, item.level - 1) * 12 + 8}px` }}><input type="checkbox" checked={item.included} onChange={() => toggleToc(item.id)} /><button disabled={item.previewAvailable === false} title={item.previewAvailable === false ? 'این عنوان بعد از محدوده ۵۰ صفحه‌ای پیش‌نمایش است و در کتاب نهایی حفظ می‌شود.' : undefined} onClick={() => scrollToPreviewBlock(item.id)}>{item.title}</button><span className={`word-toc-level level-${item.level}`}>H{item.level.toLocaleString('fa-IR')}</span><small>{item.page.toLocaleString('fa-IR')}{item.previewAvailable === false ? ' · خارج پیش‌نمایش' : ''}</small></label>) : <p>یکی از Styleهای فصل را در بخش بالا به H1 تا H6 متصل کنید.</p>}
+              {analysis.toc.length ? analysis.toc.map(item => <label key={item.id} className={`${item.previewAvailable === false ? 'is-outside-preview' : ''} ${stage !== 'review' ? 'is-locked' : ''}`} style={{ paddingInlineStart: `${Math.min(4, item.level - 1) * 12 + 8}px` }}><input type="checkbox" checked={item.included} disabled={stage !== 'review'} onChange={() => toggleToc(item.id)} /><button disabled={item.previewAvailable === false} title={item.previewAvailable === false ? 'این عنوان بعد از محدوده ۵۰ صفحه‌ای پیش‌نمایش است و در کتاب نهایی حفظ می‌شود.' : undefined} onClick={() => scrollToPreviewBlock(item.id)}>{item.title}</button><span className={`word-toc-level level-${item.level}`}>H{item.level.toLocaleString('fa-IR')}</span><small>{item.page.toLocaleString('fa-IR')}{item.previewAvailable === false ? ' · خارج پیش‌نمایش' : ''}</small></label>) : <p>یکی از Styleهای فصل را در بخش بالا به H1 تا H6 متصل کنید.</p>}
             </aside>
 
             <section className="word-preview-panel menu-glass-70">
