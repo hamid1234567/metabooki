@@ -363,11 +363,15 @@ function parseInline(node: unknown, hyperlinks: Map<string, string>, inheritedHr
         if (!part || typeof part !== 'object') return
         const item = part as Record<string, unknown>
         if ('w:instrText' in item || 'w:fldChar' in item || 'w:delText' in item) return
-        if ('w:t' in item) textParts.push(collectText(item['w:t']))
-        else if ('w:sym' in item) textParts.push(wordSymbolText(item))
-        else if ('w:tab' in item) textParts.push(' ')
-        else if ('w:br' in item) textParts.push('\n')
-        else Object.values(item).forEach(collectVisible)
+        for (const [key, child] of Object.entries(item)) {
+          if (key === ':@') continue
+          if (key === 'w:t') textParts.push(collectText(child))
+          else if (key === 'w:softHyphen') textParts.push('\u200C')
+          else if (key === 'w:sym') textParts.push(wordSymbolText({ [key]: child, ':@': item[':@'] }))
+          else if (key === 'w:tab') textParts.push(' ')
+          else if (key === 'w:br') textParts.push('\n')
+          else collectVisible(child)
+        }
       }
       collectVisible(run)
       const text = normalizeBookText(textParts.join(''))
