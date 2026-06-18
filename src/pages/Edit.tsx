@@ -937,20 +937,35 @@ export default function Edit() {
             <p>این همان فهرستی است که در زمان تبدیل Word تایید شده است.</p>
             <span className="book-editor-segment-note">در حال ویرایش: {activeSegment?.label || 'سند'} · صفحه {activeSegment?.page || (activeSegment?.start ?? 0) + 1}</span>
           </div>
+          <div className="book-editor-toc-tools" aria-label="ابزارهای فهرست">
+            <button title="باز کردن همه شاخه‌ها" onClick={expandAllToc}><ChevronUp /></button>
+            <button title="جمع کردن همه شاخه‌ها" onClick={collapseAllToc}><ChevronLeft /></button>
+            <button title="جمع کردن فصل‌های اصلی" onClick={() => collapseTocByLevel(1)}>H1</button>
+            <button title="جمع کردن تا سطح دوم" onClick={() => collapseTocByLevel(2)}>H2</button>
+          </div>
           <div className="book-editor-toc-list">
             {tocEntries.length === 0 && <p className="book-editor-empty-state">برای این کتاب فهرست تاییدشده‌ای ثبت نشده است.</p>}
-            {segments.map((segment, index) => (
-              <div className={`book-editor-toc-row ${index === activeSegmentIndex ? 'is-active' : ''}`} key={segment.key} style={{ paddingInlineStart: `${((segment.level || 1) - 1) * 10}px` }}>
+            {tocTreeRows.filter(row => !row.hidden).map(({ segment, index, level, hasChildren, collapsed, h1Counter }) => (
+              <div
+                className={`book-editor-toc-row level-${level} ${index === activeSegmentIndex ? 'is-active' : ''} ${hasChildren ? 'has-children' : ''}`}
+                key={segment.key}
+                title={segment.label || 'سرفصل بدون عنوان'}
+                style={{ '--toc-level': level } as CSSProperties}
+              >
                 {editingTocIndex === segment.tocIndex ? (
                   <form className="book-editor-toc-inline-edit" onSubmit={event => { event.preventDefault(); submitInlineTocEdit() }}>
                     <input value={editingTocTitle} autoFocus onChange={event => setEditingTocTitle(event.target.value)} onKeyDown={event => { if (event.key === 'Escape') { setEditingTocIndex(null); setEditingTocTitle('') } }} />
                     <button type="submit">ثبت</button>
                   </form>
                 ) : (
-                  <button className="book-editor-toc-link" onClick={() => changeActiveSegment(index)}><Bookmark />{segment.label || 'سرفصل بدون عنوان'}</button>
+                  <button className="book-editor-toc-link" onClick={() => changeActiveSegment(index)}>
+                    <span className="book-editor-toc-number">{level === 1 ? h1Counter.toLocaleString('fa-IR') : (index + 1).toLocaleString('fa-IR')}</span>
+                    <span className="book-editor-toc-title">{segment.label || 'سرفصل بدون عنوان'}</span>
+                  </button>
                 )}
                 {typeof segment.tocIndex === 'number' ? (
                   <span className="book-editor-toc-actions">
+                    {hasChildren && <button title={collapsed ? 'باز کردن شاخه' : 'جمع کردن شاخه'} onClick={() => toggleTocBranch(segment.key)}>{collapsed ? <ChevronLeft /> : <ChevronUp />}</button>}
                     <button title="کاهش سطح" onClick={() => shiftTocEntryLevel(segment.tocIndex!, -1)}><ArrowUp /></button>
                     <button title="افزایش سطح" onClick={() => shiftTocEntryLevel(segment.tocIndex!, 1)}><ArrowDown /></button>
                     <button title="ویرایش عنوان" onClick={() => startInlineTocEdit(segment.tocIndex!, segment.label || '')}><Edit3 /></button>
