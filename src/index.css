@@ -952,6 +952,13 @@ body {
   max-width: 100%;
 }
 
+@media (min-width: 1024px) {
+  .reader-main {
+    width: min(80vw, 72rem);
+    max-width: 80vw !important;
+  }
+}
+
 .reader-mindmap * {
   overflow-wrap: anywhere;
 }
