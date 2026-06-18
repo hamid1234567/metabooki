@@ -948,7 +948,6 @@ export default function Reader() {
             onPointerCancel={cancelHighlightStroke}
             onContextMenu={e => e.preventDefault()}
           >
-            <div className="reader-print-page-badge">صفحه چاپی <b>{currentPrintLabel}</b></div>
             {page.blocks.map((block:any,i:number)=>renderBlock(block,i))}
           </div>
 
