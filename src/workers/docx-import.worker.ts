@@ -243,6 +243,42 @@ function parseStyles(stylesXml: string | undefined) {
   return result
 }
 
+type NumberingFormats = Map<string, Map<number, string>>
+
+function parseNumbering(numberingXml: string | undefined): NumberingFormats {
+  const formats: NumberingFormats = new Map()
+  if (!numberingXml) return formats
+  const parsed = regularParser.parse(numberingXml)
+  const root = parsed?.['w:numbering']
+  const abstractFormats = new Map<string, Map<number, string>>()
+  normalizeArray(root?.['w:abstractNum']).forEach(raw => {
+    const abstractId = String(raw?.['@_w:abstractNumId'] ?? raw?.['@_abstractNumId'] ?? '')
+    if (!abstractId) return
+    const levelFormats = new Map<number, string>()
+    normalizeArray(raw?.['w:lvl']).forEach(level => {
+      const ilvl = Number(level?.['@_w:ilvl'] ?? level?.['@_ilvl'] ?? 0)
+      const format = String(level?.['w:numFmt']?.['@_w:val'] ?? level?.['w:numFmt']?.['@_val'] ?? '')
+      if (format) levelFormats.set(ilvl, format)
+    })
+    abstractFormats.set(abstractId, levelFormats)
+  })
+  normalizeArray(root?.['w:num']).forEach(raw => {
+    const numId = String(raw?.['@_w:numId'] ?? raw?.['@_numId'] ?? '')
+    const abstractId = String(raw?.['w:abstractNumId']?.['@_w:val'] ?? raw?.['w:abstractNumId']?.['@_val'] ?? '')
+    const inherited = abstractFormats.get(abstractId)
+    if (numId && inherited) formats.set(numId, inherited)
+  })
+  return formats
+}
+
+function paragraphListInfo(node: unknown, numberingFormats: NumberingFormats) {
+  const numId = String(elementAttribute(node, 'w:numId', '@_w:val', '@_val') || '')
+  if (!numId) return null
+  const level = Number(elementAttribute(node, 'w:ilvl', '@_w:val', '@_val') || 0)
+  const format = numberingFormats.get(numId)?.get(level) || numberingFormats.get(numId)?.get(0) || ''
+  return { listId: numId, listLevel: Number.isFinite(level) ? level : 0, ordered: format ? !/bullet/i.test(format) : true }
+}
+
 function hasPageBreak(node: unknown) {
   return findElementAttributes(node, 'w:br').some(attrs => attrs['@_w:type'] === 'page' || attrs['@_type'] === 'page')
     || deepFind(node, 'w:lastRenderedPageBreak').length > 0
@@ -326,10 +362,11 @@ function parseInline(node: unknown, hyperlinks: Map<string, string>, inheritedHr
   return spans
 }
 
-function normalizeParagraph(node: unknown, number: number, imageRelations: Map<string, string>, hyperlinks: Map<string, string>, styles: Map<string, WordStyleDefinition>): ImportParagraph[] {
+function normalizeParagraph(node: unknown, number: number, imageRelations: Map<string, string>, hyperlinks: Map<string, string>, styles: Map<string, WordStyleDefinition>, numberingFormats: NumberingFormats): ImportParagraph[] {
   const style = getStyle(node) || '__no_style__'
   const definition = styles.get(style)
   const level = definition?.selectedLevel || headingLevel(style)
+  const listInfo = !level ? paragraphListInfo(node, numberingFormats) : null
   const inline = enrichPlainCitations(parseInline(node, hyperlinks))
   const text = inline.map(span => span.text).join('').replace(/[ \t]+\n/g, '\n').trim()
   const anchors = findElementAttributes(node, 'w:bookmarkStart')
@@ -351,7 +388,7 @@ function normalizeParagraph(node: unknown, number: number, imageRelations: Map<s
     italic: definition?.italic,
     alignment: parseAlignment(directAlignment) || definition?.alignment,
   }
-  const semanticType: ImportParagraph['type'] = level ? 'heading' : definition?.selectedRole === 'caption' ? 'caption' : definition?.selectedRole === 'table-title' ? 'table-title' : 'paragraph'
+  const semanticType: ImportParagraph['type'] = level ? 'heading' : definition?.selectedRole === 'caption' ? 'caption' : definition?.selectedRole === 'table-title' ? 'table-title' : listInfo ? 'list' : 'paragraph'
   const leadingPageBreak = Boolean(inline[0]?.pageBreakBefore)
   const inlineGroups = inline.reduce<ImportInlineSpan[][]>((groups, span) => {
     if (span.pageBreakBefore && groups[groups.length - 1]?.length) groups.push([])
@@ -365,6 +402,10 @@ function normalizeParagraph(node: unknown, number: number, imageRelations: Map<s
       type: semanticType,
       text: groupText,
       inline: group,
+      items: listInfo ? [{ text: groupText, inline: group }] : undefined,
+      ordered: listInfo?.ordered,
+      listLevel: listInfo?.listLevel,
+      listId: listInfo?.listId,
       level: level || undefined,
       style: style || undefined,
       anchor: groupIndex ? undefined : anchor,
@@ -433,6 +474,7 @@ async function analyze(file: File): Promise<WordImportAnalysis> {
 
   progress(20, 'استخراج ساختار و ارتباط تصاویر')
   const styles = parseStyles(await zip.file('word/styles.xml')?.async('text'))
+  const numberingFormats = parseNumbering(await zip.file('word/numbering.xml')?.async('text'))
   styles.set('__no_style__', {
     id: '__no_style__',
     name: 'بدون Style صریح (متن عادی)',
@@ -497,6 +539,21 @@ async function analyze(file: File): Promise<WordImportAnalysis> {
 
   const append = (block: ImportParagraph) => {
     if (block.pageBreakBefore && pages[pages.length - 1].blocks.length) pushPage()
+    if (block.type === 'list') {
+      const currentBlocks = pages[pages.length - 1].blocks
+      const previous = currentBlocks[currentBlocks.length - 1]
+      if (
+        previous?.type === 'list'
+        && previous.ordered === block.ordered
+        && previous.listLevel === block.listLevel
+        && previous.listId === block.listId
+        && !block.pageBreakBefore
+      ) {
+        previous.items = [...(previous.items || []), ...(block.items || [])]
+        previous.text = [previous.text, block.text].filter(Boolean).join('\n')
+        return
+      }
+    }
     pages[pages.length - 1].blocks.push(block)
     if (block.type === 'heading' && block.text) toc.push({ id: block.id, title: block.text, level: block.level || 1, page: pages[pages.length - 1].printNumber || pages.length, included: true, styleId: block.style })
   }
@@ -507,7 +564,7 @@ async function analyze(file: File): Promise<WordImportAnalysis> {
     if ('w:p' in record) {
       paragraphNumber += 1
       const node = record['w:p']
-      const normalized = normalizeParagraph(node, paragraphNumber, imageRelations, hyperlinks, styles)
+      const normalized = normalizeParagraph(node, paragraphNumber, imageRelations, hyperlinks, styles, numberingFormats)
       normalized.forEach(append)
       const sectionPageStart = Number(elementAttribute(node, 'w:pgNumType', '@_w:start', '@_start') || 0)
       if (sectionPageStart && pages[pages.length - 1].blocks.length) pushPage(sectionPageStart)

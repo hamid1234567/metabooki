@@ -23,6 +23,7 @@ type HighlightEntry = {
 type ReaderBackground = 'abstract' | 'image'
 type SearchResult = { page: number; text: string; blockKey: string; offset: number; thumbnail?: string }
 type SearchTarget = { page: number; blockKey: string; query: string; offset: number }
+type TocTarget = { page: number; targetId?: string; title?: string }
 type HighlightDraft = { blockKey: string; startOffset: number; endOffset: number; color: HighlightColor }
 type HighlightIndicator = { x: number; y: number; pointerType: string }
 
@@ -30,6 +31,18 @@ const highlightColors: Record<HighlightColor, { label: string; className: string
   yellow: { label: 'زرد', className: 'bg-yellow-200 text-yellow-950', swatch: 'bg-yellow-300' },
   green: { label: 'سبز', className: 'bg-green-200 text-green-950', swatch: 'bg-green-300' },
   red: { label: 'قرمز', className: 'bg-red-200 text-red-950', swatch: 'bg-red-300' },
+}
+
+function legacyListFromText(text = '') {
+  const lines = String(text).split(/\n+/).map(line => line.trim()).filter(Boolean)
+  if (lines.length < 2) return null
+  const ordered = lines.every(line => /^[\d۰-۹٠-٩]+[.)-]\s+/.test(line))
+  const bullet = lines.every(line => /^[•●*-]\s+/.test(line))
+  if (!ordered && !bullet) return null
+  return {
+    ordered,
+    items: lines.map(line => line.replace(ordered ? /^[\d۰-۹٠-٩]+[.)-]\s+/ : /^[•●*-]\s+/, '')),
+  }
 }
 
 export default function Reader() {
@@ -57,6 +70,7 @@ export default function Reader() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [searchTarget, setSearchTarget] = useState<SearchTarget | null>(null)
+  const [tocTarget, setTocTarget] = useState<TocTarget | null>(null)
   const [showSearch, setShowSearch] = useState(false)
   const [timelineStep, setTimelineStep] = useState<Record<string, number>>({})
   const [storyStep, setStoryStep] = useState<Record<string, number>>({})
@@ -167,6 +181,26 @@ export default function Reader() {
     return () => cancelAnimationFrame(frame)
   }, [searchTarget, currentPage])
 
+  useEffect(() => {
+    if (!tocTarget || tocTarget.page !== currentPage) return
+    const frame = requestAnimationFrame(() => {
+      const root = contentRef.current
+      if (!root) return
+      const target = tocTarget.targetId
+        ? root.querySelector<HTMLElement>(`#${CSS.escape(tocTarget.targetId)}, [data-reader-anchor="${CSS.escape(tocTarget.targetId)}"]`)
+        : null
+      const fallback = tocTarget.title
+        ? [...root.querySelectorAll<HTMLElement>('[data-reader-heading="true"]')]
+            .find(element => element.textContent?.trim() === tocTarget.title?.trim())
+        : null
+      const element = target || fallback || root
+      const top = element.getBoundingClientRect().top + window.scrollY - 72
+      window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })
+      window.setTimeout(() => setTocTarget(current => current === tocTarget ? null : current), 900)
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [tocTarget, currentPage])
+
   // Auto scroll - must be before any early returns (Rules of Hooks)
   useEffect(() => {
     if (!autoScroll || !book) return
@@ -195,31 +229,48 @@ export default function Reader() {
   const pageBackgroundUrl = page.background_url || book.metadata?.page_background_url
   const pageBackgroundAlpha = Number(page.background_alpha ?? book.metadata?.page_background_alpha ?? 0)
   const confirmedToc = Array.isArray(book.metadata?.confirmed_toc) ? book.metadata.confirmed_toc as Array<{ id?: string; title?: string; level?: number; page?: number }> : []
-  const findTocPageIndex = (item: { id?: string; title?: string; page?: number }) => {
+  const preludeTitle = book.metadata?.prelude_title || 'ابتدای کتاب'
+  const currentPrintNumber = page.printNumber || page.number || currentPage + 1
+  const currentPrintLabel = Number.isFinite(Number(currentPrintNumber)) ? Number(currentPrintNumber).toLocaleString('fa-IR') : String(currentPrintNumber)
+  const findTocPosition = (item: { id?: string; title?: string; page?: number }) => {
     if (item.id) {
-      const byId = book.pages.findIndex((candidatePage: any) => (candidatePage.blocks || []).some((block: any) => block.id === item.id || block.anchor === item.id || block.anchors?.includes?.(item.id)))
-      if (byId >= 0) return byId
+      for (let pageIndex = 0; pageIndex < book.pages.length; pageIndex += 1) {
+        const blockIndex = (book.pages[pageIndex].blocks || []).findIndex((block: any) => block.id === item.id || block.anchor === item.id || block.anchors?.includes?.(item.id))
+        if (blockIndex >= 0) return { pageIndex, blockIndex }
+      }
     }
     const title = String(item.title || '').trim()
     if (title) {
-      const byTitle = book.pages.findIndex((candidatePage: any) => (candidatePage.blocks || []).some((block: any) => block.type === 'heading' && String(block.content || block.text || '').trim() === title))
-      if (byTitle >= 0) return byTitle
+      for (let pageIndex = 0; pageIndex < book.pages.length; pageIndex += 1) {
+        const blockIndex = (book.pages[pageIndex].blocks || []).findIndex((block: any) => block.type === 'heading' && String(block.content || block.text || '').trim() === title)
+        if (blockIndex >= 0) return { pageIndex, blockIndex }
+      }
     }
     const byPrintNumber = book.pages.findIndex((candidatePage: any, index: number) => Number(candidatePage.printNumber || candidatePage.number || index + 1) === Number(item.page || 1))
-    return Math.max(0, Math.min(book.pages.length - 1, byPrintNumber >= 0 ? byPrintNumber : Number(item.page || 1) - 1))
+    return { pageIndex: Math.max(0, Math.min(book.pages.length - 1, byPrintNumber >= 0 ? byPrintNumber : Number(item.page || 1) - 1)), blockIndex: 0 }
   }
+  const findTocPageIndex = (item: { id?: string; title?: string; page?: number }) => {
+    return findTocPosition(item).pageIndex
+  }
+  const firstTocPosition = confirmedToc.length ? findTocPosition(confirmedToc[0]) : null
+  const hasPreludeToc = Boolean(firstTocPosition && (firstTocPosition.pageIndex > 0 || firstTocPosition.blockIndex > 0))
   const readerToc = confirmedToc.length
-    ? confirmedToc.map((item, index) => ({
+    ? [
+      ...(hasPreludeToc ? [{ key: 'prelude', title: preludeTitle, level: 1, pageIndex: 0, targetId: undefined }] : []),
+      ...confirmedToc.map((item, index) => ({
         key: item.id || `${item.title || 'toc'}-${index}`,
         title: item.title || `بخش ${index + 1}`,
         level: Math.max(1, Math.min(6, Number(item.level || 1))),
         pageIndex: findTocPageIndex(item),
-      }))
+        targetId: item.id,
+      })),
+    ]
     : book.pages.map((p: any, i: number) => ({
         key: `page-${i}`,
         title: p.title || `صفحه ${i + 1}`,
         level: 1,
         pageIndex: i,
+        targetId: undefined,
       }))
 
   const getReaderBgClass = () => {
@@ -237,9 +288,10 @@ export default function Reader() {
     else if (user) (supabase as any).from('reader_states').upsert({ user_id: user.id, book_key: book.id, current_page: pg, total_pages: book.pages.length, background: readerBackground, highlight_color: selectedHighlightColor, updated_at: new Date().toISOString() }).then(() => {})
   }
 
-  const goPage = (pg: number) => {
+  const goPage = (pg: number, target?: TocTarget) => {
     const next = Math.max(0, Math.min(book.pages.length - 1, pg))
     if (canReadFull || book.preview_pages.includes(next)) {
+      if (target) setTocTarget({ ...target, page: next })
       setCurrentPage(next); setShowToc(false); saveProgress(next)
     }
   }
@@ -679,11 +731,37 @@ export default function Reader() {
       return span.href ? <a key={inlineIndex} href={span.href} target={String(span.href).startsWith('#') ? undefined : '_blank'} rel="noreferrer" className="reader-inline-link">{formatted}</a> : <span key={inlineIndex}>{formatted}</span>
     }) : null
     switch (block.type) {
+      case 'list': {
+        const ListTag = block.ordered ? 'ol' : 'ul'
+        return (
+          <ListTag key={idx} dir={block.format?.direction} className={`reader-list ${block.ordered ? 'reader-list-ordered' : 'reader-list-bullet'}`} style={{ fontSize: block.format?.fontSizePt ? `${block.format.fontSizePt}pt` : `${fontSize}px`, color: block.format?.color ? `#${block.format.color}` : undefined, fontWeight: block.format?.bold ? 800 : undefined, fontStyle: block.format?.italic ? 'italic' : undefined, textAlign: block.format?.alignment }}>
+            {(block.items || []).map((item: any, itemIndex: number) => (
+              <li key={itemIndex}>
+                {item.inline?.length ? item.inline.map((span: any, inlineIndex: number) => {
+                  const content = span.footnoteId ? <sup className="word-footnote-reference">{span.footnoteId}</sup> : span.superscript ? <sup>{span.text}</sup> : span.subscript ? <sub>{span.text}</sub> : span.text
+                  const formatted = <span style={{ fontWeight: span.bold ? 800 : undefined, fontStyle: span.italic ? 'italic' : undefined, color: span.color, fontFamily: span.fontFamily, fontSize: span.fontSize }}>{content}</span>
+                  if (span.footnoteId && span.footnoteText) return <span key={inlineIndex} className="citation-reference footnote-reference" role="button" tabIndex={0}>{formatted}<span className="citation-tooltip">{span.footnoteText}</span></span>
+                  if (span.referenceText) return <span key={inlineIndex} className="citation-reference" role="button" tabIndex={0}>{formatted}<span className="citation-tooltip">{span.referenceText}</span></span>
+                  return span.href ? <a key={inlineIndex} href={span.href} target={String(span.href).startsWith('#') ? undefined : '_blank'} rel="noreferrer" className="reader-inline-link">{formatted}</a> : <span key={inlineIndex}>{formatted}</span>
+                }) : item.text}
+              </li>
+            ))}
+          </ListTag>
+        )
+      }
       case 'paragraph': {
         const blockKey = `p:${idx}:${block.content.length}:${block.content.slice(0, 16)}`
+        const legacyList = !block.inline?.length ? legacyListFromText(block.content) : null
+        if (legacyList) {
+          const LegacyListTag = legacyList.ordered ? 'ol' : 'ul'
+          return <LegacyListTag key={idx} className={`reader-list ${legacyList.ordered ? 'reader-list-ordered' : 'reader-list-bullet'}`} style={{ fontSize: block.format?.fontSizePt ? `${block.format.fontSizePt}pt` : `${fontSize}px`, color: block.format?.color ? `#${block.format.color}` : undefined, fontWeight: block.format?.bold ? 800 : undefined, fontStyle: block.format?.italic ? 'italic' : undefined, textAlign: block.format?.alignment }}>{legacyList.items.map((item, itemIndex) => <li key={itemIndex}>{item}</li>)}</LegacyListTag>
+        }
         return <p key={idx} id={block.anchor} dir={block.format?.direction} data-reader-text="true" data-reader-block={blockKey} className={`mb-5 leading-loose text-justify ${block.semantic === 'caption' ? 'reader-figure-caption' : block.semantic === 'table-title' ? 'reader-table-title' : block.semantic === 'footnote' ? 'reader-footnote' : block.semantic ? `reader-${block.semantic}` : ''}`} style={{fontSize: block.format?.fontSizePt ? `${block.format.fontSizePt}pt` : `${fontSize}px`, lineHeight: '2.2', color: block.format?.color ? `#${block.format.color}` : undefined, fontWeight: block.format?.bold ? 800 : undefined, fontStyle: block.format?.italic ? 'italic' : undefined, textAlign: block.format?.alignment}}>{block.anchors?.filter((anchor: string) => anchor !== block.anchor).map((anchor: string) => <span key={anchor} id={anchor} className="word-bookmark-anchor" />)}{block.inline?.length ? renderInline() : renderHighlightedText(block.content, blockKey)}</p>
       }
-      case 'heading': return <div key={idx} className="mb-8"><h2 id={block.anchor} dir={block.format?.direction} className="font-bold font-display mb-5 text-primary border-r-4 border-primary pr-4" style={{fontSize: block.format?.fontSizePt ? `${block.format.fontSizePt}pt` : `${Math.max(20, 32 - (block.level || 2) * 2)}px`, color: block.format?.color ? `#${block.format.color}` : undefined, textAlign: block.format?.alignment}}>{block.anchors?.filter((anchor: string) => anchor !== block.anchor).map((anchor: string) => <span key={anchor} id={anchor} className="word-bookmark-anchor" />)}{block.inline?.length ? renderInline() : block.content}</h2>{block.blocks?.map((b:any,i:number)=>renderBlock(b,i))}</div>
+      case 'heading': {
+        const headingId = block.anchor || block.id
+        return <div key={idx} className="mb-8"><h2 id={headingId} data-reader-anchor={headingId} data-reader-heading="true" dir={block.format?.direction} className="font-bold font-display mb-5 text-primary border-r-4 border-primary pr-4" style={{fontSize: block.format?.fontSizePt ? `${block.format.fontSizePt}pt` : `${Math.max(20, 32 - (block.level || 2) * 2)}px`, color: block.format?.color ? `#${block.format.color}` : undefined, textAlign: block.format?.alignment}}>{block.anchors?.filter((anchor: string) => anchor !== block.anchor).map((anchor: string) => <span key={anchor} id={anchor} className="word-bookmark-anchor" />)}{block.inline?.length ? renderInline() : block.content}</h2>{block.blocks?.map((b:any,i:number)=>renderBlock(b,i))}</div>
+      }
       case 'image': return <div key={idx} className="mb-8 flex flex-col items-center"><img src={block.url} alt={block.caption||''} className="h-auto max-w-full rounded-2xl shadow-book" style={{ width: block.widthPx ? (String(block.widthPx).endsWith('%') || String(block.widthPx).endsWith('px') ? String(block.widthPx) : `${block.widthPx}px`) : block.widthPercent ? `${block.widthPercent}%` : '100%' }} loading="lazy" />{block.caption && <p className="text-center text-sm text-muted-foreground mt-3">{block.caption}</p>}</div>
       case 'quiz': {
         const ua = quizAnswers[qKey]; const answered = ua !== undefined
@@ -841,7 +919,7 @@ export default function Reader() {
         <div className="text-center hidden sm:block"><h1 className="text-sm font-bold font-display">{book.title}</h1></div>
         <div className="flex items-center gap-2">
           {!canReadFull && <span className="text-xs bg-warning/20 text-warning px-2 py-0.5 rounded-full">پیش‌نمایش</span>}
-          <div className="text-xs text-muted-foreground"><span className="font-bold text-foreground">{currentPage + 1}</span> / {book.pages.length}</div>
+          <div className="text-xs text-muted-foreground">صفحه چاپی <span className="font-bold text-foreground">{currentPrintLabel}</span></div>
         </div>
       </div>
 
@@ -851,7 +929,7 @@ export default function Reader() {
           <div className={`reader-toc-panel fixed top-0 ${dir==='rtl'?'right-0 border-l':'left-0 border-r'} z-[70] h-full w-80 frosted-menu-surface p-5 overflow-y-auto animate-slide-in-right shadow-glass`} style={{paddingTop:'4rem'}}>
             <div className="flex items-center justify-between mb-5"><h2 className="font-bold font-display text-lg">📑 فهرست</h2><button title="بستن فهرست" onClick={()=>setShowToc(false)} className="p-1.5 rounded-lg hover:bg-muted"><X className="w-4 h-4"/></button></div>
             <div className="relative mb-4"><Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"/><input placeholder="جستجو در عناوین..." className="w-full pr-10 pl-3 py-2 rounded-xl border bg-background text-sm" onChange={e=>setSearchQuery(e.target.value)}/></div>
-            {readerToc.map(item => (<button key={item.key} onClick={()=>goPage(item.pageIndex)} className={`block w-full text-right p-2.5 rounded-xl text-sm mb-1 transition-all ${currentPage===item.pageIndex?'bg-primary/10 text-primary font-bold':'hover:bg-muted'}`} style={{ paddingInlineStart: `${0.85 + (item.level - 1) * 0.7}rem` }}><div className="flex items-center justify-between gap-3"><span className="truncate">{item.title}</span>{!canReadFull&&!book.preview_pages.includes(item.pageIndex)&&<Lock className="w-3 h-3 shrink-0 text-muted-foreground"/>}</div></button>))}
+            {readerToc.map(item => (<button key={item.key} onClick={()=>goPage(item.pageIndex, { page: item.pageIndex, targetId: item.targetId, title: item.title })} className={`block w-full text-right p-2.5 rounded-xl text-sm mb-1 transition-all ${currentPage===item.pageIndex?'bg-primary/10 text-primary font-bold':'hover:bg-muted'}`} style={{ paddingInlineStart: `${0.85 + (item.level - 1) * 0.7}rem` }}><div className="flex items-center justify-between gap-3"><span className="truncate">{item.title}</span>{!canReadFull&&!book.preview_pages.includes(item.pageIndex)&&<Lock className="w-3 h-3 shrink-0 text-muted-foreground"/>}</div></button>))}
           </div>
         )}
 
@@ -867,13 +945,14 @@ export default function Reader() {
             onPointerCancel={cancelHighlightStroke}
             onContextMenu={e => e.preventDefault()}
           >
+            <div className="reader-print-page-badge">صفحه چاپی <b>{currentPrintLabel}</b></div>
             {page.blocks.map((block:any,i:number)=>renderBlock(block,i))}
           </div>
 
           {/* Page Nav */}
           <div className="flex items-center justify-between">
             <Button variant="outline" onClick={()=>goPage(currentPage-1)} disabled={currentPage===0}><ChevronRight className="w-4 h-4"/>قبلی</Button>
-            <span className="text-sm text-muted-foreground">{currentPage+1} از {book.pages.length}</span>
+            <span className="text-sm text-muted-foreground">صفحه چاپی {currentPrintLabel} <span className="text-xs opacity-70">({currentPage + 1} از {book.pages.length})</span></span>
             <Button variant="outline" onClick={()=>goPage(currentPage+1)} disabled={currentPage>=book.pages.length-1||!canReadFull}>بعدی<ChevronLeft className="w-4 h-4"/></Button>
           </div>
         </div>

@@ -2,7 +2,8 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useParams } from 'react-router-dom'
 import { EditorContent, useEditor } from '@tiptap/react'
-import { Extension, Node, mergeAttributes } from '@tiptap/core'
+import { Extension, Mark, Node, mergeAttributes } from '@tiptap/core'
+import { Plugin } from '@tiptap/pm/state'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import TextAlign from '@tiptap/extension-text-align'
@@ -19,6 +20,7 @@ import { findPublisherBook, updatePublisherBook } from '@/lib/publisher-books'
 import { findBookById } from '@/lib/mock-data'
 import { supabase } from '@/integrations/supabase/client'
 import { useAuthContext } from '@/lib/auth-context'
+import { blockToHtml as sharedBlockToHtml, inlineToHtml as sharedInlineToHtml, normalizeBookText } from '@/lib/book-content'
 
 const escape = (value = '') => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 const encodePayload = (value: unknown) => encodeURIComponent(JSON.stringify(value))
@@ -54,6 +56,68 @@ const BlockFormatting = Extension.create({
         blockItalic: { default: null, parseHTML: element => element.style.fontStyle === 'italic', renderHTML: attrs => attrs.blockItalic ? { style: 'font-style:italic' } : {} },
       },
     }]
+  },
+})
+
+const CitationMark = Mark.create({
+  name: 'citationMark',
+  inclusive: false,
+  addAttributes() {
+    return {
+      footnoteId: { default: null, parseHTML: element => element.getAttribute('data-footnote-id'), renderHTML: attrs => attrs.footnoteId ? { 'data-footnote-id': attrs.footnoteId } : {} },
+      footnoteText: { default: null, parseHTML: element => element.getAttribute('data-footnote-text') || element.getAttribute('title'), renderHTML: attrs => attrs.footnoteText ? { 'data-footnote-text': attrs.footnoteText, title: attrs.footnoteText } : {} },
+      referenceText: { default: null, parseHTML: element => element.getAttribute('data-reference-text') || element.getAttribute('title'), renderHTML: attrs => attrs.referenceText ? { 'data-reference-text': attrs.referenceText, title: attrs.referenceText } : {} },
+      referenceAnchor: { default: null, parseHTML: element => element.getAttribute('data-reference-anchor'), renderHTML: attrs => attrs.referenceAnchor ? { 'data-reference-anchor': attrs.referenceAnchor } : {} },
+    }
+  },
+  parseHTML() {
+    return [{ tag: 'span[data-footnote-id]' }, { tag: 'span[data-reference-text]' }]
+  },
+  renderHTML({ HTMLAttributes }) {
+    const className = HTMLAttributes['data-footnote-id'] ? 'citation-reference footnote-reference' : 'citation-reference'
+    return ['span', mergeAttributes(HTMLAttributes, { class: className }), 0]
+  },
+})
+
+const ProtectedPageBreak = Node.create({
+  name: 'horizontalRule',
+  group: 'block',
+  atom: true,
+  selectable: false,
+  parseHTML() {
+    return [{ tag: 'hr' }]
+  },
+  addAttributes() {
+    return {
+      before: { default: null, parseHTML: element => element.getAttribute('data-before'), renderHTML: attrs => attrs.before ? { 'data-before': attrs.before } : {} },
+      after: { default: null, parseHTML: element => element.getAttribute('data-after'), renderHTML: attrs => attrs.after ? { 'data-after': attrs.after } : {} },
+    }
+  },
+  renderHTML({ HTMLAttributes }) {
+    return ['hr', mergeAttributes(HTMLAttributes, { 'data-page-break': 'true', contenteditable: 'false' })]
+  },
+  addCommands() {
+    return {
+      setHorizontalRule: () => ({ commands }) => commands.insertContent({ type: this.name }),
+    }
+  },
+})
+
+const PreservePageBreaks = Extension.create({
+  name: 'preservePageBreaks',
+  addProseMirrorPlugins() {
+    return [new Plugin({
+      filterTransaction: (transaction, state) => {
+        if ((window as any).__metabookiAllowPageBreakChange) return true
+        if (!transaction.docChanged) return true
+        const countBreaks = (doc: typeof state.doc) => {
+          let count = 0
+          doc.descendants(node => { if (node.type.name === 'horizontalRule') count += 1 })
+          return count
+        }
+        return countBreaks(transaction.doc) >= countBreaks(state.doc)
+      },
+    })]
   },
 })
 
@@ -156,16 +220,47 @@ function blockAttributes(block: any) {
   return attrs ? ` ${attrs}` : ''
 }
 
+function legacyListFromText(text = '') {
+  const lines = String(text).split(/\n+/).map(line => line.trim()).filter(Boolean)
+  if (lines.length < 2) return null
+  const ordered = lines.every(line => /^[\d۰-۹٠-٩]+[.)-]\s+/.test(line))
+  const bullet = lines.every(line => /^[•●*-]\s+/.test(line))
+  if (!ordered && !bullet) return null
+  return {
+    ordered,
+    items: lines.map(line => line.replace(ordered ? /^[\d۰-۹٠-٩]+[.)-]\s+/ : /^[•●*-]\s+/, '')),
+  }
+}
+
 function blockHtml(block: any) {
   if (block.type === 'heading') return `<h${Math.min(6, block.level || 2)}${blockAttributes(block)}>${inlineHtml(block)}</h${Math.min(6, block.level || 2)}>`
   if (block.type === 'table') return `<table><thead><tr>${(block.headers || []).map((cell: string) => `<th>${escape(cell)}</th>`).join('')}</tr></thead><tbody>${(block.rows || []).map((row: string[]) => `<tr>${row.map(cell => `<td>${escape(cell)}</td>`).join('')}</tr>`).join('')}</tbody></table>`
   if (block.type === 'image' && block.url) return `<img src="${escape(block.url)}" alt="${escape(block.caption || '')}" width="${block.widthPx ? `${block.widthPx}px` : block.widthPercent ? `${block.widthPercent}%` : '100%'}"${block.imageId ? ` data-image-id="${escape(block.imageId)}"` : ''}${block.printPage ? ` data-print-page="${escape(block.printPage)}"` : ''}${block.conversionStatus ? ` data-conversion-status="${escape(block.conversionStatus)}"` : ''}>${block.caption ? `<p data-semantic="caption">${escape(block.caption)}</p>` : ''}`
+  if (block.type === 'list') {
+    const tag = block.ordered ? 'ol' : 'ul'
+    return `<${tag}${blockAttributes(block)}>${(block.items || []).map((item: any) => `<li>${inlineHtml({ content: item.text, inline: item.inline })}</li>`).join('')}</${tag}>`
+  }
+  const legacyList = block.type === 'paragraph' ? legacyListFromText(block.content || block.text || '') : null
+  if (legacyList) {
+    const tag = legacyList.ordered ? 'ol' : 'ul'
+    return `<${tag}${blockAttributes(block)}>${legacyList.items.map(item => `<li>${escape(item)}</li>`).join('')}</${tag}>`
+  }
   if (['quiz', 'timeline', 'flashcard', 'steps', 'gallery', 'scrollytelling', 'hotspot'].includes(block.type)) return `<section data-interactive-kind="${block.type}" kind="${block.type}" payload="${encodePayload(block)}"></section>`
   return `<p${blockAttributes(block)}>${inlineHtml(block)}</p>`
 }
 
+function printPageLabel(page: any, fallback: number) {
+  const value = page?.printNumber || page?.number || fallback
+  return Number.isFinite(Number(value)) ? Number(value).toLocaleString('fa-IR') : String(value)
+}
+
 function pagesToHtml(pages: any[] = []) {
-  return pages.map((page, index) => `${index ? '<hr>' : ''}${(page.blocks || []).map(blockHtml).join('')}`).join('')
+  return pages.map((page, index) => {
+    const separator = index
+      ? `<hr data-page-break="true" data-before="پایان صفحه ${printPageLabel(pages[index - 1], index)}" data-after="شروع صفحه ${printPageLabel(page, index + 1)}">`
+      : ''
+    return `${separator}${(page.blocks || []).map(blockHtml).join('')}`
+  }).join('')
 }
 
 type EditorSegmentMode = 'chapter' | 'page'
@@ -207,7 +302,7 @@ function confirmedTocFromBook(book: any): ConfirmedTocEntry[] {
     .map((item: any) => ({ id: item.id, title: item.title, level: Math.min(6, Math.max(1, Number(item.level || 1))), page: item.page, styleId: item.styleId }))
 }
 
-function buildConfirmedTocSegments(pages: any[] = [], toc: ConfirmedTocEntry[] = []): EditorSegment[] {
+function buildConfirmedTocSegments(pages: any[] = [], toc: ConfirmedTocEntry[] = [], preludeTitle = 'ابتدای کتاب'): EditorSegment[] {
   if (!pages.length) return [{ key: 'empty', label: 'سند خالی', level: 1, start: 0, end: 0, startBlock: 0, endBlock: 0 }]
   if (!toc.length) return [{ key: 'all', label: 'کل متن کتاب', level: 1, start: 0, end: pages.length, startBlock: 0, endBlock: pages[pages.length - 1]?.blocks?.length || 0 }]
   const positions = toc.map(item => findTocPosition(pages, item))
@@ -216,7 +311,7 @@ function buildConfirmedTocSegments(pages: any[] = [], toc: ConfirmedTocEntry[] =
   if (first && (first.pageIndex > 0 || first.blockIndex > 0)) {
     segments.push({
       key: 'prelude',
-      label: 'ابتدای کتاب',
+      label: preludeTitle || 'ابتدای کتاب',
       level: 1,
       start: 0,
       end: first.pageIndex + 1,
@@ -320,6 +415,10 @@ function nodeText(node: any): string {
   return (node.content || []).map((part: any) => part.text || nodeText(part)).join('')
 }
 
+function inlineFromListItem(item: any) {
+  return (item.content || []).flatMap((child: any) => child.type === 'paragraph' ? inlineFromNode(child) : [])
+}
+
 function editorJsonToPages(json: any) {
   const pages: any[] = [{ title: 'صفحه ۱', blocks: [] }]
   for (const node of json?.content || []) {
@@ -335,12 +434,16 @@ function editorJsonToPages(json: any) {
       page.blocks.push({ type: 'image', url: node.attrs?.src, caption: node.attrs?.alt || '', imageId: node.attrs?.imageId || undefined, printPage: node.attrs?.printPage || undefined, conversionStatus: node.attrs?.conversionStatus || undefined, ...(width.endsWith('%') ? { widthPercent: Number.parseFloat(width) } : { widthPx: Number.parseFloat(width) }) })
     }
     else if (node.type === 'interactiveBlock') page.blocks.push({ ...decodePayload(node.attrs?.payload), type: node.attrs?.kind })
+    else if (node.type === 'bulletList' || node.type === 'orderedList') {
+      const items = (node.content || []).map((item: any) => {
+        const itemInline = inlineFromListItem(item)
+        return { text: itemInline.map((span: any) => span.text).join('') || nodeText(item), inline: itemInline }
+      }).filter((item: any) => item.text || item.inline?.length)
+      if (items.length) page.blocks.push({ type: 'list', ordered: node.type === 'orderedList', items, content: items.map((item: any) => item.text).join('\n') })
+    }
     else if (node.type === 'table') {
       const rows = (node.content || []).map((row: any) => (row.content || []).map((cell: any) => nodeText(cell)))
       page.blocks.push({ type: 'table', headers: rows[0] || [], rows: rows.slice(1) })
-    } else if (node.type === 'bulletList' || node.type === 'orderedList') {
-      const items = (node.content || []).map((item: any) => nodeText(item))
-      page.blocks.push({ type: 'paragraph', content: items.map((item: string, index: number) => `${node.type === 'orderedList' ? `${index + 1}.` : '•'} ${item}`).join('\n') })
     } else if (node.type === 'paragraph' && (content || inline.length)) page.blocks.push({ type: 'paragraph', content, inline, semantic: node.attrs?.semantic || undefined, format: { alignment: node.attrs?.textAlign || undefined, direction: node.attrs?.dir || undefined, fontSizePt: node.attrs?.fontSizePt || undefined, color: node.attrs?.blockColor?.replace('#', '') || undefined, bold: node.attrs?.blockBold || undefined, italic: node.attrs?.blockItalic || undefined } })
   }
   return pages.filter(page => page.blocks.length)
@@ -354,6 +457,7 @@ export default function Edit() {
   const [title, setTitle] = useState(localInitial?.title || '')
   const [subtitle, setSubtitle] = useState(localInitial?.subtitle || '')
   const [description, setDescription] = useState(localInitial?.description || '')
+  const [preludeTitle, setPreludeTitle] = useState<string>(String(localInitial?.metadata?.prelude_title || 'ابتدای کتاب'))
   const [metadataOpen, setMetadataOpen] = useState(false)
   const [savedAt, setSavedAt] = useState<Date | null>(null)
   const [saving, setSaving] = useState(false)
@@ -371,7 +475,7 @@ export default function Edit() {
   const documentStageRef = useRef<HTMLElement>(null)
   const switchingSegmentRef = useRef(false)
   const tocEntries = useMemo(() => confirmedTocFromBook(book), [book])
-  const segments = useMemo(() => buildConfirmedTocSegments(allPages, tocEntries), [allPages, tocEntries])
+  const segments = useMemo(() => buildConfirmedTocSegments(allPages, tocEntries, preludeTitle), [allPages, tocEntries, preludeTitle])
   const activeSegment = segments[Math.min(activeSegmentIndex, Math.max(0, segments.length - 1))] || segments[0]
   const bookImages = useMemo(() => {
     const pageImages = allPages.flatMap((page: any, pageIndex: number) => (page.blocks || [])
@@ -401,7 +505,7 @@ export default function Edit() {
 
   const editor = useEditor({
     extensions: [
-      StarterKit, Underline, Subscript, Superscript, ResizableImage.configure({ allowBase64: true }), Link.configure({ openOnClick: false }),
+      StarterKit.configure({ horizontalRule: false }), ProtectedPageBreak, PreservePageBreaks, Underline, Subscript, Superscript, ResizableImage.configure({ allowBase64: true }), Link.configure({ openOnClick: false }),
       TextStyle, Color, RichTextStyle, BlockFormatting, InteractiveBlock, TableKit.configure({ table: { resizable: true } }), TextAlign.configure({ types: ['heading', 'paragraph'] }),
     ],
     content: pagesToHtml((localInitial?.pages || []).slice(0, 1)),
@@ -429,17 +533,19 @@ export default function Edit() {
     const activeEditor = getEditor()
     if (!activeEditor || !segment) return
     switchingSegmentRef.current = true
+    ;(window as any).__metabookiAllowPageBreakChange = true
     activeEditor.commands.setContent(pagesToHtml(extractSegmentPages(pages, segment)))
     window.setTimeout(() => {
       refreshHeadings()
       switchingSegmentRef.current = false
+      ;(window as any).__metabookiAllowPageBreakChange = false
       documentStageRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }, 50)
   }
 
   const changeActiveSegment = (index: number) => {
     const merged = mergeCurrentSegment()
-    const nextSegments = buildConfirmedTocSegments(merged, tocEntries)
+    const nextSegments = buildConfirmedTocSegments(merged, tocEntries, preludeTitle)
     const nextIndex = Math.max(0, Math.min(nextSegments.length - 1, index))
     setAllPages(merged)
     setActiveSegmentIndex(nextIndex)
@@ -450,11 +556,11 @@ export default function Edit() {
     if (localInitial || !import.meta.env.VITE_SUPABASE_URL?.startsWith('http')) return
     ;(supabase as any).from('books').select('*').eq('id', id).maybeSingle().then(({ data }: { data: any }) => {
       if (!data) return
-      setBook(data); setTitle(data.title); setSubtitle(data.subtitle || ''); setDescription(data.description || '')
+      setBook(data); setTitle(data.title); setSubtitle(data.subtitle || ''); setDescription(data.description || ''); setPreludeTitle(data.metadata?.prelude_title || 'ابتدای کتاب')
       setBackgroundUrl(data.metadata?.page_background_url || ''); setBackgroundAlpha(Number(data.metadata?.page_background_alpha || 0))
       setAllPages(data.pages || [])
       setActiveSegmentIndex(0)
-      loadSegment(buildConfirmedTocSegments(data.pages || [], confirmedTocFromBook(data))[0], data.pages || [])
+      loadSegment(buildConfirmedTocSegments(data.pages || [], confirmedTocFromBook(data), data.metadata?.prelude_title || 'ابتدای کتاب')[0], data.pages || [])
     })
   }, [editor, id, localInitial])
 
@@ -473,7 +579,7 @@ export default function Edit() {
     if (!activeEditor || !id) return
     setSaving(true)
     const pages = mergeCurrentSegment()
-    const metadata = { ...(book?.metadata || {}), page_background_url: backgroundUrl, page_background_alpha: backgroundAlpha }
+    const metadata = { ...(book?.metadata || {}), page_background_url: backgroundUrl, page_background_alpha: backgroundAlpha, prelude_title: preludeTitle }
     const patch = { title, subtitle, description, pages, metadata, page_count: pages.length, content_updated_at: new Date().toISOString() }
     updatePublisherBook(id, patch as any)
     if (import.meta.env.VITE_SUPABASE_URL?.startsWith('http') && /^[0-9a-f-]{36}$/i.test(id)) {
@@ -688,6 +794,16 @@ export default function Edit() {
       void (supabase as any).from('books').update({ metadata }).eq('id', id)
     }
   }
+  const persistPreludeTitle = (nextTitle: string) => {
+    const cleanTitle = nextTitle.trim() || 'ابتدای کتاب'
+    setPreludeTitle(cleanTitle)
+    const metadata = { ...(book?.metadata || {}), prelude_title: cleanTitle }
+    setBook((current: any) => ({ ...current, metadata }))
+    updatePublisherBook(id, { metadata } as any)
+    if (import.meta.env.VITE_SUPABASE_URL?.startsWith('http') && /^[0-9a-f-]{36}$/i.test(id)) {
+      void (supabase as any).from('books').update({ metadata }).eq('id', id)
+    }
+  }
   const updateTocEntry = (tocIndex: number, patch: Partial<ConfirmedTocEntry>) => {
     if (tocIndex < 0) return
     persistTocEntries(tocEntries.map((item, index) => index === tocIndex ? { ...item, ...patch } : item))
@@ -704,6 +820,12 @@ export default function Edit() {
   const submitInlineTocEdit = () => {
     if (editingTocIndex === null) return
     const title = editingTocTitle.trim()
+    if (editingTocIndex === -1) {
+      if (title) persistPreludeTitle(title)
+      setEditingTocIndex(null)
+      setEditingTocTitle('')
+      return
+    }
     if (title) updateTocEntry(editingTocIndex, { title })
     setEditingTocIndex(null)
     setEditingTocTitle('')
@@ -782,6 +904,10 @@ export default function Edit() {
                     <button title="افزایش سطح" onClick={() => shiftTocEntryLevel(segment.tocIndex!, 1)}><ArrowDown /></button>
                     <button title="ویرایش عنوان" onClick={() => startInlineTocEdit(segment.tocIndex!, segment.label || '')}><Edit3 /></button>
                     <button title="حذف از فهرست" onClick={() => setConfirmTocDelete(segment.tocIndex!)}><Trash2 /></button>
+                  </span>
+                ) : segment.isPrelude ? (
+                  <span className="book-editor-toc-actions">
+                    <button title="ویرایش عنوان ابتدای کتاب" onClick={() => startInlineTocEdit(-1, segment.label || preludeTitle)}><Edit3 /></button>
                   </span>
                 ) : <span className="book-editor-toc-jump"><ChevronLeft /></span>}
               </div>
