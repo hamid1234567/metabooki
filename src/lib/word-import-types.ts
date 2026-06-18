@@ -11,9 +11,13 @@ export interface ImportIssue {
 
 export interface ImportParagraph {
   id: string
-  type: 'paragraph' | 'heading' | 'caption' | 'table-title' | 'image' | 'table' | 'math'
+  type: 'paragraph' | 'heading' | 'caption' | 'table-title' | 'image' | 'table' | 'math' | 'list'
   text?: string
   inline?: ImportInlineSpan[]
+  items?: Array<{ text: string; inline?: ImportInlineSpan[] }>
+  ordered?: boolean
+  listLevel?: number
+  listId?: string
   level?: number
   style?: string
   anchor?: string
