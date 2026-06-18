@@ -430,6 +430,37 @@ export default function Admin() {
           </div>
 
           <div className="glass rounded-2xl p-6">
+            <div className="flex flex-wrap items-start justify-between gap-4 mb-5">
+              <div>
+                <h2 className="font-bold text-lg flex items-center gap-2"><Filter className="w-5 h-5 text-primary" />گزینه‌های فیلتر کتاب</h2>
+                <p className="text-sm text-muted-foreground mt-1 leading-relaxed">هر گزینه را در یک خط وارد کنید. این گزینه‌ها بدون نیاز به کدنویسی در فروشگاه، قفسه من و صفحه انتشارات کنار گزینه‌های کشف‌شده از کتاب‌ها نمایش داده می‌شوند.</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={fillFiltersFromBooks}>پر کردن از کتاب‌های فعلی</Button>
+            </div>
+            <div className="grid md:grid-cols-3 gap-4">
+              <label className="admin-filter-field">
+                <span>دسته‌بندی‌ها</span>
+                <textarea value={filterDraft.categories} onChange={event => setFilterDraft(current => ({ ...current, categories: event.target.value }))} placeholder="علمی&#10;ادبیات&#10;مدیریت" />
+                <small>{filterSettings.categories.length.toLocaleString('fa-IR')} گزینه ذخیره‌شده</small>
+              </label>
+              <label className="admin-filter-field">
+                <span>تگ‌ها</span>
+                <textarea value={filterDraft.tags} onChange={event => setFilterDraft(current => ({ ...current, tags: event.target.value }))} placeholder="فیزیک&#10;هوش مصنوعی&#10;رمان" />
+                <small>{filterSettings.tags.length.toLocaleString('fa-IR')} گزینه ذخیره‌شده</small>
+              </label>
+              <label className="admin-filter-field">
+                <span>نوع کتاب</span>
+                <textarea value={filterDraft.bookTypes} onChange={event => setFilterDraft(current => ({ ...current, bookTypes: event.target.value }))} placeholder="تألیف&#10;ترجمه&#10;گردآوری" />
+                <small>{filterSettings.bookTypes.length.toLocaleString('fa-IR')} گزینه ذخیره‌شده</small>
+              </label>
+            </div>
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              <Button onClick={saveFilterOptions}>ذخیره گزینه‌های فیلتر</Button>
+              {message && <p className="text-sm text-success font-medium">{message}</p>}
+            </div>
+          </div>
+
+          <div className="glass rounded-2xl p-6">
             <h2 className="font-bold text-lg mb-4 flex items-center gap-2"><DollarSign className="w-5 h-5 text-primary" />تنظیمات مالی</h2>
             <div className="space-y-4 max-w-md">
               <div>
