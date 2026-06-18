@@ -12,5 +12,15 @@ export function analysisToReaderPages(analysis: WordImportAnalysis, imageUrls: R
 }
 
 export function analysisToEditorHtml(analysis: WordImportAnalysis) {
-  return (analysis.documentPages || analysis.previewPages).map(page => page.blocks.map(blockToHtml).join('')).join('<hr data-page-break="true">')
+  const pages = analysis.documentPages || analysis.previewPages
+  const pageLabel = (page: WordImportAnalysis['previewPages'][number] | undefined, fallback: number) => {
+    const value = page?.printNumber || page?.number || fallback
+    return Number.isFinite(Number(value)) ? Number(value).toLocaleString('fa-IR') : String(value)
+  }
+  return pages.map((page, index) => {
+    const separator = index
+      ? `<hr data-page-break="true" data-before="پایان صفحه ${pageLabel(pages[index - 1], index)}" data-after="شروع صفحه ${pageLabel(page, index + 1)}">`
+      : ''
+    return `${separator}${page.blocks.map(blockToHtml).join('')}`
+  }).join('')
 }

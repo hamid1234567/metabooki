@@ -344,17 +344,29 @@ function mergeSegmentPages(sourcePages: any[] = [], segment: EditorSegment | und
   if (!segment) return sourcePages
   const before = sourcePages.slice(0, segment.start)
   const after = sourcePages.slice(segment.end)
+  const selectedSource = sourcePages.slice(segment.start, segment.end)
+  const preservePageMeta = (page: any, index: number) => {
+    const source = selectedSource[index] || selectedSource[selectedSource.length - 1] || {}
+    return {
+      ...source,
+      ...page,
+      title: page.title || source.title,
+      number: source.number ?? page.number ?? segment.start + index + 1,
+      printNumber: source.printNumber ?? page.printNumber ?? source.number ?? page.number ?? segment.start + index + 1,
+    }
+  }
+  const normalizedEditedPages = editedPages.map(preservePageMeta)
   const firstSource = sourcePages[segment.start] || { blocks: [] }
   const lastSource = sourcePages[Math.max(segment.start, segment.end - 1)] || firstSource
   const prefix = (firstSource.blocks || []).slice(0, segment.startBlock ?? 0)
   const suffix = (lastSource.blocks || []).slice(segment.endBlock ?? (lastSource.blocks || []).length)
-  if (!editedPages.length) return [...before, { ...firstSource, blocks: [...prefix, ...suffix] }, ...after]
-  if (editedPages.length === 1) {
-    return [...before, { ...firstSource, ...editedPages[0], blocks: [...prefix, ...(editedPages[0].blocks || []), ...suffix] }, ...after]
+  if (!normalizedEditedPages.length) return [...before, { ...firstSource, blocks: [...prefix, ...suffix] }, ...after]
+  if (normalizedEditedPages.length === 1) {
+    return [...before, { ...firstSource, ...normalizedEditedPages[0], blocks: [...prefix, ...(normalizedEditedPages[0].blocks || []), ...suffix] }, ...after]
   }
-  const firstEdited = { ...firstSource, ...editedPages[0], blocks: [...prefix, ...(editedPages[0].blocks || [])] }
-  const middleEdited = editedPages.slice(1, -1)
-  const lastEditedPage = editedPages[editedPages.length - 1]
+  const firstEdited = { ...firstSource, ...normalizedEditedPages[0], blocks: [...prefix, ...(normalizedEditedPages[0].blocks || [])] }
+  const middleEdited = normalizedEditedPages.slice(1, -1)
+  const lastEditedPage = normalizedEditedPages[normalizedEditedPages.length - 1]
   const lastEdited = { ...lastSource, ...lastEditedPage, blocks: [...(lastEditedPage.blocks || []), ...suffix] }
   return [...before, firstEdited, ...middleEdited, lastEdited, ...after]
 }

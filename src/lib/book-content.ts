@@ -6,10 +6,13 @@ export type BookInlineSpan = ImportInlineSpan & {
   fontSize?: string
 }
 
+const LEGACY_ZWS_PATTERN = /\s*(?:Ãƒâ€šÃ‚Â¬|Ã‚Â¬|Ãƒâ€šÂ¬|Ã‚¬|Â¬|¬|\u00AC)\s*/g
+
 export function normalizeBookText(value = '') {
   return String(value)
-    .replace(/Ã‚Â¬|Â¬|¬/g, '\u200C')
+    .replace(LEGACY_ZWS_PATTERN, '\u200C')
     .replace(/\u00AD/g, '\u200C')
+    .replace(/\u200C{2,}/g, '\u200C')
 }
 
 export function escapeHtml(text = '') {
