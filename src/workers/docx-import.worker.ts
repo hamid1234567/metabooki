@@ -3,7 +3,7 @@ import JSZip from 'jszip'
 import { XMLParser } from 'fast-xml-parser'
 import UTIF from 'utif'
 import { convertEmfToDataUrl, convertWmfToDataUrl } from 'emf-converter'
-import { formatPrintNumber, normalizeBookText, printPageLabel } from '@/lib/book-content'
+import { BOOK_CONTENT_ZWNJ, formatPrintNumber, normalizeBookText, printPageLabel } from '@/lib/book-content'
 import type { ImportFootnote, ImportImage, ImportInlineSpan, ImportIssue, ImportPage, ImportParagraph, TocEntry, WordImportAnalysis, WordStyleDefinition } from '@/lib/word-import-types'
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope
@@ -86,13 +86,13 @@ async function sha256(file: File) {
 }
 
 function collectText(value: unknown): string {
-  if (typeof value === 'string') return value.replace(/Â¬|¬/g, '\u200C')
+  if (typeof value === 'string') return normalizeBookText(value)
   if (typeof value === 'number' || typeof value === 'bigint') return String(value)
   if (Array.isArray(value)) return value.map(collectText).join('')
   if (!value || typeof value !== 'object') return ''
   const record = value as Record<string, unknown>
   if (typeof record['#text'] === 'string' || typeof record['#text'] === 'number' || typeof record['#text'] === 'bigint') {
-    return String(record['#text']).replace(/Â¬|¬/g, '\u200C')
+    return normalizeBookText(String(record['#text']))
   }
   return Object.entries(record)
     .filter(([key]) => key !== ':@' && key !== '#text')
@@ -287,7 +287,7 @@ function wordSymbolText(node: unknown) {
       || ((node as Record<string, Record<string, unknown>>)['w:sym'] as Record<string, unknown> | undefined)
     : undefined
   const char = String(directAttrs?.['@_w:char'] || directAttrs?.['@_char'] || elementAttribute(node, 'w:sym', '@_w:char', '@_char') || '').replace(/^0x/i, '')
-  if (/^(00)?AC$/i.test(char)) return '\u200C'
+  if (/^(00)?AC$/i.test(char)) return BOOK_CONTENT_ZWNJ
   const codePoint = Number.parseInt(char, 16)
   if (!Number.isFinite(codePoint) || codePoint <= 0 || codePoint > 0x10ffff) return ''
   return String.fromCodePoint(codePoint)
@@ -366,7 +366,7 @@ function parseInline(node: unknown, hyperlinks: Map<string, string>, inheritedHr
         for (const [key, child] of Object.entries(item)) {
           if (key === ':@') continue
           if (key === 'w:t') textParts.push(collectText(child))
-          else if (key === 'w:softHyphen') textParts.push('\u200C')
+          else if (key === 'w:softHyphen') textParts.push(BOOK_CONTENT_ZWNJ)
           else if (key === 'w:sym') textParts.push(wordSymbolText({ [key]: child, ':@': item[':@'] }))
           else if (key === 'w:tab') textParts.push(' ')
           else if (key === 'w:br') textParts.push('\n')

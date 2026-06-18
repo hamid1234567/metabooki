@@ -8,6 +8,8 @@ export type BookInlineSpan = ImportInlineSpan & {
 
 export type PrintPageValue = number | string | null | undefined
 
+export const BOOK_CONTENT_ZWNJ = '\u200C'
+
 const LEGACY_ZWS_PATTERN = /\s*(?:Ãƒâ€šÃ‚Â¬|Ã‚Â¬|Ãƒâ€šÂ¬|Ã‚¬|Â¬|¬|\u00AC)\s*/g
 const WORD_SUFFIX_HAYE_PATTERN = /([\u0600-\u06FF]{2,})(\u0647\u0627\u064a|\u0647\u0627\u06cc|\u0647\u0627\u0649|\u0647\u0627\u06cc\u06cc|\u0647\u0627\u064a\u064a)(?=$|[\s\u060c\u061b,.!?\u061f])/g
 const SAMPLE_BARDARI_PATTERN = /(\u0646\u0645\u0648\u0646\u0647)(\u0628\u0631\u062f\u0627\u0631[\u0600-\u06FF]*)/g
@@ -70,12 +72,12 @@ export function pageBreakHtml(previous?: { printNumber?: PrintPageValue }, next?
 
 export function normalizeBookText(value = '') {
   return String(value)
-    .replace(LEGACY_ZWS_PATTERN, '\u200C')
-    .replace(/\u00AD/g, '\u200C')
-    .replace(WORD_SUFFIX_HAYE_PATTERN, '$1\u200C$2')
-    .replace(SAMPLE_BARDARI_PATTERN, '$1\u200C$2')
-    .replace(RADON_KHAR_PATTERN, '$1\u200C$2')
-    .replace(/\u200C{2,}/g, '\u200C')
+    .replace(LEGACY_ZWS_PATTERN, BOOK_CONTENT_ZWNJ)
+    .replace(/\u00AD/g, BOOK_CONTENT_ZWNJ)
+    .replace(WORD_SUFFIX_HAYE_PATTERN, `$1${BOOK_CONTENT_ZWNJ}$2`)
+    .replace(SAMPLE_BARDARI_PATTERN, `$1${BOOK_CONTENT_ZWNJ}$2`)
+    .replace(RADON_KHAR_PATTERN, `$1${BOOK_CONTENT_ZWNJ}$2`)
+    .replace(/\u200C{2,}/g, BOOK_CONTENT_ZWNJ)
 }
 
 export function escapeHtml(text = '') {
