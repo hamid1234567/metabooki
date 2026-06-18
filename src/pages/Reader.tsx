@@ -9,7 +9,7 @@ import { ArrowLeft, BookOpen, Lock, Eye, List, Menu, Minus, Plus, X, Sparkles, F
 import { toast } from 'sonner'
 import { runAiThroughGateway, type AiStructuredContent, type ReaderAiAction, type RunAiResult } from '@/lib/ai-gateway'
 import { supabase } from '@/integrations/supabase/client'
-import { normalizeBookText } from '@/lib/book-content'
+import { normalizeBookText, printPageLabel } from '@/lib/book-content'
 
 type HighlightColor = 'yellow' | 'green' | 'red'
 type HighlightEntry = {
@@ -234,7 +234,7 @@ export default function Reader() {
   const currentPrintNumber = page.printNumber
   const currentPrintLabel = currentPrintNumber === undefined || currentPrintNumber === null || currentPrintNumber === ''
     ? 'بدون شماره چاپی'
-    : Number.isFinite(Number(currentPrintNumber)) ? Number(currentPrintNumber).toLocaleString('fa-IR') : String(currentPrintNumber)
+    : printPageLabel(currentPrintNumber)
   const findTocPosition = (item: { id?: string; title?: string; page?: number }) => {
     if (item.id) {
       for (let pageIndex = 0; pageIndex < book.pages.length; pageIndex += 1) {

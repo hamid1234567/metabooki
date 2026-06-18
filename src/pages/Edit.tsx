@@ -20,7 +20,7 @@ import { findPublisherBook, updatePublisherBook } from '@/lib/publisher-books'
 import { findBookById } from '@/lib/mock-data'
 import { supabase } from '@/integrations/supabase/client'
 import { useAuthContext } from '@/lib/auth-context'
-import { inlineToHtml as sharedInlineToHtml, normalizeBookText } from '@/lib/book-content'
+import { inlineToHtml as sharedInlineToHtml, normalizeBookText, pageBreakHtml } from '@/lib/book-content'
 
 const escape = (value = '') => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 const encodePayload = (value: unknown) => encodeURIComponent(JSON.stringify(value))
@@ -236,19 +236,9 @@ function blockHtml(block: any) {
   return `<p${blockAttributes(block)}>${inlineHtml(block)}</p>`
 }
 
-function printPageLabel(page: any, fallback: number) {
-  const value = page?.printNumber
-  if (value === undefined || value === null || value === '') return ''
-  return Number.isFinite(Number(value)) ? Number(value).toLocaleString('fa-IR') : String(value)
-}
-
 function pagesToHtml(pages: any[] = []) {
   return pages.map((page, index) => {
-    const beforeLabel = index ? printPageLabel(pages[index - 1], index) : ''
-    const afterLabel = index ? printPageLabel(page, index + 1) : ''
-    const separator = index
-      ? `<hr data-page-break="true" data-before="${beforeLabel ? `پایان صفحه ${beforeLabel}` : ''}" data-after="${afterLabel ? `شروع صفحه ${afterLabel}` : ''}">`
-      : ''
+    const separator = index ? pageBreakHtml(pages[index - 1], page) : ''
     return `${separator}${(page.blocks || []).map(blockHtml).join('')}`
   }).join('')
 }

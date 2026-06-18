@@ -6,7 +6,7 @@ import { useAuthContext } from '@/lib/auth-context'
 import { confirmAndUploadImport, uploadErrorMessage, type UploadProgress } from '@/lib/import-upload'
 import { clearExpiredLocalImports, deleteLocalImport, saveLocalImport, updateLocalAnalysis } from '@/lib/local-import-store'
 import { applyWordStyleMapping } from '@/lib/word-style-mapping'
-import { normalizeBookText } from '@/lib/book-content'
+import { normalizeBookText, printPageLabel } from '@/lib/book-content'
 import type { ImportBookMetadata, LocalImportProject, WordImportAnalysis, ImportWorkerMessage } from '@/lib/word-import-types'
 
 type Stage = 'choose' | 'analyzing' | 'review' | 'uploading' | 'complete'
@@ -15,11 +15,6 @@ const BOOK_TYPES: BookType[] = ['تألیف', 'ترجمه', 'گردآوری', '�
 
 function bytes(value: number) {
   return new Intl.NumberFormat('fa-IR', { style: 'unit', unit: 'megabyte', maximumFractionDigits: 1 }).format(value / 1024 / 1024)
-}
-
-function printPageLabel(value: number | string | undefined) {
-  if (value === undefined || value === null || value === '') return 'نامشخص'
-  return Number.isFinite(Number(value)) ? Number(value).toLocaleString('fa-IR') : String(value)
 }
 
 function parseLines(value: string) {
@@ -334,7 +329,7 @@ export default function Upload() {
                 {analysis.images.filter(image => image.isReferenced !== false && image.conversionStatus === 'conversion-failed').map(image => <div key={image.id}>
                   <span>
                     <b>{image.caption || image.originalName || image.name}</b>
-                    <small>صفحه چاپی Word: {image.wordPages?.map(page => printPageLabel(page)).join('، ') || 'نامشخص'} · {image.conversionError}</small>
+                    <small>صفحه چاپی Word: {image.wordPages?.map(page => printPageLabel(page, 'نامشخص')).join('، ') || 'نامشخص'} · {image.conversionError}</small>
                     {image.contextBefore && <small><strong>متن قبل:</strong> {image.contextBefore}</small>}
                     {image.contextAfter && <small><strong>متن بعد:</strong> {image.contextAfter}</small>}
                     {image.previewBlockId && <button type="button" className="word-image-locate" onClick={() => scrollToPreviewBlock(image.previewBlockId!)}>نمایش محل در پیش‌نمایش</button>}

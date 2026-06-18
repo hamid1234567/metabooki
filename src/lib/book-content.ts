@@ -8,6 +8,63 @@ export type BookInlineSpan = ImportInlineSpan & {
 
 const LEGACY_ZWS_PATTERN = /\s*(?:Ãƒâ€šÃ‚Â¬|Ã‚Â¬|Ãƒâ€šÂ¬|Ã‚¬|Â¬|¬|\u00AC)\s*/g
 
+export type PrintPageValue = number | string | null | undefined
+
+function romanNumber(value: number) {
+  if (!Number.isFinite(value) || value <= 0 || value >= 4000) return String(value)
+  const pairs: Array<[number, string]> = [[1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'], [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']]
+  let remaining = Math.floor(value)
+  let output = ''
+  for (const [number, label] of pairs) {
+    while (remaining >= number) {
+      output += label
+      remaining -= number
+    }
+  }
+  return output
+}
+
+function alphaNumber(value: number, uppercase = false) {
+  if (!Number.isFinite(value) || value <= 0) return String(value)
+  let remaining = Math.floor(value)
+  let output = ''
+  while (remaining > 0) {
+    remaining -= 1
+    output = String.fromCharCode((uppercase ? 65 : 97) + (remaining % 26)) + output
+    remaining = Math.floor(remaining / 26)
+  }
+  return output
+}
+
+export function formatPrintNumber(value: number, format = 'decimal') {
+  const normalized = String(format || 'decimal').toLowerCase()
+  if (normalized.includes('roman')) {
+    const roman = romanNumber(value)
+    return normalized.includes('upper') ? roman : roman.toLowerCase()
+  }
+  if (normalized.includes('letter')) return alphaNumber(value, normalized.includes('upper'))
+  return value
+}
+
+export function printPageLabel(value: PrintPageValue, emptyLabel = '') {
+  if (value === undefined || value === null || value === '') return emptyLabel
+  return Number.isFinite(Number(value)) ? Number(value).toLocaleString('fa-IR') : String(value)
+}
+
+export function printPageBoundaryLabels(previous?: { printNumber?: PrintPageValue }, next?: { printNumber?: PrintPageValue }) {
+  const before = printPageLabel(previous?.printNumber)
+  const after = printPageLabel(next?.printNumber)
+  return {
+    before: before ? `پایان صفحه ${before}` : 'پایان صفحه بدون شماره چاپی',
+    after: after ? `شروع صفحه ${after}` : 'شروع صفحه بدون شماره چاپی',
+  }
+}
+
+export function pageBreakHtml(previous?: { printNumber?: PrintPageValue }, next?: { printNumber?: PrintPageValue }) {
+  const labels = printPageBoundaryLabels(previous, next)
+  return `<hr data-page-break="true" data-before="${escapeHtml(labels.before)}" data-after="${escapeHtml(labels.after)}">`
+}
+
 export function normalizeBookText(value = '') {
   return String(value)
     .replace(LEGACY_ZWS_PATTERN, '\u200C')

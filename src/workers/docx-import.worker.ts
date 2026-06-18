@@ -3,6 +3,7 @@ import JSZip from 'jszip'
 import { XMLParser } from 'fast-xml-parser'
 import UTIF from 'utif'
 import { convertEmfToDataUrl, convertWmfToDataUrl } from 'emf-converter'
+import { formatPrintNumber, printPageLabel } from '@/lib/book-content'
 import type { ImportFootnote, ImportImage, ImportInlineSpan, ImportIssue, ImportPage, ImportParagraph, TocEntry, WordImportAnalysis, WordStyleDefinition } from '@/lib/word-import-types'
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope
@@ -285,47 +286,6 @@ function hasPageBreak(node: unknown) {
 }
 
 type PrintNumberState = { value: number; format: string }
-
-function romanNumber(value: number) {
-  if (!Number.isFinite(value) || value <= 0 || value >= 4000) return String(value)
-  const pairs: Array<[number, string]> = [[1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'], [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']]
-  let remaining = Math.floor(value)
-  let output = ''
-  for (const [number, label] of pairs) {
-    while (remaining >= number) {
-      output += label
-      remaining -= number
-    }
-  }
-  return output
-}
-
-function alphaNumber(value: number, uppercase = false) {
-  if (!Number.isFinite(value) || value <= 0) return String(value)
-  let remaining = Math.floor(value)
-  let output = ''
-  while (remaining > 0) {
-    remaining -= 1
-    output = String.fromCharCode((uppercase ? 65 : 97) + (remaining % 26)) + output
-    remaining = Math.floor(remaining / 26)
-  }
-  return output
-}
-
-function formatPrintNumber(value: number, format = 'decimal') {
-  const normalized = String(format || 'decimal').toLowerCase()
-  if (normalized.includes('roman')) {
-    const roman = romanNumber(value)
-    return normalized.includes('upper') ? roman : roman.toLowerCase()
-  }
-  if (normalized.includes('letter')) return alphaNumber(value, normalized.includes('upper'))
-  return value
-}
-
-function printPageLabel(value: number | string | undefined) {
-  if (value === undefined || value === null || value === '') return 'نامشخص'
-  return Number.isFinite(Number(value)) ? Number(value).toLocaleString('fa-IR') : String(value)
-}
 
 function pageNumberSettings(node: unknown) {
   const matches = deepFind(node, 'w:pgNumType')
