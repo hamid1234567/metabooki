@@ -8,6 +8,35 @@ export type BookInlineSpan = ImportInlineSpan & {
 
 export type PrintPageValue = number | string | null | undefined
 
+// Before changing any content rendering behavior, check this registry first.
+// If the behavior belongs here, update the central owner function instead of patching one surface.
+export const BOOK_CONTENT_REFERENCE_RULES = [
+  {
+    key: 'text-normalization',
+    owner: 'normalizeBookText',
+    surfaces: ['word import', 'word preview', 'editor', 'editor preview', 'reader', 'book cards', 'AI outputs', 'highlights', 'notes'],
+    includes: ['ZWS/ZWNJ', 'legacy not-sign separator', 'soft hyphen', 'Persian compound words'],
+  },
+  {
+    key: 'inline-rich-content',
+    owner: 'inlineToHtml',
+    surfaces: ['word import', 'word preview', 'editor', 'editor preview', 'reader', 'book snippets', 'AI outputs', 'highlights', 'notes'],
+    includes: ['superscript', 'subscript', 'links', 'citations', 'footnotes', 'chemical formulas', 'inline formulas'],
+  },
+  {
+    key: 'print-page-numbering',
+    owner: 'printPageLabel / printPageBoundaryLabels / pageBreakHtml / pageDividerHtml',
+    surfaces: ['word preview', 'editor', 'editor preview', 'reader'],
+    includes: ['printed page labels', 'page separators', 'roman/letter/decimal numbering', 'page-break display'],
+  },
+  {
+    key: 'citation-tooltips',
+    owner: 'citationTooltipAttributes / bookTextDirection',
+    surfaces: ['word preview', 'editor', 'editor preview', 'reader'],
+    includes: ['footnote tooltip', 'reference tooltip', 'RTL/LTR direction', 'viewport-safe placement'],
+  },
+] as const
+
 export const BOOK_CONTENT_ZWNJ = '\u200C'
 
 const LEGACY_ZWS_PATTERN = /\s*(?:Ãƒâ€šÃ‚Â¬|Ã‚Â¬|Ãƒâ€šÂ¬|Ã‚¬|Â¬|¬|\u00AC)\s*/g
