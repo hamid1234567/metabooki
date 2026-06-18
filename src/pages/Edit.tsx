@@ -20,7 +20,7 @@ import { findPublisherBook, updatePublisherBook } from '@/lib/publisher-books'
 import { findBookById } from '@/lib/mock-data'
 import { supabase } from '@/integrations/supabase/client'
 import { useAuthContext } from '@/lib/auth-context'
-import { blockToHtml as sharedBlockToHtml, inlineToHtml as sharedInlineToHtml, normalizeBookText } from '@/lib/book-content'
+import { inlineToHtml as sharedInlineToHtml, normalizeBookText } from '@/lib/book-content'
 
 const escape = (value = '') => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 const encodePayload = (value: unknown) => encodeURIComponent(JSON.stringify(value))
@@ -184,20 +184,7 @@ function interactivePreview(kind: string, data: any): any[] {
 }
 
 function inlineHtml(block: any) {
-  if (!block.inline?.length) return escape(block.content || block.text || block.expression || '')
-  return block.inline.map((span: any) => {
-    let value = escape(span.text || '')
-    const style = [span.color ? `color:${span.color}` : '', span.fontFamily ? `font-family:${span.fontFamily}` : '', span.fontSize ? `font-size:${span.fontSize}` : ''].filter(Boolean).join(';')
-    if (style) value = `<span style="${style}">${value}</span>`
-    if (span.bold) value = `<strong>${value}</strong>`
-    if (span.italic) value = `<em>${value}</em>`
-    if (span.superscript) value = `<sup>${value}</sup>`
-    if (span.subscript) value = `<sub>${value}</sub>`
-    if (span.footnoteId) value = `<sup title="${escape(span.footnoteText || '')}">${escape(span.footnoteId)}</sup>`
-    if (span.referenceText) value = `<span title="${escape(span.referenceText)}">${value}</span>`
-    if (span.href) value = `<a href="${escape(span.href)}">${value}</a>`
-    return value
-  }).join('')
+  return sharedInlineToHtml(block.inline, block.content || block.text || block.expression || '')
 }
 
 function blockStyle(block: any) {
@@ -394,13 +381,19 @@ function inlineFromNode(node: any) {
   return (node.content || []).flatMap((part: any) => {
     if (part.type === 'hardBreak') return [{ text: '\n' }]
     if (part.type !== 'text') return []
-    const span: any = { text: part.text || '' }
+    const span: any = { text: normalizeBookText(part.text || '') }
     for (const mark of part.marks || []) {
       if (mark.type === 'bold') span.bold = true
       if (mark.type === 'italic') span.italic = true
       if (mark.type === 'superscript') span.superscript = true
       if (mark.type === 'subscript') span.subscript = true
       if (mark.type === 'link') span.href = mark.attrs?.href
+      if (mark.type === 'citationMark') {
+        if (mark.attrs?.footnoteId) span.footnoteId = mark.attrs.footnoteId
+        if (mark.attrs?.footnoteText) span.footnoteText = mark.attrs.footnoteText
+        if (mark.attrs?.referenceText) span.referenceText = mark.attrs.referenceText
+        if (mark.attrs?.referenceAnchor) span.referenceAnchor = mark.attrs.referenceAnchor
+      }
       if (mark.type === 'textStyle') {
         if (mark.attrs?.color) span.color = mark.attrs.color
         if (mark.attrs?.fontFamily) span.fontFamily = mark.attrs.fontFamily
@@ -412,7 +405,7 @@ function inlineFromNode(node: any) {
 }
 
 function nodeText(node: any): string {
-  return (node.content || []).map((part: any) => part.text || nodeText(part)).join('')
+  return normalizeBookText((node.content || []).map((part: any) => part.text || nodeText(part)).join(''))
 }
 
 function inlineFromListItem(item: any) {
@@ -505,7 +498,7 @@ export default function Edit() {
 
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({ horizontalRule: false }), ProtectedPageBreak, PreservePageBreaks, Underline, Subscript, Superscript, ResizableImage.configure({ allowBase64: true }), Link.configure({ openOnClick: false }),
+      StarterKit.configure({ horizontalRule: false }), ProtectedPageBreak, PreservePageBreaks, CitationMark, Underline, Subscript, Superscript, ResizableImage.configure({ allowBase64: true }), Link.configure({ openOnClick: false }),
       TextStyle, Color, RichTextStyle, BlockFormatting, InteractiveBlock, TableKit.configure({ table: { resizable: true } }), TextAlign.configure({ types: ['heading', 'paragraph'] }),
     ],
     content: pagesToHtml((localInitial?.pages || []).slice(0, 1)),

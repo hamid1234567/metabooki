@@ -9,6 +9,7 @@ import { ArrowLeft, BookOpen, Lock, Eye, List, Menu, Minus, Plus, X, Sparkles, F
 import { toast } from 'sonner'
 import { runAiThroughGateway, type AiStructuredContent, type ReaderAiAction, type RunAiResult } from '@/lib/ai-gateway'
 import { supabase } from '@/integrations/supabase/client'
+import { normalizeBookText } from '@/lib/book-content'
 
 type HighlightColor = 'yellow' | 'green' | 'red'
 type HighlightEntry = {
