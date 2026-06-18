@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { Navbar } from '@/components/navbar/Navbar'
 import { OfflineBanner } from '@/components/offline/OfflineBanner'
@@ -29,6 +29,60 @@ import AudioReader from '@/pages/AudioReader'
 import NotFound from '@/pages/NotFound'
 
 function App() {
+  useEffect(() => {
+    let activeReference: HTMLElement | null = null
+    const positionTooltip = (reference: HTMLElement | null) => {
+      if (!reference) return
+      const rect = reference.getBoundingClientRect()
+      const tooltipWidth = Math.min(448, window.innerWidth - 32)
+      const tooltipMaxHeight = Math.min(288, window.innerHeight * 0.46)
+      const edge = 16
+      const bottomSafeArea = 92
+      const centerX = rect.left + rect.width / 2
+      const x = Math.min(Math.max(centerX, tooltipWidth / 2 + edge), window.innerWidth - tooltipWidth / 2 - edge)
+      const spaceBelow = window.innerHeight - rect.bottom - bottomSafeArea
+      const spaceAbove = rect.top - edge
+      const placeAbove = spaceBelow < 150 && spaceAbove > spaceBelow
+      const y = placeAbove ? Math.max(edge, rect.top - 10) : Math.min(window.innerHeight - bottomSafeArea, rect.bottom + 10)
+      reference.style.setProperty('--citation-tooltip-x', `${x}px`)
+      reference.style.setProperty('--citation-tooltip-y', `${y}px`)
+      reference.style.setProperty('--citation-tooltip-width', `${tooltipWidth}px`)
+      reference.style.setProperty('--citation-tooltip-max-height', `${tooltipMaxHeight}px`)
+      reference.style.setProperty('--citation-tooltip-transform', placeAbove ? 'translate(-50%, -100%)' : 'translate(-50%, 0)')
+      reference.dataset.tooltipPlacement = placeAbove ? 'top' : 'bottom'
+    }
+    const activate = (target: EventTarget | null) => {
+      const reference = target instanceof Element ? target.closest<HTMLElement>('.citation-reference') : null
+      if (!reference) return
+      activeReference = reference
+      positionTooltip(reference)
+    }
+    const clear = (target: EventTarget | null) => {
+      const reference = target instanceof Element ? target.closest<HTMLElement>('.citation-reference') : null
+      if (reference && reference !== activeReference) return
+      activeReference = null
+    }
+    const reposition = () => positionTooltip(activeReference)
+    const handlePointerOver = (event: Event) => activate(event.target)
+    const handleFocusIn = (event: Event) => activate(event.target)
+    const handlePointerOut = (event: Event) => clear(event.target)
+    const handleFocusOut = (event: Event) => clear(event.target)
+    document.addEventListener('pointerover', handlePointerOver)
+    document.addEventListener('focusin', handleFocusIn)
+    document.addEventListener('pointerout', handlePointerOut)
+    document.addEventListener('focusout', handleFocusOut)
+    window.addEventListener('scroll', reposition, true)
+    window.addEventListener('resize', reposition)
+    return () => {
+      document.removeEventListener('pointerover', handlePointerOver)
+      document.removeEventListener('focusin', handleFocusIn)
+      document.removeEventListener('pointerout', handlePointerOut)
+      document.removeEventListener('focusout', handleFocusOut)
+      window.removeEventListener('scroll', reposition, true)
+      window.removeEventListener('resize', reposition)
+    }
+  }, [])
+
   return (
     <ErrorBoundary>
       <div className="min-h-screen bg-background text-foreground">
