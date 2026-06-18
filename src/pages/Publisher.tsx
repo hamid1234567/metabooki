@@ -11,10 +11,10 @@ import { supabase } from '@/integrations/supabase/client'
 import { useAuthContext } from '@/lib/auth-context'
 
 const stageMeta = {
-  editing: { label: 'Ø¯Ø± Ø­Ø§Ù„ ÙˆÛŒØ±Ø§ÛŒØ´', className: 'bg-blue-500 text-white', icon: FileText },
-  pricing: { label: 'Ù‚ÛŒÙ…Øª Ùˆ Ø³Ù‡Ø§Ù…', className: 'bg-amber-500 text-white', icon: Rocket },
-  store: { label: 'Ø¯Ø± ÙØ±ÙˆØ´Ú¯Ø§Ù‡', className: 'bg-green-600 text-white', icon: Store },
-  published: { label: 'Ø§Ù†ØªØ´Ø§Ø± Ù†Ù‡Ø§ÛŒÛŒ', className: 'bg-primary text-primary-foreground', icon: CheckCircle },
+  editing: { label: 'در حال ویرایش', className: 'bg-blue-500 text-white', icon: FileText },
+  pricing: { label: 'قیمت و سهام', className: 'bg-amber-500 text-white', icon: Rocket },
+  store: { label: 'در فروشگاه', className: 'bg-green-600 text-white', icon: Store },
+  published: { label: 'انتشار نهایی', className: 'bg-primary text-primary-foreground', icon: CheckCircle },
 }
 
 const appPath = (path: string) => `${window.location.origin}${import.meta.env.BASE_URL}#/${path.replace(/^\//, '')}`
@@ -102,7 +102,7 @@ export default function Publisher() {
 
   const removeBook = async (book: PublisherBook) => {
     if (!canDeletePublisherBook(book)) return
-    const confirmed = window.confirm(`Ú©ØªØ§Ø¨ Â«${book.title}Â» Ùˆ Ù‡Ù…Ù‡ Ù…Ø­ØªÙˆØ§ÛŒ ÙˆØ§Ø¨Ø³ØªÙ‡ØŒ ÙØ§ÛŒÙ„â€ŒÙ‡Ø§ Ùˆ ØªØµØ§ÙˆÛŒØ± ÙˆØ§Ø±Ø¯Ø´Ø¯Ù‡ Ø­Ø°Ù Ø´ÙˆØ¯ØŸ Ø§ÛŒÙ† Ú©Ø§Ø± Ù‚Ø§Ø¨Ù„ Ø¨Ø±Ú¯Ø´Øª Ù†ÛŒØ³Øª.`)
+    const confirmed = window.confirm(`کتاب «${book.title}» و همه محتوای وابسته، فایل‌ها و تصاویر واردشده حذف شود؟ این کار قابل برگشت نیست.`)
     if (!confirmed) return
     setDeletingBookId(book.id)
     try {
@@ -110,7 +110,7 @@ export default function Publisher() {
       setBooks(current => current.filter(item => item.id !== book.id))
     } catch (error) {
       console.error(error)
-      window.alert(error instanceof Error ? error.message : 'Ø­Ø°Ù Ú©ØªØ§Ø¨ Ù†Ø§Ù…ÙˆÙÙ‚ Ø¨ÙˆØ¯.')
+      window.alert(error instanceof Error ? error.message : 'حذف کتاب ناموفق بود.')
     } finally {
       setDeletingBookId(null)
     }
@@ -122,24 +122,24 @@ export default function Publisher() {
         <div className="flex items-center gap-5">
           <img src={metabookiMark} alt="publisher" className="w-20 h-16 object-contain rounded-2xl bg-background/60 p-2" />
           <div>
-            <p className="text-sm text-muted-foreground">Ù…Ø±Ú©Ø² Ú©Ø§Ø±ÛŒ Ù†Ø§Ø´Ø±</p>
-            <h1 className="text-4xl font-black font-display">Ù†Ø§Ø´Ø± ØªØ³Øª</h1>
-            <p className="text-muted-foreground mt-2 max-w-2xl">Ø§ÙˆÙ„ Ù…Ø­ØªÙˆØ§ÛŒ Ú©ØªØ§Ø¨ Ø±Ø§ Ú©Ø§Ù…Ù„ Ú©Ù†ÛŒØ¯Ø› Ø³Ù¾Ø³ Ø§Ø² Ø¯Ú©Ù…Ù‡â€ŒÙ‡Ø§ÛŒ Â«ÙˆÛŒØ±Ø§ÛŒØ´ Ù…ØªÙ† Ùˆ Ù…Ø­ØªÙˆØ§Â»ØŒ Â«Ù‚ÛŒÙ…ØªØŒ Ø³Ù‡Ø§Ù… Ùˆ Ø§Ù†ØªØ´Ø§Ø±Â» ÙˆØ§Ø±Ø¯ Ù…Ø±Ø§Ø­Ù„ Ø¨Ø¹Ø¯ Ø´ÙˆÛŒØ¯.</p>
+            <p className="text-sm text-muted-foreground">مرکز کاری ناشر</p>
+            <h1 className="text-4xl font-black font-display">ناشر تست</h1>
+            <p className="text-muted-foreground mt-2 max-w-2xl">اول محتوای کتاب را کامل کنید؛ سپس از دکمه‌های «ویرایش متن و محتوا»، «قیمت، سهام و انتشار» وارد مراحل بعد شوید.</p>
           </div>
         </div>
         <div className="flex flex-wrap gap-3">
-          <Button variant="outline" className="gap-2"><Share2 className="w-4 h-4" />ÙˆÛŒØªØ±ÛŒÙ† Ø¹Ù…ÙˆÙ…ÛŒ</Button>
-          <Link to="/publisher/me/settings"><Button variant="outline" className="gap-2"><Settings className="w-4 h-4" />ØªÙ†Ø¸ÛŒÙ…Ø§Øª</Button></Link>
-          <Link to="/upload"><Button className="gap-2 shadow-glow"><Plus className="w-4 h-4" />Ú©ØªØ§Ø¨ Ø¬Ø¯ÛŒØ¯</Button></Link>
+          <Button variant="outline" className="gap-2"><Share2 className="w-4 h-4" />ویترین عمومی</Button>
+          <Link to="/publisher/me/settings"><Button variant="outline" className="gap-2"><Settings className="w-4 h-4" />تنظیمات</Button></Link>
+          <Link to="/upload"><Button className="gap-2 shadow-glow"><Plus className="w-4 h-4" />کتاب جدید</Button></Link>
         </div>
       </section>
 
       <section className="grid md:grid-cols-4 gap-5">
         {[
-          { label: 'Ú©Ù„', value: books.length, icon: BookOpen },
-          { label: 'Ø¯Ø± ÙØ±ÙˆØ´Ú¯Ø§Ù‡', value: inStore, icon: CheckCircle },
-          { label: 'Ø¢Ù…Ø§Ø¯Ù‡â€ŒØ³Ø§Ø²ÛŒ', value: ready, icon: FileText },
-          { label: 'Ø®ÙˆØ§Ù†Ù†Ø¯Ú¯Ø§Ù†', value: totalReaders, icon: Users },
+          { label: 'کل', value: books.length, icon: BookOpen },
+          { label: 'در فروشگاه', value: inStore, icon: CheckCircle },
+          { label: 'آماده‌سازی', value: ready, icon: FileText },
+          { label: 'خوانندگان', value: totalReaders, icon: Users },
         ].map(card => <div key={card.label} className="menu-glass-70 rounded-2xl p-6 relative overflow-hidden">
           {remoteLoading && <span className="publisher-sync-card-chip"><Loader2 className="w-3 h-3 animate-spin" />در حال تکمیل</span>}
           <card.icon className="w-7 h-7 text-primary mb-4" />
@@ -173,18 +173,18 @@ export default function Publisher() {
 
       <section className="menu-glass-70 rounded-2xl p-5 grid md:grid-cols-3 gap-4">
         {[
-          { n: 1, title: 'ÙˆÛŒØ±Ø§ÛŒØ´ Ù…Ø­ØªÙˆØ§', desc: 'Ù…ØªÙ†ØŒ ÙØµÙ„â€ŒÙ‡Ø§ØŒ ØªØµØ§ÙˆÛŒØ± Ùˆ Ù…Ø­ØªÙˆØ§ÛŒ ØªØ¹Ø§Ù…Ù„ÛŒ Ú©ØªØ§Ø¨ Ø±Ø§ Ø¨Ø§Ø² Ú©Ù†ÛŒØ¯.' },
-          { n: 2, title: 'Ù‚ÛŒÙ…Øª Ùˆ Ø³Ù‡Ø§Ù…', desc: 'Ù‚ÛŒÙ…Øªâ€ŒÚ¯Ø°Ø§Ø±ÛŒØŒ Ø³Ù‡Ù…â€ŒØ¨Ù†Ø¯ÛŒ Ùˆ ÙˆØ¶Ø¹ÛŒØª ÙØ±ÙˆØ´Ú¯Ø§Ù‡ Ø±Ø§ ØªÙ†Ø¸ÛŒÙ… Ú©Ù†ÛŒØ¯.' },
-          { n: 3, title: 'Ø§Ù†ØªØ´Ø§Ø± Ù†Ù‡Ø§ÛŒÛŒ', desc: 'Ø¨Ø¹Ø¯ Ø§Ø² Ø°Ø®ÛŒØ±Ù‡ Ùˆ Ù¾ÛŒØ´â€ŒÙ†Ù…Ø§ÛŒØ´ØŒ Ø§Ù†ØªØ´Ø§Ø± Ù†Ù‡Ø§ÛŒÛŒ ÙØ¹Ø§Ù„ Ù…ÛŒâ€ŒØ´ÙˆØ¯.' },
+          { n: 1, title: 'ویرایش محتوا', desc: 'متن، فصل‌ها، تصاویر و محتوای تعاملی کتاب را باز کنید.' },
+          { n: 2, title: 'قیمت و سهام', desc: 'قیمت‌گذاری، سهم‌بندی و وضعیت فروشگاه را تنظیم کنید.' },
+          { n: 3, title: 'انتشار نهایی', desc: 'بعد از ذخیره و پیش‌نمایش، انتشار نهایی فعال می‌شود.' },
         ].map((s, i) => <div key={s.n} className="flex items-start gap-3"><span className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-bold ${i===0?'bg-blue-500':i===1?'bg-amber-500':'bg-green-600'}`}>{s.n}</span><div><h3 className="font-bold">{s.title}</h3><p className="text-sm text-muted-foreground">{s.desc}</p></div></div>)}
       </section>
 
       <section className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-black font-display">Ú©ØªØ§Ø¨â€ŒÙ‡Ø§ÛŒ Ù…Ù†</h2>
+          <h2 className="text-2xl font-black font-display">کتاب‌های من</h2>
           <div className="flex flex-wrap items-center justify-end gap-2 text-sm text-muted-foreground">
             <span className={`publisher-list-state ${remoteError ? 'is-error' : remoteLoading ? 'is-loading' : remoteLoaded && isRemoteConfigured ? 'is-done' : ''}`}>{listStatusLabel}</span>
-            <span>Ø¯Ø±Ø¢Ù…Ø¯ Ù†Ù…ÙˆÙ†Ù‡: <b className="text-primary">{revenue.toLocaleString('fa-IR')}</b> Ú©Ø±Ø¯ÛŒØª</span>
+            <span>درآمد نمونه: <b className="text-primary">{revenue.toLocaleString('fa-IR')}</b> کردیت</span>
           </div>
         </div>
         {books.map(book => {
