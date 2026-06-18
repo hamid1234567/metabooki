@@ -7,6 +7,7 @@ import { useI18n } from '@/lib/i18n'
 import { getAllReadingProgress, getMockLibraryEntries } from '@/lib/mock-library'
 import { mockBooks, type MockBook } from '@/lib/mock-data'
 import { BOOK_LIST_PAGE_SIZE, filterByValue, normalizeBookType, pageNumbers, paginate, searchBooks, sortBooks, uniqueBookValues, type BookSortKey } from '@/lib/book-listing'
+import { emptyFilterSettings, loadBookFilterSettings, mergeFilterOptions, type BookFilterSettings } from '@/lib/filter-settings'
 import { ArrowLeft, BookOpen, CheckCircle, ChevronLeft, ChevronRight, Clock, PlayCircle, Search, ShoppingCart, Sparkles } from 'lucide-react'
 import { getUserLibrary } from '@/lib/book-repository'
 
@@ -75,8 +76,10 @@ export default function Library() {
   const [ownershipFilter, setOwnershipFilter] = useState('all')
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [typeFilter, setTypeFilter] = useState('all')
+  const [tagFilter, setTagFilter] = useState('all')
   const [sort, setSort] = useState<BookSortKey>('newest')
   const [page, setPage] = useState(1)
+  const [filterSettings, setFilterSettings] = useState<BookFilterSettings>(emptyFilterSettings)
 
   useEffect(() => {
     setLoading(true)
@@ -98,6 +101,9 @@ export default function Library() {
       setLoading(false)
     }
   }, [user])
+  useEffect(() => {
+    loadBookFilterSettings().then(setFilterSettings)
+  }, [])
 
   const freeBooks = mockBooks.filter(book => book.price === 0 && !libraryBooks.find(item => item.id === book.id))
   const shelfItems: ShelfItem[] = [
@@ -106,8 +112,9 @@ export default function Library() {
   ]
   const totalBooks = shelfItems.length
   const activeBooks = libraryBooks.filter(book => progress[book.id] && progress[book.id].currentPage + 1 < book.pages.length).length
-  const categories = uniqueBookValues(shelfItems.map(item => item.book), book => book.category)
-  const bookTypes = uniqueBookValues(shelfItems.map(item => item.book), book => normalizeBookType(book.book_type))
+  const categories = mergeFilterOptions(uniqueBookValues(shelfItems.map(item => item.book), book => book.category), filterSettings.categories)
+  const bookTypes = mergeFilterOptions(uniqueBookValues(shelfItems.map(item => item.book), book => normalizeBookType(book.book_type)), filterSettings.bookTypes)
+  const tags = mergeFilterOptions(uniqueBookValues(shelfItems.map(item => item.book), book => book.tags?.join('|')).flatMap(value => value.split('|')).filter(Boolean), filterSettings.tags)
   const byOwnership = ownershipFilter === 'purchased'
     ? shelfItems.filter(item => item.isPurchased)
     : ownershipFilter === 'free'
@@ -115,13 +122,14 @@ export default function Library() {
       : shelfItems
   const byCategory = filterByValue(byOwnership, categoryFilter, item => item.book.category)
   const byType = filterByValue(byCategory, typeFilter, item => normalizeBookType(item.book.book_type))
-  const searched = searchBooks(byType.map(item => item.book), search)
+  const byTag = tagFilter === 'all' ? byType : byType.filter(item => item.book.tags?.includes(tagFilter))
+  const searched = searchBooks(byTag.map(item => item.book), search)
   const ids = new Set(searched.map(book => book.id))
-  const sortedBooks = sortBooks(byType.filter(item => ids.has(item.book.id)).map(item => item.book), sort)
-  const filteredItems = sortedBooks.map(book => byType.find(item => item.book.id === book.id)!).filter(Boolean)
+  const sortedBooks = sortBooks(byTag.filter(item => ids.has(item.book.id)).map(item => item.book), sort)
+  const filteredItems = sortedBooks.map(book => byTag.find(item => item.book.id === book.id)!).filter(Boolean)
   const paged = paginate(filteredItems, page, BOOK_LIST_PAGE_SIZE)
 
-  useEffect(() => setPage(1), [categoryFilter, ownershipFilter, search, sort, typeFilter])
+  useEffect(() => setPage(1), [categoryFilter, ownershipFilter, search, sort, tagFilter, typeFilter])
   useEffect(() => {
     if (page > paged.pageCount) setPage(paged.pageCount)
   }, [page, paged.pageCount])
@@ -161,6 +169,7 @@ export default function Library() {
         <label><span>نوع قفسه</span><select value={ownershipFilter} onChange={event => setOwnershipFilter(event.target.value)}><option value="all">همه</option><option value="purchased">خریداری‌شده</option><option value="free">رایگان</option></select></label>
         <label><span>دسته‌بندی</span><select value={categoryFilter} onChange={event => setCategoryFilter(event.target.value)}><option value="all">همه دسته‌ها</option>{categories.map(category => <option key={category} value={category}>{category}</option>)}</select></label>
         <label><span>نوع کتاب</span><select value={typeFilter} onChange={event => setTypeFilter(event.target.value)}><option value="all">همه نوع‌ها</option>{bookTypes.map(type => <option key={type} value={type}>{type}</option>)}</select></label>
+        <label><span>تگ</span><select value={tagFilter} onChange={event => setTagFilter(event.target.value)}><option value="all">همه تگ‌ها</option>{tags.map(tag => <option key={tag} value={tag}>{tag}</option>)}</select></label>
         <label><span>مرتب‌سازی</span><select value={sort} onChange={event => setSort(event.target.value as BookSortKey)}><option value="newest">جدیدترین</option><option value="oldest">قدیمی‌ترین</option><option value="title-asc">عنوان: الف تا ی</option><option value="title-desc">عنوان: ی تا الف</option><option value="pages-desc">صفحات: زیاد به کم</option><option value="pages-asc">صفحات: کم به زیاد</option></select></label>
       </section>
 

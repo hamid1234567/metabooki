@@ -10,6 +10,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { useAuthContext } from '@/lib/auth-context'
 import { BOOK_LIST_PAGE_SIZE, filterByValue, normalizeBookType, pageNumbers, paginate, searchBooks, sortBooks, uniqueBookValues, type BookSortKey } from '@/lib/book-listing'
+import { emptyFilterSettings, loadBookFilterSettings, mergeFilterOptions, type BookFilterSettings } from '@/lib/filter-settings'
 
 const stageMeta = {
   editing: { label: 'در حال ویرایش', className: 'bg-blue-500 text-white', icon: FileText },
@@ -33,8 +34,10 @@ export default function Publisher() {
   const [stageFilter, setStageFilter] = useState('all')
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [typeFilter, setTypeFilter] = useState('all')
+  const [tagFilter, setTagFilter] = useState('all')
   const [sort, setSort] = useState<BookSortKey>('newest')
   const [page, setPage] = useState(1)
+  const [filterSettings, setFilterSettings] = useState<BookFilterSettings>(emptyFilterSettings)
   const comments = getAllComments()
   const totalReaders = books.reduce((sum, b) => sum + b.readers, 0)
   const inStore = books.filter(b => b.stage === 'store' || b.stage === 'published').length
@@ -48,8 +51,9 @@ export default function Publisher() {
       : remoteLoaded && isRemoteConfigured
         ? 'فهرست کامل شد'
         : 'فهرست محلی'
-  const categories = useMemo(() => uniqueBookValues(books, book => book.category), [books])
-  const bookTypes = useMemo(() => uniqueBookValues(books, book => normalizeBookType(book.book_type)), [books])
+  const categories = useMemo(() => mergeFilterOptions(uniqueBookValues(books, book => book.category), filterSettings.categories), [books, filterSettings.categories])
+  const bookTypes = useMemo(() => mergeFilterOptions(uniqueBookValues(books, book => normalizeBookType(book.book_type)), filterSettings.bookTypes), [books, filterSettings.bookTypes])
+  const tags = useMemo(() => mergeFilterOptions(uniqueBookValues(books, book => book.tags?.join('|')).flatMap(value => value.split('|')).filter(Boolean), filterSettings.tags), [books, filterSettings.tags])
   const filteredBooks = useMemo(() => {
     const byStage = stageFilter === 'published'
       ? books.filter(book => book.stage === 'published' || book.stage === 'store' || book.status === 'published')
@@ -58,11 +62,12 @@ export default function Publisher() {
         : books
     const byCategory = filterByValue(byStage, categoryFilter, book => book.category)
     const byType = filterByValue(byCategory, typeFilter, book => normalizeBookType(book.book_type))
-    return sortBooks(searchBooks(byType, search), sort)
-  }, [books, categoryFilter, search, sort, stageFilter, typeFilter])
+    const byTag = tagFilter === 'all' ? byType : byType.filter(book => book.tags?.includes(tagFilter))
+    return sortBooks(searchBooks(byTag, search), sort)
+  }, [books, categoryFilter, search, sort, stageFilter, tagFilter, typeFilter])
   const pagedBooks = paginate(filteredBooks, page, BOOK_LIST_PAGE_SIZE)
 
-  useEffect(() => setPage(1), [categoryFilter, search, sort, stageFilter, typeFilter])
+  useEffect(() => setPage(1), [categoryFilter, search, sort, stageFilter, tagFilter, typeFilter])
   useEffect(() => {
     if (page > pagedBooks.pageCount) setPage(pagedBooks.pageCount)
   }, [page, pagedBooks.pageCount])
@@ -115,6 +120,9 @@ export default function Publisher() {
     })()
     return () => { cancelled = true }
   }, [user])
+  useEffect(() => {
+    loadBookFilterSettings().then(setFilterSettings)
+  }, [])
 
   const reconvert = async (book: PublisherBook) => {
     const importId = book.metadata?.import_project_id
@@ -218,6 +226,7 @@ export default function Publisher() {
           <label><span>وضعیت</span><select value={stageFilter} onChange={event => setStageFilter(event.target.value)}><option value="all">همه</option><option value="published">منتشر شده / فروشگاه</option><option value="unpublished">منتشر نشده</option></select></label>
           <label><span>دسته‌بندی</span><select value={categoryFilter} onChange={event => setCategoryFilter(event.target.value)}><option value="all">همه دسته‌ها</option>{categories.map(category => <option key={category} value={category}>{category}</option>)}</select></label>
           <label><span>نوع کتاب</span><select value={typeFilter} onChange={event => setTypeFilter(event.target.value)}><option value="all">همه نوع‌ها</option>{bookTypes.map(type => <option key={type} value={type}>{type}</option>)}</select></label>
+          <label><span>تگ</span><select value={tagFilter} onChange={event => setTagFilter(event.target.value)}><option value="all">همه تگ‌ها</option>{tags.map(tag => <option key={tag} value={tag}>{tag}</option>)}</select></label>
           <label><span>مرتب‌سازی</span><select value={sort} onChange={event => setSort(event.target.value as BookSortKey)}><option value="newest">جدیدترین</option><option value="oldest">قدیمی‌ترین</option><option value="title-asc">عنوان: الف تا ی</option><option value="title-desc">عنوان: ی تا الف</option><option value="price-asc">قیمت: کم به زیاد</option><option value="price-desc">قیمت: زیاد به کم</option><option value="pages-desc">صفحات: زیاد به کم</option><option value="pages-asc">صفحات: کم به زیاد</option></select></label>
         </div>
 

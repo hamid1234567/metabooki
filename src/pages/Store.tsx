@@ -3,9 +3,10 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { BookCover } from '@/components/BookCover'
 import { useI18n } from '@/lib/i18n'
-import { bookCategories, type MockBook } from '@/lib/mock-data'
+import { type MockBook } from '@/lib/mock-data'
 import { getPublishedBooks } from '@/lib/book-repository'
 import { BOOK_LIST_PAGE_SIZE, filterByValue, normalizeBookType, pageNumbers, paginate, searchBooks, sortBooks, uniqueBookValues, type BookSortKey } from '@/lib/book-listing'
+import { loadBookFilterSettings, mergeFilterOptions, type BookFilterSettings, emptyFilterSettings } from '@/lib/filter-settings'
 import { ArrowLeft, BookOpen, ChevronLeft, ChevronRight, Eye, Search, ShoppingCart, Sparkles, Star } from 'lucide-react'
 
 function BookShowcaseCard({ book, index }: { book: MockBook; index: number }) {
@@ -60,8 +61,10 @@ function BookShowcaseCard({ book, index }: { book: MockBook; index: number }) {
 export default function Store() {
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('all')
+  const [tagFilter, setTagFilter] = useState('all')
   const [priceFilter, setPriceFilter] = useState('all')
   const [sort, setSort] = useState<BookSortKey>('newest')
+  const [filterSettings, setFilterSettings] = useState<BookFilterSettings>(emptyFilterSettings)
   const [featuredSeed] = useState(() => new Date().getDate() * 24 + new Date().getHours())
   const [searchParams, setSearchParams] = useSearchParams()
   const { t } = useI18n()
@@ -74,19 +77,25 @@ export default function Store() {
     setLoading(true)
     getPublishedBooks().then(setAllBooks).catch(() => setAllBooks([])).finally(() => setLoading(false))
   }, [])
+  useEffect(() => {
+    loadBookFilterSettings().then(setFilterSettings)
+  }, [])
 
-  const bookTypes = useMemo(() => uniqueBookValues(allBooks, book => normalizeBookType(book.book_type)), [allBooks])
+  const bookTypes = useMemo(() => mergeFilterOptions(uniqueBookValues(allBooks, book => normalizeBookType(book.book_type)), filterSettings.bookTypes), [allBooks, filterSettings.bookTypes])
+  const configuredCategories = useMemo(() => mergeFilterOptions(uniqueBookValues(allBooks, book => book.category), filterSettings.categories), [allBooks, filterSettings.categories])
+  const configuredTags = useMemo(() => mergeFilterOptions(uniqueBookValues(allBooks, book => book.tags?.join('|')).flatMap(value => value.split('|')).filter(Boolean), filterSettings.tags), [allBooks, filterSettings.tags])
 
   const filtered = useMemo(() => {
     const byCategory = activeCategory === 'all' ? allBooks : allBooks.filter(book => book.category === activeCategory)
     const byType = filterByValue(byCategory, typeFilter, book => normalizeBookType(book.book_type))
+    const byTag = tagFilter === 'all' ? byType : byType.filter(book => book.tags?.includes(tagFilter))
     const byPrice = priceFilter === 'free'
-      ? byType.filter(book => book.price === 0)
+      ? byTag.filter(book => book.price === 0)
       : priceFilter === 'paid'
-        ? byType.filter(book => book.price > 0)
-        : byType
+        ? byTag.filter(book => book.price > 0)
+        : byTag
     return sortBooks(searchBooks(byPrice, search), sort)
-  }, [activeCategory, allBooks, priceFilter, search, sort, typeFilter])
+  }, [activeCategory, allBooks, priceFilter, search, sort, tagFilter, typeFilter])
 
   const featuredPool = filtered.length ? filtered : allBooks
   const featuredBook = featuredPool.length ? featuredPool[featuredSeed % featuredPool.length] : undefined
@@ -94,7 +103,7 @@ export default function Store() {
   const pageCount = paged.pageCount
   const visibleBooks = paged.items
 
-  useEffect(() => setPage(1), [activeCategory, priceFilter, search, sort, typeFilter])
+  useEffect(() => setPage(1), [activeCategory, priceFilter, search, sort, tagFilter, typeFilter])
   useEffect(() => {
     if (page > pageCount) setPage(pageCount)
   }, [page, pageCount])
@@ -136,7 +145,7 @@ export default function Store() {
       </section>
 
       <div className="flex gap-2 overflow-x-auto pb-1">
-        {bookCategories.map(category => (
+        {[{ key: 'all', label: 'همه' }, ...configuredCategories.filter(category => category !== 'all').map(category => ({ key: category, label: category }))].map(category => (
           <button
             key={category.key}
             type="button"
@@ -155,6 +164,7 @@ export default function Store() {
 
       <section className="list-control-panel">
         <label><span>نوع کتاب</span><select value={typeFilter} onChange={event => setTypeFilter(event.target.value)}><option value="all">همه نوع‌ها</option>{bookTypes.map(type => <option key={type} value={type}>{type}</option>)}</select></label>
+        <label><span>تگ</span><select value={tagFilter} onChange={event => setTagFilter(event.target.value)}><option value="all">همه تگ‌ها</option>{configuredTags.map(tag => <option key={tag} value={tag}>{tag}</option>)}</select></label>
         <label><span>قیمت</span><select value={priceFilter} onChange={event => setPriceFilter(event.target.value)}><option value="all">همه</option><option value="free">رایگان</option><option value="paid">غیررایگان</option></select></label>
         <label><span>مرتب‌سازی</span><select value={sort} onChange={event => setSort(event.target.value as BookSortKey)}><option value="newest">جدیدترین</option><option value="oldest">قدیمی‌ترین</option><option value="title-asc">عنوان: الف تا ی</option><option value="title-desc">عنوان: ی تا الف</option><option value="price-asc">قیمت: کم به زیاد</option><option value="price-desc">قیمت: زیاد به کم</option><option value="pages-desc">صفحات: زیاد به کم</option><option value="pages-asc">صفحات: کم به زیاد</option></select></label>
       </section>

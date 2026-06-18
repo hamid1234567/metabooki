@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react'
 import { useAuthContext } from '@/lib/auth-context'
 import { useI18n } from '@/lib/i18n'
 import { mockUsers, mockBooks, CREDIT_VALUE_TOMAN, setCreditValue } from '@/lib/mock-data'
-import { Shield, Users, Activity, BookOpen, DollarSign, Settings, Bug, MessageSquare, Eye, EyeOff, Trash2, Sparkles, KeyRound, Server, CheckCircle, AlertTriangle, RefreshCw, ExternalLink } from 'lucide-react'
+import { Shield, Users, Activity, BookOpen, DollarSign, Settings, Bug, MessageSquare, Eye, EyeOff, Trash2, Sparkles, KeyRound, Server, CheckCircle, AlertTriangle, RefreshCw, ExternalLink, Filter } from 'lucide-react'
 import { deleteComment, getAllComments, updateCommentStatus, type MockComment } from '@/lib/mock-comments'
 import { Button } from '@/components/ui/button'
 import { loadAiGatewaySettings, loadAiGatewaySettingsRemote, maskApiKey, saveAiGatewaySettings, type AiGatewaySettings, type AiProviderConfig } from '@/lib/ai-gateway'
 import { useRoles } from '@/hooks/useRoles'
 import { supabase } from '@/integrations/supabase/client'
+import { emptyFilterSettings, loadBookFilterSettings, parseFilterLines, saveBookFilterSettings, type BookFilterSettings } from '@/lib/filter-settings'
 
 export default function Admin() {
   const { t } = useI18n()
