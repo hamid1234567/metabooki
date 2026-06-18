@@ -27,6 +27,7 @@ type SearchTarget = { page: number; blockKey: string; query: string; offset: num
 type TocTarget = { page: number; targetId?: string; title?: string }
 type HighlightDraft = { blockKey: string; startOffset: number; endOffset: number; color: HighlightColor }
 type HighlightIndicator = { x: number; y: number; pointerType: string }
+type ReaderTocItem = { key: string; title: string; level: number; pageIndex: number; targetId?: string }
 
 const highlightColors: Record<HighlightColor, { label: string; className: string; swatch: string }> = {
   yellow: { label: 'زرد', className: 'bg-yellow-200 text-yellow-950', swatch: 'bg-yellow-300' },
@@ -44,6 +45,31 @@ function legacyListFromText(text = '') {
     ordered,
     items: lines.map(line => line.replace(ordered ? /^[\d۰-۹٠-٩]+[.)-]\s+/ : /^[•●*-]\s+/, '')),
   }
+}
+
+function readerTocItemHasChildren(items: ReaderTocItem[], index: number) {
+  const level = Number(items[index]?.level || 1)
+  for (let cursor = index + 1; cursor < items.length; cursor += 1) {
+    const nextLevel = Number(items[cursor]?.level || 1)
+    if (nextLevel <= level) return false
+    if (nextLevel > level) return true
+  }
+  return false
+}
+
+function buildReaderTocTreeRows(items: ReaderTocItem[], collapsedKeys: Set<string>) {
+  let h1Counter = 0
+  const hiddenByLevels: number[] = []
+  return items.map((item, index) => {
+    const level = Math.min(6, Math.max(1, Number(item.level || 1)))
+    while (hiddenByLevels.length && hiddenByLevels[hiddenByLevels.length - 1] >= level) hiddenByLevels.pop()
+    const hidden = hiddenByLevels.length > 0
+    const hasChildren = readerTocItemHasChildren(items, index)
+    const collapsed = collapsedKeys.has(item.key)
+    if (!hidden && hasChildren && collapsed) hiddenByLevels.push(level)
+    if (level === 1) h1Counter += 1
+    return { item, index, level, hidden, hasChildren, collapsed, h1Counter }
+  })
 }
 
 export default function Reader() {
@@ -72,6 +98,8 @@ export default function Reader() {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [searchTarget, setSearchTarget] = useState<SearchTarget | null>(null)
   const [tocTarget, setTocTarget] = useState<TocTarget | null>(null)
+  const [collapsedReaderTocKeys, setCollapsedReaderTocKeys] = useState<Set<string>>(() => new Set())
+  const [seenReaderTocKeys, setSeenReaderTocKeys] = useState<Set<string>>(() => new Set())
   const [showSearch, setShowSearch] = useState(false)
   const [timelineStep, setTimelineStep] = useState<Record<string, number>>({})
   const [storyStep, setStoryStep] = useState<Record<string, number>>({})
@@ -110,6 +138,20 @@ export default function Reader() {
       if (savedBg === 'abstract' || savedBg === 'image') setReaderBackground(savedBg)
     }
   }, [id])
+
+  useEffect(() => {
+    if (!book) return
+    const localUserId = user?.id || user?.mockData?.id || 'guest'
+    try {
+      const seen = localStorage.getItem(`metabooki_reader_seen_toc_${localUserId}_${book.id}`)
+      const collapsed = localStorage.getItem(`metabooki_reader_collapsed_toc_${localUserId}_${book.id}`)
+      setSeenReaderTocKeys(new Set(seen ? JSON.parse(seen) : []))
+      setCollapsedReaderTocKeys(new Set(collapsed ? JSON.parse(collapsed) : []))
+    } catch {
+      setSeenReaderTocKeys(new Set())
+      setCollapsedReaderTocKeys(new Set())
+    }
+  }, [book?.id, user?.id, user?.mockData?.id])
 
   useEffect(() => {
     if (!book) return
@@ -230,7 +272,7 @@ export default function Reader() {
   const pageBackgroundUrl = page.background_url || book.metadata?.page_background_url
   const pageBackgroundAlpha = Number(page.background_alpha ?? book.metadata?.page_background_alpha ?? 0)
   const confirmedToc = Array.isArray(book.metadata?.confirmed_toc) ? book.metadata.confirmed_toc as Array<{ id?: string; title?: string; level?: number; page?: number }> : []
-  const preludeTitle = book.metadata?.prelude_title || 'ابتدای کتاب'
+  const preludeTitle = String(book.metadata?.prelude_title || 'ابتدای کتاب')
   const currentPrintNumber = page.printNumber
   const currentPrintLabel = currentPrintNumber === undefined || currentPrintNumber === null || currentPrintNumber === ''
     ? 'بدون شماره چاپی'
@@ -257,7 +299,7 @@ export default function Reader() {
   }
   const firstTocPosition = confirmedToc.length ? findTocPosition(confirmedToc[0]) : null
   const hasPreludeToc = Boolean(firstTocPosition && (firstTocPosition.pageIndex > 0 || firstTocPosition.blockIndex > 0))
-  const readerToc = confirmedToc.length
+  const readerToc: ReaderTocItem[] = confirmedToc.length
     ? [
       ...(hasPreludeToc ? [{ key: 'prelude', title: preludeTitle, level: 1, pageIndex: 0, targetId: undefined }] : []),
       ...confirmedToc.map((item, index) => ({
@@ -270,11 +312,41 @@ export default function Reader() {
     ]
     : book.pages.map((p: any, i: number) => ({
         key: `page-${i}`,
-        title: p.title || `صفحه ${i + 1}`,
+        title: String(p.title || `صفحه ${i + 1}`),
         level: 1,
         pageIndex: i,
         targetId: undefined,
       }))
+  const readerTocTreeRows = buildReaderTocTreeRows(readerToc, collapsedReaderTocKeys)
+  const readerTocStorageUserId = user?.id || user?.mockData?.id || 'guest'
+  const persistSeenReaderToc = (next: Set<string>) => {
+    setSeenReaderTocKeys(next)
+    localStorage.setItem(`metabooki_reader_seen_toc_${readerTocStorageUserId}_${book.id}`, JSON.stringify([...next]))
+  }
+  const persistCollapsedReaderToc = (next: Set<string>) => {
+    setCollapsedReaderTocKeys(next)
+    localStorage.setItem(`metabooki_reader_collapsed_toc_${readerTocStorageUserId}_${book.id}`, JSON.stringify([...next]))
+  }
+  const markReaderTocSeen = (key: string) => {
+    const next = new Set(seenReaderTocKeys)
+    next.add(key)
+    persistSeenReaderToc(next)
+  }
+  const markReaderTocForPage = (pageIndex: number, target?: TocTarget) => {
+    const next = new Set(seenReaderTocKeys)
+    readerToc.forEach(item => {
+      if (item.pageIndex === pageIndex || (target?.targetId && item.targetId === target.targetId) || (target?.title && item.title === target.title)) next.add(item.key)
+    })
+    if (next.size !== seenReaderTocKeys.size) persistSeenReaderToc(next)
+  }
+  const toggleReaderTocBranch = (key: string) => {
+    const next = new Set(collapsedReaderTocKeys)
+    if (next.has(key)) next.delete(key)
+    else next.add(key)
+    persistCollapsedReaderToc(next)
+  }
+  const expandReaderToc = () => persistCollapsedReaderToc(new Set())
+  const collapseReaderToc = () => persistCollapsedReaderToc(new Set(readerToc.filter((_, index) => readerTocItemHasChildren(readerToc, index)).map(item => item.key)))
 
   const getReaderBgClass = () => {
     if (book.category.includes('ادبیات') || book.category.includes('شعر')) return 'reader-bg-literature'
@@ -295,6 +367,7 @@ export default function Reader() {
     const next = Math.max(0, Math.min(book.pages.length - 1, pg))
     if (canReadFull || book.preview_pages.includes(next)) {
       if (target) setTocTarget({ ...target, page: next })
+      markReaderTocForPage(next, target)
       setCurrentPage(next); setShowToc(false); saveProgress(next)
     }
   }
@@ -934,7 +1007,32 @@ export default function Reader() {
           <div className={`reader-toc-panel fixed top-0 ${dir==='rtl'?'right-0 border-l':'left-0 border-r'} z-[70] h-full w-80 frosted-menu-surface p-5 overflow-y-auto animate-slide-in-right shadow-glass`} style={{paddingTop:'4rem'}}>
             <div className="flex items-center justify-between mb-5"><h2 className="font-bold font-display text-lg">📑 فهرست</h2><button title="بستن فهرست" onClick={()=>setShowToc(false)} className="p-1.5 rounded-lg hover:bg-muted"><X className="w-4 h-4"/></button></div>
             <div className="relative mb-4"><Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"/><input placeholder="جستجو در عناوین..." className="w-full pr-10 pl-3 py-2 rounded-xl border bg-background text-sm" onChange={e=>setSearchQuery(e.target.value)}/></div>
-            {readerToc.map(item => (<button key={item.key} onClick={()=>goPage(item.pageIndex, { page: item.pageIndex, targetId: item.targetId, title: item.title })} className={`block w-full text-right p-2.5 rounded-xl text-sm mb-1 transition-all ${currentPage===item.pageIndex?'bg-primary/10 text-primary font-bold':'hover:bg-muted'}`} style={{ paddingInlineStart: `${0.85 + (item.level - 1) * 0.7}rem` }}><div className="flex items-center justify-between gap-3"><span className="truncate">{item.title}</span>{!canReadFull&&!book.preview_pages.includes(item.pageIndex)&&<Lock className="w-3 h-3 shrink-0 text-muted-foreground"/>}</div></button>))}
+            <div className="reader-toc-tools">
+              <button title="باز کردن همه شاخه‌ها" onClick={expandReaderToc}><ChevronRight /></button>
+              <button title="جمع کردن شاخه‌ها" onClick={collapseReaderToc}><ChevronLeft /></button>
+            </div>
+            <div className="reader-toc-tree">
+              {readerTocTreeRows
+                .filter(row => !row.hidden || searchQuery.trim())
+                .filter(row => !searchQuery.trim() || row.item.title.toLowerCase().includes(searchQuery.trim().toLowerCase()))
+                .map(({ item, level, hasChildren, collapsed, h1Counter }) => {
+                  const seen = seenReaderTocKeys.has(item.key)
+                  const locked = !canReadFull && !book.preview_pages.includes(item.pageIndex)
+                  return (
+                    <div key={item.key} className={`reader-toc-row level-${level} ${currentPage===item.pageIndex?'is-active':''} ${seen?'is-seen':''}`} title={item.title} style={{ '--toc-level': level } as React.CSSProperties}>
+                      <button className="reader-toc-link" disabled={locked} onClick={()=>{ markReaderTocSeen(item.key); goPage(item.pageIndex, { page: item.pageIndex, targetId: item.targetId, title: item.title }) }}>
+                        <span className="reader-toc-number">{level === 1 ? h1Counter.toLocaleString('fa-IR') : ''}</span>
+                        <span className="reader-toc-title">{item.title}</span>
+                      </button>
+                      <span className="reader-toc-status">
+                        {seen && <Check className="reader-toc-seen" />}
+                        {locked && <Lock className="reader-toc-lock" />}
+                        {hasChildren && <button title={collapsed ? 'باز کردن شاخه' : 'جمع کردن شاخه'} onClick={() => toggleReaderTocBranch(item.key)}>{collapsed ? <ChevronLeft /> : <ChevronRight />}</button>}
+                      </span>
+                    </div>
+                  )
+                })}
+            </div>
           </div>
         )}
 
