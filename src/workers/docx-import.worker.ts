@@ -356,7 +356,7 @@ function parseInline(node: unknown, hyperlinks: Map<string, string>, inheritedHr
         else Object.values(item).forEach(collectVisible)
       }
       collectVisible(run)
-      const text = textParts.join('')
+      const text = normalizeBookText(textParts.join(''))
       if (text || footnoteId) spans.push({
         text: text || footnoteId,
         bold: wordToggle(run, 'w:b') ?? wordToggle(run, 'w:bCs'),
