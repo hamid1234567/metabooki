@@ -919,33 +919,84 @@ export default function Edit() {
       </section>}
 
       <div className="book-editor-toolbar menu-glass-70">
-        <button title="بازگشت" onClick={() => command(activeEditor => activeEditor.chain().focus().undo().run())}><Undo2 /></button><button title="انجام دوباره" onClick={() => command(activeEditor => activeEditor.chain().focus().redo().run())}><Redo2 /></button><i />
-        <div className="book-toolbar-menu-wrap">
-          <button title="سطح سرفصل" className={toolbarMenu === 'heading' ? 'active' : ''} onClick={() => setToolbarMenu(value => value === 'heading' ? null : 'heading')}><Heading1 /><ChevronDown /></button>
-          {toolbarMenu === 'heading' && <div className="book-toolbar-popover compact">
-            {[1, 2, 3, 4, 5, 6].map(level => <button key={level} onClick={() => { promoteSelection(level as 1 | 2 | 3 | 4 | 5 | 6); setToolbarMenu(null) }}><span className={`book-heading-sample h${level}`}>H{level}</span></button>)}
-          </div>}
+        <div className="book-toolbar-group" aria-label="تاریخچه">
+          <button title="بازگشت" onClick={() => command(activeEditor => activeEditor.chain().focus().undo().run())}><Undo2 /></button>
+          <button title="انجام دوباره" onClick={() => command(activeEditor => activeEditor.chain().focus().redo().run())}><Redo2 /></button>
         </div>
-        <button title="پررنگ" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleBold().run())}><Bold /></button><button title="مورب" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleItalic().run())}><Italic /></button><button title="زیرخط" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleUnderline().run())}><UnderlineIcon /></button><button title="خط‌خورده" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleStrike().run())}><Strikethrough /></button><button title="بالانویس" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleSuperscript().run())}><SuperIcon /></button><button title="زیرنویس" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleSubscript().run())}><SubIcon /></button><button title="افزودن یا ویرایش پیوند" onClick={setLink}><Link2 /></button><i />
-        <select title="فونت" onChange={event => command(activeEditor => activeEditor.chain().focus().setMark('textStyle', { fontFamily: event.target.value }).run())}><option value="Vazirmatn">وزیرمتن</option><option value="Tahoma">Tahoma</option><option value="Arial">Arial</option><option value="Georgia">Georgia</option></select>
-        <select title="اندازه متن انتخاب‌شده" defaultValue="" onChange={event => { if (event.target.value) command(activeEditor => activeEditor.chain().focus().setMark('textStyle', { fontSize: event.target.value }).run()); event.target.value = '' }}><option value="" disabled>اندازه متن</option>{[12,14,16,18,20,24,28,32,40].map(size => <option key={size} value={`${size}px`}>{size}</option>)}</select>
-        <div className="book-toolbar-menu-wrap">
-          <button title="تایپوگرافی آماده" className={toolbarMenu === 'typography' ? 'active' : ''} onClick={() => setToolbarMenu(value => value === 'typography' ? null : 'typography')}><Type /><ChevronDown /></button>
-          {toolbarMenu === 'typography' && <div className="book-toolbar-popover typography">
-            {Array.from(new Set(TYPOGRAPHY_PRESETS.map(item => item.group))).map(group => <section key={group}>
-              <b>{group}</b>
-              {TYPOGRAPHY_PRESETS.filter(item => item.group === group).map(item => {
-                const Icon = item.icon
-                return <button key={item.value} onClick={() => { setTypography(item.value); setToolbarMenu(null) }}><Icon /><span className={`book-typography-preview ${item.className}`}>{item.label}</span></button>
-              })}
-            </section>)}
-          </div>}
+
+        <div className="book-toolbar-group" aria-label="ساختار">
+          <div className="book-toolbar-menu-wrap">
+            <button title="سطح سرفصل" className={toolbarMenu === 'heading' ? 'active' : ''} onClick={() => setToolbarMenu(value => value === 'heading' ? null : 'heading')}><Heading1 /><ChevronDown /></button>
+            {toolbarMenu === 'heading' && <div className="book-toolbar-popover compact">
+              <button onClick={() => { command(activeEditor => activeEditor.chain().focus().setParagraph().run()); setToolbarMenu(null) }}><span className="book-heading-sample normal">P</span></button>
+              {[1, 2, 3, 4, 5, 6].map(level => <button key={level} onClick={() => { promoteSelection(level as 1 | 2 | 3 | 4 | 5 | 6); setToolbarMenu(null) }}><span className={`book-heading-sample h${level}`}>H{level}</span></button>)}
+            </div>}
+          </div>
+          <button title="صفحه جدید" onClick={() => command(activeEditor => activeEditor.chain().focus().setHorizontalRule().run())}><FileImage /></button>
         </div>
-        <input title="رنگ متن" type="color" onChange={event => command(activeEditor => activeEditor.chain().focus().setColor(event.target.value).run())} /><button title="راست‌به‌چپ کردن پاراگراف" onClick={() => setDirection('rtl')}><AlignRight /></button><button title="چپ‌به‌راست کردن پاراگراف" onClick={() => setDirection('ltr')}><AlignLeft /></button><i />
-        <button title="راست‌چین" onClick={() => command(activeEditor => activeEditor.chain().focus().setTextAlign('right').run())}><AlignRight /></button><button title="وسط‌چین" onClick={() => command(activeEditor => activeEditor.chain().focus().setTextAlign('center').run())}><AlignCenter /></button><button title="چپ‌چین" onClick={() => command(activeEditor => activeEditor.chain().focus().setTextAlign('left').run())}><AlignLeft /></button><button title="تراز کامل" onClick={() => command(activeEditor => activeEditor.chain().focus().setTextAlign('justify').run())}><AlignJustify /></button><button title="فهرست نقطه‌ای" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleBulletList().run())}><List /></button><button title="فهرست شماره‌ای" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleOrderedList().run())}><ListOrdered /></button><i />
-        <button title="افزودن تصویر" onClick={() => imageInputRef.current?.click()}><ImagePlus /></button><button title="نمایش تصاویر کتاب" onClick={() => setImagePanelOpen(value => !value)} className={imagePanelOpen ? 'active' : ''}><Images /></button><input ref={imageInputRef} hidden type="file" accept="image/*" onChange={event => event.target.files?.[0] && addImage(event.target.files[0])} /><select title="اندازه تصویر انتخاب‌شده" defaultValue="" onChange={event => { if (event.target.value) command(activeEditor => activeEditor.chain().focus().updateAttributes('image', { width: event.target.value }).run()); event.target.value = '' }}><option value="" disabled>اندازه عکس</option><option value="25%">۲۵٪</option><option value="50%">۵۰٪</option><option value="75%">۷۵٪</option><option value="100%">۱۰۰٪</option></select><button title="جدول جدید" onClick={() => command(activeEditor => activeEditor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())}><Table2 /></button><select title="ویرایش جدول انتخاب‌شده" defaultValue="" onChange={event => { tableAction(event.target.value); event.target.value = '' }}><option value="" disabled>ویرایش جدول</option><option value="row-after">افزودن ردیف</option><option value="column-after">افزودن ستون</option><option value="delete-row">حذف ردیف</option><option value="delete-column">حذف ستون</option><option value="delete-table">حذف جدول</option></select><button title="صفحه جدید" onClick={() => command(activeEditor => activeEditor.chain().focus().setHorizontalRule().run())}><FileImage /></button>
-        <select title="بخش تعاملی" defaultValue="" onChange={event => { void handleInteractiveAction(event.target.value); event.target.value = '' }}><option value="" disabled>تعاملی</option><option value="edit-current">ویرایش بخش انتخاب‌شده</option>{INTERACTIVE_TYPES.map(item => <option key={item[0]} value={item[0]}>{`افزودن ${item[1]}`}</option>)}</select>{bookImages.length > 0 && <select title="استفاده از تصویر کتاب در بخش تعاملی انتخاب‌شده" defaultValue="" onChange={event => { applyImageToInteractive(event.target.value); event.target.value = '' }}><option value="" disabled>تصویر برای تعاملی</option>{bookImages.slice(0, 100).map((image: any, index: number) => <option key={`${image.url}-${index}`} value={image.url}>{image.caption || `تصویر ${index + 1}`}</option>)}</select>}<button title="ویرایش جزئیات بخش تعاملی انتخاب‌شده" onClick={() => void openInteractiveEditor()}><LayoutTemplate /></button><i />
-        <button title="کوچک کردن متن" onClick={() => setFontSize(value => Math.max(12, value - 1))}><Minus /></button><span>{fontSize.toLocaleString('fa-IR')}</span><button title="بزرگ کردن متن" onClick={() => setFontSize(value => Math.min(34, value + 1))}><Plus /></button>
+
+        <div className="book-toolbar-group" aria-label="متن">
+          <button title="پررنگ" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleBold().run())}><Bold /></button>
+          <button title="مورب" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleItalic().run())}><Italic /></button>
+          <button title="زیرخط" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleUnderline().run())}><UnderlineIcon /></button>
+          <button title="خط‌خورده" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleStrike().run())}><Strikethrough /></button>
+          <button title="بالانویس" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleSuperscript().run())}><SuperIcon /></button>
+          <button title="زیرنویس" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleSubscript().run())}><SubIcon /></button>
+          <button title="افزودن یا ویرایش پیوند" onClick={setLink}><Link2 /></button>
+        </div>
+
+        <div className="book-toolbar-group" aria-label="تایپوگرافی">
+          <select title="فونت" onChange={event => command(activeEditor => activeEditor.chain().focus().setMark('textStyle', { fontFamily: event.target.value }).run())}><option value="Vazirmatn">وزیرمتن</option><option value="Tahoma">Tahoma</option><option value="Arial">Arial</option><option value="Georgia">Georgia</option></select>
+          <select title="اندازه متن انتخاب‌شده" defaultValue="" onChange={event => { if (event.target.value) command(activeEditor => activeEditor.chain().focus().setMark('textStyle', { fontSize: event.target.value }).run()); event.target.value = '' }}><option value="" disabled>اندازه</option>{[12,14,16,18,20,24,28,32,40].map(size => <option key={size} value={`${size}px`}>{size}</option>)}</select>
+          <div className="book-toolbar-menu-wrap">
+            <button title="تایپوگرافی آماده" className={toolbarMenu === 'typography' ? 'active' : ''} onClick={() => setToolbarMenu(value => value === 'typography' ? null : 'typography')}><Type /><ChevronDown /></button>
+            {toolbarMenu === 'typography' && <div className="book-toolbar-popover typography">
+              {Array.from(new Set(TYPOGRAPHY_PRESETS.map(item => item.group))).map(group => <section key={group}>
+                <b>{group}</b>
+                {TYPOGRAPHY_PRESETS.filter(item => item.group === group).map(item => {
+                  const Icon = item.icon
+                  return <button key={item.value} onClick={() => { setTypography(item.value); setToolbarMenu(null) }}><Icon /><span className={`book-typography-preview ${item.className}`}>{item.label}</span></button>
+                })}
+              </section>)}
+            </div>}
+          </div>
+          <input title="رنگ متن" type="color" onChange={event => command(activeEditor => activeEditor.chain().focus().setColor(event.target.value).run())} />
+        </div>
+
+        <div className="book-toolbar-group" aria-label="جهت و چینش">
+          <button title="جهت راست‌به‌چپ" onClick={() => setDirection('rtl')}><span className="book-dir-icon is-rtl" /></button>
+          <button title="جهت چپ‌به‌راست" onClick={() => setDirection('ltr')}><span className="book-dir-icon is-ltr" /></button>
+          <button title="راست‌چین" onClick={() => command(activeEditor => activeEditor.chain().focus().setTextAlign('right').run())}><AlignRight /></button>
+          <button title="وسط‌چین" onClick={() => command(activeEditor => activeEditor.chain().focus().setTextAlign('center').run())}><AlignCenter /></button>
+          <button title="چپ‌چین" onClick={() => command(activeEditor => activeEditor.chain().focus().setTextAlign('left').run())}><AlignLeft /></button>
+          <button title="تراز کامل" onClick={() => command(activeEditor => activeEditor.chain().focus().setTextAlign('justify').run())}><AlignJustify /></button>
+        </div>
+
+        <div className="book-toolbar-group" aria-label="لیست">
+          <button title="فهرست نقطه‌ای" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleBulletList().run())}><List /></button>
+          <button title="فهرست شماره‌ای" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleOrderedList().run())}><ListOrdered /></button>
+        </div>
+
+        <div className="book-toolbar-group" aria-label="مدیا و جدول">
+          <button title="افزودن تصویر" onClick={() => imageInputRef.current?.click()}><ImagePlus /></button>
+          <button title="نمایش تصاویر کتاب" onClick={() => setImagePanelOpen(value => !value)} className={imagePanelOpen ? 'active' : ''}><Images /></button>
+          <input ref={imageInputRef} hidden type="file" accept="image/*" onChange={event => event.target.files?.[0] && addImage(event.target.files[0])} />
+          <select title="اندازه تصویر انتخاب‌شده" defaultValue="" onChange={event => { if (event.target.value) command(activeEditor => activeEditor.chain().focus().updateAttributes('image', { width: event.target.value }).run()); event.target.value = '' }}><option value="" disabled>عکس</option><option value="25%">۲۵٪</option><option value="50%">۵۰٪</option><option value="75%">۷۵٪</option><option value="100%">۱۰۰٪</option></select>
+          <button title="جدول جدید" onClick={() => command(activeEditor => activeEditor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())}><Table2 /></button>
+          <select title="ویرایش جدول انتخاب‌شده" defaultValue="" onChange={event => { tableAction(event.target.value); event.target.value = '' }}><option value="" disabled>جدول</option><option value="row-after">افزودن ردیف</option><option value="column-after">افزودن ستون</option><option value="delete-row">حذف ردیف</option><option value="delete-column">حذف ستون</option><option value="delete-table">حذف جدول</option></select>
+        </div>
+
+        <div className="book-toolbar-group" aria-label="تعاملی">
+          <select title="بخش تعاملی" defaultValue="" onChange={event => { void handleInteractiveAction(event.target.value); event.target.value = '' }}><option value="" disabled>تعاملی</option><option value="edit-current">ویرایش بخش انتخاب‌شده</option>{INTERACTIVE_TYPES.map(item => <option key={item[0]} value={item[0]}>{`افزودن ${item[1]}`}</option>)}</select>
+          {bookImages.length > 0 && <select title="استفاده از تصویر کتاب در بخش تعاملی انتخاب‌شده" defaultValue="" onChange={event => { applyImageToInteractive(event.target.value); event.target.value = '' }}><option value="" disabled>تصویر</option>{bookImages.slice(0, 100).map((image: any, index: number) => <option key={`${image.url}-${index}`} value={image.url}>{image.caption || `تصویر ${index + 1}`}</option>)}</select>}
+          <button title="ویرایش جزئیات بخش تعاملی انتخاب‌شده" onClick={() => void openInteractiveEditor()}><LayoutTemplate /></button>
+        </div>
+
+        <div className="book-toolbar-group" aria-label="نمایش">
+          <button title="کوچک کردن متن" onClick={() => setFontSize(value => Math.max(12, value - 1))}><Minus /></button>
+          <span>{fontSize.toLocaleString('fa-IR')}</span>
+          <button title="بزرگ کردن متن" onClick={() => setFontSize(value => Math.min(34, value + 1))}><Plus /></button>
+        </div>
       </div>
 
       <div className="book-editor-layout">
