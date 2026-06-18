@@ -606,13 +606,13 @@ export default function Reader() {
 
   const blockToPlainText = (block: any): string => {
     if (!block) return ''
-    if (typeof block === 'string') return block
+    if (typeof block === 'string') return normalizeBookText(block)
     const values = [block.title, block.subtitle, block.content, block.text, block.caption, block.central, block.question, block.answer, block.description]
     if (Array.isArray(block.items)) values.push(block.items.map((item: any) => typeof item === 'string' ? item : Object.values(item || {}).join(' ')).join('\n'))
     if (Array.isArray(block.nodes)) values.push(block.nodes.join('، '))
     if (Array.isArray(block.steps)) values.push(block.steps.map((step: any) => step.text || step.title || '').join('\n'))
     if (Array.isArray(block.points)) values.push(block.points.map((point: any) => `${point.title || ''} ${point.text || ''}`).join('\n'))
-    return values.filter(Boolean).join('\n')
+    return normalizeBookText(values.filter(Boolean).join('\n'))
   }
 
   const currentPageText = () => page.blocks.map((block: any) => blockToPlainText(block)).filter(Boolean).join('\n\n')
@@ -725,7 +725,8 @@ export default function Reader() {
   const renderBlock = (block: any, idx: number) => {
     const qKey = `${currentPage}-${idx}`
     const renderInline = () => block.inline?.length ? block.inline.map((span: any, inlineIndex: number) => {
-      const content = span.footnoteId ? <sup className="word-footnote-reference">{span.footnoteId}</sup> : span.superscript ? <sup>{span.text}</sup> : span.subscript ? <sub>{span.text}</sub> : span.text
+      const spanText = normalizeBookText(span.text || '')
+      const content = span.footnoteId ? <sup className="word-footnote-reference">{span.footnoteId}</sup> : span.superscript ? <sup>{spanText}</sup> : span.subscript ? <sub>{spanText}</sub> : spanText
       const formatted = <span style={{ fontWeight: span.bold ? 800 : undefined, fontStyle: span.italic ? 'italic' : undefined, color: span.color, fontFamily: span.fontFamily, fontSize: span.fontSize }}>{content}</span>
       if (span.footnoteId && span.footnoteText) return <span key={inlineIndex} className="citation-reference footnote-reference" role="button" tabIndex={0}>{formatted}<span className="citation-tooltip">{span.footnoteText}</span></span>
       if (span.referenceText) return <span key={inlineIndex} className="citation-reference" role="button" tabIndex={0}>{formatted}<span className="citation-tooltip">{span.referenceText}</span></span>
@@ -739,12 +740,13 @@ export default function Reader() {
             {(block.items || []).map((item: any, itemIndex: number) => (
               <li key={itemIndex}>
                 {item.inline?.length ? item.inline.map((span: any, inlineIndex: number) => {
-                  const content = span.footnoteId ? <sup className="word-footnote-reference">{span.footnoteId}</sup> : span.superscript ? <sup>{span.text}</sup> : span.subscript ? <sub>{span.text}</sub> : span.text
+                  const spanText = normalizeBookText(span.text || '')
+                  const content = span.footnoteId ? <sup className="word-footnote-reference">{span.footnoteId}</sup> : span.superscript ? <sup>{spanText}</sup> : span.subscript ? <sub>{spanText}</sub> : spanText
                   const formatted = <span style={{ fontWeight: span.bold ? 800 : undefined, fontStyle: span.italic ? 'italic' : undefined, color: span.color, fontFamily: span.fontFamily, fontSize: span.fontSize }}>{content}</span>
                   if (span.footnoteId && span.footnoteText) return <span key={inlineIndex} className="citation-reference footnote-reference" role="button" tabIndex={0}>{formatted}<span className="citation-tooltip">{span.footnoteText}</span></span>
                   if (span.referenceText) return <span key={inlineIndex} className="citation-reference" role="button" tabIndex={0}>{formatted}<span className="citation-tooltip">{span.referenceText}</span></span>
                   return span.href ? <a key={inlineIndex} href={span.href} target={String(span.href).startsWith('#') ? undefined : '_blank'} rel="noreferrer" className="reader-inline-link">{formatted}</a> : <span key={inlineIndex}>{formatted}</span>
-                }) : item.text}
+                }) : normalizeBookText(item.text)}
               </li>
             ))}
           </ListTag>
@@ -755,13 +757,13 @@ export default function Reader() {
         const legacyList = !block.inline?.length ? legacyListFromText(block.content) : null
         if (legacyList) {
           const LegacyListTag = legacyList.ordered ? 'ol' : 'ul'
-          return <LegacyListTag key={idx} className={`reader-list ${legacyList.ordered ? 'reader-list-ordered' : 'reader-list-bullet'}`} style={{ fontSize: block.format?.fontSizePt ? `${block.format.fontSizePt}pt` : `${fontSize}px`, color: block.format?.color ? `#${block.format.color}` : undefined, fontWeight: block.format?.bold ? 800 : undefined, fontStyle: block.format?.italic ? 'italic' : undefined, textAlign: block.format?.alignment }}>{legacyList.items.map((item, itemIndex) => <li key={itemIndex}>{item}</li>)}</LegacyListTag>
+          return <LegacyListTag key={idx} className={`reader-list ${legacyList.ordered ? 'reader-list-ordered' : 'reader-list-bullet'}`} style={{ fontSize: block.format?.fontSizePt ? `${block.format.fontSizePt}pt` : `${fontSize}px`, color: block.format?.color ? `#${block.format.color}` : undefined, fontWeight: block.format?.bold ? 800 : undefined, fontStyle: block.format?.italic ? 'italic' : undefined, textAlign: block.format?.alignment }}>{legacyList.items.map((item, itemIndex) => <li key={itemIndex}>{normalizeBookText(item)}</li>)}</LegacyListTag>
         }
-        return <p key={idx} id={block.anchor} dir={block.format?.direction} data-reader-text="true" data-reader-block={blockKey} className={`mb-5 leading-loose text-justify ${block.semantic === 'caption' ? 'reader-figure-caption' : block.semantic === 'table-title' ? 'reader-table-title' : block.semantic === 'footnote' ? 'reader-footnote' : block.semantic ? `reader-${block.semantic}` : ''}`} style={{fontSize: block.format?.fontSizePt ? `${block.format.fontSizePt}pt` : `${fontSize}px`, lineHeight: '2.2', color: block.format?.color ? `#${block.format.color}` : undefined, fontWeight: block.format?.bold ? 800 : undefined, fontStyle: block.format?.italic ? 'italic' : undefined, textAlign: block.format?.alignment}}>{block.anchors?.filter((anchor: string) => anchor !== block.anchor).map((anchor: string) => <span key={anchor} id={anchor} className="word-bookmark-anchor" />)}{block.inline?.length ? renderInline() : renderHighlightedText(block.content, blockKey)}</p>
+        return <p key={idx} id={block.anchor} dir={block.format?.direction} data-reader-text="true" data-reader-block={blockKey} className={`mb-5 leading-loose text-justify ${block.semantic === 'caption' ? 'reader-figure-caption' : block.semantic === 'table-title' ? 'reader-table-title' : block.semantic === 'footnote' ? 'reader-footnote' : block.semantic ? `reader-${block.semantic}` : ''}`} style={{fontSize: block.format?.fontSizePt ? `${block.format.fontSizePt}pt` : `${fontSize}px`, lineHeight: '2.2', color: block.format?.color ? `#${block.format.color}` : undefined, fontWeight: block.format?.bold ? 800 : undefined, fontStyle: block.format?.italic ? 'italic' : undefined, textAlign: block.format?.alignment}}>{block.anchors?.filter((anchor: string) => anchor !== block.anchor).map((anchor: string) => <span key={anchor} id={anchor} className="word-bookmark-anchor" />)}{block.inline?.length ? renderInline() : renderHighlightedText(normalizeBookText(block.content), blockKey)}</p>
       }
       case 'heading': {
         const headingId = block.anchor || block.id
-        return <div key={idx} className="mb-8"><h2 id={headingId} data-reader-anchor={headingId} data-reader-heading="true" dir={block.format?.direction} className="font-bold font-display mb-5 text-primary border-r-4 border-primary pr-4" style={{fontSize: block.format?.fontSizePt ? `${block.format.fontSizePt}pt` : `${Math.max(20, 32 - (block.level || 2) * 2)}px`, color: block.format?.color ? `#${block.format.color}` : undefined, textAlign: block.format?.alignment}}>{block.anchors?.filter((anchor: string) => anchor !== block.anchor).map((anchor: string) => <span key={anchor} id={anchor} className="word-bookmark-anchor" />)}{block.inline?.length ? renderInline() : block.content}</h2>{block.blocks?.map((b:any,i:number)=>renderBlock(b,i))}</div>
+        return <div key={idx} className="mb-8"><h2 id={headingId} data-reader-anchor={headingId} data-reader-heading="true" dir={block.format?.direction} className="font-bold font-display mb-5 text-primary border-r-4 border-primary pr-4" style={{fontSize: block.format?.fontSizePt ? `${block.format.fontSizePt}pt` : `${Math.max(20, 32 - (block.level || 2) * 2)}px`, color: block.format?.color ? `#${block.format.color}` : undefined, textAlign: block.format?.alignment}}>{block.anchors?.filter((anchor: string) => anchor !== block.anchor).map((anchor: string) => <span key={anchor} id={anchor} className="word-bookmark-anchor" />)}{block.inline?.length ? renderInline() : normalizeBookText(block.content)}</h2>{block.blocks?.map((b:any,i:number)=>renderBlock(b,i))}</div>
       }
       case 'image': return <div key={idx} className="mb-8 flex flex-col items-center"><img src={block.url} alt={block.caption||''} className="h-auto max-w-full rounded-2xl shadow-book" style={{ width: block.widthPx ? (String(block.widthPx).endsWith('%') || String(block.widthPx).endsWith('px') ? String(block.widthPx) : `${block.widthPx}px`) : block.widthPercent ? `${block.widthPercent}%` : '100%' }} loading="lazy" />{block.caption && <p className="text-center text-sm text-muted-foreground mt-3">{block.caption}</p>}</div>
       case 'quiz': {

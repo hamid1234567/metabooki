@@ -6,6 +6,7 @@ import { useAuthContext } from '@/lib/auth-context'
 import { confirmAndUploadImport, uploadErrorMessage, type UploadProgress } from '@/lib/import-upload'
 import { clearExpiredLocalImports, deleteLocalImport, saveLocalImport, updateLocalAnalysis } from '@/lib/local-import-store'
 import { applyWordStyleMapping } from '@/lib/word-style-mapping'
+import { normalizeBookText } from '@/lib/book-content'
 import type { ImportBookMetadata, LocalImportProject, WordImportAnalysis, ImportWorkerMessage } from '@/lib/word-import-types'
 
 type Stage = 'choose' | 'analyzing' | 'review' | 'uploading' | 'complete'
