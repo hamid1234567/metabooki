@@ -379,37 +379,37 @@ const ResizableImage = Image.extend({
 })
 
 const LEGACY_INTERACTIVE_TYPES = [
-  ['flashcard', 'ÙÙ„Ø´â€ŒÚ©Ø§Ø±Øª'], ['steps', 'Ù…Ø±Ø­Ù„Ù‡â€ŒØ³Ø§Ø²ÛŒ'], ['gallery', 'Ú¯Ø§Ù„Ø±ÛŒ Ø¹Ú©Ø³'], ['scrollytelling', 'Ø§Ø³ØªÙˆØ±ÛŒâ€ŒØªÙ„ÛŒÙ†Ú¯'],
-  ['quiz', 'Ú©ÙˆÛŒÛŒØ² Ø³Ø§Ø¯Ù‡'], ['timeline', 'ØªØ§ÛŒÙ…â€ŒÙ„Ø§ÛŒÙ†'], ['hotspot', 'Ù‡Ø§Øªâ€ŒØ§Ø³Ù¾Ø§Øª ØªØ¹Ø§Ù…Ù„ÛŒ'],
+  ['flashcard', 'فلش‌کارت'], ['steps', 'مرحله‌سازی'], ['gallery', 'گالری عکس'], ['scrollytelling', 'استوری‌تلینگ'],
+  ['quiz', 'کوییز ساده'], ['timeline', 'تایم‌لاین'], ['hotspot', 'هات‌اسپات تعاملی'],
 ] as const
 const INTERACTIVE_TYPES = [
-  ['quiz', 'Quiz Ú†Ù†Ø¯Ú¯Ø²ÛŒÙ†Ù‡â€ŒØ§ÛŒ'],
-  ['truefalse', 'ØµØ­ÛŒØ­/ØºÙ„Ø·'],
-  ['flashcard', 'ÙÙ„Ø´â€ŒÚ©Ø§Ø±Øª'],
-  ['accordion', 'Ø¢Ú©Ø§Ø±Ø¯Ø¦ÙˆÙ†'],
-  ['tabs', 'ØªØ¨â€ŒÙ‡Ø§'],
-  ['timeline', 'ØªØ§ÛŒÙ…â€ŒÙ„Ø§ÛŒÙ†'],
-  ['gallery', 'Ú¯Ø§Ù„Ø±ÛŒ ØªØµÙˆÛŒØ±'],
-  ['scrollytelling', 'Ø§Ø³ØªÙˆØ±ÛŒâ€ŒØªÙ„ÛŒÙ†Ú¯ Ú†Ù†Ø¯Ù…Ø±Ø­Ù„Ù‡â€ŒØ§ÛŒ'],
-  ['algorithm', 'Ø§Ù„Ú¯ÙˆØ±ÛŒØªÙ… ØªØ¹Ø§Ù…Ù„ÛŒ'],
-  ['author', 'Ù…Ø¹Ø±ÙÛŒ Ù†ÙˆÛŒØ³Ù†Ø¯Ù‡ Ù…Ø·Ù„Ø¨'],
-  ['steps', 'Ù…Ø±Ø­Ù„Ù‡â€ŒØ³Ø§Ø²ÛŒ'],
-  ['hotspot', 'Ù‡Ø§Øªâ€ŒØ§Ø³Ù¾Ø§Øª ØªØ¹Ø§Ù…Ù„ÛŒ'],
+  ['quiz', 'Quiz چندگزینه‌ای'],
+  ['truefalse', 'صحیح/غلط'],
+  ['flashcard', 'فلش‌کارت'],
+  ['accordion', 'آکاردئون'],
+  ['tabs', 'تب‌ها'],
+  ['timeline', 'تایم‌لاین'],
+  ['gallery', 'گالری تصویر'],
+  ['scrollytelling', 'استوری‌تلینگ چندمرحله‌ای'],
+  ['algorithm', 'الگوریتم تعاملی'],
+  ['author', 'معرفی نویسنده مطلب'],
+  ['steps', 'مرحله‌سازی'],
+  ['hotspot', 'هات‌اسپات تعاملی'],
 ] as const
 const interactiveKinds = new Set<string>(INTERACTIVE_TYPES.map(item => item[0]))
 void LEGACY_INTERACTIVE_TYPES
 
 const CALLOUT_PRESETS = [
-  { value: 'key', label: 'Ù†Ú©ØªÙ‡ Ú©Ù„ÛŒØ¯ÛŒ', group: 'Ú©Ø§Ù„â€ŒØ§ÙˆØª Ø¢Ù…ÙˆØ²Ø´ÛŒ', icon: Lightbulb, emoji: 'ðŸ’¡', className: 'callout-key', description: 'Ø®Ù„Ø§ØµÙ‡ Ù…Ù‡Ù…â€ŒØªØ±ÛŒÙ† Ù†Ú©ØªÙ‡ Ù…ØªÙ†' },
-  { value: 'question', label: 'Ù…Ú©Ø« Ùˆ ÙÚ©Ø± Ú©Ù†', group: 'Ú©Ø§Ù„â€ŒØ§ÙˆØª Ø¢Ù…ÙˆØ²Ø´ÛŒ', icon: Info, emoji: 'â”', className: 'callout-question', description: 'Ø³Ø¤Ø§Ù„ Ú©ÙˆØªØ§Ù‡ Ø¨Ø±Ø§ÛŒ Ø¯Ø±Ú¯ÛŒØ± Ú©Ø±Ø¯Ù† Ø®ÙˆØ§Ù†Ù†Ø¯Ù‡' },
-  { value: 'warning', label: 'Ø§Ø´ØªØ¨Ø§Ù‡ Ø±Ø§ÛŒØ¬', group: 'Ú©Ø§Ù„â€ŒØ§ÙˆØª Ø¢Ù…ÙˆØ²Ø´ÛŒ', icon: AlertTriangle, emoji: 'âš ï¸', className: 'callout-warning', description: 'Ù‡Ø´Ø¯Ø§Ø± ÛŒØ§ Ø§ØµÙ„Ø§Ø­ Ø¨Ø±Ø¯Ø§Ø´Øª Ø§Ø´ØªØ¨Ø§Ù‡' },
-  { value: 'quote', label: 'Ø¬Ù…Ù„Ù‡ Ø·Ù„Ø§ÛŒÛŒ', group: 'Ú©Ø§Ù„â€ŒØ§ÙˆØª Ø§Ø¯Ø¨ÛŒ Ùˆ Ù…Ø±Ø¬Ø¹', icon: Quote, emoji: 'â', className: 'callout-quote', description: 'Ù†Ù‚Ù„â€ŒÙ‚ÙˆÙ„ ÛŒØ§ Ø¬Ù…Ù„Ù‡ Ù…Ù‡Ù… Ùˆ Ù…Ø§Ù†Ø¯Ú¯Ø§Ø±' },
-  { value: 'deep', label: 'Ø¹Ù…ÛŒÙ‚â€ŒØªØ± Ø¨Ø®ÙˆØ§Ù†', group: 'Ú©Ø§Ù„â€ŒØ§ÙˆØª Ø§Ø¯Ø¨ÛŒ Ùˆ Ù…Ø±Ø¬Ø¹', icon: BookOpen, emoji: 'ðŸ”', className: 'callout-deep', description: 'Ù…Ø­ØªÙˆØ§ÛŒ ØªÚ©Ù…ÛŒÙ„ÛŒ ÛŒØ§ ØªÙˆØ¶ÛŒØ­ Ù¾ÛŒØ´Ø±ÙØªÙ‡' },
-  { value: 'practice', label: 'ØªÙ…Ø±ÛŒÙ† Ø³Ø±ÛŒØ¹', group: 'Ú©Ø§Ù„â€ŒØ§ÙˆØª Ú©Ø§Ø±Ø¨Ø±Ø¯ÛŒ', icon: Bookmark, emoji: 'âœ…', className: 'callout-practice', description: 'ØªÙ…Ø±ÛŒÙ† ÛŒØ§ ÙØ¹Ø§Ù„ÛŒØª Ú©ÙˆØªØ§Ù‡ Ø¯Ø§Ø®Ù„ Ú©ØªØ§Ø¨' },
-  { value: 'glossary', label: 'ØªØ¹Ø±ÛŒÙ ÙˆØ§Ú˜Ù‡', group: 'Ú©Ø§Ù„â€ŒØ§ÙˆØª Ú©Ø§Ø±Ø¨Ø±Ø¯ÛŒ', icon: FileText, emoji: 'ðŸ“˜', className: 'callout-glossary', description: 'ØªØ¹Ø±ÛŒÙ ÛŒÚ© Ø§ØµØ·Ù„Ø§Ø­ ÛŒØ§ Ù…ÙÙ‡ÙˆÙ…' },
-  { value: 'data', label: 'Ø¯Ø§Ø¯Ù‡ Ùˆ Ù…Ù†Ø¨Ø¹', group: 'Ú©Ø§Ù„â€ŒØ§ÙˆØª Ú©Ø§Ø±Ø¨Ø±Ø¯ÛŒ', icon: FileText, emoji: 'ðŸ“Š', className: 'callout-data', description: 'Ù†Ù…Ø§ÛŒØ´ Ø¢Ù…Ø§Ø±ØŒ Ø¹Ø¯Ø¯ØŒ Ù…Ù†Ø¨Ø¹ ÛŒØ§ Ø±ÙØ±Ù†Ø³' },
-  { value: 'margin', label: 'ÛŒØ§Ø¯Ø¯Ø§Ø´Øª Ø­Ø§Ø´ÛŒÙ‡â€ŒØ§ÛŒ', group: 'Ú©Ø§Ù„â€ŒØ§ÙˆØª Ú©Ø§Ø±Ø¨Ø±Ø¯ÛŒ', icon: Feather, emoji: 'ðŸ“', className: 'callout-margin', description: 'ØªÙˆØ¶ÛŒØ­ Ú©ÙˆØªØ§Ù‡ Ø¯Ø± Ø­Ø§Ø´ÛŒÙ‡ ÛŒØ§ Ú©Ù†Ø§Ø± Ù…ØªÙ†' },
-  { value: 'normal', label: 'Ù…ØªÙ† Ø¹Ø§Ø¯ÛŒ', group: 'Ø¨Ø§Ø²Ù†Ø´Ø§Ù†ÛŒ', icon: Pilcrow, emoji: '', className: 'editor-normal', description: 'Ø¨Ø§Ø²Ú¯Ø´Øª Ø¨Ù‡ Ù…ØªÙ† Ø³Ø§Ø¯Ù‡' },
+  { value: 'key', label: 'نکته کلیدی', group: 'کال‌اوت آموزشی', icon: Lightbulb, emoji: '💡', className: 'callout-key', description: 'خلاصه مهم‌ترین نکته متن' },
+  { value: 'question', label: 'مکث و فکر کن', group: 'کال‌اوت آموزشی', icon: Info, emoji: '❔', className: 'callout-question', description: 'سؤال کوتاه برای درگیر کردن خواننده' },
+  { value: 'warning', label: 'اشتباه رایج', group: 'کال‌اوت آموزشی', icon: AlertTriangle, emoji: '⚠️', className: 'callout-warning', description: 'هشدار یا اصلاح برداشت اشتباه' },
+  { value: 'quote', label: 'جمله طلایی', group: 'کال‌اوت ادبی و مرجع', icon: Quote, emoji: '❝', className: 'callout-quote', description: 'نقل‌قول یا جمله مهم و ماندگار' },
+  { value: 'deep', label: 'عمیق‌تر بخوان', group: 'کال‌اوت ادبی و مرجع', icon: BookOpen, emoji: '🔍', className: 'callout-deep', description: 'محتوای تکمیلی یا توضیح پیشرفته' },
+  { value: 'practice', label: 'تمرین سریع', group: 'کال‌اوت کاربردی', icon: Bookmark, emoji: '✅', className: 'callout-practice', description: 'تمرین یا فعالیت کوتاه داخل کتاب' },
+  { value: 'glossary', label: 'تعریف واژه', group: 'کال‌اوت کاربردی', icon: FileText, emoji: '📘', className: 'callout-glossary', description: 'تعریف یک اصطلاح یا مفهوم' },
+  { value: 'data', label: 'داده و منبع', group: 'کال‌اوت کاربردی', icon: FileText, emoji: '📊', className: 'callout-data', description: 'نمایش آمار، عدد، منبع یا رفرنس' },
+  { value: 'margin', label: 'یادداشت حاشیه‌ای', group: 'کال‌اوت کاربردی', icon: Feather, emoji: '📝', className: 'callout-margin', description: 'توضیح کوتاه در حاشیه یا کنار متن' },
+  { value: 'normal', label: 'متن عادی', group: 'بازنشانی', icon: Pilcrow, emoji: '', className: 'editor-normal', description: 'بازگشت به متن ساده' },
 ] as const
 const calloutPreset = (variant = 'key') => CALLOUT_PRESETS.find(item => item.value === variant) || CALLOUT_PRESETS[0]
 function interactiveLabel(kind: string) { return INTERACTIVE_TYPES.find(item => item[0] === kind)?.[1] || kind }
@@ -421,35 +421,34 @@ function compactAiContent(content?: AiStructuredContent | null) {
   return [content.title, content.lead, ...content.sections.flatMap((section: { heading: string; paragraphs: string[]; bullets?: string[] }) => [section.heading, ...section.paragraphs, ...(section.bullets || []).map((item: string) => `- ${item}`)])].filter(Boolean).join('\n')
 }
 function interactiveTemplate(kind: string) {
-  if (kind === 'quiz') return { type: kind, question: 'Ø³Ø¤Ø§Ù„ Ø±Ø§ Ø§ÛŒÙ†Ø¬Ø§ Ø¨Ù†ÙˆÛŒØ³ÛŒØ¯', options: ['Ú¯Ø²ÛŒÙ†Ù‡ ØµØ­ÛŒØ­', 'Ú¯Ø²ÛŒÙ†Ù‡ Ø¯ÙˆÙ…', 'Ú¯Ø²ÛŒÙ†Ù‡ Ø³ÙˆÙ…', 'Ú¯Ø²ÛŒÙ†Ù‡ Ú†Ù‡Ø§Ø±Ù…'], correct: 0 }
-  if (kind === 'truefalse') return { type: kind, statement: 'Ú¯Ø²Ø§Ø±Ù‡ Ø±Ø§ Ø§ÛŒÙ†Ø¬Ø§ Ø¨Ù†ÙˆÛŒØ³ÛŒØ¯', correct: true, explanation: 'ØªÙˆØ¶ÛŒØ­ Ù¾Ø§Ø³Ø®' }
-  if (kind === 'accordion') return { type: kind, title: 'Ø¢Ú©Ø§Ø±Ø¯Ø¦ÙˆÙ†', items: [{ title: 'Ø¹Ù†ÙˆØ§Ù† Ø¨Ø®Ø´', description: 'Ù…ØªÙ† Ø¨Ø§Ø²Ø´ÙˆÙ†Ø¯Ù‡ Ø§ÛŒÙ† Ø¨Ø®Ø´' }] }
-  if (kind === 'tabs') return { type: kind, title: 'ØªØ¨â€ŒÙ‡Ø§', tabs: [{ title: 'ØªØ¨ Ø§ÙˆÙ„', description: 'Ù…Ø­ØªÙˆØ§ÛŒ ØªØ¨ Ø§ÙˆÙ„' }, { title: 'ØªØ¨ Ø¯ÙˆÙ…', description: 'Ù…Ø­ØªÙˆØ§ÛŒ ØªØ¨ Ø¯ÙˆÙ…' }] }
-  if (kind === 'algorithm') return { type: kind, title: 'Ø§Ù„Ú¯ÙˆØ±ÛŒØªÙ… ØªØ¹Ø§Ù…Ù„ÛŒ', steps: [{ title: 'Ø§Ú¯Ø±...', description: 'Ø´Ø±Ø· ÛŒØ§ ØªØµÙ…ÛŒÙ… Ø§ÙˆÙ„' }, { title: 'Ø¢Ù†Ú¯Ø§Ù‡...', description: 'Ù†ØªÛŒØ¬Ù‡ ÛŒØ§ Ù…Ø³ÛŒØ± Ø¨Ø¹Ø¯ÛŒ' }] }
-  if (kind === 'author') return { type: kind, title: 'Ù†ÙˆÛŒØ³Ù†Ø¯Ú¯Ø§Ù† ÙØµÙ„', authors: [{ name: 'Ù†Ø§Ù… Ù†ÙˆÛŒØ³Ù†Ø¯Ù‡', role: 'Ù†Ù‚Ø´ ÛŒØ§ ØªØ®ØµØµ', bio: 'Ù…Ø¹Ø±ÙÛŒ Ú©ÙˆØªØ§Ù‡ Ù†ÙˆÛŒØ³Ù†Ø¯Ù‡', image: '' }] }
-  if (kind === 'quiz') return { type: kind, question: 'Ø³Ø¤Ø§Ù„ Ø±Ø§ Ø§ÛŒÙ†Ø¬Ø§ Ø¨Ù†ÙˆÛŒØ³ÛŒØ¯', options: ['Ú¯Ø²ÛŒÙ†Ù‡ ØµØ­ÛŒØ­', 'Ú¯Ø²ÛŒÙ†Ù‡ Ø¯ÙˆÙ…', 'Ú¯Ø²ÛŒÙ†Ù‡ Ø³ÙˆÙ…'], correct: 0 }
-  if (kind === 'timeline') return { type: kind, events: [{ year: 'Ù…Ø±Ø­Ù„Ù‡ Û±', title: 'Ø´Ø±ÙˆØ¹', description: 'ØªÙˆØ¶ÛŒØ­ Ù…Ø±Ø­Ù„Ù‡ Ù†Ø®Ø³Øª' }, { year: 'Ù…Ø±Ø­Ù„Ù‡ Û²', title: 'Ø§Ø¯Ø§Ù…Ù‡', description: 'ØªÙˆØ¶ÛŒØ­ Ù…Ø±Ø­Ù„Ù‡ Ø¯ÙˆÙ…' }] }
-  if (kind === 'scrollytelling') return { type: kind, steps: [{ image: '', text: 'Ø¨Ø®Ø´ Ù†Ø®Ø³Øª Ø±ÙˆØ§ÛŒØª' }, { image: '', text: 'Ø¨Ø®Ø´ Ø¯ÙˆÙ… Ø±ÙˆØ§ÛŒØª' }] }
-  if (kind === 'hotspot') return { type: kind, image: '', caption: 'ØªØµÙˆÛŒØ± Ù‡Ø§Øªâ€ŒØ§Ø³Ù¾Ø§Øª', points: [{ x: 50, y: 50, title: 'Ù†Ù‚Ø·Ù‡ Û±', text: 'ØªÙˆØ¶ÛŒØ­ Ø§ÛŒÙ† Ù†Ù‚Ø·Ù‡' }] }
-  if (kind === 'flashcard') return { type: kind, cards: [{ front: 'Ø±ÙˆÛŒ Ú©Ø§Ø±Øª', back: 'Ù¾Ø´Øª Ú©Ø§Ø±Øª' }] }
-  if (kind === 'gallery') return { type: kind, images: [{ url: '', caption: 'ØªØµÙˆÛŒØ± Ú¯Ø§Ù„Ø±ÛŒ' }] }
-  return { type: kind, title: 'ÙØ±Ø¢ÛŒÙ†Ø¯ Ù…Ø±Ø­Ù„Ù‡â€ŒØ§ÛŒ', steps: [{ title: 'Ù…Ø±Ø­Ù„Ù‡ Û±', description: 'ØªÙˆØ¶ÛŒØ­ Ù…Ø±Ø­Ù„Ù‡ Ù†Ø®Ø³Øª', image: '' }, { title: 'Ù…Ø±Ø­Ù„Ù‡ Û²', description: 'ØªÙˆØ¶ÛŒØ­ Ù…Ø±Ø­Ù„Ù‡ Ø¯ÙˆÙ…', image: '' }] }
+  if (kind === 'quiz') return { type: kind, question: 'سؤال را اینجا بنویسید', options: ['گزینه صحیح', 'گزینه دوم', 'گزینه سوم', 'گزینه چهارم'], correct: 0 }
+  if (kind === 'truefalse') return { type: kind, statement: 'گزاره را اینجا بنویسید', correct: true, explanation: 'توضیح پاسخ' }
+  if (kind === 'accordion') return { type: kind, title: 'آکاردئون', items: [{ title: 'عنوان بخش', description: 'متن بازشونده این بخش', image: '' }] }
+  if (kind === 'tabs') return { type: kind, title: 'تب‌ها', tabs: [{ title: 'تب اول', description: 'محتوای تب اول', image: '' }, { title: 'تب دوم', description: 'محتوای تب دوم', image: '' }] }
+  if (kind === 'algorithm') return { type: kind, title: 'الگوریتم تعاملی', steps: [{ title: 'اگر...', description: 'شرط یا تصمیم اول', image: '' }, { title: 'آنگاه...', description: 'نتیجه یا مسیر بعدی', image: '' }] }
+  if (kind === 'author') return { type: kind, title: 'نویسندگان فصل', authors: [{ name: 'نام نویسنده', role: 'نقش یا تخصص', bio: 'معرفی کوتاه نویسنده', image: '' }] }
+  if (kind === 'timeline') return { type: kind, events: [{ year: 'مرحله ۱', title: 'شروع', description: 'توضیح مرحله نخست', image: '' }, { year: 'مرحله ۲', title: 'ادامه', description: 'توضیح مرحله دوم', image: '' }] }
+  if (kind === 'scrollytelling') return { type: kind, title: 'استوری‌تلینگ', steps: [{ image: '', title: 'گام اول', text: 'بخش نخست روایت', description: '' }, { image: '', title: 'گام دوم', text: 'بخش دوم روایت', description: '' }] }
+  if (kind === 'hotspot') return { type: kind, image: '', caption: 'تصویر هات‌اسپات', points: [{ x: 50, y: 50, title: 'نقطه ۱', text: 'توضیح این نقطه' }] }
+  if (kind === 'flashcard') return { type: kind, cards: [{ front: 'روی کارت', back: 'پشت کارت', image: '' }] }
+  if (kind === 'gallery') return { type: kind, title: 'گالری تصاویر', images: [{ url: '', caption: 'تصویر گالری' }] }
+  return { type: kind, title: 'فرآیند مرحله‌ای', steps: [{ title: 'مرحله ۱', description: 'توضیح مرحله نخست', image: '' }, { title: 'مرحله ۲', description: 'توضیح مرحله دوم', image: '' }] }
 }
 function interactivePreview(kind: string, data: any): any[] {
-  if (kind === 'truefalse') return [['h4', data.statement || 'Ú¯Ø²Ø§Ø±Ù‡ ØµØ­ÛŒØ­/ØºÙ„Ø·'], ['div', { class: 'editor-interactive-options' }, ['span', data.correct ? 'Ù¾Ø§Ø³Ø®: ØµØ­ÛŒØ­' : 'Ù¾Ø§Ø³Ø®: ØºÙ„Ø·'], ['span', data.explanation || '']]]
-  if (kind === 'accordion') return [['h4', data.title || 'Ø¢Ú©Ø§Ø±Ø¯Ø¦ÙˆÙ†'], ['div', { class: 'editor-interactive-steps' }, ...(data.items || []).map((item: any, index: number) => ['span', `${index + 1}. ${item.title || 'Ø¨Ø®Ø´'}`])]]
-  if (kind === 'tabs') return [['h4', data.title || 'ØªØ¨â€ŒÙ‡Ø§'], ['div', { class: 'editor-interactive-steps' }, ...(data.tabs || []).map((item: any, index: number) => ['span', `${index + 1}. ${item.title || 'ØªØ¨'}`])]]
-  if (kind === 'algorithm') return [['h4', data.title || 'Ø§Ù„Ú¯ÙˆØ±ÛŒØªÙ… ØªØ¹Ø§Ù…Ù„ÛŒ'], ['div', { class: 'editor-interactive-steps' }, ...(data.steps || []).map((item: any, index: number) => ['span', `${index + 1}. ${item.title || 'ØªØµÙ…ÛŒÙ…'}`])]]
+  if (kind === 'truefalse') return [['h4', data.statement || 'گزاره صحیح/غلط'], ['div', { class: 'editor-interactive-options' }, ['span', data.correct ? 'پاسخ: صحیح' : 'پاسخ: غلط'], ['span', data.explanation || '']]]
+  if (kind === 'accordion') return [['h4', data.title || 'آکاردئون'], ['div', { class: 'editor-interactive-steps' }, ...(data.items || []).map((item: any, index: number) => ['span', `${index + 1}. ${item.title || 'بخش'}`])]]
+  if (kind === 'tabs') return [['h4', data.title || 'تب‌ها'], ['div', { class: 'editor-interactive-steps' }, ...(data.tabs || []).map((item: any, index: number) => ['span', `${index + 1}. ${item.title || 'تب'}`])]]
+  if (kind === 'algorithm') return [['h4', data.title || 'الگوریتم تعاملی'], ['div', { class: 'editor-interactive-steps' }, ...(data.steps || []).map((item: any, index: number) => ['span', `${index + 1}. ${item.title || 'تصمیم'}`])]]
   if (kind === 'author') {
     const authors = Array.isArray(data.authors) ? data.authors : [{ name: data.name, role: data.role, bio: data.bio }]
-    return [['h4', data.title || 'Ù†ÙˆÛŒØ³Ù†Ø¯Ú¯Ø§Ù† ÙØµÙ„'], ['div', { class: 'editor-interactive-steps' }, ...authors.map((author: any) => ['span', `${author.name || 'Ù†ÙˆÛŒØ³Ù†Ø¯Ù‡'}${author.role ? ` - ${author.role}` : ''}`])]]
+    return [['h4', data.title || 'نویسندگان فصل'], ['div', { class: 'editor-interactive-steps' }, ...authors.map((author: any) => ['span', `${author.name || 'نویسنده'}${author.role ? ` - ${author.role}` : ''}`])]]
   }
-  if (kind === 'quiz') return [['h4', data.question || 'Ø³Ø¤Ø§Ù„'], ['div', { class: 'editor-interactive-options' }, ...(data.options || []).map((option: string) => ['span', option])]]
-  if (kind === 'gallery') return [['div', { class: 'editor-interactive-gallery' }, ...(data.images || []).map((image: any) => image.url ? ['img', { src: image.url, alt: image.caption || '' }] : ['span', image.caption || 'ØªØµÙˆÛŒØ±'])]]
-  if (kind === 'hotspot') return [data.image ? ['img', { src: data.image, alt: data.caption || '' }] : ['span', data.caption || 'ØªØµÙˆÛŒØ± Ù‡Ø§Øªâ€ŒØ§Ø³Ù¾Ø§Øª'], ['small', `${(data.points || []).length} Ù†Ù‚Ø·Ù‡ ØªØ¹Ø§Ù…Ù„ÛŒ`]]
+  if (kind === 'quiz') return [['h4', data.question || 'سؤال'], ['div', { class: 'editor-interactive-options' }, ...(data.options || []).map((option: string) => ['span', option])]]
+  if (kind === 'gallery') return [['div', { class: 'editor-interactive-gallery' }, ...(data.images || []).map((image: any) => image.url ? ['img', { src: image.url, alt: image.caption || '' }] : ['span', image.caption || 'تصویر'])]]
+  if (kind === 'hotspot') return [data.image ? ['img', { src: data.image, alt: data.caption || '' }] : ['span', data.caption || 'تصویر هات‌اسپات'], ['small', `${(data.points || []).length} نقطه تعاملی`]]
   const items = data.steps || data.events || data.cards || []
-  if (items.length) return [['h4', data.title || data.caption || interactiveLabel(kind)], ['div', { class: 'editor-interactive-steps' }, ...items.map((item: any, index: number) => ['span', `${index + 1}. ${item.title || item.year || item.front || item.text || 'Ù…Ø±Ø­Ù„Ù‡'}`])]]
-  return [['span', data.title || data.question || data.caption || 'Ø¨Ø±Ø§ÛŒ ÙˆÛŒØ±Ø§ÛŒØ´ Ø¬Ø²Ø¦ÛŒØ§ØªØŒ Ø§ÛŒÙ† Ø¨Ø®Ø´ Ø±Ø§ Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ù†ÛŒØ¯']]
+  if (items.length) return [['h4', data.title || data.caption || interactiveLabel(kind)], ['div', { class: 'editor-interactive-steps' }, ...items.map((item: any, index: number) => ['span', `${index + 1}. ${item.title || item.year || item.front || item.text || 'مرحله'}`])]]
+  return [['span', data.title || data.question || data.caption || 'برای ویرایش جزئیات، این بخش را انتخاب کنید']]
 }
 
 function inlineHtml(block: any) {
