@@ -130,7 +130,40 @@ export function BookContentBlock({
 
   if (block.type === 'author') {
     const authors = block.authors || block.items || [{ name: block.name || block.title, role: block.role, bio: block.bio || block.description, image: block.image }]
-    return <div className="reader-interactive menu-glass-70 rounded-2xl p-5 mb-8"><h3 className="font-semibold mb-4">{textOf(block.title, interactiveLabel('author'))}</h3><div className="grid sm:grid-cols-2 gap-3">{authors.map((author: any, authorIndex: number) => <div key={authorIndex} className="rounded-xl border bg-background/55 p-4">{author.image && <img src={author.image} alt={author.name || ''} className="w-20 h-20 rounded-full object-cover mb-3" loading="lazy" />}<h4 className="font-bold">{textOf(author.name, `نویسنده ${authorIndex + 1}`)}</h4>{author.role && <p className="text-xs text-primary mt-1">{textOf(author.role)}</p>}<p className="mt-3 text-sm text-muted-foreground leading-relaxed">{textOf(author.bio, author.description, author.text)}</p></div>)}</div></div>
+    return (
+      <div className="reader-interactive book-author-strip menu-glass-70 rounded-2xl p-3 mb-8" data-no-swipe="true">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-bold text-muted-foreground px-2">{textOf(block.title, 'تألیف:')}</span>
+          {authors.map((author: any, authorIndex: number) => {
+            const name = textOf(author.name, `نویسنده ${authorIndex + 1}`)
+            const role = textOf(author.role, author.position, '')
+            const bio = textOf(author.bio, author.description, author.text, 'توضیحات تکمیلی برای این نویسنده ثبت نشده است.')
+            const initials = name.split(/\s+/).filter(Boolean).slice(-1)[0]?.slice(0, 2) || String(authorIndex + 1)
+            return (
+              <details key={authorIndex} className="book-author-chip group relative">
+                <summary className="list-none cursor-pointer select-none">
+                  <span className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-background/55 px-2.5 py-1.5 shadow-sm transition hover:border-primary/55 hover:bg-primary/10">
+                    {author.image ? <img src={author.image} alt={name} className="h-8 w-8 rounded-full object-cover ring-2 ring-background" loading="lazy" /> : <span className="h-8 w-8 rounded-full bg-primary/10 text-primary grid place-items-center text-xs font-bold">{initials}</span>}
+                    <span className="text-sm font-bold text-foreground whitespace-nowrap">{name}</span>
+                    {role && <small className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">{role}</small>}
+                  </span>
+                </summary>
+                <div className="book-author-popover absolute right-0 z-30 mt-2 min-w-72 max-w-[min(24rem,calc(100vw-2rem))] rounded-2xl border border-primary/20 bg-background/90 p-4 shadow-2xl backdrop-blur-xl">
+                  <div className="flex items-start gap-3">
+                    {author.image ? <img src={author.image} alt={name} className="h-16 w-16 rounded-2xl object-cover" loading="lazy" /> : <span className="h-16 w-16 rounded-2xl bg-primary/10 text-primary grid place-items-center text-base font-black">{initials}</span>}
+                    <div className="min-w-0">
+                      <h4 className="font-black leading-relaxed">{name}</h4>
+                      {role && <p className="text-xs text-primary mt-1">{role}</p>}
+                    </div>
+                  </div>
+                  <p className="mt-3 text-sm leading-8 text-muted-foreground">{bio}</p>
+                </div>
+              </details>
+            )
+          })}
+        </div>
+      </div>
+    )
   }
 
   if (block.type === 'gallery') return <div className="reader-interactive menu-glass-70 rounded-2xl p-4 mb-8"><h3 className="font-semibold mb-4">{textOf(block.title, '')}</h3><div className="grid sm:grid-cols-2 gap-3">{(block.images || []).map((image: any, imageIndex: number) => <figure key={imageIndex} className="rounded-xl overflow-hidden bg-background/55">{image.url && <img src={image.url} alt={image.caption || ''} className="w-full h-auto" loading="lazy" />}<figcaption className="p-3 text-sm text-muted-foreground">{textOf(image.caption)}</figcaption></figure>)}</div></div>
