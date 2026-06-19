@@ -2638,3 +2638,47 @@ body {
 @media (max-width: 900px) {
   .word-style-example { grid-column: 1 / -1; white-space: normal; }
 }
+
+/* Stable callout surface: keep variants distinct without double-tone backgrounds. */
+.book-callout {
+  background: color-mix(in srgb, var(--callout-bg) 72%, #fff) !important;
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--callout-accent) 10%, transparent), inset 0 1px 0 #fff !important;
+}
+.book-callout:after {
+  background: var(--callout-accent) !important;
+  opacity: .58 !important;
+}
+.book-callout-content:before {
+  content: none !important;
+}
+.book-callout.callout-key,
+.book-callout.callout-question,
+.book-callout.callout-warning,
+.book-callout.callout-quote,
+.book-callout.callout-deep,
+.book-callout.callout-practice,
+.book-callout.callout-glossary,
+.book-callout.callout-data,
+.book-callout.callout-margin {
+  background: color-mix(in srgb, var(--callout-bg) 78%, #fff) !important;
+}
+.book-callout.callout-quote .book-callout-content,
+.book-callout.callout-data .book-callout-content strong:first-child {
+  text-align: inherit;
+  font-size: inherit;
+}
+.book-callout-unwrap {
+  display: grid;
+  place-items: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border: 1px solid color-mix(in srgb, var(--callout-accent) 18%, #dbe4ef);
+  border-radius: 999px;
+  background: #fff;
+  color: color-mix(in srgb, var(--callout-accent) 65%, #334155);
+  font-size: 1rem;
+  line-height: 1;
+}
+.book-callout-unwrap:hover {
+  background: color-mix(in srgb, var(--callout-accent) 10%, #fff);
+}
