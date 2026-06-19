@@ -617,7 +617,6 @@ export default function Edit() {
   const [headings, setHeadings] = useState<Array<{ text: string; level: number; pos: number }>>([])
   const [backgroundUrl, setBackgroundUrl] = useState('')
   const [backgroundAlpha, setBackgroundAlpha] = useState(0)
-  const [imagePanelOpen, setImagePanelOpen] = useState(false)
   const [editingTocIndex, setEditingTocIndex] = useState<number | null>(null)
   const [editingTocTitle, setEditingTocTitle] = useState('')
   const [confirmTocDelete, setConfirmTocDelete] = useState<number | null>(null)
@@ -1156,7 +1155,7 @@ export default function Edit() {
 
         <div className="book-toolbar-group" aria-label="مدیا و جدول">
           <button title="افزودن تصویر" onClick={() => imageInputRef.current?.click()}><ImagePlus /></button>
-          <button title="نمایش تصاویر کتاب" onClick={() => setImagePanelOpen(value => !value)} className={imagePanelOpen ? 'active' : ''}><Images /></button>
+          <button title="نمایش تصاویر کتاب" onClick={() => setPanelMode('media')} className={panelMode === 'media' ? 'active' : ''}><Images /></button>
           <input ref={imageInputRef} hidden type="file" accept="image/*" onChange={event => event.target.files?.[0] && addImage(event.target.files[0])} />
           <select title="اندازه تصویر انتخاب‌شده" defaultValue="" onChange={event => { if (event.target.value) command(activeEditor => activeEditor.chain().focus().updateAttributes('image', { width: event.target.value }).run()); event.target.value = '' }}><option value="" disabled>عکس</option><option value="25%">۲۵٪</option><option value="50%">۵۰٪</option><option value="75%">۷۵٪</option><option value="100%">۱۰۰٪</option></select>
           <button title="جدول جدید" onClick={() => command(activeEditor => activeEditor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())}><Table2 /></button>
@@ -1178,11 +1177,11 @@ export default function Edit() {
       </EditorToolbarFrame>
 
       <div className="mb-editor-workspace">
-        <EditorRail active={panelMode} onChange={mode => { setPanelMode(mode); if (mode === 'media') setImagePanelOpen(true) }} />
+        <EditorRail active={panelMode} onChange={setPanelMode} />
         <aside className="mb-editor-panel">
           {panelMode === 'add' ? <AddBlockPanel
             onAddImage={() => imageInputRef.current?.click()}
-            onShowMedia={() => { setPanelMode('media'); setImagePanelOpen(true) }}
+            onShowMedia={() => setPanelMode('media')}
             onAddCallout={setTypography}
             onAddInteractive={kind => void handleInteractiveAction(kind)}
             onAddTable={() => command(activeEditor => activeEditor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())}
@@ -1250,27 +1249,13 @@ export default function Edit() {
           </div>
           </>}
         </aside>
-        {imagePanelOpen && <aside className="book-editor-image-drawer menu-glass-70">
-          <header><h3><Images />تصاویر کتاب</h3><button onClick={() => setImagePanelOpen(false)}>بستن</button></header>
-          {bookImages.length === 0 && <p className="book-editor-empty-state">هنوز تصویری برای این کتاب ثبت نشده است.</p>}
-          <div>
-            {bookImages.map((image: any, index: number) => (
-              <button key={image.key || `${image.url}-${index}`} className={image.issue ? 'has-issue' : ''} disabled={!image.url} title={image.issue || 'افزودن تصویر در محل نشانگر'} onClick={() => image.url && command(activeEditor => activeEditor.chain().focus().setImage({ src: image.url, alt: image.caption || '', width: image.widthPx ? `${image.widthPx}px` : image.widthPercent ? `${image.widthPercent}%` : '100%', imageId: image.imageId || undefined, printPage: image.printPage || undefined, conversionStatus: image.conversionStatus || undefined } as any).run())}>
-                {image.url ? <img src={image.url} alt={image.caption || ''} /> : <span><AlertTriangle /></span>}
-                <b>{image.caption || image.originalName || image.name || `تصویر ${index + 1}`}</b>
-                <small>صفحه چاپی: {String(image.printPage || 'نامشخص')}</small>
-                {image.issue && <em>{image.issue}</em>}
-              </button>
-            ))}
-          </div>
-        </aside>}
         <section ref={documentStageRef} className="mb-editor-canvas"><div className="book-document-stage"><div className="book-document-paper" style={{ '--editor-font-size': `${fontSize}px`, '--page-bg': backgroundUrl ? `url("${backgroundUrl}")` : 'none', '--page-bg-alpha': backgroundAlpha } as CSSProperties}><EditorContent editor={editor} /></div></div></section>
         <BlockSettingsPanel
           blockLabel={currentBlockLabel}
           language={currentLanguage}
           direction={currentDirection}
           onDirection={setDirection}
-          onShowMedia={() => { setPanelMode('media'); setImagePanelOpen(true) }}
+          onShowMedia={() => setPanelMode('media')}
         />
       </div>
       {confirmTocDelete !== null && <div className="app-modal-backdrop" role="dialog" aria-modal="true">

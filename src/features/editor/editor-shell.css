@@ -231,6 +231,20 @@
   display: grid;
   gap: 1.1rem;
 }
+.mb-editor-panel .book-editor-image-drawer.is-embedded {
+  position: static;
+  top: auto;
+  max-height: none;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+  background: transparent;
+}
+.mb-editor-panel .book-editor-image-drawer.is-embedded > div {
+  max-height: none;
+}
 .mb-search-label {
   display: grid;
   gap: .35rem;
