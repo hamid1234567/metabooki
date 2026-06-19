@@ -190,6 +190,14 @@ function InteractiveNodeView({ node, updateAttributes, editor, getPos }: any) {
   const tabs = list('tabs', [{ title: '', description: '', image: '' }])
   const events = list('events', [{ year: '', title: '', description: '', image: '' }])
   const steps = list('steps', [{ title: '', description: '', image: '' }])
+  const algorithmNodes = list('nodes', list('steps', [{ title: '', description: '', image: '' }]).map((step: any, index: number) => ({
+    id: step.id || `node-${index + 1}`,
+    kind: index === 0 ? 'start' : index === steps.length - 1 ? 'result' : 'action',
+    title: step.title || '',
+    description: step.description || step.text || '',
+    image: step.image || '',
+    options: index < steps.length - 1 ? [{ label: 'ادامه', targetId: `node-${index + 2}` }] : [],
+  })))
   const images = list('images', [{ url: '', caption: '' }])
   const points = list('points', [{ title: '', text: '', x: 50, y: 50 }])
   const authors = Array.isArray(data.authors) ? data.authors : [{ name: data.name || '', role: data.role || '', bio: data.bio || '', image: data.image || '' }]

@@ -89,7 +89,15 @@ export function interactiveTemplate(kind: string) {
   if (kind === 'truefalse') return { type: kind, statement: '', correct: true, explanation: '' }
   if (kind === 'accordion') return { type: kind, title: '', items: [{ title: '', description: '', image: '' }] }
   if (kind === 'tabs') return { type: kind, title: '', tabs: [{ title: '', description: '', image: '' }, { title: '', description: '', image: '' }] }
-  if (kind === 'algorithm') return { type: kind, title: '', steps: [{ title: '', description: '', image: '' }, { title: '', description: '', image: '' }] }
+  if (kind === 'algorithm') return {
+    type: kind,
+    title: '',
+    startId: 'start',
+    nodes: [
+      { id: 'start', kind: 'start', title: '', description: '', image: '', options: [{ label: '', targetId: 'result' }] },
+      { id: 'result', kind: 'result', title: '', description: '', image: '', options: [] },
+    ],
+  }
   if (kind === 'author') return { type: kind, title: '', authors: [{ name: '', role: '', bio: '', image: '' }] }
   if (kind === 'timeline') return { type: kind, events: [{ year: '', title: '', description: '', image: '' }, { year: '', title: '', description: '', image: '' }] }
   if (kind === 'scrollytelling') return { type: kind, title: '', steps: [{ image: '', title: '', text: '', description: '' }, { image: '', title: '', text: '', description: '' }] }
@@ -100,6 +108,7 @@ export function interactiveTemplate(kind: string) {
 }
 
 export function interactivePreview(kind: string, data: any): any[] {
+  if (kind === 'algorithm') return [['h4', data.title || 'الگوریتم تعاملی'], ['div', { class: 'editor-interactive-steps' }, ...(data.nodes || data.steps || []).map((item: any, index: number) => ['span', `${index + 1}. ${item.title || item.label || 'تصمیم'}`])]]
   if (kind === 'truefalse') return [['h4', data.statement || 'گزاره صحیح/غلط'], ['div', { class: 'editor-interactive-options' }, ['span', data.correct ? 'پاسخ: صحیح' : 'پاسخ: غلط'], ['span', data.explanation || '']]]
   if (kind === 'accordion') return [['h4', data.title || 'آکاردئون'], ['div', { class: 'editor-interactive-steps' }, ...(data.items || []).map((item: any, index: number) => ['span', `${index + 1}. ${item.title || 'بخش'}`])]]
   if (kind === 'tabs') return [['h4', data.title || 'تب‌ها'], ['div', { class: 'editor-interactive-steps' }, ...(data.tabs || []).map((item: any, index: number) => ['span', `${index + 1}. ${item.title || 'تب'}`])]]
