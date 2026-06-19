@@ -1364,7 +1364,7 @@ export default function Edit() {
           <div className="book-toolbar-menu-wrap">
             <button title="تایپوگرافی آماده" className={toolbarMenu === 'typography' ? 'active' : ''} onClick={() => setToolbarMenu(value => value === 'typography' ? null : 'typography')}><Type /><ChevronDown /></button>
             {toolbarMenu === 'typography' && <div className="book-toolbar-popover typography frosted-menu-surface">
-              <button className="book-callout-title-action" onClick={() => { editCalloutTitle(); setToolbarMenu(null) }}><Edit3 /><span>ÙˆÛŒØ±Ø§ÛŒØ´ Ø¹Ù†ÙˆØ§Ù† Ú©Ø§Ù„â€ŒØ§ÙˆØª Ø§Ù†ØªØ®Ø§Ø¨â€ŒØ´Ø¯Ù‡</span></button>
+              <button className="book-callout-title-action" onClick={() => { editCalloutTitle(); setToolbarMenu(null) }}><Edit3 /><span>ویرایش عنوان کال‌اوت انتخاب‌شده</span></button>
               {Array.from(new Set(CALLOUT_PRESETS.map(item => item.group))).map(group => <section key={group}>
                 <b>{group}</b>
                 {CALLOUT_PRESETS.filter(item => item.group === group).map(item => {
@@ -1374,21 +1374,21 @@ export default function Edit() {
               </section>)}
             </div>}
           </div>
-          <input title="Ø±Ù†Ú¯ Ù…ØªÙ†" type="color" onChange={event => command(activeEditor => activeEditor.chain().focus().setColor(event.target.value).run())} />
+          <input title="رنگ متن" type="color" onChange={event => command(activeEditor => activeEditor.chain().focus().setColor(event.target.value).run())} />
         </div>
 
-        <div className="book-toolbar-group" aria-label="Ø¬Ù‡Øª Ùˆ Ú†ÛŒÙ†Ø´">
-          <button title="Ø¬Ù‡Øª Ø±Ø§Ø³Øªâ€ŒØ¨Ù‡â€ŒÚ†Ù¾" onClick={() => setDirection('rtl')}><span className="book-dir-icon is-rtl" /></button>
-          <button title="Ø¬Ù‡Øª Ú†Ù¾â€ŒØ¨Ù‡â€ŒØ±Ø§Ø³Øª" onClick={() => setDirection('ltr')}><span className="book-dir-icon is-ltr" /></button>
-          <button title="Ø±Ø§Ø³Øªâ€ŒÚ†ÛŒÙ†" onClick={() => command(activeEditor => activeEditor.chain().focus().setTextAlign('right').run())}><AlignRight /></button>
-          <button title="ÙˆØ³Ø·â€ŒÚ†ÛŒÙ†" onClick={() => command(activeEditor => activeEditor.chain().focus().setTextAlign('center').run())}><AlignCenter /></button>
-          <button title="Ú†Ù¾â€ŒÚ†ÛŒÙ†" onClick={() => command(activeEditor => activeEditor.chain().focus().setTextAlign('left').run())}><AlignLeft /></button>
-          <button title="ØªØ±Ø§Ø² Ú©Ø§Ù…Ù„" onClick={() => command(activeEditor => activeEditor.chain().focus().setTextAlign('justify').run())}><AlignJustify /></button>
+        <div className="book-toolbar-group" aria-label="جهت و چینش">
+          <button title="جهت راست‌به‌چپ" onClick={() => setDirection('rtl')}><span className="book-dir-icon is-rtl" /></button>
+          <button title="جهت چپ‌به‌راست" onClick={() => setDirection('ltr')}><span className="book-dir-icon is-ltr" /></button>
+          <button title="راست‌چین" onClick={() => command(activeEditor => activeEditor.chain().focus().setTextAlign('right').run())}><AlignRight /></button>
+          <button title="وسط‌چین" onClick={() => command(activeEditor => activeEditor.chain().focus().setTextAlign('center').run())}><AlignCenter /></button>
+          <button title="چپ‌چین" onClick={() => command(activeEditor => activeEditor.chain().focus().setTextAlign('left').run())}><AlignLeft /></button>
+          <button title="تراز کامل" onClick={() => command(activeEditor => activeEditor.chain().focus().setTextAlign('justify').run())}><AlignJustify /></button>
         </div>
 
-        <div className="book-toolbar-group" aria-label="Ù„ÛŒØ³Øª">
-          <button title="ÙÙ‡Ø±Ø³Øª Ù†Ù‚Ø·Ù‡â€ŒØ§ÛŒ" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleBulletList().run())}><List /></button>
-          <button title="ÙÙ‡Ø±Ø³Øª Ø´Ù…Ø§Ø±Ù‡â€ŒØ§ÛŒ" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleOrderedList().run())}><ListOrdered /></button>
+        <div className="book-toolbar-group" aria-label="لیست">
+          <button title="فهرست نقطه‌ای" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleBulletList().run())}><List /></button>
+          <button title="فهرست شماره‌ای" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleOrderedList().run())}><ListOrdered /></button>
         </div>
 
         <div className="book-toolbar-group" aria-label="Ù…Ø¯ÛŒØ§ Ùˆ Ø¬Ø¯ÙˆÙ„">
@@ -1485,31 +1485,31 @@ export default function Edit() {
               <button disabled={aiLoading} onClick={() => void runEditorAi('callout')}><Lightbulb />پیشنهاد Callout</button>
               <button disabled={aiLoading} onClick={() => void runEditorAi('interactive')}><LayoutTemplate />پیشنهاد تعاملی</button>
             </div>
-            {aiLoading && <p className="book-editor-empty-state">Ø¯Ø± Ø­Ø§Ù„ ØªÙˆÙ„ÛŒØ¯ Ø®Ø±ÙˆØ¬ÛŒ Ù‡ÙˆØ´Ù…Ù†Ø¯...</p>}
+            {aiLoading && <p className="book-editor-empty-state">در حال تولید خروجی هوشمند...</p>}
             {aiMessage && <p className="mb-ai-cost">{aiMessage}</p>}
-            {aiUsage && <small className="mb-ai-usage">{aiUsage.inputTokens.toLocaleString('fa-IR')} ØªÙˆÚ©Ù† ÙˆØ±ÙˆØ¯ÛŒ Â· {aiUsage.outputTokens.toLocaleString('fa-IR')} ØªÙˆÚ©Ù† Ø®Ø±ÙˆØ¬ÛŒ</small>}
+            {aiUsage && <small className="mb-ai-usage">{aiUsage.inputTokens.toLocaleString('fa-IR')} توکن ورودی · {aiUsage.outputTokens.toLocaleString('fa-IR')} توکن خروجی</small>}
             {aiDraft && <section className="mb-ai-draft">
               <h3>{aiDraft.title}</h3>
               {aiDraft.text && <p>{aiDraft.text}</p>}
-              {aiDraft.type === 'summary' && <button onClick={() => aiDraft.text && insertCalloutWithText('key', aiDraft.title, aiDraft.text)}>Ø§ÙØ²ÙˆØ¯Ù† Ø®Ù„Ø§ØµÙ‡ Ø¨Ù‡ Ú©Ø§Ù„â€ŒØ§ÙˆØª</button>}
-              {aiDraft.type === 'quiz' && aiDraft.payload && <button onClick={() => insertInteractivePayload('quiz', aiDraft.payload!)}>Ø§ÙØ²ÙˆØ¯Ù† Ø³Ø¤Ø§Ù„ Ø¨Ù‡ Ú©ØªØ§Ø¨</button>}
-              {aiDraft.type === 'interactive' && aiDraft.payload && <button onClick={() => insertInteractivePayload(aiDraft.kind || 'algorithm', aiDraft.payload!)}>Ø§ÙØ²ÙˆØ¯Ù† Ø¨Ø®Ø´ ØªØ¹Ø§Ù…Ù„ÛŒ</button>}
+              {aiDraft.type === 'summary' && <button onClick={() => aiDraft.text && insertCalloutWithText('key', aiDraft.title, aiDraft.text)}>افزودن خلاصه به کال‌اوت</button>}
+              {aiDraft.type === 'quiz' && aiDraft.payload && <button onClick={() => insertInteractivePayload('quiz', aiDraft.payload!)}>افزودن سؤال به کتاب</button>}
+              {aiDraft.type === 'interactive' && aiDraft.payload && <button onClick={() => insertInteractivePayload(aiDraft.kind || 'algorithm', aiDraft.payload!)}>افزودن بخش تعاملی</button>}
             </section>}
             {aiCalloutSuggestions.length > 0 && <section className="mb-ai-suggestions">
-              <h3>Ù¾ÛŒØ´Ù†Ù‡Ø§Ø¯Ù‡Ø§ÛŒ Callout</h3>
+              <h3>پیشنهادهای Callout</h3>
               {aiCalloutSuggestions.map((item, index) => <button key={`${item.variant}-${index}`} onClick={() => insertCalloutWithText(item.variant, item.title, item.text)}><Lightbulb /><span>{item.title}<small>{item.text}</small></span></button>)}
             </section>}
           </div> : <>
           <div className="book-editor-side-card">
-            <h3><BookOpen />ÙÙ‡Ø±Ø³Øª Ú©ØªØ§Ø¨</h3>
-            <p>Ø§ÛŒÙ† Ù‡Ù…Ø§Ù† ÙÙ‡Ø±Ø³ØªÛŒ Ø§Ø³Øª Ú©Ù‡ Ø¯Ø± Ø²Ù…Ø§Ù† ØªØ¨Ø¯ÛŒÙ„ Word ØªØ§ÛŒÛŒØ¯ Ø´Ø¯Ù‡ Ø§Ø³Øª.</p>
-            <span className="book-editor-segment-note">Ø¯Ø± Ø­Ø§Ù„ ÙˆÛŒØ±Ø§ÛŒØ´: {activeSegment?.label || 'Ø³Ù†Ø¯'} Â· ØµÙØ­Ù‡ {activeSegment?.page || (activeSegment?.start ?? 0) + 1}</span>
+            <h3><BookOpen />فهرست کتاب</h3>
+            <p>این همان فهرستی است که در زمان تبدیل Word تایید شده است.</p>
+            <span className="book-editor-segment-note">در حال ویرایش: {activeSegment?.label || 'سند'} · صفحه {activeSegment?.page || (activeSegment?.start ?? 0) + 1}</span>
           </div>
-          <div className="book-editor-toc-tools" aria-label="Ø§Ø¨Ø²Ø§Ø±Ù‡Ø§ÛŒ ÙÙ‡Ø±Ø³Øª">
-            <button title="Ø¨Ø§Ø² Ú©Ø±Ø¯Ù† Ù‡Ù…Ù‡ Ø´Ø§Ø®Ù‡â€ŒÙ‡Ø§" onClick={expandAllToc}><ChevronUp /></button>
-            <button title="Ø¬Ù…Ø¹ Ú©Ø±Ø¯Ù† Ù‡Ù…Ù‡ Ø´Ø§Ø®Ù‡â€ŒÙ‡Ø§" onClick={collapseAllToc}><ChevronLeft /></button>
-            <button title="Ø¬Ù…Ø¹ Ú©Ø±Ø¯Ù† ÙØµÙ„â€ŒÙ‡Ø§ÛŒ Ø§ØµÙ„ÛŒ" onClick={() => collapseTocByLevel(1)}>H1</button>
-            <button title="Ø¬Ù…Ø¹ Ú©Ø±Ø¯Ù† ØªØ§ Ø³Ø·Ø­ Ø¯ÙˆÙ…" onClick={() => collapseTocByLevel(2)}>H2</button>
+          <div className="book-editor-toc-tools" aria-label="ابزارهای فهرست">
+            <button title="باز کردن همه شاخه‌ها" onClick={expandAllToc}><ChevronUp /></button>
+            <button title="جمع کردن همه شاخه‌ها" onClick={collapseAllToc}><ChevronLeft /></button>
+            <button title="جمع کردن فصل‌های اصلی" onClick={() => collapseTocByLevel(1)}>H1</button>
+            <button title="جمع کردن تا سطح دوم" onClick={() => collapseTocByLevel(2)}>H2</button>
           </div>
           <div className="book-editor-toc-list">
             {tocEntries.length === 0 && <p className="book-editor-empty-state">Ø¨Ø±Ø§ÛŒ Ø§ÛŒÙ† Ú©ØªØ§Ø¨ ÙÙ‡Ø±Ø³Øª ØªØ§ÛŒÛŒØ¯Ø´Ø¯Ù‡â€ŒØ§ÛŒ Ø«Ø¨Øª Ù†Ø´Ø¯Ù‡ Ø§Ø³Øª.</p>}
