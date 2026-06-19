@@ -253,18 +253,47 @@ export default function Admin() {
       {/* Users Tab */}
       {tab === 'users' && (
         <div className="glass rounded-2xl overflow-hidden">
+          <div className="p-6 border-b bg-primary/5">
+            <div className="flex flex-wrap items-start justify-between gap-4 mb-5">
+              <div>
+                <h2 className="font-bold text-lg flex items-center gap-2"><KeyRound className="w-5 h-5 text-primary" />مدیریت رمز عبور کاربران</h2>
+                <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+                  در حالت لوکال/mock رمز مستقیم تغییر می‌کند. در حالت Supabase واقعی، تغییر رمز و ساخت لینک ریست از طریق Edge Function امن و فقط با دسترسی ادمین انجام می‌شود.
+                </p>
+              </div>
+              <Button variant="outline" size="sm" onClick={refreshAdminUsers} disabled={usersLoading} className="gap-2">
+                <RefreshCw className={`w-4 h-4 ${usersLoading ? 'animate-spin' : ''}`} />به‌روزرسانی کاربران
+              </Button>
+            </div>
+            <div className="grid lg:grid-cols-[1fr_1fr_auto_auto] gap-3 items-end">
+              <label className="grid gap-2 text-sm">
+                <span className="text-muted-foreground">کاربر</span>
+                <input list="admin-users-list" value={selectedUserEmail} onChange={event => setSelectedUserEmail(event.target.value)} className="w-full p-2.5 rounded-xl border border-input bg-background text-sm" dir="ltr" placeholder="user@example.com" />
+                <datalist id="admin-users-list">
+                  {(adminUsers.length ? adminUsers : mockUsers.map(u => ({ id: u.id, email: u.email, displayName: u.display_name }))).map(u => <option key={u.id} value={u.email}>{u.displayName}</option>)}
+                </datalist>
+              </label>
+              <label className="grid gap-2 text-sm">
+                <span className="text-muted-foreground">رمز عبور جدید</span>
+                <input type="text" value={newUserPassword} onChange={event => setNewUserPassword(event.target.value)} className="w-full p-2.5 rounded-xl border border-input bg-background text-sm" dir="ltr" placeholder="حداقل ۸ کاراکتر" />
+              </label>
+              <Button onClick={changeUserPasswordFromAdmin} disabled={passwordActionLoading} className="gap-2"><KeyRound className="w-4 h-4" />ثبت رمز</Button>
+              <Button variant="outline" onClick={sendPasswordResetFromAdmin} disabled={passwordActionLoading}>ارسال لینک ریست</Button>
+            </div>
+            {message && <p className="mt-4 rounded-xl bg-primary/10 p-3 text-sm text-primary break-all">{message}</p>}
+          </div>
           <div className="p-6 border-b"><h2 className="font-bold text-lg">لیست کاربران</h2></div>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead><tr className="bg-muted/50">{['نام','ایمیل','نقش‌ها','کردیت','تلفن','وضعیت'].map(h=><th key={h} className="p-4 text-right text-sm font-semibold">{h}</th>)}</tr></thead>
               <tbody>
-                {mockUsers.map(u => (
+                {(adminUsers.length ? adminUsers : mockUsers.map(u => ({ id: u.id, email: u.email, displayName: u.display_name, roles: u.roles, credits: u.credits, phone: u.phone }))).map(u => (
                   <tr key={u.id} className="border-t hover:bg-muted/30 transition-colors">
-                    <td className="p-4 font-medium">{u.display_name}</td>
+                    <td className="p-4 font-medium">{u.displayName || 'کاربر بدون نام'}</td>
                     <td className="p-4 text-sm">{u.email}</td>
                     <td className="p-4"><div className="flex flex-wrap gap-1">{u.roles.map(r=><span key={r} className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">{r==='super_admin'?'مدیر ارشد':r==='admin'?'ادمین':r==='publisher'?'ناشر':r==='editor'?'ویراستار':'کاربر'}</span>)}</div></td>
-                    <td className="p-4 font-bold">{u.credits.toLocaleString()}</td>
-                    <td className="p-4 text-sm" dir="ltr">{u.phone}</td>
+                    <td className="p-4 font-bold">{(u.credits || 0).toLocaleString()}</td>
+                    <td className="p-4 text-sm" dir="ltr">{'phone' in u ? u.phone : '-'}</td>
                     <td className="p-4"><span className="text-xs bg-success/20 text-success px-2 py-0.5 rounded-full">فعال</span></td>
                   </tr>
                 ))}
