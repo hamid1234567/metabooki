@@ -1332,7 +1332,7 @@ export default function Edit() {
             <section className="mb-callout-palette compact">
               {CALLOUT_PRESETS.filter(item => item.value !== 'normal').map(item => {
                 const Icon = item.icon
-                return <button key={item.value} onClick={() => setTypography(item.value)}><Icon /><span>{item.label}</span></button>
+                return <button key={item.value} className={`callout-option ${item.className}`} onClick={() => setTypography(item.value)}><Icon /><span>{item.label}</span></button>
               })}
             </section>
           </div> : panelMode === 'media' ? <div className={`book-editor-image-drawer is-embedded media-view-${mediaPanelView}`}>
