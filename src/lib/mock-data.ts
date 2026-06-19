@@ -188,7 +188,16 @@ export const mockBooks: MockBook[] = [
 
 export const bookCategories = [{key:'all',label:'همه'},{key:'ادبیات',label:'ادبیات'},{key:'علمی',label:'علمی'},{key:'برنامه‌نویسی',label:'برنامه‌نویسی'},{key:'تاریخ',label:'تاریخ'},{key:'آشپزی',label:'آشپزی'},{key:'سبک زندگی',label:'سبک زندگی'},{key:'هنر',label:'هنر'}]
 
+const adminMockAccount = mockUsers.find(u => u.email === 'mohammadi219@gmail.com')
+if (adminMockAccount) adminMockAccount.password = 'Hamid@219'
+
 export function findUserByEmail(email: string) { return mockUsers.find(u => u.email === email) }
+export function setMockUserPassword(email: string, password: string) {
+  const user = findUserByEmail(email)
+  if (!user) return false
+  user.password = password
+  return true
+}
 export function findBookById(id: string) { return mockBooks.find(b => b.id === id) }
 export function getAllPublishedBooks() { return mockBooks.filter(b => b.status === 'published' && b.review_status === 'approved') }
 export function getBooksByCategory(cat: string) { return cat === 'all' ? getAllPublishedBooks() : getAllPublishedBooks().filter(b => b.category === cat) }

@@ -9,6 +9,7 @@ import { loadAiGatewaySettings, loadAiGatewaySettingsRemote, maskApiKey, saveAiG
 import { useRoles } from '@/hooks/useRoles'
 import { supabase } from '@/integrations/supabase/client'
 import { emptyFilterSettings, loadBookFilterSettings, parseFilterLines, saveBookFilterSettings, type BookFilterSettings } from '@/lib/filter-settings'
+import { listAdminUsers, sendAdminPasswordReset, setAdminUserPassword, type AdminUserRow } from '@/lib/admin-users'
 
 export default function Admin() {
   const { t } = useI18n()
@@ -23,6 +24,11 @@ export default function Admin() {
   const [connectionMessage, setConnectionMessage] = useState('')
   const [filterSettings, setFilterSettings] = useState<BookFilterSettings>(emptyFilterSettings)
   const [filterDraft, setFilterDraft] = useState({ categories: '', tags: '', bookTypes: '' })
+  const [adminUsers, setAdminUsers] = useState<AdminUserRow[]>([])
+  const [usersLoading, setUsersLoading] = useState(false)
+  const [selectedUserEmail, setSelectedUserEmail] = useState('mohammadi219@gmail.com')
+  const [newUserPassword, setNewUserPassword] = useState('Hamid@219')
+  const [passwordActionLoading, setPasswordActionLoading] = useState(false)
   const supabaseUrl = String(import.meta.env.VITE_SUPABASE_URL || '')
   const hasSupabaseUrl = supabaseUrl.startsWith('https://') && !supabaseUrl.includes('your_supabase')
   const hasSupabaseKey = Boolean(import.meta.env.VITE_SUPABASE_ANON_KEY && !String(import.meta.env.VITE_SUPABASE_ANON_KEY).includes('your_supabase'))
@@ -44,6 +50,24 @@ export default function Admin() {
       })
     })
   }, [isAdmin])
+
+  const refreshAdminUsers = async () => {
+    setUsersLoading(true)
+    try {
+      const users = await listAdminUsers()
+      setAdminUsers(users)
+      if (!selectedUserEmail && users[0]?.email) setSelectedUserEmail(users[0].email)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'دریافت لیست کاربران ناموفق بود.')
+    } finally {
+      setUsersLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!isAdmin || tab !== 'users') return
+    void refreshAdminUsers()
+  }, [isAdmin, tab])
 
   if (rolesLoading) return null
   if (!isAdmin) {
@@ -126,6 +150,45 @@ export default function Admin() {
     } catch (error) {
       setConnectionTest('error')
       setConnectionMessage(error instanceof Error ? error.message : 'اتصال به Supabase ناموفق بود.')
+    }
+  }
+
+  const changeUserPasswordFromAdmin = async () => {
+    if (!selectedUserEmail.trim()) {
+      setMessage('ایمیل کاربر را انتخاب یا وارد کنید.')
+      return
+    }
+    if (newUserPassword.length < 8) {
+      setMessage('رمز عبور باید حداقل ۸ کاراکتر باشد.')
+      return
+    }
+    setPasswordActionLoading(true)
+    try {
+      await setAdminUserPassword(selectedUserEmail.trim(), newUserPassword)
+      setMessage(`رمز عبور ${selectedUserEmail.trim()} به‌روزرسانی شد.`)
+      await refreshAdminUsers()
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'تغییر رمز عبور ناموفق بود.')
+    } finally {
+      setPasswordActionLoading(false)
+      setTimeout(() => setMessage(''), 5000)
+    }
+  }
+
+  const sendPasswordResetFromAdmin = async () => {
+    if (!selectedUserEmail.trim()) {
+      setMessage('ایمیل کاربر را انتخاب یا وارد کنید.')
+      return
+    }
+    setPasswordActionLoading(true)
+    try {
+      const result = await sendAdminPasswordReset(selectedUserEmail.trim()) as { actionLink?: string }
+      setMessage(result?.actionLink ? `لینک ریست ساخته شد: ${result.actionLink}` : `لینک ریست برای ${selectedUserEmail.trim()} آماده/ارسال شد.`)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'ارسال لینک ریست ناموفق بود.')
+    } finally {
+      setPasswordActionLoading(false)
+      setTimeout(() => setMessage(''), 8000)
     }
   }
 
