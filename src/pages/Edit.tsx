@@ -479,12 +479,12 @@ function blockAttributes(block: any) {
 function legacyListFromText(text = '') {
   const lines = String(text).split(/\n+/).map(line => line.trim()).filter(Boolean)
   if (lines.length < 2) return null
-  const ordered = lines.every(line => /^[\dÛ°-Û¹Ù -Ù©]+[.)-]\s+/.test(line))
-  const bullet = lines.every(line => /^[â€¢â—*-]\s+/.test(line))
+  const ordered = lines.every(line => /^[\d\u06F0-\u06F9\u0660-\u0669]+[.)-]\s+/.test(line))
+  const bullet = lines.every(line => /^[\u2022\u25CF*-]\s+/.test(line))
   if (!ordered && !bullet) return null
   return {
     ordered,
-    items: lines.map(line => line.replace(ordered ? /^[\dÛ°-Û¹Ù -Ù©]+[.)-]\s+/ : /^[â€¢â—*-]\s+/, '')),
+    items: lines.map(line => line.replace(ordered ? /^[\d\u06F0-\u06F9\u0660-\u0669]+[.)-]\s+/ : /^[\u2022\u25CF*-]\s+/, '')),
   }
 }
 
