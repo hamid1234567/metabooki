@@ -1778,7 +1778,7 @@ export default function Edit() {
           </div>
           </>}
         </aside>
-        <section ref={documentStageRef} className="mb-editor-canvas"><div className="book-document-stage"><div className="book-document-paper" style={{ '--editor-font-size': `${fontSize}px`, '--page-bg': backgroundUrl ? `url("${backgroundUrl}")` : 'none', '--page-bg-alpha': backgroundAlpha } as CSSProperties}><EditorContent editor={editor} /></div></div></section>
+        <section ref={documentStageRef} className="mb-editor-canvas"><div className="book-document-stage"><div className="book-document-paper" style={{ '--editor-font-size': `${fontSize}px`, '--page-bg': backgroundUrl ? `url("${backgroundUrl}")` : 'none', '--page-bg-alpha': backgroundAlpha } as CSSProperties}><EditorMediaContext.Provider value={{ bookImages: interactiveImageChoices, uploadImage: prepareEditorImage, generateImage: generateInlineBlockImage }}><EditorContent editor={editor} /></EditorMediaContext.Provider></div></div></section>
       </div>
       {confirmTocDelete !== null && <div className="app-modal-backdrop" role="dialog" aria-modal="true">
         <section className="app-message-modal menu-glass-70">
