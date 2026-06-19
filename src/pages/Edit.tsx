@@ -1,5 +1,5 @@
 ﻿/* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent } from 'react'
 import { Link as RouterLink, useParams } from 'react-router-dom'
 import { EditorContent, NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer, useEditor } from '@tiptap/react'
 import { Extension, Mark, Node, mergeAttributes } from '@tiptap/core'
@@ -32,6 +32,17 @@ const openBookPreview = (id: string) => window.open(appPath(`/read/${id}`), '_bl
 type EditorPanelMode = 'toc' | 'upgrade' | 'media' | 'interactive' | 'ai'
 type MediaPanelView = 'home' | 'library'
 type InteractiveMediaView = 'home' | 'library' | 'ai'
+type EditorMediaContextValue = {
+  bookImages: any[]
+  uploadImage: (file: File) => Promise<string>
+  generateImage: (prompt: string) => Promise<string>
+}
+
+const EditorMediaContext = createContext<EditorMediaContextValue>({
+  bookImages: [],
+  uploadImage: async file => new Promise(resolve => readLocalMedia(file, resolve)),
+  generateImage: async prompt => generatedInteractiveImageDataUrl(prompt, 'تصویر آموزشی'),
+})
 
 const RichTextStyle = Extension.create({
   name: 'richTextStyle',
@@ -134,6 +145,63 @@ function readLocalMedia(file: File | undefined, onReady: (url: string) => void) 
   reader.readAsDataURL(file)
 }
 
+function InlineMediaPicker({ label, value, onChange, stopEditorSelection }: { label: string; value: string; onChange: (url: string) => void; stopEditorSelection: (event: any) => void }) {
+  const media = useContext(EditorMediaContext)
+  const [mode, setMode] = useState<'closed' | 'library' | 'ai'>('closed')
+  const [prompt, setPrompt] = useState('')
+  const [busy, setBusy] = useState(false)
+  const upload = async (file?: File) => {
+    if (!file) return
+    setBusy(true)
+    try {
+      onChange(await media.uploadImage(file))
+    } finally {
+      setBusy(false)
+    }
+  }
+  const generate = async () => {
+    const cleanPrompt = prompt.trim()
+    if (!cleanPrompt) {
+      window.alert('برای تولید تصویر، پرامپت تصویر را داخل همین بلوک بنویسید.')
+      return
+    }
+    setBusy(true)
+    try {
+      onChange(await media.generateImage(cleanPrompt))
+      setPrompt('')
+      setMode('closed')
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <div className={`interactive-media-slot inline-media-picker ${value ? 'has-image' : ''}`} onPointerDown={stopEditorSelection} onMouseDown={stopEditorSelection} onClick={stopEditorSelection}>
+      <div className="inline-media-preview">
+        {value ? <img src={value} alt="" /> : <span><ImagePlus />{label}</span>}
+      </div>
+      <div className="inline-media-actions">
+        <label><ImagePlus />آپلود<input type="file" accept="image/*" onChange={event => void upload(event.target.files?.[0])} /></label>
+        <button type="button" onClick={() => setMode(mode === 'library' ? 'closed' : 'library')}><Images />تصاویر کتاب</button>
+        <button type="button" onClick={() => setMode(mode === 'ai' ? 'closed' : 'ai')}><Sparkles />AI</button>
+      </div>
+      {mode === 'library' && <div className="inline-media-library">
+        {media.bookImages.length === 0 && <p>تصویری از کتاب پیدا نشد.</p>}
+        {media.bookImages.slice(0, 80).map((image: any, index: number) => (
+          <button type="button" key={image.key || `${image.url}-${index}`} disabled={!image.url} onClick={() => image.url && onChange(image.url)} title={image.caption || 'انتخاب تصویر'}>
+            <img src={image.url} alt={image.caption || ''} />
+            <span>{image.sameSegment ? 'همین بخش' : String(image.printPage || index + 1)}</span>
+          </button>
+        ))}
+      </div>}
+      {mode === 'ai' && <div className="inline-media-ai">
+        <textarea value={prompt} onChange={event => setPrompt(event.target.value)} placeholder="پرامپت تصویر را بنویسید..." />
+        <button type="button" disabled={busy} onClick={() => void generate()}>{busy ? 'در حال تولید...' : 'برآورد هزینه و تولید'}</button>
+      </div>}
+      <input className="inline-media-url" value={value || ''} placeholder="یا آدرس تصویر را وارد کنید" onChange={event => onChange(event.target.value)} />
+    </div>
+  )
+}
+
 function InteractiveNodeView({ node, updateAttributes, editor, getPos }: any) {
   const kind = node.attrs?.kind || 'quiz'
   const data = { ...interactiveTemplate(kind), ...decodePayload(node.attrs?.payload) }
@@ -163,13 +231,7 @@ function InteractiveNodeView({ node, updateAttributes, editor, getPos }: any) {
     </label>
   )
   const mediaSlot = (label: string, value: string, onChange: (value: string) => void) => (
-    <div className={`interactive-media-slot ${value ? 'has-image' : ''}`} onPointerDown={stopEditorSelection} onMouseDown={stopEditorSelection} onClick={stopEditorSelection}>
-      <label onPointerDown={stopEditorSelection} onMouseDown={stopEditorSelection} onClick={stopEditorSelection}>
-        {value ? <img src={value} alt="" /> : <span><ImagePlus />{label}</span>}
-        <input type="file" accept="image/*" onPointerDown={stopEditorSelection} onMouseDown={stopEditorSelection} onClick={stopEditorSelection} onChange={event => readLocalMedia(event.target.files?.[0], onChange)} />
-      </label>
-      <input value={value || ''} placeholder="آدرس تصویر یا بارگذاری فایل" onChange={event => onChange(event.target.value)} />
-    </div>
+    <InlineMediaPicker label={label} value={value || ''} onChange={onChange} stopEditorSelection={stopEditorSelection} />
   )
   const itemCard = (title: string, index: number, onDelete: () => void, children: any, media?: any) => (
     <section className="interactive-item-card">
