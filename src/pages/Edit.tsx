@@ -254,6 +254,10 @@ function legacyListFromText(text = '') {
 }
 
 function blockHtml(block: any) {
+  if (block.type === 'callout') {
+    const preset = calloutPreset(block.variant)
+    return `<section class="book-callout editor-callout callout-${escape(block.variant || preset.value)}" data-callout-variant="${escape(block.variant || preset.value)}" data-callout-title="${escape(block.title || preset.label)}" data-callout-icon="${escape(block.icon || preset.emoji)}">${(block.blocks || []).map(blockHtml).join('')}</section>`
+  }
   if (block.type === 'heading') return `<h${Math.min(6, block.level || 2)}${blockAttributes(block)}>${inlineHtml(block)}</h${Math.min(6, block.level || 2)}>`
   if (block.type === 'table') return `<table><thead><tr>${(block.headers || []).map((cell: string) => `<th>${escape(cell)}</th>`).join('')}</tr></thead><tbody>${(block.rows || []).map((row: string[]) => `<tr>${row.map(cell => `<td>${escape(cell)}</td>`).join('')}</tr>`).join('')}</tbody></table>`
   if (block.type === 'image' && block.url) return `<img src="${escape(block.url)}" alt="${escape(block.caption || '')}" width="${block.widthPx ? `${block.widthPx}px` : block.widthPercent ? `${block.widthPercent}%` : '100%'}"${block.imageId ? ` data-image-id="${escape(block.imageId)}"` : ''}${block.printPage ? ` data-print-page="${escape(block.printPage)}"` : ''}${block.conversionStatus ? ` data-conversion-status="${escape(block.conversionStatus)}"` : ''}>${block.caption ? `<p data-semantic="caption">${escape(block.caption)}</p>` : ''}`
@@ -605,7 +609,7 @@ export default function Edit() {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ horizontalRule: false }), ProtectedPageBreak, PreservePageBreaks, CitationMark, Underline, Subscript, Superscript, ResizableImage.configure({ allowBase64: true }), Link.configure({ openOnClick: false }),
-      TextStyle, Color, RichTextStyle, BlockFormatting, InteractiveBlock, TableKit.configure({ table: { resizable: true } }), TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      TextStyle, Color, RichTextStyle, BlockFormatting, CalloutBlock, InteractiveBlock, TableKit.configure({ table: { resizable: true } }), TextAlign.configure({ types: ['heading', 'paragraph'] }),
     ],
     content: pagesToHtml((localInitial?.pages || []).slice(0, 1)),
     editorProps: { attributes: { class: 'book-document-prose', dir: 'rtl', spellcheck: 'true' } },
@@ -825,7 +829,16 @@ export default function Edit() {
     else editor.chain().focus().extendMarkRange('link').setLink({ href: href.trim() }).run()
   }
   const setTypography = (semantic: string) => {
-    command(activeEditor => activeEditor.chain().focus().updateAttributes(activeEditor.isActive('heading') ? 'heading' : 'paragraph', { semantic: semantic === 'normal' ? null : semantic }).run())
+    command(activeEditor => {
+      if (semantic === 'normal') {
+        activeEditor.chain().focus().updateAttributes(activeEditor.isActive('heading') ? 'heading' : 'paragraph', { semantic: null }).run()
+        return
+      }
+      const preset = calloutPreset(semantic)
+      const attrs = { variant: preset.value, title: preset.label, icon: preset.emoji }
+      if (activeEditor.isActive('calloutBlock')) activeEditor.chain().focus().updateAttributes('calloutBlock', attrs).run()
+      else activeEditor.chain().focus().wrapIn('calloutBlock', attrs).run()
+    })
   }
   const updateInteractivePayload = (attrs: { kind: string; payload: string }, payload: Record<string, unknown>) => {
     command(activeEditor => activeEditor.chain().focus().updateAttributes('interactiveBlock', { kind: attrs.kind, payload: encodePayload(payload) }).run())
