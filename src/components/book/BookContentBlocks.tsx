@@ -121,6 +121,10 @@ export function BookContentBlock({
   hotspotsVisible = {},
   setHotspotsVisible,
 }: BookContentBlockRendererProps) {
+  if (block.type === 'author') return <AuthorStrip block={block} />
+
+  if (block.type === 'gallery') return <GallerySlideshow block={block} />
+
   if (block.type === 'callout') {
     const preset = calloutPreset(block.variant)
     const title = block.title || preset.label

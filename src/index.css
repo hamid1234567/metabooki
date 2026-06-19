@@ -960,9 +960,15 @@ body {
   display: none;
 }
 
-.book-author-chip[open] summary > span {
+.book-author-chip[open] summary > span,
+.book-author-chip.is-open .book-author-summary > span {
   border-color: hsl(var(--primary) / .55);
   background: hsl(var(--primary) / .08);
+}
+
+.book-author-summary {
+  display: block;
+  text-align: start;
 }
 
 .book-author-popover {
@@ -990,6 +996,82 @@ body {
 
 .reader-mindmap * {
   overflow-wrap: anywhere;
+}
+
+.book-gallery-slider {
+  overflow: hidden;
+}
+
+.book-gallery-slide {
+  position: relative;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 1rem;
+  background: hsl(var(--background) / .52);
+  border: 1px solid hsl(var(--border) / .72);
+}
+
+.book-gallery-slide img {
+  display: block;
+  width: 100%;
+  max-height: min(62vh, 32rem);
+  object-fit: contain;
+  background: hsl(var(--muted) / .28);
+}
+
+.book-gallery-slide figcaption {
+  padding: .75rem 1rem;
+  color: hsl(var(--muted-foreground));
+  font-size: .85rem;
+  line-height: 1.8;
+  text-align: center;
+}
+
+.book-gallery-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: hsl(var(--background) / .72);
+  color: hsl(var(--foreground));
+  border: 1px solid hsl(var(--border) / .7);
+  backdrop-filter: blur(12px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
+  font-size: 1.8rem;
+  line-height: 1;
+  box-shadow: var(--shadow-glass);
+}
+
+.book-gallery-nav.prev {
+  inset-inline-start: .75rem;
+}
+
+.book-gallery-nav.next {
+  inset-inline-end: .75rem;
+}
+
+.book-gallery-dots {
+  display: flex;
+  justify-content: center;
+  gap: .45rem;
+  margin-top: .85rem;
+}
+
+.book-gallery-dots button {
+  width: .55rem;
+  height: .55rem;
+  border-radius: 999px;
+  background: hsl(var(--muted-foreground) / .28);
+  transition: .2s;
+}
+
+.book-gallery-dots button.is-active {
+  width: 1.7rem;
+  background: hsl(var(--primary));
 }
 
 /* Book commerce surfaces */
