@@ -952,6 +952,35 @@ body {
   max-width: 100%;
 }
 
+.book-author-strip {
+  overflow: visible;
+}
+
+.book-author-chip summary::-webkit-details-marker {
+  display: none;
+}
+
+.book-author-chip[open] summary > span {
+  border-color: hsl(var(--primary) / .55);
+  background: hsl(var(--primary) / .08);
+}
+
+.book-author-popover {
+  inset-inline-start: auto;
+  inset-inline-end: 0;
+}
+
+@media (max-width: 640px) {
+  .book-author-popover {
+    position: fixed;
+    inset-inline: 1rem;
+    top: auto;
+    bottom: 5.5rem;
+    min-width: 0;
+    max-width: none;
+  }
+}
+
 @media (min-width: 1024px) {
   .reader-main {
     width: min(80vw, 72rem);
