@@ -1069,7 +1069,7 @@ export default function Edit() {
 
         <div className="book-toolbar-group" aria-label="ساختار">
           <div className="book-toolbar-menu-wrap">
-            <button title="سطح سرفصل" className={toolbarMenu === 'heading' ? 'active' : ''} onClick={() => setToolbarMenu(value => value === 'heading' ? null : 'heading')}><Heading1 /><ChevronDown /></button>
+            <button title="سطح سرفصل" className={toolbarMenu === 'heading' ? 'active' : ''} onClick={() => setToolbarMenu(value => value === 'typography' ? null : value === 'heading' ? null : 'heading')}><Heading1 /><ChevronDown /></button>
             {toolbarMenu === 'heading' && <div className="book-toolbar-popover compact frosted-menu-surface">
               <button onClick={() => { command(activeEditor => activeEditor.chain().focus().setParagraph().run()); setToolbarMenu(null) }}><span className="book-heading-sample normal">P</span></button>
               {[1, 2, 3, 4, 5, 6].map(level => <button key={level} onClick={() => { promoteSelection(level as 1 | 2 | 3 | 4 | 5 | 6); setToolbarMenu(null) }}><span className={`book-heading-sample h${level}`}>H{level}</span></button>)}
