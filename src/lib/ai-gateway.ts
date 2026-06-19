@@ -103,8 +103,25 @@ function hasSupabaseConnection() {
   return Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_URL.startsWith('http'))
 }
 
-function gatewayError(error: unknown, fallback: string) {
-  const details = (error as any)?.context?.error || (error as any)?.context?.message || (error as Error)?.message
+async function gatewayError(error: unknown, fallback: string) {
+  let contextMessage = ''
+  const context = (error as any)?.context
+  if (context && typeof context.json === 'function') {
+    try {
+      const json = await context.clone().json()
+      contextMessage = json?.error || json?.message || ''
+    } catch {
+      contextMessage = ''
+    }
+  }
+  if (!contextMessage && context && typeof context.text === 'function') {
+    try {
+      contextMessage = await context.clone().text()
+    } catch {
+      contextMessage = ''
+    }
+  }
+  const details = contextMessage || (error as any)?.context?.error || (error as any)?.context?.message || (error as Error)?.message
   return new Error(details || fallback)
 }
 
@@ -125,7 +142,7 @@ export async function saveAiGatewaySettings(settings: AiGatewaySettings) {
 
 export async function testAiProvider(provider: AiProviderConfig): Promise<AiProviderTestResult> {
   const { data, error } = await supabase.functions.invoke('ai-gateway', { body: { operation: 'admin_test_provider', provider } })
-  if (error) throw gatewayError(error, 'تست کلید هوش مصنوعی ناموفق بود.')
+  if (error) throw await gatewayError(error, 'تست کلید هوش مصنوعی ناموفق بود.')
   return data as AiProviderTestResult
 }
 
@@ -141,7 +158,7 @@ export async function runAiThroughGateway(request: RunAiRequest): Promise<RunAiR
   const { data, error } = await supabase.functions.invoke('ai-gateway', {
     body: { action: request.action, bookTitle: request.bookTitle, pageTitle: request.pageTitle, pageText: request.pageText, bookId: request.bookId, pageIndex: request.pageIndex },
   })
-  if (error) throw gatewayError(error, 'اجرای درخواست هوش مصنوعی ناموفق بود.')
+  if (error) throw await gatewayError(error, 'اجرای درخواست هوش مصنوعی ناموفق بود.')
   return data as RunAiResult
 }
 
@@ -152,7 +169,7 @@ export async function estimateAiImageGeneration(request: { prompt: string; bookI
   const { data, error } = await supabase.functions.invoke('ai-gateway', {
     body: { operation: 'estimate_image', prompt: request.prompt, bookId: request.bookId, pageIndex: request.pageIndex },
   })
-  if (error) throw gatewayError(error, 'برآورد هزینه تولید تصویر ناموفق بود.')
+  if (error) throw await gatewayError(error, 'برآورد هزینه تولید تصویر ناموفق بود.')
   return data as AiImageEstimateResult
 }
 
@@ -163,7 +180,7 @@ export async function generateAiImageThroughGateway(request: { prompt: string; b
   const { data, error } = await supabase.functions.invoke('ai-gateway', {
     body: { operation: 'generate_image', prompt: request.prompt, bookId: request.bookId, pageIndex: request.pageIndex },
   })
-  if (error) throw gatewayError(error, 'تولید تصویر ناموفق بود.')
+  if (error) throw await gatewayError(error, 'تولید تصویر ناموفق بود.')
   if (!(data as AiImageGenerationResult)?.imageUrl) throw new Error('هوش مصنوعی تصویری برنگرداند.')
   return data as AiImageGenerationResult
 }
