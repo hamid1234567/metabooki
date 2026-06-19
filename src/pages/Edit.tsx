@@ -776,23 +776,6 @@ export default function Edit() {
     activeEditor.commands.focus()
   }
   const addInteractive = (kind: string) => command(activeEditor => activeEditor.chain().focus().insertContent({ type: 'interactiveBlock', attrs: { kind, payload: encodePayload(interactiveTemplate(kind)) } }).run())
-  const editInteractive = () => {
-    if (!editor?.isActive('interactiveBlock')) return
-    const attrs = editor.getAttributes('interactiveBlock') as { kind: string; payload: string }
-    const payload = decodePayload(attrs.payload)
-    if (attrs.kind === 'quiz') {
-      const question = window.prompt('متن سؤال', payload.question || '') ?? payload.question
-      const optionsText = window.prompt('گزینه‌ها؛ هر گزینه در یک خط', (payload.options || []).join('\n'))
-      payload.question = question
-      if (optionsText) payload.options = optionsText.split(/\r?\n/).map((item: string) => item.trim()).filter(Boolean)
-      const correct = window.prompt('شماره گزینه صحیح', String((payload.correct ?? 0) + 1))
-      if (correct && !Number.isNaN(Number(correct))) payload.correct = Math.max(0, Number(correct) - 1)
-    } else {
-      const title = window.prompt('عنوان بخش تعاملی', payload.title || payload.caption || interactiveLabel(attrs.kind))
-      if (title !== null) payload.title = title
-    }
-    editor.chain().focus().updateAttributes('interactiveBlock', { payload: encodePayload(payload) }).run()
-  }
   const openInteractiveEditor = async () => {
     if (!editor?.isActive('interactiveBlock')) return
     const attrs = editor.getAttributes('interactiveBlock') as { kind: string; payload: string }
