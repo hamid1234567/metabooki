@@ -53,6 +53,27 @@ export interface RunAiResult {
   }
 }
 
+export interface AiImageUsage {
+  inputTokens: number
+  outputTokens: number
+  rawUsd: number
+  chargedUsd: number
+  chargedToman: number
+  chargedCredits: number
+  creditValueToman: number
+}
+
+export interface AiImageEstimateResult {
+  provider: string
+  model: string
+  prompt: string
+  usage: AiImageUsage
+}
+
+export interface AiImageGenerationResult extends AiImageEstimateResult {
+  imageUrl: string
+}
+
 export interface AiProviderTestResult {
   ok: boolean
   provider: string
@@ -120,4 +141,30 @@ export async function runAiThroughGateway(request: RunAiRequest): Promise<RunAiR
     throw new Error(details || 'اجرای درخواست هوش مصنوعی ناموفق بود.')
   }
   return data as RunAiResult
+}
+
+export async function estimateAiImageGeneration(request: { prompt: string; bookId?: string; pageIndex?: number; user: AppUser | null }): Promise<AiImageEstimateResult> {
+  if (!request.user) throw new Error('برای تولید تصویر ابتدا وارد حساب شوید.')
+  if (!request.prompt.trim()) throw new Error('برای تولید تصویر، متن انتخاب‌شده یا پرامپت لازم است.')
+  const { data, error } = await supabase.functions.invoke('ai-gateway', {
+    body: { operation: 'estimate_image', prompt: request.prompt, bookId: request.bookId, pageIndex: request.pageIndex },
+  })
+  if (error) {
+    const details = (error as any)?.context?.error || (error as any)?.context?.message || error.message
+    throw new Error(details || 'برآورد هزینه تولید تصویر ناموفق بود.')
+  }
+  return data as AiImageEstimateResult
+}
+
+export async function generateAiImageThroughGateway(request: { prompt: string; bookId?: string; pageIndex?: number; user: AppUser | null }): Promise<AiImageGenerationResult> {
+  if (!request.user) throw new Error('برای تولید تصویر ابتدا وارد حساب شوید.')
+  if (!request.prompt.trim()) throw new Error('برای تولید تصویر، متن انتخاب‌شده یا پرامپت لازم است.')
+  const { data, error } = await supabase.functions.invoke('ai-gateway', {
+    body: { operation: 'generate_image', prompt: request.prompt, bookId: request.bookId, pageIndex: request.pageIndex },
+  })
+  if (error) {
+    const details = (error as any)?.context?.error || (error as any)?.context?.message || error.message
+    throw new Error(details || 'تولید تصویر ناموفق بود.')
+  }
+  return data as AiImageGenerationResult
 }

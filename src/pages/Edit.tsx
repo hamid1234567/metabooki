@@ -21,7 +21,7 @@ import { findBookById } from '@/lib/mock-data'
 import { supabase } from '@/integrations/supabase/client'
 import { useAuthContext } from '@/lib/auth-context'
 import { bookTextDirection, calloutPreset as sharedCalloutPreset, CALLOUT_PRESETS as SHARED_CALLOUT_PRESETS, inlineToHtml as sharedInlineToHtml, interactiveLabel as sharedInteractiveLabel, interactivePreview as sharedInteractivePreview, interactiveTemplate as sharedInteractiveTemplate, INTERACTIVE_TYPES as SHARED_INTERACTIVE_TYPES, normalizeBookText, pageBreakHtml } from '@/lib/book-content'
-import { runAiThroughGateway, type AiStructuredContent, type RunAiResult } from '@/lib/ai-gateway'
+import { estimateAiImageGeneration, generateAiImageThroughGateway, runAiThroughGateway, type AiStructuredContent, type RunAiResult } from '@/lib/ai-gateway'
 
 const escape = (value = '') => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 const encodePayload = (value: unknown) => encodeURIComponent(JSON.stringify(value))
@@ -1200,35 +1200,40 @@ export default function Edit() {
       setAiMessage('اول داخل یک بلوک تعاملی کلیک کنید، بعد تصویر را بسازید.')
       return
     }
-    const attrs = activeEditor.getAttributes('interactiveBlock') as { kind: string; payload: string }
-    const payload = { ...interactiveTemplate(attrs.kind), ...decodePayload(attrs.payload) }
-    const baseText = selectedOrCurrentText()
-    const seed = interactiveImagePrompt.trim()
-      || String(payload.title || payload.caption || payload.question || activeSegment?.label || title || 'تصویر آموزشی کتاب')
-    let visualPrompt = seed
+    const { from, to, empty } = activeEditor.state.selection
+    const selectedText = empty ? '' : activeEditor.state.doc.textBetween(from, to, '\n').trim()
+    const manualPrompt = interactiveImagePrompt.trim()
+    const visualPrompt = manualPrompt || selectedText
+    if (!visualPrompt) {
+      setAiMessage('برای تولید تصویر، بخشی از متن را انتخاب کنید یا پرامپت را دستی وارد کنید.')
+      return
+    }
     setAiLoading(true)
-    setAiMessage('در حال آماده‌سازی تصویر پیشنهادی برای بلوک تعاملی...')
+    setAiMessage('در حال برآورد هزینه تولید تصویر...')
     try {
-      if (user) {
-        const result = await runAiThroughGateway({
-          action: 'explain',
-          bookTitle: title || book?.title || 'کتاب',
-          pageTitle: activeSegment?.label,
-          pageText: `برای یک بلوک تعاملی کتاب، یک توصیف تصویری کوتاه و دقیق بساز. موضوع: ${seed}\nمتن زمینه:\n${baseText.slice(0, 900)}`,
-          bookId: id,
-          pageIndex: activeSegmentIndex,
-          user,
-        })
-        recordAiUsage(result.usage)
-        visualPrompt = (compactAiContent(result.content) || result.text || seed).replace(/\s+/g, ' ').slice(0, 180)
+      const prompt = `یک تصویر آموزشی، تمیز، مدرن و مناسب کتاب وب تولید کن. متن یا درخواست کاربر: ${visualPrompt.slice(0, 1400)}`
+      const estimate = await estimateAiImageGeneration({ prompt, bookId: id, pageIndex: activeSegmentIndex, user })
+      const approved = window.confirm(
+        `هزینه تولید تصویر:\n` +
+        `${estimate.usage.chargedCredits.toLocaleString('fa-IR')} کردیت\n` +
+        `${estimate.usage.chargedToman.toLocaleString('fa-IR')} تومان\n` +
+        `$${estimate.usage.chargedUsd.toFixed(6)}\n\n` +
+        `مدل: ${estimate.model}\nآیا تولید تصویر انجام شود؟`
+      )
+      if (!approved) {
+        setAiMessage('تولید تصویر لغو شد و کردیتی کسر نشد.')
+        return
       }
+      setAiMessage('در حال تولید تصویر با هوش مصنوعی...')
+      const result = await generateAiImageThroughGateway({ prompt, bookId: id, pageIndex: activeSegmentIndex, user })
+      applyImageToInteractive(result.imageUrl)
+      recordAiUsage(result.usage)
+      setInteractiveImagePrompt('')
     } catch (error) {
-      setAiMessage(error instanceof Error ? `${error.message} · تصویر پیشنهادی محلی ساخته شد.` : 'تصویر پیشنهادی محلی ساخته شد.')
+      setAiMessage(error instanceof Error ? error.message : 'تولید تصویر ناموفق بود.')
     } finally {
       setAiLoading(false)
     }
-    applyImageToInteractive(generatedInteractiveImageDataUrl(visualPrompt, interactiveLabel(attrs.kind)))
-    setInteractiveImagePrompt('')
   }
   const tableAction = (action: string) => {
     if (!editor) return
@@ -1574,10 +1579,10 @@ export default function Edit() {
               {selectedInteractiveKind && interactiveMediaView === 'ai' && <div className="mb-interactive-ai">
                 <button className="mb-wide-action" onClick={() => setInteractiveMediaView('home')}><ChevronUp />بازگشت به انتخاب رسانه</button>
                 <label>توضیح تصویر مورد نیاز
-                  <textarea value={interactiveImagePrompt} onChange={event => setInteractiveImagePrompt(event.target.value)} placeholder="مثلا تصویر آموزشی ساده از مراحل نمونه‌برداری یا مفهوم این بخش" />
+                  <textarea value={interactiveImagePrompt} onChange={event => setInteractiveImagePrompt(event.target.value)} placeholder="اگر متنی انتخاب نکرده‌اید، پرامپت تصویر را اینجا بنویسید؛ مثلا تصویر آموزشی ساده از مراحل نمونه‌برداری" />
                 </label>
                 <button className="mb-wide-action" disabled={aiLoading} onClick={() => void generateImageForInteractive()}><Sparkles />{aiLoading ? 'در حال ساخت...' : 'ساخت و افزودن تصویر'}</button>
-                <small>اگر اتصال هوش مصنوعی در دسترس نباشد، یک تصویر آموزشی محلی بر اساس همین توضیح ساخته می‌شود.</small>
+                <small>اگر بخشی از متن را انتخاب کرده باشید همان متن مبنای تصویر می‌شود. قبل از تولید، هزینه کردیت نمایش داده می‌شود و فقط بعد از تایید شما کسر خواهد شد.</small>
               </div>}
             </section>
           </div> : panelMode === 'ai' ? <div className="mb-panel-content">

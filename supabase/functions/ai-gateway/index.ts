@@ -24,6 +24,42 @@ function estimateTokens(text: string) {
   return Math.max(1, Math.ceil((text || '').trim().length / 4))
 }
 
+function imageModelForProvider(provider: AiProviderConfig) {
+  const configured = String(provider.model || '')
+  if (/image|dall-e/i.test(configured)) return configured
+  return Deno.env.get('AI_IMAGE_MODEL') || 'gpt-image-1'
+}
+
+function imageUsage(provider: AiProviderConfig, prompt: string, usdToToman: number, chargeMultiplier: number, creditsPerToman: number) {
+  const inputTokens = estimateTokens(prompt)
+  const imageBaseUsd = Number(Deno.env.get('AI_IMAGE_BASE_USD') || 0.04)
+  const promptUsd = (inputTokens / 1000) * Number(provider.input_cost_per_1k_usd || 0)
+  const rawUsd = imageBaseUsd + promptUsd
+  const chargedUsd = rawUsd * chargeMultiplier
+  const chargedToman = Math.ceil(chargedUsd * usdToToman)
+  const chargedCredits = Math.max(1, Math.ceil(chargedToman * creditsPerToman))
+  return { inputTokens, outputTokens: 0, rawUsd, chargedUsd, chargedToman, chargedCredits, creditValueToman: Math.round(1 / creditsPerToman) }
+}
+
+async function callImageProvider(provider: AiProviderConfig, prompt: string) {
+  if (!['openai', 'custom'].includes(provider.provider)) {
+    throw new Error('Image generation is currently available only for OpenAI-compatible providers')
+  }
+  const baseUrl = String(provider.base_url || '').replace(/\/$/, '')
+  const model = imageModelForProvider(provider)
+  const res = await fetch(`${baseUrl}/images/generations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${provider.api_key}` },
+    body: JSON.stringify({ model, prompt, size: '1024x1024', n: 1 }),
+  })
+  const json = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(json.error?.message || json.message || `Image generation failed (${res.status})`)
+  const item = json.data?.[0] || {}
+  const imageUrl = item.b64_json ? `data:image/png;base64,${item.b64_json}` : item.url
+  if (!imageUrl) throw new Error('Image provider did not return an image')
+  return { imageUrl, model }
+}
+
 function actionPrompt(action: string, bookTitle: string, pageTitle: string | undefined, pageText: string) {
   const header = `کتاب: ${bookTitle}\n${pageTitle ? `عنوان صفحه: ${pageTitle}\n` : ''}متن صفحه:\n${pageText}`
   const common = 'فقط بر اساس متن همین صفحه پاسخ بده، چیزی را حدس نزن، فارسی روان بنویس و فقط JSON معتبر بدون markdown برگردان.'
@@ -171,8 +207,6 @@ serve(async (req) => {
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
-    const prompt = safeActionPrompt(body.action, body.bookTitle, body.pageTitle, body.pageText)
-
     const { data: settings } = await adminClient.from('ai_gateway_settings').select('*').eq('id', 1).single()
     const activeProvider = settings?.active_provider || 'openai'
     const usdToToman = Number(settings?.usd_to_toman || DEFAULT_USD_TO_TOMAN)
@@ -188,14 +222,70 @@ serve(async (req) => {
     const provider = providerRow as AiProviderConfig | null
     if (!provider?.api_key) throw new Error('AI provider is not configured')
 
+    const { data: feeSettings } = await adminClient.from('platform_fee_settings').select('credits_per_toman').eq('id', 1).single()
+    const creditsPerToman = Number(feeSettings?.credits_per_toman || 0.001)
+
+    if (body.operation === 'estimate_image' || body.operation === 'generate_image') {
+      const prompt = String(body.prompt || '').trim()
+      if (!prompt) throw new Error('Image prompt is empty')
+      const model = imageModelForProvider(provider)
+      const usage = imageUsage(provider, prompt, usdToToman, chargeMultiplier, creditsPerToman)
+
+      if (body.operation === 'estimate_image') {
+        return new Response(JSON.stringify({
+          provider: provider.label || provider.provider,
+          model,
+          prompt,
+          usage,
+        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+
+      const generated = await callImageProvider(provider, prompt)
+      const { error: txError } = await userClient.rpc('charge_user_credits', {
+        target_user_id: user.id,
+        charge_amount: usage.chargedCredits,
+        charge_description: `AI image generation: ${provider.provider}/${generated.model} ($${usage.chargedUsd.toFixed(6)})`,
+      })
+      if (txError) throw txError
+
+      await adminClient.from('ai_usage_logs').insert({
+        user_id: user.id,
+        provider: provider.provider,
+        model: generated.model,
+        action: 'image_generation',
+        input_tokens: usage.inputTokens,
+        output_tokens: usage.outputTokens,
+        raw_usd: usage.rawUsd,
+        charged_usd: usage.chargedUsd,
+        charged_toman: usage.chargedToman,
+        charged_credits: usage.chargedCredits,
+      })
+
+      await adminClient.from('ai_saved_outputs').insert({
+        user_id: user.id,
+        book_id: body.bookId || null,
+        page_index: body.pageIndex ?? null,
+        action: 'image_generation',
+        content: { type: 'image', prompt, imageUrl: generated.imageUrl },
+      })
+
+      return new Response(JSON.stringify({
+        provider: provider.label || provider.provider,
+        model: generated.model,
+        prompt,
+        imageUrl: generated.imageUrl,
+        usage,
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
+
+    const prompt = safeActionPrompt(body.action, body.bookTitle, body.pageTitle, body.pageText)
+
     const { text, inputTokens, outputTokens } = await callProvider(provider, prompt)
 
     const rawUsd = (inputTokens / 1000) * Number(provider.input_cost_per_1k_usd) + (outputTokens / 1000) * Number(provider.output_cost_per_1k_usd)
     const chargedUsd = rawUsd * chargeMultiplier
     const chargedToman = Math.ceil(chargedUsd * usdToToman)
 
-    const { data: feeSettings } = await adminClient.from('platform_fee_settings').select('credits_per_toman').eq('id', 1).single()
-    const creditsPerToman = Number(feeSettings?.credits_per_toman || 0.001)
     const chargedCredits = Math.max(1, Math.ceil(chargedToman * creditsPerToman))
 
     const content = parseStructuredContent(text)
