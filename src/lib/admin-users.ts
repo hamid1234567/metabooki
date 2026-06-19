@@ -47,6 +47,8 @@ export async function sendAdminPasswordReset(email: string) {
   if (!hasSupabase) return { ok: true, mode: 'mock' as const }
   const redirectTo = `${window.location.origin}${import.meta.env.BASE_URL}auth`
   const { data, error } = await supabase.functions.invoke('admin-users', { body: { operation: 'send_reset', email, redirectTo } })
-  if (error) throw new Error(error.message)
-  return data
+  if (!error) return data
+  const fallback = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
+  if (fallback.error) throw new Error(fallback.error.message || error.message)
+  return { ok: true, mode: 'public-reset' as const }
 }
