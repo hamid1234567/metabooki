@@ -754,6 +754,19 @@ export default function Edit() {
     return () => document.removeEventListener('pointerdown', closeOnOutsideClick)
   }, [toolbarMenu])
 
+  const wordCount = useMemo(() => editor?.state.doc.textContent.trim().split(/\s+/).filter(Boolean).length || 0, [editor, editorRevision])
+  const currentBlockLabel = editor?.isActive('heading')
+    ? `H${editor.getAttributes('heading').level || 1}`
+    : editor?.isActive('calloutBlock')
+      ? calloutPreset(editor.getAttributes('calloutBlock').variant).label
+      : editor?.isActive('image')
+        ? 'تصویر'
+        : editor?.isActive('table')
+          ? 'جدول'
+          : 'پاراگراف'
+  const currentDirection = (editor?.getAttributes('heading').dir || editor?.getAttributes('paragraph').dir || 'rtl') as 'rtl' | 'ltr'
+  const currentLanguage = currentDirection === 'ltr' ? 'English' : 'فارسی'
+
   if (!book && !localInitial) return <div className="max-w-4xl mx-auto px-4 py-20 text-center"><h1 className="text-2xl font-bold">در حال دریافت پیش‌نویس کتاب…</h1></div>
 
   const command = (action: (activeEditor: NonNullable<typeof editor>) => void) => {
@@ -1026,19 +1039,6 @@ export default function Edit() {
     }
     addInteractive(value)
   }
-  const wordCount = useMemo(() => editor?.state.doc.textContent.trim().split(/\s+/).filter(Boolean).length || 0, [editor, editorRevision])
-  const currentBlockLabel = editor?.isActive('heading')
-    ? `H${editor.getAttributes('heading').level || 1}`
-    : editor?.isActive('calloutBlock')
-      ? calloutPreset(editor.getAttributes('calloutBlock').variant).label
-      : editor?.isActive('image')
-        ? 'تصویر'
-        : editor?.isActive('table')
-          ? 'جدول'
-          : 'پاراگراف'
-  const currentDirection = (editor?.getAttributes('heading').dir || editor?.getAttributes('paragraph').dir || 'rtl') as 'rtl' | 'ltr'
-  const currentLanguage = currentDirection === 'ltr' ? 'English' : 'فارسی'
-
   return (
     <main className="mb-editor-app" dir="rtl">
       <EditorHeader
