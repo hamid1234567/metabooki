@@ -116,6 +116,14 @@ export function interactivePreview(kind: string, data: any): any[] {
   return [['span', data.title || data.question || data.caption || 'برای ویرایش جزئیات، این بخش را انتخاب کنید']]
 }
 
+export function encodeBookContentPayload(value: unknown) {
+  return encodeURIComponent(JSON.stringify(value))
+}
+
+export function decodeBookContentPayload(value = '') {
+  try { return JSON.parse(decodeURIComponent(value)) } catch { return {} }
+}
+
 export const BOOK_CONTENT_ZWNJ = '\u200C'
 
 const LEGACY_ZWS_PATTERN = /\s*(?:Ãƒâ€šÃ‚Â¬|Ã‚Â¬|Ãƒâ€šÂ¬|Ã‚¬|Â¬|¬|\u00AC)\s*/g
@@ -272,6 +280,16 @@ export function blockToReaderBlock(block: ImportParagraph, imageUrls: Record<str
 }
 
 export function blockToHtml(block: ImportParagraph | any) {
+  if (block.type === 'callout') {
+    const preset = calloutPreset(block.variant)
+    const variant = block.variant || preset.value
+    const title = block.title || preset.label
+    const icon = block.icon || preset.emoji
+    return `<section class="book-callout has-rendered-title callout-${escapeHtml(variant)}" data-callout-variant="${escapeHtml(variant)}" data-callout-title="${escapeHtml(title)}" data-callout-icon="${escapeHtml(icon)}"><div class="book-callout-head"><span class="book-callout-icon">${escapeHtml(icon)}</span><strong>${escapeHtml(title)}</strong></div><div class="book-callout-content">${(block.blocks || []).map(blockToHtml).join('')}</div></section>`
+  }
+  if (INTERACTIVE_KIND_SET.has(block.type)) {
+    return `<section data-interactive-kind="${escapeHtml(block.type)}" kind="${escapeHtml(block.type)}" payload="${escapeHtml(encodeBookContentPayload(block))}"></section>`
+  }
   if (block.type === 'heading') {
     const level = Math.min(6, Math.max(1, block.level || 2))
     const id = block.anchor || block.id
