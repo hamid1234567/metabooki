@@ -1252,7 +1252,14 @@ export default function Edit() {
             ))}
           </div>
         </aside>}
-        <section ref={documentStageRef} className="book-document-stage"><div className="book-document-paper" style={{ '--editor-font-size': `${fontSize}px`, '--page-bg': backgroundUrl ? `url("${backgroundUrl}")` : 'none', '--page-bg-alpha': backgroundAlpha } as CSSProperties}><EditorContent editor={editor} /></div></section>
+        <section ref={documentStageRef} className="mb-editor-canvas"><div className="book-document-stage"><div className="book-document-paper" style={{ '--editor-font-size': `${fontSize}px`, '--page-bg': backgroundUrl ? `url("${backgroundUrl}")` : 'none', '--page-bg-alpha': backgroundAlpha } as CSSProperties}><EditorContent editor={editor} /></div></div></section>
+        <BlockSettingsPanel
+          blockLabel={currentBlockLabel}
+          language={currentLanguage}
+          direction={currentDirection}
+          onDirection={setDirection}
+          onShowMedia={() => { setPanelMode('media'); setImagePanelOpen(true) }}
+        />
       </div>
       {confirmTocDelete !== null && <div className="app-modal-backdrop" role="dialog" aria-modal="true">
         <section className="app-message-modal menu-glass-70">
@@ -1268,6 +1275,7 @@ export default function Edit() {
         </section>
       </div>}
       <button className="book-editor-scroll-top" title="بازگشت به ابتدای پنل محتوا" onClick={() => documentStageRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}><ArrowUp /></button>
+      <EditorStatusBar wordCount={wordCount} language={currentLanguage} blockLabel={currentBlockLabel} zoom={100} savedAt={savedAt} saving={saving} />
     </main>
   )
 }
