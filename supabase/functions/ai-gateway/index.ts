@@ -93,10 +93,15 @@ async function callProvider(provider: AiProviderConfig, prompt: string, maxToken
     inputTokens = json.usageMetadata?.promptTokenCount || inputTokens
     outputTokens = json.usageMetadata?.candidatesTokenCount || estimateTokens(text)
   } else {
+    const requestBody: Record<string, unknown> = {
+      model: provider.model,
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: maxTokens,
+    }
     const res = await fetch(`${provider.base_url}/chat/completions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${provider.api_key}` },
-      body: JSON.stringify({ model: provider.model, messages: [{ role: 'user', content: prompt }], temperature: 0.2, max_tokens: maxTokens }),
+      body: JSON.stringify(requestBody),
     })
     const json = await res.json().catch(() => ({}))
     if (!res.ok) throw new Error(json.error?.message || json.message || `AI request failed (${res.status})`)
