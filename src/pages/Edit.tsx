@@ -1501,9 +1501,9 @@ export default function Edit() {
           { variant: 'deep', title: 'عمیق‌تر بخوان', text: base },
         ])
       } else if (mode === 'interactive') {
-        const wantsImage = window.confirm('Ø³Ø§Ø®Øª ØªØµÙˆÛŒØ± Ù‡ÙˆØ´ Ù…ØµÙ†ÙˆØ¹ÛŒ Ø¨Ø±Ø§ÛŒ Ø§ÛŒÙ† Ø¨Ø®Ø´ Ø¨Ø¹Ø¯Ø§Ù‹ Ù‡Ø²ÛŒÙ†Ù‡ Ø¬Ø¯Ø§Ú¯Ø§Ù†Ù‡ Ø¯Ø§Ø±Ø¯. ÙØ¹Ù„Ø§Ù‹ Ø³Ø§Ø®ØªØ§Ø± ØªØ¹Ø§Ù…Ù„ÛŒ Ù…ØªÙ†ÛŒ Ø³Ø§Ø®ØªÙ‡ Ø´ÙˆØ¯ØŸ')
-        const steps = result.content?.type === 'timeline' ? result.content.steps : [{ title: 'Ù…ÙÙ‡ÙˆÙ… Ø§ØµÙ„ÛŒ', description: text || pageText.slice(0, 240) }]
-        setAiDraft({ type: 'interactive', title: 'Ø¨Ø®Ø´ ØªØ¹Ø§Ù…Ù„ÛŒ Ù¾ÛŒØ´Ù†Ù‡Ø§Ø¯ÛŒ', kind: 'algorithm', payload: { title: 'Ù…Ø³ÛŒØ± ÛŒØ§Ø¯Ú¯ÛŒØ±ÛŒ ØªØ¹Ø§Ù…Ù„ÛŒ', steps, needsAiImage: wantsImage, imagePrompt: wantsImage ? `ØªØµÙˆÛŒØ± Ø¢Ù…ÙˆØ²Ø´ÛŒ Ø¨Ø±Ø§ÛŒ: ${pageText.slice(0, 180)}` : '' } })
+        const steps = result.content?.type === 'timeline' ? result.content.steps : [{ title: 'مفهوم اصلی', description: text || pageText.slice(0, 240) }]
+        setAiDraft({ type: 'interactive', title: 'بخش تعاملی پیشنهادی', kind: 'algorithm', payload: { title: 'مسیر یادگیری تعاملی', steps, imagePrompt: `تصویر آموزشی برای: ${pageText.slice(0, 180)}` } })
+        setAiMessage('ساختار تعاملی ساخته شد. اگر برای هر بخش تصویر لازم دارید، بعد از افزودن بلوک از آیکون هوش مصنوعی کنار همان جایگاه تصویر استفاده کنید.')
       }
     } catch (error) {
       setAiMessage(error instanceof Error ? error.message : 'اجرای هوش مصنوعی ناموفق بود.')
