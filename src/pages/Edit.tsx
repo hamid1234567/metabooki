@@ -1073,20 +1073,17 @@ export default function Edit() {
 
   return (
     <main className="mb-editor-app" dir="rtl">
-      <header className="book-editor-head menu-glass-70">
-        <div>
-          <RouterLink to="/publisher/me" className="mb-1 inline-flex w-max items-center gap-1 text-xs font-bold text-muted-foreground transition-colors hover:text-foreground">
-            <ArrowLeft className="h-4 w-4" />
-            بازگشت به انتشارات
-          </RouterLink>
-          <p>ادیتور کتاب · پیش‌نویس منتشرنشده</p>
-          <input value={title} onChange={event => setTitle(event.target.value)} aria-label="عنوان کتاب" />
-        </div>
-        <div className="book-save-state"><Save />{saving ? 'در حال ذخیره…' : savedAt ? `ذخیره شد ${savedAt.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })}` : 'ذخیره خودکار فعال است'}</div>
-        <div>
-          <Button variant="outline" onClick={() => setMetadataOpen(value => !value)}><PanelTopClose />مشخصات</Button><Button variant="outline" onClick={() => void previewCurrentBook()}><Eye />پیش‌نمایش</Button><Button onClick={() => save()}><Save />ذخیره</Button>
-        </div>
-      </header>
+      <EditorHeader
+        title={title}
+        subtitle={activeSegment?.label}
+        saving={saving}
+        savedAt={savedAt}
+        onTitleChange={setTitle}
+        onMetadata={() => setMetadataOpen(value => !value)}
+        onPreview={() => void previewCurrentBook()}
+        onSave={() => void save()}
+        onBack={<RouterLink to="/publisher/me"><ArrowLeft className="h-4 w-4" />بازگشت به انتشارات</RouterLink>}
+      />
 
       {metadataOpen && <section className="book-editor-meta menu-glass-70">
         <label>عنوان<input value={title} onChange={event => setTitle(event.target.value)} /></label>
@@ -1097,7 +1094,8 @@ export default function Edit() {
         <button onClick={() => setMetadataOpen(false)}><ChevronUp />بستن مشخصات</button>
       </section>}
 
-      <div className="book-editor-toolbar menu-glass-70">
+      <EditorToolbarFrame>
+      <div className="book-editor-toolbar">
         <div className="book-toolbar-group" aria-label="تاریخچه">
           <button title="بازگشت" onClick={() => command(activeEditor => activeEditor.chain().focus().undo().run())}><Undo2 /></button>
           <button title="انجام دوباره" onClick={() => command(activeEditor => activeEditor.chain().focus().redo().run())}><Redo2 /></button>
@@ -1178,6 +1176,7 @@ export default function Edit() {
           <button title="بزرگ کردن متن" onClick={() => setFontSize(value => Math.min(34, value + 1))}><Plus /></button>
         </div>
       </div>
+      </EditorToolbarFrame>
 
       <div className="book-editor-layout">
         <aside className="book-editor-side menu-glass-70">
