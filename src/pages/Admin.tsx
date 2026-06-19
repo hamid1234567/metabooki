@@ -225,6 +225,7 @@ export default function Admin() {
     await sendPasswordResetForUser(selectedUserEmail)
   }
 
+  const commentBookTitle = (bookId: string) => mockBooks.find(b => b.id === bookId)?.title || bookId
   const adminUserRows = useMemo(() => (
     adminUsers.length ? adminUsers : mockUsers.map(u => ({ id: u.id, email: u.email, displayName: u.display_name, roles: u.roles, credits: u.credits, phone: u.phone }))
   ), [adminUsers])
@@ -289,7 +290,6 @@ export default function Admin() {
   })).sort((a, b) => b.count - a.count)
 
   const refreshComments = () => setComments(getAllComments())
-  const commentBookTitle = (bookId: string) => mockBooks.find(b => b.id === bookId)?.title || bookId
 
   const setCommentVisibility = (id: string, visible: boolean) => {
     updateCommentStatus(id, visible ? 'visible' : 'hidden')
@@ -321,19 +321,82 @@ export default function Admin() {
       {/* Dashboard Tab */}
       {tab === 'dashboard' && (
         <div className="space-y-6">
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="glass rounded-2xl p-6"><Users className="w-8 h-8 text-primary mb-3" /><p className="text-3xl font-bold">{totalUsers}</p><p className="text-sm text-muted-foreground">کل کاربران</p></div>
-            <div className="glass rounded-2xl p-6"><BookOpen className="w-8 h-8 text-primary mb-3" /><p className="text-3xl font-bold">{totalBooks}</p><p className="text-sm text-muted-foreground">کل کتاب‌ها</p></div>
-            <div className="glass rounded-2xl p-6"><Activity className="w-8 h-8 text-success mb-3" /><p className="text-3xl font-bold">{publishedBooks}</p><p className="text-sm text-muted-foreground">کتاب‌های منتشر شده</p></div>
-            <div className="glass rounded-2xl p-6"><DollarSign className="w-8 h-8 text-warning mb-3" /><p className="text-3xl font-bold">{totalRevenue.toLocaleString()}</p><p className="text-sm text-muted-foreground">درآمد (تومان)</p></div>
+          <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
+            {[
+              { icon: Users, title: 'کاربران', value: totalUsers.toLocaleString('fa-IR'), meta: `${lowCreditUsers.toLocaleString('fa-IR')} کاربر کم‌اعتبار`, tone: 'text-primary' },
+              { icon: BookOpen, title: 'کتاب‌ها', value: totalBooks.toLocaleString('fa-IR'), meta: `${publishedBooks.toLocaleString('fa-IR')} منتشر شده · ${draftBooks.toLocaleString('fa-IR')} پیش‌نویس`, tone: 'text-primary' },
+              { icon: ShoppingCart, title: 'فروش ثبت‌شده', value: purchaseRows.length.toLocaleString('fa-IR'), meta: `${totalRevenueCredits.toLocaleString('fa-IR')} کردیت`, tone: 'text-success' },
+              { icon: DollarSign, title: 'درآمد تخمینی', value: totalRevenueToman.toLocaleString('fa-IR'), meta: 'تومان بر اساس خریدهای ثبت‌شده', tone: 'text-warning' },
+            ].map(item => <div key={item.title} className="glass rounded-2xl p-6"><item.icon className={`w-8 h-8 ${item.tone} mb-3`} /><p className="text-3xl font-black">{item.value}</p><p className="text-sm font-bold mt-1">{item.title}</p><p className="text-xs text-muted-foreground mt-2">{item.meta}</p></div>)}
+          </div>
+
+          <div className="grid xl:grid-cols-[1.4fr_1fr] gap-6">
+            <section className="glass rounded-2xl p-6">
+              <div className="flex items-center justify-between gap-4 mb-5">
+                <h2 className="font-bold text-lg flex items-center gap-2"><BarChart3 className="w-5 h-5 text-primary" />نمای کلی سامانه</h2>
+                <span className="text-xs rounded-full bg-primary/10 text-primary px-3 py-1">۱ کردیت = {CREDIT_VALUE_TOMAN.toLocaleString('fa-IR')} تومان</span>
+              </div>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {[
+                  ['کتاب رایگان', freeBooks],
+                  ['کتاب پولی', paidBooks],
+                  ['در انتظار بررسی', pendingBooks],
+                  ['کامنت قابل نمایش', visibleComments],
+                  ['کامنت مخفی', hiddenComments],
+                  ['ارائه‌دهنده AI فعال', enabledAiProviders],
+                  ['کل کردیت کاربران', totalUserCredits],
+                  ['خوانش‌های ثبت‌شده', userProgressRows.length],
+                  ['کلیدهای AI تنظیم‌شده', configuredAiProviders],
+                ].map(([label, value]) => <div key={String(label)} className="rounded-2xl border bg-background/55 p-4"><p className="text-xs text-muted-foreground">{label}</p><strong className="mt-1 block text-2xl">{Number(value).toLocaleString('fa-IR')}</strong></div>)}
+              </div>
+            </section>
+
+            <section className="glass rounded-2xl p-6">
+              <h2 className="font-bold text-lg flex items-center gap-2 mb-4"><AlertTriangle className="w-5 h-5 text-warning" />نیازمند توجه</h2>
+              <div className="space-y-3 text-sm">
+                {[
+                  { label: 'کتاب‌های در انتظار بررسی', value: pendingBooks, action: 'تب کتاب‌ها' },
+                  { label: 'کاربران کم‌اعتبار', value: lowCreditUsers, action: 'تب کاربران' },
+                  { label: 'کامنت‌های مخفی/نیازمند رسیدگی', value: hiddenComments, action: 'تب کامنت‌ها' },
+                  { label: 'Providerهای AI غیرفعال', value: aiSettings.providers.length - enabledAiProviders, action: 'تب هوش مصنوعی' },
+                ].map(item => <div key={item.label} className="flex items-center justify-between gap-3 rounded-xl bg-background/55 p-3"><span>{item.label}</span><b className={item.value ? 'text-warning' : 'text-success'}>{item.value.toLocaleString('fa-IR')}</b><small className="text-muted-foreground">{item.action}</small></div>)}
+              </div>
+            </section>
+          </div>
+
+          <div className="grid xl:grid-cols-[1fr_1fr_1fr] gap-6">
+            <section className="glass rounded-2xl p-6">
+              <h2 className="font-bold text-lg flex items-center gap-2 mb-4"><TrendingUp className="w-5 h-5 text-success" />پرفروش‌ها</h2>
+              <div className="space-y-3">
+                {topBooks.map(item => <div key={item.book.id} className="rounded-xl bg-background/60 p-3"><div className="flex items-center justify-between gap-3"><b className="line-clamp-1">{item.book.title}</b><span className="text-xs text-success">{item.sales.toLocaleString('fa-IR')} فروش</span></div><div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden"><span className="block h-full bg-success" style={{ width: `${Math.min(100, item.sales * 20)}%` }} /></div><p className="mt-2 text-xs text-muted-foreground">{item.revenueCredits.toLocaleString('fa-IR')} کردیت درآمد</p></div>)}
+              </div>
+            </section>
+
+            <section className="glass rounded-2xl p-6">
+              <h2 className="font-bold text-lg flex items-center gap-2 mb-4"><Filter className="w-5 h-5 text-primary" />دسته‌بندی‌ها</h2>
+              <div className="space-y-2">
+                {categoryStats.slice(0, 7).map(item => <div key={item.category} className="flex items-center justify-between rounded-xl bg-background/55 p-3 text-sm"><span>{item.category}</span><span className="text-muted-foreground">{item.count.toLocaleString('fa-IR')} کتاب · {item.revenue.toLocaleString('fa-IR')} کردیت</span></div>)}
+              </div>
+            </section>
+
+            <section className="glass rounded-2xl p-6">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <h2 className="font-bold text-lg flex items-center gap-2"><Activity className="w-5 h-5 text-primary" />آخرین رخدادها</h2>
+                <select value={adminTransactionFilter} onChange={event => setAdminTransactionFilter(event.target.value as typeof adminTransactionFilter)} className="rounded-xl border bg-background px-3 py-2 text-xs" title="فیلتر رخدادها"><option value="all">همه</option><option value="purchase">خریدها</option><option value="ai">AI</option></select>
+              </div>
+              <div className="space-y-2 max-h-80 overflow-auto pr-1">
+                {transactionRows.slice(0, 10).map(row => <div key={row.id} className="rounded-xl bg-background/55 p-3 text-sm"><div className="flex items-center justify-between gap-3"><b>{row.title}</b><span className={row.amount < 0 ? 'text-destructive' : 'text-muted-foreground'}>{row.amount ? `${row.amount.toLocaleString('fa-IR')} کردیت` : 'بدون مبلغ'}</span></div><p className="mt-1 text-xs text-muted-foreground">{row.user} · {row.detail}</p></div>)}
+                {!transactionRows.length && <p className="text-sm text-muted-foreground">رخدادی برای نمایش نیست.</p>}
+              </div>
+            </section>
           </div>
 
           <div className="glass rounded-2xl p-6">
-            <h2 className="font-bold text-lg mb-4">خلاصه وضعیت</h2>
+            <h2 className="font-bold text-lg mb-4">خلاصه وضعیت مدیریتی</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div><span className="text-muted-foreground">کتاب‌های رایگان: </span><span className="font-bold">{freeBooks}</span></div>
-              <div><span className="text-muted-foreground">کتاب‌های پولی: </span><span className="font-bold">{publishedBooks - freeBooks}</span></div>
-              <div><span className="text-muted-foreground">نرخ کردیت: </span><span className="font-bold">۱ کردیت = {CREDIT_VALUE_TOMAN.toLocaleString()} تومان</span></div>
+              <div><span className="text-muted-foreground">فروش کل: </span><span className="font-bold">{purchaseRows.length.toLocaleString('fa-IR')}</span></div>
+              <div><span className="text-muted-foreground">درآمد کردیتی: </span><span className="font-bold">{totalRevenueCredits.toLocaleString('fa-IR')}</span></div>
+              <div><span className="text-muted-foreground">نرخ کردیت: </span><span className="font-bold">۱ کردیت = {CREDIT_VALUE_TOMAN.toLocaleString('fa-IR')} تومان</span></div>
               <div><span className="text-muted-foreground">ادمین: </span><span className="font-bold">{user?.email}</span></div>
             </div>
           </div>
@@ -357,12 +420,26 @@ export default function Admin() {
             </div>
             {message && <p className="mt-4 rounded-xl bg-primary/10 p-3 text-sm text-primary break-all">{message}</p>}
           </div>
-          <div className="p-6 border-b"><h2 className="font-bold text-lg">لیست کاربران</h2></div>
+          <div className="p-6 border-b">
+            <div className="grid md:grid-cols-[1fr_auto_auto] gap-3 items-center">
+              <h2 className="font-bold text-lg">لیست کاربران</h2>
+              <label className="relative">
+                <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <input value={adminUserQuery} onChange={event => setAdminUserQuery(event.target.value)} className="w-full md:w-72 rounded-xl border bg-background py-2 pr-9 pl-3 text-sm" placeholder="جستجوی نام، ایمیل یا نقش..." />
+              </label>
+              <span className="rounded-full bg-muted px-3 py-2 text-xs text-muted-foreground">{filteredUsers.length.toLocaleString('fa-IR')} از {adminUserRows.length.toLocaleString('fa-IR')} کاربر</span>
+            </div>
+            <div className="mt-4 grid sm:grid-cols-3 gap-3 text-sm">
+              <div className="rounded-xl bg-background/55 p-3"><Wallet className="w-4 h-4 text-primary mb-1" /><span className="text-muted-foreground">کل کردیت کاربران</span><b className="block text-xl">{totalUserCredits.toLocaleString('fa-IR')}</b></div>
+              <div className="rounded-xl bg-background/55 p-3"><AlertTriangle className="w-4 h-4 text-warning mb-1" /><span className="text-muted-foreground">کم‌اعتبار</span><b className="block text-xl">{lowCreditUsers.toLocaleString('fa-IR')}</b></div>
+              <div className="rounded-xl bg-background/55 p-3"><LibraryBig className="w-4 h-4 text-primary mb-1" /><span className="text-muted-foreground">خریدهای ثبت‌شده</span><b className="block text-xl">{purchaseRows.length.toLocaleString('fa-IR')}</b></div>
+            </div>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead><tr className="bg-muted/50">{['نام','ایمیل','نقش‌ها','کردیت','تلفن','وضعیت','عملیات'].map(h=><th key={h} className="p-4 text-right text-sm font-semibold">{h}</th>)}</tr></thead>
               <tbody>
-                {(adminUsers.length ? adminUsers : mockUsers.map(u => ({ id: u.id, email: u.email, displayName: u.display_name, roles: u.roles, credits: u.credits, phone: u.phone }))).map(u => {
+                {filteredUsers.map(u => {
                   const passwordDraft = rowPasswordDrafts[u.id] || ''
                   const userBookCount = mockBooks.filter(book => book.publisher_id === u.id || book.author === u.displayName).length
                   const isExpanded = expandedUserId === u.id
