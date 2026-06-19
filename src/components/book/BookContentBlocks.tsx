@@ -1,4 +1,4 @@
-import type { Dispatch, ReactNode, SetStateAction } from 'react'
+import { useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import { Check, X as XIcon } from 'lucide-react'
 import { calloutPreset, INTERACTIVE_KIND_SET, interactiveLabel, normalizeBookText } from '@/lib/book-content'
 
@@ -30,6 +30,80 @@ function textOf(...values: unknown[]) {
 
 function renderInteractiveImage(url?: string, alt?: string, className = 'max-h-52 rounded-xl mb-3 object-contain bg-background/50') {
   return url ? <img src={url} alt={alt || ''} className={className} loading="lazy" /> : null
+}
+
+function GallerySlideshow({ block }: { block: any }) {
+  const images = Array.isArray(block.images) ? block.images.filter((image: any) => image?.url) : []
+  const [active, setActive] = useState(0)
+  const current = images[Math.min(active, Math.max(0, images.length - 1))]
+  const go = (delta: number) => setActive(index => (index + delta + images.length) % images.length)
+  if (!images.length) return null
+  return (
+    <div className="reader-interactive book-gallery-slider menu-glass-70 rounded-2xl p-4 mb-8" data-no-swipe="true">
+      {block.title && <h3 className="font-semibold mb-4">{textOf(block.title)}</h3>}
+      <figure className="book-gallery-slide">
+        <img src={current.url} alt={current.caption || ''} loading="lazy" />
+        {current.caption && <figcaption>{textOf(current.caption)}</figcaption>}
+        {images.length > 1 && <>
+          <button className="book-gallery-nav prev" type="button" onClick={() => go(-1)} aria-label="تصویر قبلی">‹</button>
+          <button className="book-gallery-nav next" type="button" onClick={() => go(1)} aria-label="تصویر بعدی">›</button>
+        </>}
+      </figure>
+      {images.length > 1 && <div className="book-gallery-dots" aria-label="تصاویر گالری">
+        {images.map((image: any, index: number) => <button key={`${image.url}-${index}`} className={active === index ? 'is-active' : ''} onClick={() => setActive(index)} title={image.caption || `تصویر ${index + 1}`} />)}
+      </div>}
+    </div>
+  )
+}
+
+function AuthorStrip({ block }: { block: any }) {
+  const authors = block.authors || block.items || [{ name: block.name || block.title, role: block.role, bio: block.bio || block.description, image: block.image }]
+  const [openIndex, setOpenIndex] = useState<number | null>(null)
+  const ref = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    if (openIndex === null) return
+    const closeOnOutside = (event: PointerEvent) => {
+      if (ref.current?.contains(event.target as Node)) return
+      setOpenIndex(null)
+    }
+    document.addEventListener('pointerdown', closeOnOutside)
+    return () => document.removeEventListener('pointerdown', closeOnOutside)
+  }, [openIndex])
+  return (
+    <div ref={ref} className="reader-interactive book-author-strip menu-glass-70 rounded-2xl p-3 mb-8" data-no-swipe="true">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm font-bold text-muted-foreground px-2">{textOf(block.title, 'تألیف:')}</span>
+        {authors.map((author: any, authorIndex: number) => {
+          const name = textOf(author.name, `نویسنده ${authorIndex + 1}`)
+          const role = textOf(author.role, author.position, '')
+          const bio = textOf(author.bio, author.description, author.text, 'توضیحات تکمیلی برای این نویسنده ثبت نشده است.')
+          const initials = name.split(/\s+/).filter(Boolean).slice(-1)[0]?.slice(0, 2) || String(authorIndex + 1)
+          const open = openIndex === authorIndex
+          return (
+            <div key={authorIndex} className={`book-author-chip group relative ${open ? 'is-open' : ''}`}>
+              <button type="button" className="book-author-summary" onClick={() => setOpenIndex(open ? null : authorIndex)}>
+                <span className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-background/55 px-2.5 py-1.5 shadow-sm transition hover:border-primary/55 hover:bg-primary/10">
+                  {author.image ? <img src={author.image} alt={name} className="h-8 w-8 rounded-full object-cover ring-2 ring-background" loading="lazy" /> : <span className="h-8 w-8 rounded-full bg-primary/10 text-primary grid place-items-center text-xs font-bold">{initials}</span>}
+                  <span className="text-sm font-bold text-foreground whitespace-nowrap">{name}</span>
+                  {role && <small className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">{role}</small>}
+                </span>
+              </button>
+              {open && <div className="book-author-popover absolute right-0 z-30 mt-2 min-w-72 max-w-[min(24rem,calc(100vw-2rem))] rounded-2xl border border-primary/20 bg-background/90 p-4 shadow-2xl backdrop-blur-xl">
+                <div className="flex items-start gap-3">
+                  {author.image ? <img src={author.image} alt={name} className="h-16 w-16 rounded-2xl object-cover" loading="lazy" /> : <span className="h-16 w-16 rounded-2xl bg-primary/10 text-primary grid place-items-center text-base font-black">{initials}</span>}
+                  <div className="min-w-0">
+                    <h4 className="font-black leading-relaxed">{name}</h4>
+                    {role && <p className="text-xs text-primary mt-1">{role}</p>}
+                  </div>
+                </div>
+                <p className="mt-3 text-sm leading-8 text-muted-foreground">{bio}</p>
+              </div>}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
 }
 
 export function BookContentBlock({
