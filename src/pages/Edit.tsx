@@ -948,7 +948,7 @@ export default function Edit() {
   useEffect(() => {
     if (!editor) return
     loadSegment(activeSegment, allPages)
-  }, [editor, allPages, tocEntries, activeSegment, book?.metadata, backgroundUrl, backgroundAlpha, preludeTitle])
+  }, [editor])
 
   const save = async (quiet = false) => {
     const activeEditor = getEditor()
