@@ -10,6 +10,7 @@ import { toast } from 'sonner'
 import { runAiThroughGateway, type AiStructuredContent, type ReaderAiAction, type RunAiResult } from '@/lib/ai-gateway'
 import { supabase } from '@/integrations/supabase/client'
 import { bookTextDirection, normalizeBookText, printPageLabel } from '@/lib/book-content'
+import { BookContentBlock, isSharedBookContentBlock } from '@/components/book/BookContentBlocks'
 
 type HighlightColor = 'yellow' | 'green' | 'red'
 type HighlightEntry = {
@@ -811,6 +812,26 @@ export default function Reader() {
       if (span.referenceText) return <span key={inlineIndex} className="citation-reference" role="button" tabIndex={0} data-tooltip-dir={bookTextDirection(span.referenceText)}>{formatted}<span className="citation-tooltip" dir={bookTextDirection(span.referenceText)}>{normalizeBookText(span.referenceText)}</span></span>
       return span.href ? <a key={inlineIndex} href={span.href} target={String(span.href).startsWith('#') ? undefined : '_blank'} rel="noreferrer" className="reader-inline-link">{formatted}</a> : <span key={inlineIndex}>{formatted}</span>
     }) : null
+    if (isSharedBookContentBlock(block.type)) {
+      return (
+        <BookContentBlock
+          key={idx}
+          block={block}
+          blockKey={qKey}
+          renderChild={(child, childIndex) => renderBlock(child, childIndex)}
+          quizAnswers={quizAnswers}
+          setQuizAnswers={setQuizAnswers}
+          timelineStep={timelineStep}
+          setTimelineStep={setTimelineStep}
+          storyStep={storyStep}
+          setStoryStep={setStoryStep}
+          tabStep={tabStep}
+          setTabStep={setTabStep}
+          hotspotsVisible={hotspotsVisible}
+          setHotspotsVisible={setHotspotsVisible}
+        />
+      )
+    }
     switch (block.type) {
       case 'callout':
         return (
