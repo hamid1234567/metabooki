@@ -1790,7 +1790,6 @@ export default function Edit() {
           </div> : <>
           <div className="book-editor-side-card">
             <h3><BookOpen />فهرست کتاب</h3>
-            <p>این همان فهرستی است که در زمان تبدیل Word تایید شده است.</p>
             <span className="book-editor-segment-note">در حال ویرایش: {activeSegment?.label || 'سند'} · صفحه {activeSegment?.page || (activeSegment?.start ?? 0) + 1}</span>
           </div>
           <div className="book-editor-toc-tools" aria-label="ابزارهای فهرست">
