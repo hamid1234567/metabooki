@@ -849,7 +849,7 @@ export default function Edit() {
         key: block.imageId || `${pageIndex}-${blockIndex}-${block.url || 'missing'}`,
         pageIndex,
         printPage: block.printPage || page.printNumber || page.number || pageIndex + 1,
-        issue: !block.url ? 'ØªØµÙˆÛŒØ± Ø¯Ø± Ù…ØªÙ† Ú©ØªØ§Ø¨ Ø¢Ø¯Ø±Ø³ Ù†Ø¯Ø§Ø±Ø¯' : !block.caption ? 'Ú©Ù¾Ø´Ù† Ø¨Ø±Ø§ÛŒ Ø§ÛŒÙ† ØªØµÙˆÛŒØ± Ø´Ù†Ø§Ø®ØªÙ‡ Ù†Ø´Ø¯Ù‡' : block.conversionStatus === 'conversion-failed' ? 'ØªØ¨Ø¯ÛŒÙ„ ØªØµÙˆÛŒØ± Ù†Ø§Ù…ÙˆÙÙ‚ Ø¨ÙˆØ¯Ù‡' : '',
+        issue: !block.url ? 'تصویر در متن کتاب آدرس ندارد' : !block.caption ? 'کپشن برای این تصویر شناخته نشده' : block.conversionStatus === 'conversion-failed' ? 'تبدیل تصویر ناموفق بوده' : '',
       })))
     const knownIds = new Set(pageImages.map((image: any) => image.imageId).filter(Boolean))
     const metadataImages = Array.isArray(book?.metadata?.import_images) ? book.metadata.import_images : []
@@ -859,10 +859,10 @@ export default function Edit() {
         key: `failed-${image.id || index}`,
         imageId: image.id,
         url: '',
-        caption: image.caption || image.originalName || image.name || 'ØªØµÙˆÛŒØ± ØªØ¨Ø¯ÛŒÙ„â€ŒÙ†Ø´Ø¯Ù‡',
-        printPage: image.wordPages?.[0] || 'Ù†Ø§Ù…Ø´Ø®Øµ',
+        caption: image.caption || image.originalName || image.name || 'تصویر تبدیل‌نشده',
+        printPage: image.wordPages?.[0] || 'نامشخص',
         conversionStatus: image.conversionStatus,
-        issue: image.conversionError || 'ØªØµÙˆÛŒØ± Ø¯Ø± ØªØ¨Ø¯ÛŒÙ„ Ù…Ø­Ù„ÛŒ/Ø³Ø±ÙˆØ±ÛŒ Ø¢Ù…Ø§Ø¯Ù‡ Ù†Ø´Ø¯Ù‡ Ø§Ø³Øª',
+        issue: image.conversionError || 'تصویر در تبدیل محلی/سروری آماده نشده است',
       }))
     return [...pageImages, ...missingImages]
   }, [allPages, book])
@@ -911,11 +911,11 @@ export default function Edit() {
     if (localInitial || !import.meta.env.VITE_SUPABASE_URL?.startsWith('http')) return
     ;(supabase as any).from('books').select('*').eq('id', id).maybeSingle().then(({ data }: { data: any }) => {
       if (!data) return
-      setBook(data); setTitle(data.title); setSubtitle(data.subtitle || ''); setDescription(data.description || ''); setPreludeTitle(data.metadata?.prelude_title || 'Ø§Ø¨ØªØ¯Ø§ÛŒ Ú©ØªØ§Ø¨')
+      setBook(data); setTitle(data.title); setSubtitle(data.subtitle || ''); setDescription(data.description || ''); setPreludeTitle(data.metadata?.prelude_title || 'ابتدای کتاب')
       setBackgroundUrl(data.metadata?.page_background_url || ''); setBackgroundAlpha(Number(data.metadata?.page_background_alpha || 0))
       setAllPages(data.pages || [])
       setActiveSegmentIndex(0)
-      loadSegment(buildConfirmedTocSegments(data.pages || [], confirmedTocFromBook(data), data.metadata?.prelude_title || 'Ø§Ø¨ØªØ¯Ø§ÛŒ Ú©ØªØ§Ø¨')[0], data.pages || [])
+      loadSegment(buildConfirmedTocSegments(data.pages || [], confirmedTocFromBook(data), data.metadata?.prelude_title || 'ابتدای کتاب')[0], data.pages || [])
     })
   }, [editor, id, localInitial])
 
@@ -1190,33 +1190,33 @@ export default function Edit() {
   }
   const recordAiUsage = (usage: RunAiResult['usage']) => {
     setAiUsage(usage)
-    setAiMessage(`${usage.chargedCredits.toLocaleString('fa-IR')} Ú©Ø±Ø¯ÛŒØª Ú©Ø³Ø± Ø´Ø¯ Â· ${usage.chargedToman.toLocaleString('fa-IR')} ØªÙˆÙ…Ø§Ù† Â· $${usage.chargedUsd.toFixed(6)}`)
+    setAiMessage(`${usage.chargedCredits.toLocaleString('fa-IR')} کردیت کسر شد · ${usage.chargedToman.toLocaleString('fa-IR')} تومان · $${usage.chargedUsd.toFixed(6)}`)
   }
   const runEditorAi = async (mode: 'summary' | 'quiz' | 'callout' | 'interactive') => {
     const pageText = selectedOrCurrentText()
     if (!pageText) {
-      setAiMessage('Ø§ÙˆÙ„ Ø¨Ø®Ø´ÛŒ Ø§Ø² Ù…ØªÙ† Ø±Ø§ Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ù†ÛŒØ¯ ÛŒØ§ Ø¯Ø§Ø®Ù„ Ø¨Ø®Ø´ Ù…ÙˆØ±Ø¯ Ù†Ø¸Ø± Ù‚Ø±Ø§Ø± Ø¨Ú¯ÛŒØ±ÛŒØ¯.')
+      setAiMessage('اول بخشی از متن را انتخاب کنید یا داخل بخش مورد نظر قرار بگیرید.')
       return
     }
     setAiLoading(true)
     setAiDraft(null)
     setAiCalloutSuggestions([])
-    setAiMessage('Ø¯Ø± Ø­Ø§Ù„ ØªÙˆÙ„ÛŒØ¯ Ø®Ø±ÙˆØ¬ÛŒ Ù‡ÙˆØ´Ù…Ù†Ø¯...')
+    setAiMessage('در حال تولید خروجی هوشمند...')
     try {
       const action = mode === 'quiz' ? 'quiz' : mode === 'interactive' ? 'learning_path' : mode === 'summary' ? 'summary' : 'explain'
-      const result = await runAiThroughGateway({ action, bookTitle: title || book?.title || 'Ú©ØªØ§Ø¨', pageTitle: activeSegment?.label, pageText, bookId: id, pageIndex: activeSegmentIndex, user })
+      const result = await runAiThroughGateway({ action, bookTitle: title || book?.title || 'کتاب', pageTitle: activeSegment?.label, pageText, bookId: id, pageIndex: activeSegmentIndex, user })
       recordAiUsage(result.usage)
       const text = compactAiContent(result.content) || result.text || ''
       if (mode === 'summary') {
-        setAiDraft({ type: 'summary', title: 'Ø®Ù„Ø§ØµÙ‡ Ù‡ÙˆØ´Ù…Ù†Ø¯', text })
+        setAiDraft({ type: 'summary', title: 'خلاصه هوشمند', text })
       } else if (mode === 'quiz' && result.content?.type === 'quiz') {
-        setAiDraft({ type: 'quiz', title: 'Ø³Ø¤Ø§Ù„ ØªÙˆÙ„ÛŒØ¯Ø´Ø¯Ù‡', kind: 'quiz', payload: { question: result.content.question, options: result.content.options, correct: result.content.correctIndex, explanation: result.content.explanation } })
+        setAiDraft({ type: 'quiz', title: 'سؤال تولیدشده', kind: 'quiz', payload: { question: result.content.question, options: result.content.options, correct: result.content.correctIndex, explanation: result.content.explanation } })
       } else if (mode === 'callout') {
         const base = text || pageText.slice(0, 420)
         setAiCalloutSuggestions([
-          { variant: 'key', title: 'Ù†Ú©ØªÙ‡ Ú©Ù„ÛŒØ¯ÛŒ Ù¾ÛŒØ´Ù†Ù‡Ø§Ø¯ÛŒ', text: base.split('\n').filter(Boolean)[0] || base },
-          { variant: 'question', title: 'Ù…Ú©Ø« Ùˆ ÙÚ©Ø± Ú©Ù†', text: 'Ø§Ø² Ø§ÛŒÙ† Ø¨Ø®Ø´ Ú†Ù‡ Ù†ØªÛŒØ¬Ù‡â€ŒØ§ÛŒ Ù…ÛŒâ€ŒØªÙˆØ§Ù† Ú¯Ø±ÙØªØŸ' },
-          { variant: 'deep', title: 'Ø¹Ù…ÛŒÙ‚â€ŒØªØ± Ø¨Ø®ÙˆØ§Ù†', text: base },
+          { variant: 'key', title: 'نکته کلیدی پیشنهادی', text: base.split('\n').filter(Boolean)[0] || base },
+          { variant: 'question', title: 'مکث و فکر کن', text: 'از این بخش چه نتیجه‌ای می‌توان گرفت؟' },
+          { variant: 'deep', title: 'عمیق‌تر بخوان', text: base },
         ])
       } else if (mode === 'interactive') {
         const wantsImage = window.confirm('Ø³Ø§Ø®Øª ØªØµÙˆÛŒØ± Ù‡ÙˆØ´ Ù…ØµÙ†ÙˆØ¹ÛŒ Ø¨Ø±Ø§ÛŒ Ø§ÛŒÙ† Ø¨Ø®Ø´ Ø¨Ø¹Ø¯Ø§Ù‹ Ù‡Ø²ÛŒÙ†Ù‡ Ø¬Ø¯Ø§Ú¯Ø§Ù†Ù‡ Ø¯Ø§Ø±Ø¯. ÙØ¹Ù„Ø§Ù‹ Ø³Ø§Ø®ØªØ§Ø± ØªØ¹Ø§Ù…Ù„ÛŒ Ù…ØªÙ†ÛŒ Ø³Ø§Ø®ØªÙ‡ Ø´ÙˆØ¯ØŸ')
@@ -1224,7 +1224,7 @@ export default function Edit() {
         setAiDraft({ type: 'interactive', title: 'Ø¨Ø®Ø´ ØªØ¹Ø§Ù…Ù„ÛŒ Ù¾ÛŒØ´Ù†Ù‡Ø§Ø¯ÛŒ', kind: 'algorithm', payload: { title: 'Ù…Ø³ÛŒØ± ÛŒØ§Ø¯Ú¯ÛŒØ±ÛŒ ØªØ¹Ø§Ù…Ù„ÛŒ', steps, needsAiImage: wantsImage, imagePrompt: wantsImage ? `ØªØµÙˆÛŒØ± Ø¢Ù…ÙˆØ²Ø´ÛŒ Ø¨Ø±Ø§ÛŒ: ${pageText.slice(0, 180)}` : '' } })
       }
     } catch (error) {
-      setAiMessage(error instanceof Error ? error.message : 'Ø§Ø¬Ø±Ø§ÛŒ Ù‡ÙˆØ´ Ù…ØµÙ†ÙˆØ¹ÛŒ Ù†Ø§Ù…ÙˆÙÙ‚ Ø¨ÙˆØ¯.')
+      setAiMessage(error instanceof Error ? error.message : 'اجرای هوش مصنوعی ناموفق بود.')
     } finally {
       setAiLoading(false)
     }
@@ -1238,7 +1238,7 @@ export default function Edit() {
     }
   }
   const persistPreludeTitle = (nextTitle: string) => {
-    const cleanTitle = nextTitle.trim() || 'Ø§Ø¨ØªØ¯Ø§ÛŒ Ú©ØªØ§Ø¨'
+    const cleanTitle = nextTitle.trim() || 'ابتدای کتاب'
     setPreludeTitle(cleanTitle)
     const metadata = { ...(book?.metadata || {}), prelude_title: cleanTitle }
     setBook((current: any) => ({ ...current, metadata }))
@@ -1512,32 +1512,32 @@ export default function Edit() {
             <button title="جمع کردن تا سطح دوم" onClick={() => collapseTocByLevel(2)}>H2</button>
           </div>
           <div className="book-editor-toc-list">
-            {tocEntries.length === 0 && <p className="book-editor-empty-state">Ø¨Ø±Ø§ÛŒ Ø§ÛŒÙ† Ú©ØªØ§Ø¨ ÙÙ‡Ø±Ø³Øª ØªØ§ÛŒÛŒØ¯Ø´Ø¯Ù‡â€ŒØ§ÛŒ Ø«Ø¨Øª Ù†Ø´Ø¯Ù‡ Ø§Ø³Øª.</p>}
+            {tocEntries.length === 0 && <p className="book-editor-empty-state">برای این کتاب فهرست تاییدشده‌ای ثبت نشده است.</p>}
             {tocTreeRows.filter(row => !row.hidden).map(({ segment, index, level, hasChildren, collapsed, h1Counter }) => (
               <div
                 className={`book-editor-toc-row level-${level} ${index === activeSegmentIndex ? 'is-active' : ''} ${hasChildren ? 'has-children' : ''}`}
                 key={segment.key}
-                title={segment.label || 'Ø³Ø±ÙØµÙ„ Ø¨Ø¯ÙˆÙ† Ø¹Ù†ÙˆØ§Ù†'}
+                title={segment.label || 'سرفصل بدون عنوان'}
                 style={{ '--toc-level': level } as CSSProperties}
               >
                 {editingTocIndex === segment.tocIndex ? (
                   <form className="book-editor-toc-inline-edit" onSubmit={event => { event.preventDefault(); submitInlineTocEdit() }}>
                     <input value={editingTocTitle} autoFocus onChange={event => setEditingTocTitle(event.target.value)} onKeyDown={event => { if (event.key === 'Escape') { setEditingTocIndex(null); setEditingTocTitle('') } }} />
-                    <button type="submit">Ø«Ø¨Øª</button>
+                    <button type="submit">ثبت</button>
                   </form>
                 ) : (
                   <button className="book-editor-toc-link" onClick={() => changeActiveSegment(index)}>
                     <span className="book-editor-toc-number">{level === 1 ? h1Counter.toLocaleString('fa-IR') : (index + 1).toLocaleString('fa-IR')}</span>
-                    <span className="book-editor-toc-title">{segment.label || 'Ø³Ø±ÙØµÙ„ Ø¨Ø¯ÙˆÙ† Ø¹Ù†ÙˆØ§Ù†'}</span>
+                    <span className="book-editor-toc-title">{segment.label || 'سرفصل بدون عنوان'}</span>
                   </button>
                 )}
                 {typeof segment.tocIndex === 'number' ? (
                   <span className="book-editor-toc-actions">
-                    {hasChildren && <button title={collapsed ? 'Ø¨Ø§Ø² Ú©Ø±Ø¯Ù† Ø´Ø§Ø®Ù‡' : 'Ø¬Ù…Ø¹ Ú©Ø±Ø¯Ù† Ø´Ø§Ø®Ù‡'} onClick={() => toggleTocBranch(segment.key)}>{collapsed ? <ChevronLeft /> : <ChevronUp />}</button>}
-                    <button title="Ú©Ø§Ù‡Ø´ Ø³Ø·Ø­" onClick={() => shiftTocEntryLevel(segment.tocIndex!, -1)}><ArrowUp /></button>
-                    <button title="Ø§ÙØ²Ø§ÛŒØ´ Ø³Ø·Ø­" onClick={() => shiftTocEntryLevel(segment.tocIndex!, 1)}><ArrowDown /></button>
-                    <button title="ÙˆÛŒØ±Ø§ÛŒØ´ Ø¹Ù†ÙˆØ§Ù†" onClick={() => startInlineTocEdit(segment.tocIndex!, segment.label || '')}><Edit3 /></button>
-                    <button title="Ø­Ø°Ù Ø§Ø² ÙÙ‡Ø±Ø³Øª" onClick={() => setConfirmTocDelete(segment.tocIndex!)}><Trash2 /></button>
+                    {hasChildren && <button title={collapsed ? 'باز کردن شاخه' : 'جمع کردن شاخه'} onClick={() => toggleTocBranch(segment.key)}>{collapsed ? <ChevronLeft /> : <ChevronUp />}</button>}
+                    <button title="کاهش سطح" onClick={() => shiftTocEntryLevel(segment.tocIndex!, -1)}><ArrowUp /></button>
+                    <button title="افزایش سطح" onClick={() => shiftTocEntryLevel(segment.tocIndex!, 1)}><ArrowDown /></button>
+                    <button title="ویرایش عنوان" onClick={() => startInlineTocEdit(segment.tocIndex!, segment.label || '')}><Edit3 /></button>
+                    <button title="حذف از فهرست" onClick={() => setConfirmTocDelete(segment.tocIndex!)}><Trash2 /></button>
                   </span>
                 ) : segment.isPrelude ? (
                   <span className="book-editor-toc-actions">
