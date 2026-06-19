@@ -840,6 +840,18 @@ export default function Edit() {
       else activeEditor.chain().focus().wrapIn('calloutBlock', attrs).run()
     })
   }
+  const editCalloutTitle = () => {
+    command(activeEditor => {
+      if (!activeEditor.isActive('calloutBlock')) {
+        window.alert('ابتدا داخل کال‌اوت مورد نظر کلیک کنید، سپس عنوان را ویرایش کنید.')
+        return
+      }
+      const attrs = activeEditor.getAttributes('calloutBlock')
+      const nextTitle = window.prompt('عنوان کال‌اوت', attrs.title || calloutPreset(attrs.variant).label)
+      if (nextTitle === null) return
+      activeEditor.chain().focus().updateAttributes('calloutBlock', { title: nextTitle.trim() || calloutPreset(attrs.variant).label }).run()
+    })
+  }
   const updateInteractivePayload = (attrs: { kind: string; payload: string }, payload: Record<string, unknown>) => {
     command(activeEditor => activeEditor.chain().focus().updateAttributes('interactiveBlock', { kind: attrs.kind, payload: encodePayload(payload) }).run())
   }
@@ -1036,6 +1048,7 @@ export default function Edit() {
           <div className="book-toolbar-menu-wrap">
             <button title="تایپوگرافی آماده" className={toolbarMenu === 'typography' ? 'active' : ''} onClick={() => setToolbarMenu(value => value === 'typography' ? null : 'typography')}><Type /><ChevronDown /></button>
             {toolbarMenu === 'typography' && <div className="book-toolbar-popover typography frosted-menu-surface">
+              <button className="book-callout-title-action" onClick={() => { editCalloutTitle(); setToolbarMenu(null) }}><Edit3 /><span>ویرایش عنوان کال‌اوت انتخاب‌شده</span></button>
               {Array.from(new Set(CALLOUT_PRESETS.map(item => item.group))).map(group => <section key={group}>
                 <b>{group}</b>
                 {CALLOUT_PRESETS.filter(item => item.group === group).map(item => {
