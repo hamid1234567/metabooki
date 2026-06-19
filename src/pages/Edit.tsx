@@ -200,11 +200,17 @@ const InteractiveBlock = Node.create({
   },
 })
 
-function CalloutNodeView({ node, updateAttributes }: any) {
+function CalloutNodeView({ node, updateAttributes, editor, getPos }: any) {
   const variant = node.attrs?.variant || 'key'
   const preset = calloutPreset(variant)
   const title = node.attrs?.title || preset.label
   const icon = node.attrs?.icon || preset.emoji
+  const unwrapCallout = () => {
+    const pos = typeof getPos === 'function' ? getPos() : null
+    if (pos === null || pos === undefined || !editor?.view) return
+    editor.view.dispatch(editor.state.tr.replaceWith(pos, pos + node.nodeSize, node.content))
+    editor.commands.focus()
+  }
   return (
     <NodeViewWrapper
       as="section"
@@ -221,6 +227,7 @@ function CalloutNodeView({ node, updateAttributes }: any) {
           onChange={event => updateAttributes({ title: event.target.value })}
           onBlur={event => updateAttributes({ title: event.target.value.trim() || preset.label })}
         />
+        <button type="button" className="book-callout-unwrap" title="حذف قاب کال‌اوت و نگه داشتن متن" onClick={unwrapCallout}>×</button>
       </div>
       <NodeViewContent className="book-callout-content" />
     </NodeViewWrapper>
