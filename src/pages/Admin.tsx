@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { useAuthContext } from '@/lib/auth-context'
 import { useI18n } from '@/lib/i18n'
 import { mockUsers, mockBooks, CREDIT_VALUE_TOMAN, setCreditValue } from '@/lib/mock-data'
-import { Shield, Users, Activity, BookOpen, DollarSign, Settings, Bug, MessageSquare, Eye, EyeOff, Trash2, Sparkles, KeyRound, Server, CheckCircle, AlertTriangle, RefreshCw, ExternalLink, Filter } from 'lucide-react'
+import { Shield, Users, Activity, BookOpen, DollarSign, Settings, Bug, MessageSquare, Eye, EyeOff, Trash2, Sparkles, KeyRound, Server, CheckCircle, AlertTriangle, RefreshCw, ExternalLink, Filter, Edit3, Mail, Receipt, Clock3, LibraryBig } from 'lucide-react'
 import { deleteComment, getAllComments, updateCommentStatus, type MockComment } from '@/lib/mock-comments'
 import { Button } from '@/components/ui/button'
 import { loadAiGatewaySettings, loadAiGatewaySettingsRemote, maskApiKey, saveAiGatewaySettings, type AiGatewaySettings, type AiProviderConfig } from '@/lib/ai-gateway'
@@ -29,6 +29,8 @@ export default function Admin() {
   const [selectedUserEmail, setSelectedUserEmail] = useState('mohammadi219@gmail.com')
   const [newUserPassword, setNewUserPassword] = useState('Hamid@219')
   const [passwordActionLoading, setPasswordActionLoading] = useState(false)
+  const [expandedUserId, setExpandedUserId] = useState<string | null>(null)
+  const [rowPasswordDrafts, setRowPasswordDrafts] = useState<Record<string, string>>({})
   const supabaseUrl = String(import.meta.env.VITE_SUPABASE_URL || '')
   const hasSupabaseUrl = supabaseUrl.startsWith('https://') && !supabaseUrl.includes('your_supabase')
   const hasSupabaseKey = Boolean(import.meta.env.VITE_SUPABASE_ANON_KEY && !String(import.meta.env.VITE_SUPABASE_ANON_KEY).includes('your_supabase'))
@@ -153,19 +155,19 @@ export default function Admin() {
     }
   }
 
-  const changeUserPasswordFromAdmin = async () => {
-    if (!selectedUserEmail.trim()) {
+  const changePasswordForUser = async (email: string, password: string) => {
+    if (!email.trim()) {
       setMessage('ایمیل کاربر را انتخاب یا وارد کنید.')
       return
     }
-    if (newUserPassword.length < 8) {
+    if (password.length < 8) {
       setMessage('رمز عبور باید حداقل ۸ کاراکتر باشد.')
       return
     }
     setPasswordActionLoading(true)
     try {
-      await setAdminUserPassword(selectedUserEmail.trim(), newUserPassword)
-      setMessage(`رمز عبور ${selectedUserEmail.trim()} به‌روزرسانی شد.`)
+      await setAdminUserPassword(email.trim(), password)
+      setMessage(`رمز عبور ${email.trim()} به‌روزرسانی شد.`)
       await refreshAdminUsers()
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'تغییر رمز عبور ناموفق بود.')
@@ -175,21 +177,29 @@ export default function Admin() {
     }
   }
 
-  const sendPasswordResetFromAdmin = async () => {
-    if (!selectedUserEmail.trim()) {
+  const changeUserPasswordFromAdmin = async () => {
+    await changePasswordForUser(selectedUserEmail, newUserPassword)
+  }
+
+  const sendPasswordResetForUser = async (email: string) => {
+    if (!email.trim()) {
       setMessage('ایمیل کاربر را انتخاب یا وارد کنید.')
       return
     }
     setPasswordActionLoading(true)
     try {
-      const result = await sendAdminPasswordReset(selectedUserEmail.trim()) as { actionLink?: string }
-      setMessage(result?.actionLink ? `لینک ریست ساخته شد: ${result.actionLink}` : `لینک ریست برای ${selectedUserEmail.trim()} آماده/ارسال شد.`)
+      const result = await sendAdminPasswordReset(email.trim()) as { actionLink?: string }
+      setMessage(result?.actionLink ? `لینک ریست ساخته شد: ${result.actionLink}` : `لینک ریست برای ${email.trim()} آماده/ارسال شد.`)
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'ارسال لینک ریست ناموفق بود.')
     } finally {
       setPasswordActionLoading(false)
       setTimeout(() => setMessage(''), 8000)
     }
+  }
+
+  const sendPasswordResetFromAdmin = async () => {
+    await sendPasswordResetForUser(selectedUserEmail)
   }
 
   const totalBooks = mockBooks.length
