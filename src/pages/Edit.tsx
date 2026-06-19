@@ -502,6 +502,29 @@ function syncPagesAndTocFromHeadings(pages: any[] = [], currentToc: ConfirmedToc
   return { pages: pages.map((page, pageIndex) => ({ ...page, blocks: syncBlocks(page.blocks || [], page, pageIndex) })), toc }
 }
 
+function tocEntryInsideSegment(pages: any[] = [], item: ConfirmedTocEntry, segment?: EditorSegment) {
+  if (!segment) return true
+  const position = findTocPosition(pages, item)
+  if (position.pageIndex < segment.start || position.pageIndex >= segment.end) return false
+  if (position.pageIndex === segment.start && position.blockIndex < (segment.startBlock ?? 0)) return false
+  if (position.pageIndex === segment.end - 1 && position.blockIndex >= (segment.endBlock ?? (pages[position.pageIndex]?.blocks?.length || 0))) return false
+  return true
+}
+
+function resolveTocAfterHeadingSync(pages: any[] = [], generatedToc: ConfirmedTocEntry[] = [], currentToc: ConfirmedTocEntry[] = [], segment?: EditorSegment) {
+  if (!currentToc.length) return generatedToc
+  if (!generatedToc.length && (!segment || (segment.start <= 0 && segment.end >= pages.length))) return currentToc
+  if (!segment) return generatedToc.length ? generatedToc : currentToc
+  const outsideCurrent = currentToc.filter(item => !tocEntryInsideSegment(pages, item, segment))
+  const insideGenerated = generatedToc.filter(item => tocEntryInsideSegment(pages, item, segment))
+  if (!insideGenerated.length && generatedToc.length === 0 && outsideCurrent.length === 0) return currentToc
+  return [...outsideCurrent, ...insideGenerated].sort((a, b) => {
+    const pa = findTocPosition(pages, a)
+    const pb = findTocPosition(pages, b)
+    return pa.pageIndex - pb.pageIndex || pa.blockIndex - pb.blockIndex
+  })
+}
+
 function segmentHasChildren(segments: EditorSegment[], index: number) {
   const level = Number(segments[index]?.level || 1)
   for (let cursor = index + 1; cursor < segments.length; cursor++) {
@@ -801,7 +824,8 @@ export default function Edit() {
     const mergedPages = mergeCurrentSegment()
     const synced = syncPagesAndTocFromHeadings(mergedPages, tocEntries)
     const pages = synced.pages
-    const metadata = { ...(book?.metadata || {}), confirmed_toc: synced.toc, page_background_url: backgroundUrl, page_background_alpha: backgroundAlpha, prelude_title: preludeTitle }
+    const safeToc = resolveTocAfterHeadingSync(pages, synced.toc, tocEntries, activeSegment)
+    const metadata = { ...(book?.metadata || {}), confirmed_toc: safeToc, page_background_url: backgroundUrl, page_background_alpha: backgroundAlpha, prelude_title: preludeTitle }
     const patch = { title, subtitle, description, pages, metadata, page_count: pages.length, content_updated_at: new Date().toISOString() }
     updatePublisherBook(id, patch as any)
     if (import.meta.env.VITE_SUPABASE_URL?.startsWith('http') && /^[0-9a-f-]{36}$/i.test(id)) {
@@ -828,7 +852,8 @@ export default function Edit() {
     if (!activeEditor || switchingSegmentRef.current) return
     const mergedPages = mergeCurrentSegment()
     const synced = syncPagesAndTocFromHeadings(mergedPages, tocEntries)
-    const metadata = { ...(book?.metadata || {}), confirmed_toc: synced.toc }
+    const safeToc = resolveTocAfterHeadingSync(synced.pages, synced.toc, tocEntries, activeSegment)
+    const metadata = { ...(book?.metadata || {}), confirmed_toc: safeToc }
     setAllPages(synced.pages)
     setBook((current: any) => ({ ...current, metadata }))
   }
