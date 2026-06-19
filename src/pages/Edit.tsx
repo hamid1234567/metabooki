@@ -137,6 +137,7 @@ function InteractiveNodeView({ node, updateAttributes, editor, getPos }: any) {
   const kind = node.attrs?.kind || 'quiz'
   const data = { ...interactiveTemplate(kind), ...decodePayload(node.attrs?.payload) }
   const updatePayload = (patch: Record<string, unknown>) => updateAttributes({ payload: encodePayload({ ...data, ...patch }) })
+  const stopEditorSelection = (event: any) => event.stopPropagation()
   const deleteBlock = () => {
     const pos = typeof getPos === 'function' ? getPos() : null
     if (pos === null || pos === undefined || !editor?.view) return
@@ -161,10 +162,10 @@ function InteractiveNodeView({ node, updateAttributes, editor, getPos }: any) {
     </label>
   )
   const mediaSlot = (label: string, value: string, onChange: (value: string) => void) => (
-    <div className={`interactive-media-slot ${value ? 'has-image' : ''}`}>
-      <label>
+    <div className={`interactive-media-slot ${value ? 'has-image' : ''}`} onPointerDown={stopEditorSelection} onMouseDown={stopEditorSelection} onClick={stopEditorSelection}>
+      <label onPointerDown={stopEditorSelection} onMouseDown={stopEditorSelection} onClick={stopEditorSelection}>
         {value ? <img src={value} alt="" /> : <span><ImagePlus />{label}</span>}
-        <input type="file" accept="image/*" onChange={event => readLocalMedia(event.target.files?.[0], onChange)} />
+        <input type="file" accept="image/*" onPointerDown={stopEditorSelection} onMouseDown={stopEditorSelection} onClick={stopEditorSelection} onChange={event => readLocalMedia(event.target.files?.[0], onChange)} />
       </label>
       <input value={value || ''} placeholder="آدرس تصویر یا بارگذاری فایل" onChange={event => onChange(event.target.value)} />
     </div>
@@ -182,17 +183,17 @@ function InteractiveNodeView({ node, updateAttributes, editor, getPos }: any) {
     </section>
   )
   const addButton = (label: string, onClick: () => void) => <button type="button" className="interactive-add-button" onClick={onClick}><Plus />{label}</button>
-  const options = list('options', ['گزینه اول', 'گزینه دوم'])
-  const cards = list('cards', [{ front: 'روی کارت', back: 'پشت کارت', image: '' }])
-  const items = list('items', [{ title: 'عنوان بخش', description: 'متن بازشونده', image: '' }])
-  const tabs = list('tabs', [{ title: 'تب اول', description: 'محتوای تب', image: '' }])
-  const events = list('events', [{ year: 'مرحله ۱', title: 'عنوان', description: 'توضیح', image: '' }])
-  const steps = list('steps', [{ title: 'گام', description: 'توضیح', image: '' }])
+  const options = list('options', ['', ''])
+  const cards = list('cards', [{ front: '', back: '', image: '' }])
+  const items = list('items', [{ title: '', description: '', image: '' }])
+  const tabs = list('tabs', [{ title: '', description: '', image: '' }])
+  const events = list('events', [{ year: '', title: '', description: '', image: '' }])
+  const steps = list('steps', [{ title: '', description: '', image: '' }])
   const images = list('images', [{ url: '', caption: '' }])
-  const points = list('points', [{ title: 'نقطه', text: 'توضیح', x: 50, y: 50 }])
-  const authors = Array.isArray(data.authors) ? data.authors : [{ name: data.name || 'نام نویسنده', role: data.role || '', bio: data.bio || '', image: data.image || '' }]
+  const points = list('points', [{ title: '', text: '', x: 50, y: 50 }])
+  const authors = Array.isArray(data.authors) ? data.authors : [{ name: data.name || '', role: data.role || '', bio: data.bio || '', image: data.image || '' }]
   return (
-    <NodeViewWrapper as="section" className={`editor-interactive-card interactive-${kind}`} data-interactive-kind={kind} contentEditable={false}>
+    <NodeViewWrapper as="section" className={`editor-interactive-card interactive-${kind}`} data-interactive-kind={kind} contentEditable={false} onPointerDown={stopEditorSelection} onMouseDown={stopEditorSelection}>
       <header className="interactive-form-header">
         <strong>{interactiveLabel(kind)}</strong>
         <button type="button" title="حذف بخش تعاملی" onClick={deleteBlock}><Trash2 /></button>
@@ -209,32 +210,32 @@ function InteractiveNodeView({ node, updateAttributes, editor, getPos }: any) {
             </label>
           ))}
         </div>
-        {addButton('افزودن گزینه', () => setList('options', [...options, 'گزینه جدید']))}
-        {textarea('بازخورد یا توضیح پاسخ', data.explanation || '', value => updatePayload({ explanation: value }))}
+        {addButton('افزودن گزینه', () => setList('options', [...options, '']))}
+        {textarea('بازخورد یا توضیح پاسخ', data.explanation || '', value => updatePayload({ explanation: value }), 'توضیح اختیاری پاسخ')}
       </>}
       {kind === 'truefalse' && <>
         {field('گزاره', data.statement || '', value => updatePayload({ statement: value }), 'متن گزاره', true)}
         <label className="interactive-field"><span>پاسخ درست</span><select value={String(Boolean(data.correct))} onChange={event => updatePayload({ correct: event.target.value === 'true' })}><option value="true">صحیح</option><option value="false">غلط</option></select></label>
-        {textarea('توضیح', data.explanation || '', value => updatePayload({ explanation: value }))}
+        {textarea('توضیح', data.explanation || '', value => updatePayload({ explanation: value }), 'توضیح اختیاری')}
       </>}
       {kind === 'flashcard' && <>
         {cards.map((card: any, index: number) => itemCard('کارت', index, () => removeItem('cards', index, cards), <>
-          {textarea('روی کارت', card.front || '', value => updateItem('cards', index, { front: value }, cards))}
-          {textarea('پشت کارت', card.back || '', value => updateItem('cards', index, { back: value }, cards))}
+          {textarea('روی کارت', card.front || '', value => updateItem('cards', index, { front: value }, cards), 'متن روی کارت')}
+          {textarea('پشت کارت', card.back || '', value => updateItem('cards', index, { back: value }, cards), 'متن پشت کارت')}
         </>, mediaSlot('تصویر', card.image || '', value => updateItem('cards', index, { image: value }, cards))))}
         {addButton('افزودن کارت', () => addItem('cards', { front: '', back: '', image: '' }, cards))}
       </>}
       {kind === 'accordion' && <>
         {items.map((item: any, index: number) => itemCard('بخش', index, () => removeItem('items', index, items), <>
           {field('عنوان', item.title || '', value => updateItem('items', index, { title: value }, items), 'عنوان بازشونده', true)}
-          {textarea('توضیح', item.description || '', value => updateItem('items', index, { description: value }, items))}
+          {textarea('توضیح', item.description || '', value => updateItem('items', index, { description: value }, items), 'متن بازشونده')}
         </>, mediaSlot('تصویر', item.image || '', value => updateItem('items', index, { image: value }, items))))}
         {addButton('افزودن بخش', () => addItem('items', { title: '', description: '', image: '' }, items))}
       </>}
       {kind === 'tabs' && <>
         {tabs.map((tab: any, index: number) => itemCard('تب', index, () => removeItem('tabs', index, tabs), <>
           {field('عنوان تب', tab.title || '', value => updateItem('tabs', index, { title: value }, tabs), 'عنوان تب', true)}
-          {textarea('محتوا', tab.description || '', value => updateItem('tabs', index, { description: value }, tabs))}
+          {textarea('محتوا', tab.description || '', value => updateItem('tabs', index, { description: value }, tabs), 'محتوای تب')}
         </>, mediaSlot('تصویر', tab.image || '', value => updateItem('tabs', index, { image: value }, tabs))))}
         {addButton('افزودن تب', () => addItem('tabs', { title: '', description: '', image: '' }, tabs))}
       </>}
@@ -242,14 +243,14 @@ function InteractiveNodeView({ node, updateAttributes, editor, getPos }: any) {
         {events.map((eventItem: any, index: number) => itemCard('رویداد', index, () => removeItem('events', index, events), <>
           {field('زمان', eventItem.year || '', value => updateItem('events', index, { year: value }, events), 'سال یا مرحله')}
           {field('عنوان', eventItem.title || '', value => updateItem('events', index, { title: value }, events), 'عنوان رویداد')}
-          {textarea('توضیح', eventItem.description || '', value => updateItem('events', index, { description: value }, events))}
+          {textarea('توضیح', eventItem.description || '', value => updateItem('events', index, { description: value }, events), 'توضیح رویداد')}
         </>, mediaSlot('تصویر', eventItem.image || '', value => updateItem('events', index, { image: value }, events))))}
         {addButton('افزودن رویداد', () => addItem('events', { year: '', title: '', description: '', image: '' }, events))}
       </>}
       {(kind === 'steps' || kind === 'algorithm' || kind === 'scrollytelling') && <>
         {steps.map((step: any, index: number) => itemCard('گام', index, () => removeItem('steps', index, steps), <>
           {field('عنوان', step.title || step.text || '', value => updateItem('steps', index, { title: value, text: value }, steps), 'عنوان گام', true)}
-          {textarea('توضیح', step.description || '', value => updateItem('steps', index, { description: value }, steps))}
+          {textarea('توضیح', step.description || '', value => updateItem('steps', index, { description: value }, steps), 'توضیح گام')}
         </>, mediaSlot('تصویر', step.image || '', value => updateItem('steps', index, { image: value }, steps))))}
         {addButton('افزودن گام', () => addItem('steps', { title: '', description: '', image: '' }, steps))}
       </>}
@@ -270,7 +271,7 @@ function InteractiveNodeView({ node, updateAttributes, editor, getPos }: any) {
         {mediaSlot('تصویر اصلی', data.image || '', value => updatePayload({ image: value }))}
         {points.map((point: any, index: number) => itemCard('نقطه', index, () => removeItem('points', index, points), <>
           {field('عنوان', point.title || '', value => updateItem('points', index, { title: value }, points), 'عنوان نقطه')}
-          {textarea('متن', point.text || '', value => updateItem('points', index, { text: value }, points))}
+          {textarea('متن', point.text || '', value => updateItem('points', index, { text: value }, points), 'متن نقطه تعاملی')}
           <div className="interactive-coordinates">
             {field('X', String(point.x ?? 50), value => updateItem('points', index, { x: Number(value || 50) }, points))}
             {field('Y', String(point.y ?? 50), value => updateItem('points', index, { y: Number(value || 50) }, points))}
@@ -279,11 +280,11 @@ function InteractiveNodeView({ node, updateAttributes, editor, getPos }: any) {
         {addButton('افزودن نقطه', () => addItem('points', { title: '', text: '', x: 50, y: 50 }, points))}
       </>}
       {kind === 'author' && <>
-        {field('عنوان بخش', data.title || 'نویسندگان فصل', value => updatePayload({ title: value }), 'مثلا: نویسندگان این فصل', true)}
+        {field('عنوان بخش', data.title || '', value => updatePayload({ title: value }), 'مثلا: نویسندگان این فصل', true)}
         {authors.map((author: any, index: number) => itemCard('نویسنده', index, () => removeItem('authors', index, authors), <>
           {field('نام نویسنده', author.name || '', value => updateItem('authors', index, { name: value }, authors), 'نام نویسنده')}
           {field('سمت / تخصص', author.role || '', value => updateItem('authors', index, { role: value }, authors), 'اختیاری')}
-          {textarea('معرفی کوتاه', author.bio || '', value => updateItem('authors', index, { bio: value }, authors))}
+          {textarea('معرفی کوتاه', author.bio || '', value => updateItem('authors', index, { bio: value }, authors), 'معرفی کوتاه اختیاری')}
         </>, mediaSlot('تصویر', author.image || '', value => updateItem('authors', index, { image: value }, authors))))}
         {addButton('افزودن نویسنده', () => addItem('authors', { name: '', role: '', bio: '', image: '' }, authors))}
       </>}
@@ -421,18 +422,18 @@ function compactAiContent(content?: AiStructuredContent | null) {
   return [content.title, content.lead, ...content.sections.flatMap((section: { heading: string; paragraphs: string[]; bullets?: string[] }) => [section.heading, ...section.paragraphs, ...(section.bullets || []).map((item: string) => `- ${item}`)])].filter(Boolean).join('\n')
 }
 function interactiveTemplate(kind: string) {
-  if (kind === 'quiz') return { type: kind, question: 'سؤال را اینجا بنویسید', options: ['گزینه صحیح', 'گزینه دوم', 'گزینه سوم', 'گزینه چهارم'], correct: 0 }
-  if (kind === 'truefalse') return { type: kind, statement: 'گزاره را اینجا بنویسید', correct: true, explanation: 'توضیح پاسخ' }
-  if (kind === 'accordion') return { type: kind, title: 'آکاردئون', items: [{ title: 'عنوان بخش', description: 'متن بازشونده این بخش', image: '' }] }
-  if (kind === 'tabs') return { type: kind, title: 'تب‌ها', tabs: [{ title: 'تب اول', description: 'محتوای تب اول', image: '' }, { title: 'تب دوم', description: 'محتوای تب دوم', image: '' }] }
-  if (kind === 'algorithm') return { type: kind, title: 'الگوریتم تعاملی', steps: [{ title: 'اگر...', description: 'شرط یا تصمیم اول', image: '' }, { title: 'آنگاه...', description: 'نتیجه یا مسیر بعدی', image: '' }] }
-  if (kind === 'author') return { type: kind, title: 'نویسندگان فصل', authors: [{ name: 'نام نویسنده', role: 'نقش یا تخصص', bio: 'معرفی کوتاه نویسنده', image: '' }] }
-  if (kind === 'timeline') return { type: kind, events: [{ year: 'مرحله ۱', title: 'شروع', description: 'توضیح مرحله نخست', image: '' }, { year: 'مرحله ۲', title: 'ادامه', description: 'توضیح مرحله دوم', image: '' }] }
-  if (kind === 'scrollytelling') return { type: kind, title: 'استوری‌تلینگ', steps: [{ image: '', title: 'گام اول', text: 'بخش نخست روایت', description: '' }, { image: '', title: 'گام دوم', text: 'بخش دوم روایت', description: '' }] }
-  if (kind === 'hotspot') return { type: kind, image: '', caption: 'تصویر هات‌اسپات', points: [{ x: 50, y: 50, title: 'نقطه ۱', text: 'توضیح این نقطه' }] }
-  if (kind === 'flashcard') return { type: kind, cards: [{ front: 'روی کارت', back: 'پشت کارت', image: '' }] }
-  if (kind === 'gallery') return { type: kind, title: 'گالری تصاویر', images: [{ url: '', caption: 'تصویر گالری' }] }
-  return { type: kind, title: 'فرآیند مرحله‌ای', steps: [{ title: 'مرحله ۱', description: 'توضیح مرحله نخست', image: '' }, { title: 'مرحله ۲', description: 'توضیح مرحله دوم', image: '' }] }
+  if (kind === 'quiz') return { type: kind, question: '', options: ['', '', '', ''], correct: 0, explanation: '' }
+  if (kind === 'truefalse') return { type: kind, statement: '', correct: true, explanation: '' }
+  if (kind === 'accordion') return { type: kind, title: '', items: [{ title: '', description: '', image: '' }] }
+  if (kind === 'tabs') return { type: kind, title: '', tabs: [{ title: '', description: '', image: '' }, { title: '', description: '', image: '' }] }
+  if (kind === 'algorithm') return { type: kind, title: '', steps: [{ title: '', description: '', image: '' }, { title: '', description: '', image: '' }] }
+  if (kind === 'author') return { type: kind, title: '', authors: [{ name: '', role: '', bio: '', image: '' }] }
+  if (kind === 'timeline') return { type: kind, events: [{ year: '', title: '', description: '', image: '' }, { year: '', title: '', description: '', image: '' }] }
+  if (kind === 'scrollytelling') return { type: kind, title: '', steps: [{ image: '', title: '', text: '', description: '' }, { image: '', title: '', text: '', description: '' }] }
+  if (kind === 'hotspot') return { type: kind, image: '', caption: '', points: [{ x: 50, y: 50, title: '', text: '' }] }
+  if (kind === 'flashcard') return { type: kind, cards: [{ front: '', back: '', image: '' }] }
+  if (kind === 'gallery') return { type: kind, title: '', images: [{ url: '', caption: '' }] }
+  return { type: kind, title: '', steps: [{ title: '', description: '', image: '' }, { title: '', description: '', image: '' }] }
 }
 function interactivePreview(kind: string, data: any): any[] {
   if (kind === 'truefalse') return [['h4', data.statement || 'گزاره صحیح/غلط'], ['div', { class: 'editor-interactive-options' }, ['span', data.correct ? 'پاسخ: صحیح' : 'پاسخ: غلط'], ['span', data.explanation || '']]]
