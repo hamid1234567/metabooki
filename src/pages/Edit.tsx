@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Link as RouterLink, useParams } from 'react-router-dom'
-import { EditorContent, useEditor } from '@tiptap/react'
+import { EditorContent, NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer, useEditor } from '@tiptap/react'
 import { Extension, Mark, Node, mergeAttributes } from '@tiptap/core'
 import { Plugin } from '@tiptap/pm/state'
 import StarterKit from '@tiptap/starter-kit'
@@ -134,6 +134,33 @@ const InteractiveBlock = Node.create({
   },
 })
 
+function CalloutNodeView({ node, updateAttributes }: any) {
+  const variant = node.attrs?.variant || 'key'
+  const preset = calloutPreset(variant)
+  const title = node.attrs?.title || preset.label
+  const icon = node.attrs?.icon || preset.emoji
+  return (
+    <NodeViewWrapper
+      as="section"
+      className={`book-callout editor-callout has-editable-title callout-${variant}`}
+      data-callout-variant={variant}
+      data-callout-title={title}
+      data-callout-icon={icon}
+    >
+      <div className="book-callout-head" contentEditable={false}>
+        <span className="book-callout-icon">{icon}</span>
+        <input
+          value={title}
+          aria-label="عنوان کال‌اوت"
+          onChange={event => updateAttributes({ title: event.target.value })}
+          onBlur={event => updateAttributes({ title: event.target.value.trim() || preset.label })}
+        />
+      </div>
+      <NodeViewContent className="book-callout-content" />
+    </NodeViewWrapper>
+  )
+}
+
 const CalloutBlock = Node.create({
   name: 'calloutBlock',
   group: 'block',
@@ -151,6 +178,9 @@ const CalloutBlock = Node.create({
   },
   renderHTML({ HTMLAttributes }) {
     return ['section', mergeAttributes(HTMLAttributes, { class: `book-callout editor-callout callout-${HTMLAttributes.variant || 'key'}` }), 0]
+  },
+  addNodeView() {
+    return ReactNodeViewRenderer(CalloutNodeView)
   },
 })
 
