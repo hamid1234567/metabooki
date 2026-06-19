@@ -624,7 +624,11 @@ function resolveTocAfterHeadingSync(pages: any[] = [], generatedToc: ConfirmedTo
   if (!generatedToc.length && (!segment || (segment.start <= 0 && segment.end >= pages.length))) return currentToc
   if (!segment) return generatedToc.length ? generatedToc : currentToc
   const outsideCurrent = currentToc.filter(item => !tocEntryInsideSegment(pages, item, segment))
+  const insideCurrent = currentToc.filter(item => tocEntryInsideSegment(pages, item, segment))
   const insideGenerated = generatedToc.filter(item => tocEntryInsideSegment(pages, item, segment))
+  const lostTooMuchToc = currentToc.length >= 3 && generatedToc.length > 0 && generatedToc.length < Math.ceil(currentToc.length * 0.35)
+  if (lostTooMuchToc) return currentToc
+  if (!insideGenerated.length && insideCurrent.length > 1) return currentToc
   if (!insideGenerated.length && generatedToc.length === 0 && outsideCurrent.length === 0) return currentToc
   return [...outsideCurrent, ...insideGenerated].sort((a, b) => {
     const pa = findTocPosition(pages, a)
