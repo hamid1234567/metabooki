@@ -14,19 +14,23 @@ import Link from '@tiptap/extension-link'
 import Color from '@tiptap/extension-color'
 import { TextStyle } from '@tiptap/extension-text-style'
 import { TableKit } from '@tiptap/extension-table'
-import { AlertTriangle, AlignCenter, AlignJustify, AlignLeft, AlignRight, ArrowDown, ArrowLeft, ArrowUp, Bold, BookOpen, Bookmark, ChevronLeft, ChevronDown, ChevronUp, Edit3, Feather, FileImage, FileText, Heading1, ImagePlus, Images, Info, Italic, LayoutTemplate, Lightbulb, Link2, List, ListOrdered, Minus, Pilcrow, Plus, Quote, Redo2, Strikethrough, Subscript as SubIcon, Superscript as SuperIcon, Table2, Trash2, Type, Underline as UnderlineIcon, Undo2 } from 'lucide-react'
-import { AddBlockPanel, BlockSettingsPanel, EditorHeader, EditorRail, EditorStatusBar, EditorToolbarFrame, type EditorPanelMode } from '@/features/editor/EditorShell'
+import { AlertTriangle, AlignCenter, AlignJustify, AlignLeft, AlignRight, ArrowDown, ArrowLeft, ArrowUp, Bold, BookOpen, Bookmark, ChevronLeft, ChevronDown, ChevronUp, Edit3, Feather, FileImage, FileText, Heading1, ImagePlus, Images, Info, Italic, LayoutTemplate, Lightbulb, Link2, List, ListOrdered, Minus, Pilcrow, Plus, Quote, Redo2, Sparkles, Strikethrough, Subscript as SubIcon, Superscript as SuperIcon, Table2, Trash2, Type, Underline as UnderlineIcon, Undo2 } from 'lucide-react'
+import { EditorHeader, EditorStatusBar, EditorToolbarFrame } from '@/features/editor/EditorShell'
 import { findPublisherBook, updatePublisherBook } from '@/lib/publisher-books'
 import { findBookById } from '@/lib/mock-data'
 import { supabase } from '@/integrations/supabase/client'
 import { useAuthContext } from '@/lib/auth-context'
 import { bookTextDirection, inlineToHtml as sharedInlineToHtml, normalizeBookText, pageBreakHtml } from '@/lib/book-content'
+import { runAiThroughGateway, type AiStructuredContent, type RunAiResult } from '@/lib/ai-gateway'
 
 const escape = (value = '') => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 const encodePayload = (value: unknown) => encodeURIComponent(JSON.stringify(value))
 const decodePayload = (value = '') => { try { return JSON.parse(decodeURIComponent(value)) } catch { return {} } }
 const appPath = (path: string) => `${window.location.origin}${import.meta.env.BASE_URL}#/${path.replace(/^\//, '')}`
 const openBookPreview = (id: string) => window.open(appPath(`/read/${id}`), '_blank', 'noopener,noreferrer')
+
+type EditorPanelMode = 'toc' | 'upgrade' | 'media' | 'interactive' | 'ai'
+type MediaPanelView = 'home' | 'library'
 
 const RichTextStyle = Extension.create({
   name: 'richTextStyle',
@@ -122,12 +126,74 @@ const PreservePageBreaks = Extension.create({
   },
 })
 
+function linesFromItems(items: any[] = [], keys: string[] = ['title', 'description']) {
+  return items.map(item => keys.map(key => item?.[key] || '').join(' | ')).join('\n')
+}
+
+function itemsFromLines(value: string, keys: string[] = ['title', 'description']) {
+  return value.split(/\r?\n/).map(line => line.split('|').map(part => part.trim())).filter(parts => parts[0]).map(parts => {
+    const item: Record<string, string> = {}
+    keys.forEach((key, index) => { item[key] = parts[index] || '' })
+    return item
+  })
+}
+
+function InteractiveNodeView({ node, updateAttributes }: any) {
+  const kind = node.attrs?.kind || 'quiz'
+  const data = { ...interactiveTemplate(kind), ...decodePayload(node.attrs?.payload) }
+  const updatePayload = (patch: Record<string, unknown>) => updateAttributes({ payload: encodePayload({ ...data, ...patch }) })
+  const multiline = (label: string, value: string, onChange: (value: string) => void, hint?: string) => (
+    <label>
+      <span>{label}</span>
+      <textarea value={value} placeholder={hint} onChange={event => onChange(event.target.value)} />
+    </label>
+  )
+  return (
+    <NodeViewWrapper as="section" className={`editor-interactive-card interactive-${kind}`} data-interactive-kind={kind} contentEditable={false}>
+      <header>
+        <strong>{interactiveLabel(kind)}</strong>
+        <small>برای ویرایش، همین فیلدها را تغییر بدهید.</small>
+      </header>
+      {kind === 'quiz' && <>
+        <label><span>سؤال</span><input value={data.question || ''} onChange={event => updatePayload({ question: event.target.value })} /></label>
+        {multiline('گزینه‌ها', (data.options || []).join('\n'), value => updatePayload({ options: value.split(/\r?\n/).map(item => item.trim()).filter(Boolean) }), 'هر گزینه در یک خط')}
+        <label><span>شماره گزینه صحیح</span><input type="number" min="1" value={Number(data.correct ?? data.correctIndex ?? 0) + 1} onChange={event => updatePayload({ correct: Math.max(0, Number(event.target.value || 1) - 1) })} /></label>
+      </>}
+      {kind === 'truefalse' && <>
+        <label><span>گزاره</span><input value={data.statement || ''} onChange={event => updatePayload({ statement: event.target.value })} /></label>
+        <label><span>پاسخ درست</span><select value={String(Boolean(data.correct))} onChange={event => updatePayload({ correct: event.target.value === 'true' })}><option value="true">صحیح</option><option value="false">غلط</option></select></label>
+        <label><span>توضیح</span><textarea value={data.explanation || ''} onChange={event => updatePayload({ explanation: event.target.value })} /></label>
+      </>}
+      {kind === 'flashcard' && multiline('کارت‌ها', linesFromItems(data.cards, ['front', 'back']), value => updatePayload({ cards: itemsFromLines(value, ['front', 'back']) }), 'روی کارت | پشت کارت')}
+      {kind === 'accordion' && multiline('آیتم‌ها', linesFromItems(data.items, ['title', 'description']), value => updatePayload({ items: itemsFromLines(value, ['title', 'description']) }), 'عنوان | متن بازشونده')}
+      {kind === 'tabs' && multiline('تب‌ها', linesFromItems(data.tabs, ['title', 'description']), value => updatePayload({ tabs: itemsFromLines(value, ['title', 'description']) }), 'عنوان تب | محتوای تب')}
+      {kind === 'timeline' && multiline('رویدادها', linesFromItems(data.events, ['year', 'title', 'description']), value => updatePayload({ events: itemsFromLines(value, ['year', 'title', 'description']) }), 'زمان | عنوان | توضیح')}
+      {(kind === 'steps' || kind === 'algorithm') && multiline('مرحله‌ها', linesFromItems(data.steps, ['title', 'description']), value => updatePayload({ steps: itemsFromLines(value, ['title', 'description']) }), 'عنوان | توضیح')}
+      {kind === 'scrollytelling' && multiline('روایت‌ها', linesFromItems(data.steps, ['text', 'description', 'image']), value => updatePayload({ steps: itemsFromLines(value, ['text', 'description', 'image']) }), 'متن | توضیح | آدرس تصویر')}
+      {kind === 'gallery' && multiline('تصاویر', linesFromItems(data.images, ['url', 'caption']), value => updatePayload({ images: itemsFromLines(value, ['url', 'caption']) }), 'آدرس تصویر | کپشن')}
+      {kind === 'hotspot' && <>
+        <label><span>تصویر</span><input value={data.image || ''} onChange={event => updatePayload({ image: event.target.value })} /></label>
+        {multiline('نقاط', linesFromItems(data.points, ['title', 'text', 'x', 'y']), value => updatePayload({ points: itemsFromLines(value, ['title', 'text', 'x', 'y']).map(item => ({ ...item, x: Number(item.x || 50), y: Number(item.y || 50) })) }), 'عنوان | توضیح | x | y')}
+      </>}
+      {kind === 'author' && <>
+        <label><span>نام</span><input value={data.name || ''} onChange={event => updatePayload({ name: event.target.value })} /></label>
+        <label><span>نقش</span><input value={data.role || ''} onChange={event => updatePayload({ role: event.target.value })} /></label>
+        <label><span>معرفی</span><textarea value={data.bio || ''} onChange={event => updatePayload({ bio: event.target.value })} /></label>
+        <label><span>تصویر</span><input value={data.image || ''} onChange={event => updatePayload({ image: event.target.value })} /></label>
+      </>}
+    </NodeViewWrapper>
+  )
+}
+
 const InteractiveBlock = Node.create({
   name: 'interactiveBlock',
   group: 'block',
   atom: true,
   addAttributes() { return { kind: { default: 'quiz' }, payload: { default: '{}' } } },
   parseHTML() { return [{ tag: 'section[data-interactive-kind]' }] },
+  addNodeView() {
+    return ReactNodeViewRenderer(InteractiveNodeView)
+  },
   renderHTML({ HTMLAttributes }) {
     const data = decodePayload(HTMLAttributes.payload)
     return ['section', mergeAttributes(HTMLAttributes, { class: 'editor-interactive-block', 'data-interactive-kind': HTMLAttributes.kind }), ['strong', `بخش تعاملی: ${interactiveLabel(HTMLAttributes.kind)}`], ...interactivePreview(HTMLAttributes.kind, data)]
@@ -200,10 +266,27 @@ const ResizableImage = Image.extend({
   },
 })
 
-const INTERACTIVE_TYPES = [
+const LEGACY_INTERACTIVE_TYPES = [
   ['flashcard', 'فلش‌کارت'], ['steps', 'مرحله‌سازی'], ['gallery', 'گالری عکس'], ['scrollytelling', 'استوری‌تلینگ'],
   ['quiz', 'کوییز ساده'], ['timeline', 'تایم‌لاین'], ['hotspot', 'هات‌اسپات تعاملی'],
 ] as const
+const INTERACTIVE_TYPES = [
+  ['quiz', 'Quiz چندگزینه‌ای'],
+  ['truefalse', 'صحیح/غلط'],
+  ['flashcard', 'فلش‌کارت'],
+  ['accordion', 'آکاردئون'],
+  ['tabs', 'تب‌ها'],
+  ['timeline', 'تایم‌لاین'],
+  ['gallery', 'گالری تصویر'],
+  ['scrollytelling', 'استوری‌تلینگ چندمرحله‌ای'],
+  ['algorithm', 'الگوریتم تعاملی'],
+  ['author', 'معرفی نویسنده مطلب'],
+  ['steps', 'مرحله‌سازی'],
+  ['hotspot', 'هات‌اسپات تعاملی'],
+] as const
+const interactiveKinds = new Set<string>(INTERACTIVE_TYPES.map(item => item[0]))
+void LEGACY_INTERACTIVE_TYPES
+
 const CALLOUT_PRESETS = [
   { value: 'key', label: 'نکته کلیدی', group: 'کال‌اوت آموزشی', icon: Lightbulb, emoji: '💡', className: 'callout-key', description: 'خلاصه مهم‌ترین نکته متن' },
   { value: 'question', label: 'مکث و فکر کن', group: 'کال‌اوت آموزشی', icon: Info, emoji: '❔', className: 'callout-question', description: 'سؤال کوتاه برای درگیر کردن خواننده' },
@@ -218,7 +301,20 @@ const CALLOUT_PRESETS = [
 ] as const
 const calloutPreset = (variant = 'key') => CALLOUT_PRESETS.find(item => item.value === variant) || CALLOUT_PRESETS[0]
 function interactiveLabel(kind: string) { return INTERACTIVE_TYPES.find(item => item[0] === kind)?.[1] || kind }
+function compactAiContent(content?: AiStructuredContent | null) {
+  if (!content) return ''
+  if (content.type === 'quiz') return `${content.question}\n${content.options.map((item: string, index: number) => `${index + 1}. ${item}`).join('\n')}\n${content.explanation}`
+  if (content.type === 'timeline') return [content.title, ...content.steps.map((step: { title: string; description: string }, index: number) => `${index + 1}. ${step.title}: ${step.description}`)].join('\n')
+  if (content.type === 'mindmap') return [content.title, ...content.branches.flatMap((branch: { title: string; items: string[] }) => [branch.title, ...branch.items.map((item: string) => `- ${item}`)])].join('\n')
+  return [content.title, content.lead, ...content.sections.flatMap((section: { heading: string; paragraphs: string[]; bullets?: string[] }) => [section.heading, ...section.paragraphs, ...(section.bullets || []).map((item: string) => `- ${item}`)])].filter(Boolean).join('\n')
+}
 function interactiveTemplate(kind: string) {
+  if (kind === 'quiz') return { type: kind, question: 'سؤال را اینجا بنویسید', options: ['گزینه صحیح', 'گزینه دوم', 'گزینه سوم', 'گزینه چهارم'], correct: 0 }
+  if (kind === 'truefalse') return { type: kind, statement: 'گزاره را اینجا بنویسید', correct: true, explanation: 'توضیح پاسخ' }
+  if (kind === 'accordion') return { type: kind, title: 'آکاردئون', items: [{ title: 'عنوان بخش', description: 'متن بازشونده این بخش' }] }
+  if (kind === 'tabs') return { type: kind, title: 'تب‌ها', tabs: [{ title: 'تب اول', description: 'محتوای تب اول' }, { title: 'تب دوم', description: 'محتوای تب دوم' }] }
+  if (kind === 'algorithm') return { type: kind, title: 'الگوریتم تعاملی', steps: [{ title: 'اگر...', description: 'شرط یا تصمیم اول' }, { title: 'آنگاه...', description: 'نتیجه یا مسیر بعدی' }] }
+  if (kind === 'author') return { type: kind, name: 'نام نویسنده', role: 'نقش یا تخصص', bio: 'معرفی کوتاه نویسنده', image: '' }
   if (kind === 'quiz') return { type: kind, question: 'سؤال را اینجا بنویسید', options: ['گزینه صحیح', 'گزینه دوم', 'گزینه سوم'], correct: 0 }
   if (kind === 'timeline') return { type: kind, events: [{ year: 'مرحله ۱', title: 'شروع', description: 'توضیح مرحله نخست' }, { year: 'مرحله ۲', title: 'ادامه', description: 'توضیح مرحله دوم' }] }
   if (kind === 'scrollytelling') return { type: kind, steps: [{ image: '', text: 'بخش نخست روایت' }, { image: '', text: 'بخش دوم روایت' }] }
@@ -228,6 +324,11 @@ function interactiveTemplate(kind: string) {
   return { type: kind, title: 'فرآیند مرحله‌ای', steps: [{ title: 'مرحله ۱', description: 'توضیح مرحله نخست', image: '' }, { title: 'مرحله ۲', description: 'توضیح مرحله دوم', image: '' }] }
 }
 function interactivePreview(kind: string, data: any): any[] {
+  if (kind === 'truefalse') return [['h4', data.statement || 'گزاره صحیح/غلط'], ['div', { class: 'editor-interactive-options' }, ['span', data.correct ? 'پاسخ: صحیح' : 'پاسخ: غلط'], ['span', data.explanation || '']]]
+  if (kind === 'accordion') return [['h4', data.title || 'آکاردئون'], ['div', { class: 'editor-interactive-steps' }, ...(data.items || []).map((item: any, index: number) => ['span', `${index + 1}. ${item.title || 'بخش'}`])]]
+  if (kind === 'tabs') return [['h4', data.title || 'تب‌ها'], ['div', { class: 'editor-interactive-steps' }, ...(data.tabs || []).map((item: any, index: number) => ['span', `${index + 1}. ${item.title || 'تب'}`])]]
+  if (kind === 'algorithm') return [['h4', data.title || 'الگوریتم تعاملی'], ['div', { class: 'editor-interactive-steps' }, ...(data.steps || []).map((item: any, index: number) => ['span', `${index + 1}. ${item.title || 'تصمیم'}`])]]
+  if (kind === 'author') return [['h4', data.name || 'نویسنده مطلب'], ['span', data.role || ''], ['small', data.bio || '']]
   if (kind === 'quiz') return [['h4', data.question || 'سؤال'], ['div', { class: 'editor-interactive-options' }, ...(data.options || []).map((option: string) => ['span', option])]]
   if (kind === 'gallery') return [['div', { class: 'editor-interactive-gallery' }, ...(data.images || []).map((image: any) => image.url ? ['img', { src: image.url, alt: image.caption || '' }] : ['span', image.caption || 'تصویر'])]]
   if (kind === 'hotspot') return [data.image ? ['img', { src: data.image, alt: data.caption || '' }] : ['span', data.caption || 'تصویر هات‌اسپات'], ['small', `${(data.points || []).length} نقطه تعاملی`]]
@@ -289,7 +390,7 @@ function blockHtml(block: any) {
     const tag = legacyList.ordered ? 'ol' : 'ul'
     return `<${tag}${blockAttributes(block)}>${legacyList.items.map(item => `<li>${escape(item)}</li>`).join('')}</${tag}>`
   }
-  if (['quiz', 'timeline', 'flashcard', 'steps', 'gallery', 'scrollytelling', 'hotspot'].includes(block.type)) return `<section data-interactive-kind="${block.type}" kind="${block.type}" payload="${encodePayload(block)}"></section>`
+  if (interactiveKinds.has(block.type)) return `<section data-interactive-kind="${block.type}" kind="${block.type}" payload="${encodePayload(block)}"></section>`
   return `<p${blockAttributes(block)}>${inlineHtml(block)}</p>`
 }
 
@@ -589,9 +690,16 @@ export default function Edit() {
   const [toolbarMenu, setToolbarMenu] = useState<'heading' | 'typography' | null>(null)
   const [editorRevision, setEditorRevision] = useState(0)
   const [panelMode, setPanelMode] = useState<EditorPanelMode>('toc')
+  const [mediaPanelView, setMediaPanelView] = useState<MediaPanelView>('home')
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiMessage, setAiMessage] = useState('')
+  const [aiUsage, setAiUsage] = useState<RunAiResult['usage'] | null>(null)
+  const [aiDraft, setAiDraft] = useState<{ type: 'summary' | 'quiz' | 'interactive'; title: string; text?: string; payload?: Record<string, unknown>; kind?: string } | null>(null)
+  const [aiCalloutSuggestions, setAiCalloutSuggestions] = useState<Array<{ variant: string; title: string; text: string }>>([])
   const imageInputRef = useRef<HTMLInputElement>(null)
   const documentStageRef = useRef<HTMLElement>(null)
   const switchingSegmentRef = useRef(false)
+  const liveTocTimerRef = useRef<number | null>(null)
   const tocEntries = useMemo(() => confirmedTocFromBook(book), [book])
   const segments = useMemo(() => buildConfirmedTocSegments(allPages, tocEntries, preludeTitle), [allPages, tocEntries, preludeTitle])
   const tocTreeRows = useMemo(() => buildTocTreeRows(segments, collapsedTocKeys), [segments, collapsedTocKeys])
@@ -708,15 +816,30 @@ export default function Edit() {
     openBookPreview(id)
   }
 
+  const refreshLiveTocFromEditor = () => {
+    const activeEditor = getEditor()
+    if (!activeEditor || switchingSegmentRef.current) return
+    const mergedPages = mergeCurrentSegment()
+    const synced = syncPagesAndTocFromHeadings(mergedPages, tocEntries)
+    const metadata = { ...(book?.metadata || {}), confirmed_toc: synced.toc }
+    setAllPages(synced.pages)
+    setBook((current: any) => ({ ...current, metadata }))
+  }
+
   useEffect(() => {
     const activeEditor = getEditor()
     if (!activeEditor) return
     const onUpdate = () => {
       if (switchingSegmentRef.current) return
       setEditorRevision(revision => revision + 1)
+      if (liveTocTimerRef.current) window.clearTimeout(liveTocTimerRef.current)
+      liveTocTimerRef.current = window.setTimeout(refreshLiveTocFromEditor, 650)
     }
     activeEditor.on('update', onUpdate)
-    return () => { activeEditor.off('update', onUpdate) }
+    return () => {
+      activeEditor.off('update', onUpdate)
+      if (liveTocTimerRef.current) window.clearTimeout(liveTocTimerRef.current)
+    }
   }, [editor])
 
   useEffect(() => {
@@ -891,6 +1014,8 @@ export default function Edit() {
     if (attrs.kind === 'gallery') payload.images = [...(payload.images || []), { url, caption: 'تصویر انتخاب‌شده از کتاب' }]
     else if (attrs.kind === 'scrollytelling') payload.steps = (payload.steps || [{ text: 'روایت تصویری' }]).map((step: any, index: number) => index === 0 ? { ...step, image: url } : step)
     else if (attrs.kind === 'steps') payload.steps = (payload.steps || [{ title: 'مرحله ۱' }]).map((step: any, index: number) => index === 0 ? { ...step, image: url } : step)
+    else if (attrs.kind === 'algorithm') payload.steps = (payload.steps || [{ title: 'گام اول' }]).map((step: any, index: number) => index === 0 ? { ...step, image: url } : step)
+    else if (attrs.kind === 'author') payload.image = url
     else payload.image = url
     activeEditor.chain().focus().updateAttributes('interactiveBlock', { payload: encodePayload(payload) }).run()
   }
@@ -902,6 +1027,65 @@ export default function Edit() {
     if (action === 'delete-row') chain.deleteRow().run()
     if (action === 'delete-column') chain.deleteColumn().run()
     if (action === 'delete-table') chain.deleteTable().run()
+  }
+  const selectedOrCurrentText = () => {
+    const activeEditor = getEditor()
+    if (!activeEditor) return ''
+    const { from, to, empty } = activeEditor.state.selection
+    const selected = empty ? '' : activeEditor.state.doc.textBetween(from, to, '\n').trim()
+    return selected || activeEditor.state.doc.textContent.trim()
+  }
+  const insertCalloutWithText = (variant: string, heading: string, text: string) => {
+    const preset = calloutPreset(variant)
+    command(activeEditor => activeEditor.chain().focus().insertContent({
+      type: 'calloutBlock',
+      attrs: { variant: preset.value, title: heading || preset.label, icon: preset.emoji },
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: text || heading || preset.label }] }],
+    }).run())
+  }
+  const insertInteractivePayload = (kind: string, payload: Record<string, unknown>) => {
+    command(activeEditor => activeEditor.chain().focus().insertContent({ type: 'interactiveBlock', attrs: { kind, payload: encodePayload({ ...interactiveTemplate(kind), ...payload, type: kind }) } }).run())
+  }
+  const recordAiUsage = (usage: RunAiResult['usage']) => {
+    setAiUsage(usage)
+    setAiMessage(`${usage.chargedCredits.toLocaleString('fa-IR')} کردیت کسر شد · ${usage.chargedToman.toLocaleString('fa-IR')} تومان · $${usage.chargedUsd.toFixed(6)}`)
+  }
+  const runEditorAi = async (mode: 'summary' | 'quiz' | 'callout' | 'interactive') => {
+    const pageText = selectedOrCurrentText()
+    if (!pageText) {
+      setAiMessage('اول بخشی از متن را انتخاب کنید یا داخل بخش مورد نظر قرار بگیرید.')
+      return
+    }
+    setAiLoading(true)
+    setAiDraft(null)
+    setAiCalloutSuggestions([])
+    setAiMessage('در حال تولید خروجی هوشمند...')
+    try {
+      const action = mode === 'quiz' ? 'quiz' : mode === 'interactive' ? 'learning_path' : mode === 'summary' ? 'summary' : 'explain'
+      const result = await runAiThroughGateway({ action, bookTitle: title || book?.title || 'کتاب', pageTitle: activeSegment?.label, pageText, bookId: id, pageIndex: activeSegmentIndex, user })
+      recordAiUsage(result.usage)
+      const text = compactAiContent(result.content) || result.text || ''
+      if (mode === 'summary') {
+        setAiDraft({ type: 'summary', title: 'خلاصه هوشمند', text })
+      } else if (mode === 'quiz' && result.content?.type === 'quiz') {
+        setAiDraft({ type: 'quiz', title: 'سؤال تولیدشده', kind: 'quiz', payload: { question: result.content.question, options: result.content.options, correct: result.content.correctIndex, explanation: result.content.explanation } })
+      } else if (mode === 'callout') {
+        const base = text || pageText.slice(0, 420)
+        setAiCalloutSuggestions([
+          { variant: 'key', title: 'نکته کلیدی پیشنهادی', text: base.split('\n').filter(Boolean)[0] || base },
+          { variant: 'question', title: 'مکث و فکر کن', text: 'از این بخش چه نتیجه‌ای می‌توان گرفت؟' },
+          { variant: 'deep', title: 'عمیق‌تر بخوان', text: base },
+        ])
+      } else if (mode === 'interactive') {
+        const wantsImage = window.confirm('ساخت تصویر هوش مصنوعی برای این بخش بعداً هزینه جداگانه دارد. فعلاً ساختار تعاملی متنی ساخته شود؟')
+        const steps = result.content?.type === 'timeline' ? result.content.steps : [{ title: 'مفهوم اصلی', description: text || pageText.slice(0, 240) }]
+        setAiDraft({ type: 'interactive', title: 'بخش تعاملی پیشنهادی', kind: 'algorithm', payload: { title: 'مسیر یادگیری تعاملی', steps, needsAiImage: wantsImage, imagePrompt: wantsImage ? `تصویر آموزشی برای: ${pageText.slice(0, 180)}` : '' } })
+      }
+    } catch (error) {
+      setAiMessage(error instanceof Error ? error.message : 'اجرای هوش مصنوعی ناموفق بود.')
+    } finally {
+      setAiLoading(false)
+    }
   }
   const persistTocEntries = (nextToc: ConfirmedTocEntry[]) => {
     const metadata = { ...(book?.metadata || {}), confirmed_toc: nextToc }
@@ -1089,16 +1273,43 @@ export default function Edit() {
       </EditorToolbarFrame>
 
       <div className="mb-editor-workspace">
-        <EditorRail active={panelMode} onChange={setPanelMode} />
         <aside className="mb-editor-panel">
-          {panelMode === 'add' ? <AddBlockPanel
-            onAddImage={() => imageInputRef.current?.click()}
-            onShowMedia={() => setPanelMode('media')}
-            onAddCallout={setTypography}
-            onAddInteractive={kind => void handleInteractiveAction(kind)}
-            onAddTable={() => command(activeEditor => activeEditor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())}
-            onAddPage={() => command(activeEditor => activeEditor.chain().focus().setHorizontalRule().run())}
-          /> : panelMode === 'media' ? <div className="book-editor-image-drawer is-embedded">
+          <div className="mb-editor-panel-switcher" aria-label="ابزارهای ادیتور">
+            {[
+              ['toc', 'فهرست', BookOpen],
+              ['upgrade', 'ارتقا متن', Type],
+              ['media', 'رسانه', Images],
+              ['interactive', 'ابزار تعاملی', LayoutTemplate],
+              ['ai', 'هوش مصنوعی', Sparkles],
+            ].map(([mode, label, Icon]) => {
+              const PanelIcon = Icon as typeof BookOpen
+              return <button key={String(mode)} className={panelMode === mode ? 'is-active' : ''} onClick={() => setPanelMode(mode as EditorPanelMode)}><PanelIcon />{String(label)}</button>
+            })}
+          </div>
+          {panelMode === 'upgrade' ? <div className="mb-panel-content">
+            <section className="book-editor-side-card">
+              <h3><Type />ارتقا متن</h3>
+              <p>متن انتخاب‌شده را به سرفصل، کال‌اوت، جدول یا صفحه جدید تبدیل کنید.</p>
+            </section>
+            <div className="mb-command-grid">
+              {[1, 2, 3, 4, 5, 6].map(level => <button key={level} onClick={() => promoteSelection(level as 1 | 2 | 3 | 4 | 5 | 6)}><Heading1 />H{level}</button>)}
+              <button onClick={() => command(activeEditor => activeEditor.chain().focus().setParagraph().run())}><Pilcrow />متن عادی</button>
+              <button onClick={() => command(activeEditor => activeEditor.chain().focus().setHorizontalRule().run())}><FileImage />صفحه جدید</button>
+              <button onClick={() => command(activeEditor => activeEditor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())}><Table2 />جدول</button>
+            </div>
+            <section className="mb-callout-palette compact">
+              {CALLOUT_PRESETS.filter(item => item.value !== 'normal').map(item => {
+                const Icon = item.icon
+                return <button key={item.value} onClick={() => setTypography(item.value)}><Icon /><span>{item.label}</span></button>
+              })}
+            </section>
+          </div> : panelMode === 'media' ? <div className={`book-editor-image-drawer is-embedded media-view-${mediaPanelView}`}>
+            <div className="mb-command-grid">
+              <button onClick={() => imageInputRef.current?.click()}><ImagePlus />بارگذاری تصویر جدید</button>
+              <button onClick={() => setMediaPanelView('library')}><Images />تصاویر خود کتاب</button>
+              <button onClick={() => setBackgroundUrl(window.prompt('آدرس تصویر پس‌زمینه صفحه', backgroundUrl) || backgroundUrl)}><FileImage />پس‌زمینه صفحه</button>
+              {mediaPanelView === 'library' && <button onClick={() => setMediaPanelView('home')}><ChevronUp />بازگشت به گزینه‌های رسانه</button>}
+            </div>
             <header><h3><Images />تصاویر کتاب</h3><button onClick={() => setPanelMode('toc')}>فهرست</button></header>
             {bookImages.length === 0 && <p className="book-editor-empty-state">هنوز تصویری برای این کتاب ثبت نشده است.</p>}
             <div>
@@ -1111,6 +1322,41 @@ export default function Edit() {
                 </button>
               ))}
             </div>
+          </div> : panelMode === 'interactive' ? <div className="mb-panel-content">
+            <section className="book-editor-side-card">
+              <h3><LayoutTemplate />ابزار تعاملی</h3>
+              <p>ابزار را انتخاب کنید؛ بعد از درج، همان‌جا داخل متن قابل ویرایش است.</p>
+            </section>
+            <div className="mb-command-grid">
+              {INTERACTIVE_TYPES.map(([kind, label]) => <button key={kind} onClick={() => addInteractive(kind)}><LayoutTemplate />{label}</button>)}
+            </div>
+            <button className="mb-wide-action" onClick={() => void openInteractiveEditor()}><Edit3 />ویرایش سریع ابزار انتخاب‌شده</button>
+            {bookImages.length > 0 && <select className="mb-wide-select" title="افزودن تصویر به ابزار تعاملی انتخاب‌شده" defaultValue="" onChange={event => { applyImageToInteractive(event.target.value); event.target.value = '' }}><option value="" disabled>افزودن تصویر از کتاب</option>{bookImages.slice(0, 100).filter((image: any) => image.url).map((image: any, index: number) => <option key={`${image.url}-${index}`} value={image.url}>{image.caption || `تصویر ${index + 1}`}</option>)}</select>}
+          </div> : panelMode === 'ai' ? <div className="mb-panel-content">
+            <section className="book-editor-side-card">
+              <h3><Sparkles />هوش مصنوعی</h3>
+              <p>ابتدا متن را انتخاب کنید. هزینه واقعی بعد از پاسخ از gateway محاسبه و از کردیت کاربر کم می‌شود.</p>
+            </section>
+            <div className="mb-command-grid">
+              <button disabled={aiLoading} onClick={() => void runEditorAi('summary')}><Sparkles />خلاصه انتخاب</button>
+              <button disabled={aiLoading} onClick={() => void runEditorAi('quiz')}><Sparkles />تولید سؤال</button>
+              <button disabled={aiLoading} onClick={() => void runEditorAi('callout')}><Lightbulb />پیشنهاد Callout</button>
+              <button disabled={aiLoading} onClick={() => void runEditorAi('interactive')}><LayoutTemplate />پیشنهاد تعاملی</button>
+            </div>
+            {aiLoading && <p className="book-editor-empty-state">در حال تولید خروجی هوشمند...</p>}
+            {aiMessage && <p className="mb-ai-cost">{aiMessage}</p>}
+            {aiUsage && <small className="mb-ai-usage">{aiUsage.inputTokens.toLocaleString('fa-IR')} توکن ورودی · {aiUsage.outputTokens.toLocaleString('fa-IR')} توکن خروجی</small>}
+            {aiDraft && <section className="mb-ai-draft">
+              <h3>{aiDraft.title}</h3>
+              {aiDraft.text && <p>{aiDraft.text}</p>}
+              {aiDraft.type === 'summary' && <button onClick={() => aiDraft.text && insertCalloutWithText('key', aiDraft.title, aiDraft.text)}>افزودن خلاصه به کال‌اوت</button>}
+              {aiDraft.type === 'quiz' && aiDraft.payload && <button onClick={() => insertInteractivePayload('quiz', aiDraft.payload!)}>افزودن سؤال به کتاب</button>}
+              {aiDraft.type === 'interactive' && aiDraft.payload && <button onClick={() => insertInteractivePayload(aiDraft.kind || 'algorithm', aiDraft.payload!)}>افزودن بخش تعاملی</button>}
+            </section>}
+            {aiCalloutSuggestions.length > 0 && <section className="mb-ai-suggestions">
+              <h3>پیشنهادهای Callout</h3>
+              {aiCalloutSuggestions.map((item, index) => <button key={`${item.variant}-${index}`} onClick={() => insertCalloutWithText(item.variant, item.title, item.text)}><Lightbulb /><span>{item.title}<small>{item.text}</small></span></button>)}
+            </section>}
           </div> : <>
           <div className="book-editor-side-card">
             <h3><BookOpen />فهرست کتاب</h3>
@@ -1162,13 +1408,6 @@ export default function Edit() {
           </>}
         </aside>
         <section ref={documentStageRef} className="mb-editor-canvas"><div className="book-document-stage"><div className="book-document-paper" style={{ '--editor-font-size': `${fontSize}px`, '--page-bg': backgroundUrl ? `url("${backgroundUrl}")` : 'none', '--page-bg-alpha': backgroundAlpha } as CSSProperties}><EditorContent editor={editor} /></div></div></section>
-        <BlockSettingsPanel
-          blockLabel={currentBlockLabel}
-          language={currentLanguage}
-          direction={currentDirection}
-          onDirection={setDirection}
-          onShowMedia={() => setPanelMode('media')}
-        />
       </div>
       {confirmTocDelete !== null && <div className="app-modal-backdrop" role="dialog" aria-modal="true">
         <section className="app-message-modal menu-glass-70">
