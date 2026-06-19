@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Link as RouterLink, useParams } from 'react-router-dom'
 import { EditorContent, NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer, useEditor } from '@tiptap/react'
@@ -178,12 +178,12 @@ function InteractiveNodeView({ node, updateAttributes, editor, getPos }: any) {
         {value ? <img src={value} alt="" /> : <span><ImagePlus />{label}</span>}
         <input type="file" accept="image/*" onChange={event => readLocalMedia(event.target.files?.[0], onChange)} />
       </label>
-      <input value={value || ''} placeholder="آدرس تصویر یا بارگذاری فایل" onChange={event => onChange(event.target.value)} />
+      <input value={value || ''} placeholder="Ø¢Ø¯Ø±Ø³ ØªØµÙˆÛŒØ± ÛŒØ§ Ø¨Ø§Ø±Ú¯Ø°Ø§Ø±ÛŒ ÙØ§ÛŒÙ„" onChange={event => onChange(event.target.value)} />
     </div>
   )
   const itemCard = (title: string, index: number, onDelete: () => void, children: any, media?: any) => (
     <section className="interactive-item-card">
-      <button type="button" className="interactive-remove-item" title="حذف" onClick={onDelete}>×</button>
+      <button type="button" className="interactive-remove-item" title="Ø­Ø°Ù" onClick={onDelete}>Ã—</button>
       <div className="interactive-item-grid">
         {media}
         <div className="interactive-item-fields">
@@ -194,151 +194,110 @@ function InteractiveNodeView({ node, updateAttributes, editor, getPos }: any) {
     </section>
   )
   const addButton = (label: string, onClick: () => void) => <button type="button" className="interactive-add-button" onClick={onClick}><Plus />{label}</button>
-  const options = list('options', ['گزینه اول', 'گزینه دوم'])
-  const cards = list('cards', [{ front: 'روی کارت', back: 'پشت کارت', image: '' }])
-  const items = list('items', [{ title: 'عنوان بخش', description: 'متن بازشونده', image: '' }])
-  const tabs = list('tabs', [{ title: 'تب اول', description: 'محتوای تب', image: '' }])
-  const events = list('events', [{ year: 'مرحله ۱', title: 'عنوان', description: 'توضیح', image: '' }])
-  const steps = list('steps', [{ title: 'گام', description: 'توضیح', image: '' }])
+  const options = list('options', ['Ú¯Ø²ÛŒÙ†Ù‡ Ø§ÙˆÙ„', 'Ú¯Ø²ÛŒÙ†Ù‡ Ø¯ÙˆÙ…'])
+  const cards = list('cards', [{ front: 'Ø±ÙˆÛŒ Ú©Ø§Ø±Øª', back: 'Ù¾Ø´Øª Ú©Ø§Ø±Øª', image: '' }])
+  const items = list('items', [{ title: 'Ø¹Ù†ÙˆØ§Ù† Ø¨Ø®Ø´', description: 'Ù…ØªÙ† Ø¨Ø§Ø²Ø´ÙˆÙ†Ø¯Ù‡', image: '' }])
+  const tabs = list('tabs', [{ title: 'ØªØ¨ Ø§ÙˆÙ„', description: 'Ù…Ø­ØªÙˆØ§ÛŒ ØªØ¨', image: '' }])
+  const events = list('events', [{ year: 'Ù…Ø±Ø­Ù„Ù‡ Û±', title: 'Ø¹Ù†ÙˆØ§Ù†', description: 'ØªÙˆØ¶ÛŒØ­', image: '' }])
+  const steps = list('steps', [{ title: 'Ú¯Ø§Ù…', description: 'ØªÙˆØ¶ÛŒØ­', image: '' }])
   const images = list('images', [{ url: '', caption: '' }])
-  const points = list('points', [{ title: 'نقطه', text: 'توضیح', x: 50, y: 50 }])
-  const authors = Array.isArray(data.authors) ? data.authors : [{ name: data.name || 'نام نویسنده', role: data.role || '', bio: data.bio || '', image: data.image || '' }]
+  const points = list('points', [{ title: 'Ù†Ù‚Ø·Ù‡', text: 'ØªÙˆØ¶ÛŒØ­', x: 50, y: 50 }])
+  const authors = Array.isArray(data.authors) ? data.authors : [{ name: data.name || 'Ù†Ø§Ù… Ù†ÙˆÛŒØ³Ù†Ø¯Ù‡', role: data.role || '', bio: data.bio || '', image: data.image || '' }]
   return (
     <NodeViewWrapper as="section" className={`editor-interactive-card interactive-${kind}`} data-interactive-kind={kind} contentEditable={false}>
       <header className="interactive-form-header">
         <strong>{interactiveLabel(kind)}</strong>
-        <button type="button" title="حذف بخش تعاملی" onClick={deleteBlock}><Trash2 /></button>
+        <button type="button" title="Ø­Ø°Ù Ø¨Ø®Ø´ ØªØ¹Ø§Ù…Ù„ÛŒ" onClick={deleteBlock}><Trash2 /></button>
       </header>
-      {kind !== 'quiz' && kind !== 'truefalse' && kind !== 'flashcard' && kind !== 'gallery' && kind !== 'author' && field('عنوان', data.title || data.caption || '', value => updatePayload({ title: value, caption: value }), 'عنوان بخش', true)}
+      {kind !== 'quiz' && kind !== 'truefalse' && kind !== 'flashcard' && kind !== 'gallery' && kind !== 'author' && field('Ø¹Ù†ÙˆØ§Ù†', data.title || data.caption || '', value => updatePayload({ title: value, caption: value }), 'Ø¹Ù†ÙˆØ§Ù† Ø¨Ø®Ø´', true)}
       {kind === 'quiz' && <>
-        {field('سؤال', data.question || '', value => updatePayload({ question: value }), 'متن سؤال', true)}
+        {field('Ø³Ø¤Ø§Ù„', data.question || '', value => updatePayload({ question: value }), 'Ù…ØªÙ† Ø³Ø¤Ø§Ù„', true)}
         <div className="interactive-option-list">
           {options.map((option: string, index: number) => (
             <label key={index} className="interactive-option-row">
               <input type="radio" checked={Number(data.correct ?? 0) === index} onChange={() => updatePayload({ correct: index })} />
-              <input value={option || ''} placeholder={`گزینه ${index + 1}`} onChange={event => setList('options', options.map((item: string, itemIndex: number) => itemIndex === index ? event.target.value : item))} />
-              <button type="button" onClick={() => setList('options', options.filter((_: string, itemIndex: number) => itemIndex !== index))}>×</button>
+              <input value={option || ''} placeholder={`Ú¯Ø²ÛŒÙ†Ù‡ ${index + 1}`} onChange={event => setList('options', options.map((item: string, itemIndex: number) => itemIndex === index ? event.target.value : item))} />
+              <button type="button" onClick={() => setList('options', options.filter((_: string, itemIndex: number) => itemIndex !== index))}>Ã—</button>
             </label>
           ))}
         </div>
-        {addButton('افزودن گزینه', () => setList('options', [...options, 'گزینه جدید']))}
-        {textarea('بازخورد یا توضیح پاسخ', data.explanation || '', value => updatePayload({ explanation: value }))}
+        {addButton('Ø§ÙØ²ÙˆØ¯Ù† Ú¯Ø²ÛŒÙ†Ù‡', () => setList('options', [...options, 'Ú¯Ø²ÛŒÙ†Ù‡ Ø¬Ø¯ÛŒØ¯']))}
+        {textarea('Ø¨Ø§Ø²Ø®ÙˆØ±Ø¯ ÛŒØ§ ØªÙˆØ¶ÛŒØ­ Ù¾Ø§Ø³Ø®', data.explanation || '', value => updatePayload({ explanation: value }))}
       </>}
       {kind === 'truefalse' && <>
-        {field('گزاره', data.statement || '', value => updatePayload({ statement: value }), 'متن گزاره', true)}
-        <label className="interactive-field"><span>پاسخ درست</span><select value={String(Boolean(data.correct))} onChange={event => updatePayload({ correct: event.target.value === 'true' })}><option value="true">صحیح</option><option value="false">غلط</option></select></label>
-        {textarea('توضیح', data.explanation || '', value => updatePayload({ explanation: value }))}
+        {field('Ú¯Ø²Ø§Ø±Ù‡', data.statement || '', value => updatePayload({ statement: value }), 'Ù…ØªÙ† Ú¯Ø²Ø§Ø±Ù‡', true)}
+        <label className="interactive-field"><span>Ù¾Ø§Ø³Ø® Ø¯Ø±Ø³Øª</span><select value={String(Boolean(data.correct))} onChange={event => updatePayload({ correct: event.target.value === 'true' })}><option value="true">ØµØ­ÛŒØ­</option><option value="false">ØºÙ„Ø·</option></select></label>
+        {textarea('ØªÙˆØ¶ÛŒØ­', data.explanation || '', value => updatePayload({ explanation: value }))}
       </>}
       {kind === 'flashcard' && <>
-        {cards.map((card: any, index: number) => itemCard('کارت', index, () => removeItem('cards', index, cards), <>
-          {textarea('روی کارت', card.front || '', value => updateItem('cards', index, { front: value }, cards))}
-          {textarea('پشت کارت', card.back || '', value => updateItem('cards', index, { back: value }, cards))}
-        </>, mediaSlot('تصویر', card.image || '', value => updateItem('cards', index, { image: value }, cards))))}
-        {addButton('افزودن کارت', () => addItem('cards', { front: '', back: '', image: '' }, cards))}
+        {cards.map((card: any, index: number) => itemCard('Ú©Ø§Ø±Øª', index, () => removeItem('cards', index, cards), <>
+          {textarea('Ø±ÙˆÛŒ Ú©Ø§Ø±Øª', card.front || '', value => updateItem('cards', index, { front: value }, cards))}
+          {textarea('Ù¾Ø´Øª Ú©Ø§Ø±Øª', card.back || '', value => updateItem('cards', index, { back: value }, cards))}
+        </>, mediaSlot('ØªØµÙˆÛŒØ±', card.image || '', value => updateItem('cards', index, { image: value }, cards))))}
+        {addButton('Ø§ÙØ²ÙˆØ¯Ù† Ú©Ø§Ø±Øª', () => addItem('cards', { front: '', back: '', image: '' }, cards))}
       </>}
       {kind === 'accordion' && <>
-        {items.map((item: any, index: number) => itemCard('بخش', index, () => removeItem('items', index, items), <>
-          {field('عنوان', item.title || '', value => updateItem('items', index, { title: value }, items), 'عنوان بازشونده', true)}
-          {textarea('توضیح', item.description || '', value => updateItem('items', index, { description: value }, items))}
-        </>, mediaSlot('تصویر', item.image || '', value => updateItem('items', index, { image: value }, items))))}
-        {addButton('افزودن بخش', () => addItem('items', { title: '', description: '', image: '' }, items))}
+        {items.map((item: any, index: number) => itemCard('Ø¨Ø®Ø´', index, () => removeItem('items', index, items), <>
+          {field('Ø¹Ù†ÙˆØ§Ù†', item.title || '', value => updateItem('items', index, { title: value }, items), 'Ø¹Ù†ÙˆØ§Ù† Ø¨Ø§Ø²Ø´ÙˆÙ†Ø¯Ù‡', true)}
+          {textarea('ØªÙˆØ¶ÛŒØ­', item.description || '', value => updateItem('items', index, { description: value }, items))}
+        </>, mediaSlot('ØªØµÙˆÛŒØ±', item.image || '', value => updateItem('items', index, { image: value }, items))))}
+        {addButton('Ø§ÙØ²ÙˆØ¯Ù† Ø¨Ø®Ø´', () => addItem('items', { title: '', description: '', image: '' }, items))}
       </>}
       {kind === 'tabs' && <>
-        {tabs.map((tab: any, index: number) => itemCard('تب', index, () => removeItem('tabs', index, tabs), <>
-          {field('عنوان تب', tab.title || '', value => updateItem('tabs', index, { title: value }, tabs), 'عنوان تب', true)}
-          {textarea('محتوا', tab.description || '', value => updateItem('tabs', index, { description: value }, tabs))}
-        </>, mediaSlot('تصویر', tab.image || '', value => updateItem('tabs', index, { image: value }, tabs))))}
-        {addButton('افزودن تب', () => addItem('tabs', { title: '', description: '', image: '' }, tabs))}
+        {tabs.map((tab: any, index: number) => itemCard('ØªØ¨', index, () => removeItem('tabs', index, tabs), <>
+          {field('Ø¹Ù†ÙˆØ§Ù† ØªØ¨', tab.title || '', value => updateItem('tabs', index, { title: value }, tabs), 'Ø¹Ù†ÙˆØ§Ù† ØªØ¨', true)}
+          {textarea('Ù…Ø­ØªÙˆØ§', tab.description || '', value => updateItem('tabs', index, { description: value }, tabs))}
+        </>, mediaSlot('ØªØµÙˆÛŒØ±', tab.image || '', value => updateItem('tabs', index, { image: value }, tabs))))}
+        {addButton('Ø§ÙØ²ÙˆØ¯Ù† ØªØ¨', () => addItem('tabs', { title: '', description: '', image: '' }, tabs))}
       </>}
       {kind === 'timeline' && <>
-        {events.map((eventItem: any, index: number) => itemCard('رویداد', index, () => removeItem('events', index, events), <>
-          {field('زمان', eventItem.year || '', value => updateItem('events', index, { year: value }, events), 'سال یا مرحله')}
-          {field('عنوان', eventItem.title || '', value => updateItem('events', index, { title: value }, events), 'عنوان رویداد')}
-          {textarea('توضیح', eventItem.description || '', value => updateItem('events', index, { description: value }, events))}
-        </>, mediaSlot('تصویر', eventItem.image || '', value => updateItem('events', index, { image: value }, events))))}
-        {addButton('افزودن رویداد', () => addItem('events', { year: '', title: '', description: '', image: '' }, events))}
+        {events.map((eventItem: any, index: number) => itemCard('Ø±ÙˆÛŒØ¯Ø§Ø¯', index, () => removeItem('events', index, events), <>
+          {field('Ø²Ù…Ø§Ù†', eventItem.year || '', value => updateItem('events', index, { year: value }, events), 'Ø³Ø§Ù„ ÛŒØ§ Ù…Ø±Ø­Ù„Ù‡')}
+          {field('Ø¹Ù†ÙˆØ§Ù†', eventItem.title || '', value => updateItem('events', index, { title: value }, events), 'Ø¹Ù†ÙˆØ§Ù† Ø±ÙˆÛŒØ¯Ø§Ø¯')}
+          {textarea('ØªÙˆØ¶ÛŒØ­', eventItem.description || '', value => updateItem('events', index, { description: value }, events))}
+        </>, mediaSlot('ØªØµÙˆÛŒØ±', eventItem.image || '', value => updateItem('events', index, { image: value }, events))))}
+        {addButton('Ø§ÙØ²ÙˆØ¯Ù† Ø±ÙˆÛŒØ¯Ø§Ø¯', () => addItem('events', { year: '', title: '', description: '', image: '' }, events))}
       </>}
       {(kind === 'steps' || kind === 'algorithm' || kind === 'scrollytelling') && <>
-        {steps.map((step: any, index: number) => itemCard('گام', index, () => removeItem('steps', index, steps), <>
-          {field('عنوان', step.title || step.text || '', value => updateItem('steps', index, { title: value, text: value }, steps), 'عنوان گام', true)}
-          {textarea('توضیح', step.description || '', value => updateItem('steps', index, { description: value }, steps))}
-        </>, mediaSlot('تصویر', step.image || '', value => updateItem('steps', index, { image: value }, steps))))}
-        {addButton('افزودن گام', () => addItem('steps', { title: '', description: '', image: '' }, steps))}
+        {steps.map((step: any, index: number) => itemCard('Ú¯Ø§Ù…', index, () => removeItem('steps', index, steps), <>
+          {field('Ø¹Ù†ÙˆØ§Ù†', step.title || step.text || '', value => updateItem('steps', index, { title: value, text: value }, steps), 'Ø¹Ù†ÙˆØ§Ù† Ú¯Ø§Ù…', true)}
+          {textarea('ØªÙˆØ¶ÛŒØ­', step.description || '', value => updateItem('steps', index, { description: value }, steps))}
+        </>, mediaSlot('ØªØµÙˆÛŒØ±', step.image || '', value => updateItem('steps', index, { image: value }, steps))))}
+        {addButton('Ø§ÙØ²ÙˆØ¯Ù† Ú¯Ø§Ù…', () => addItem('steps', { title: '', description: '', image: '' }, steps))}
       </>}
       {kind === 'gallery' && <>
-        {field('عنوان گالری', data.title || '', value => updatePayload({ title: value }), 'عنوان', true)}
+        {field('Ø¹Ù†ÙˆØ§Ù† Ú¯Ø§Ù„Ø±ÛŒ', data.title || '', value => updatePayload({ title: value }), 'Ø¹Ù†ÙˆØ§Ù†', true)}
         <div className="interactive-gallery-grid">
           {images.map((image: any, index: number) => (
             <section key={index} className="interactive-gallery-item">
-              <button type="button" onClick={() => removeItem('images', index, images)}>×</button>
-              {mediaSlot('افزودن', image.url || '', value => updateItem('images', index, { url: value }, images))}
-              {field('کپشن', image.caption || '', value => updateItem('images', index, { caption: value }, images), 'کپشن تصویر', true)}
+              <button type="button" onClick={() => removeItem('images', index, images)}>Ã—</button>
+              {mediaSlot('Ø§ÙØ²ÙˆØ¯Ù†', image.url || '', value => updateItem('images', index, { url: value }, images))}
+              {field('Ú©Ù¾Ø´Ù†', image.caption || '', value => updateItem('images', index, { caption: value }, images), 'Ú©Ù¾Ø´Ù† ØªØµÙˆÛŒØ±', true)}
             </section>
           ))}
         </div>
-        {addButton('افزودن تصویر', () => addItem('images', { url: '', caption: '' }, images))}
+        {addButton('Ø§ÙØ²ÙˆØ¯Ù† ØªØµÙˆÛŒØ±', () => addItem('images', { url: '', caption: '' }, images))}
       </>}
       {kind === 'hotspot' && <>
-        {mediaSlot('تصویر اصلی', data.image || '', value => updatePayload({ image: value }))}
-        {points.map((point: any, index: number) => itemCard('نقطه', index, () => removeItem('points', index, points), <>
-          {field('عنوان', point.title || '', value => updateItem('points', index, { title: value }, points), 'عنوان نقطه')}
-          {textarea('متن', point.text || '', value => updateItem('points', index, { text: value }, points))}
+        {mediaSlot('ØªØµÙˆÛŒØ± Ø§ØµÙ„ÛŒ', data.image || '', value => updatePayload({ image: value }))}
+        {points.map((point: any, index: number) => itemCard('Ù†Ù‚Ø·Ù‡', index, () => removeItem('points', index, points), <>
+          {field('Ø¹Ù†ÙˆØ§Ù†', point.title || '', value => updateItem('points', index, { title: value }, points), 'Ø¹Ù†ÙˆØ§Ù† Ù†Ù‚Ø·Ù‡')}
+          {textarea('Ù…ØªÙ†', point.text || '', value => updateItem('points', index, { text: value }, points))}
           <div className="interactive-coordinates">
             {field('X', String(point.x ?? 50), value => updateItem('points', index, { x: Number(value || 50) }, points))}
             {field('Y', String(point.y ?? 50), value => updateItem('points', index, { y: Number(value || 50) }, points))}
           </div>
         </>))}
-        {addButton('افزودن نقطه', () => addItem('points', { title: '', text: '', x: 50, y: 50 }, points))}
+        {addButton('Ø§ÙØ²ÙˆØ¯Ù† Ù†Ù‚Ø·Ù‡', () => addItem('points', { title: '', text: '', x: 50, y: 50 }, points))}
       </>}
       {kind === 'author' && <>
-        {field('عنوان بخش', data.title || 'نویسندگان فصل', value => updatePayload({ title: value }), 'مثلا: نویسندگان این فصل', true)}
-        {authors.map((author: any, index: number) => itemCard('نویسنده', index, () => removeItem('authors', index, authors), <>
-          {field('نام نویسنده', author.name || '', value => updateItem('authors', index, { name: value }, authors), 'نام نویسنده')}
-          {field('سمت / تخصص', author.role || '', value => updateItem('authors', index, { role: value }, authors), 'اختیاری')}
-          {textarea('معرفی کوتاه', author.bio || '', value => updateItem('authors', index, { bio: value }, authors))}
-        </>, mediaSlot('تصویر', author.image || '', value => updateItem('authors', index, { image: value }, authors))))}
-        {addButton('افزودن نویسنده', () => addItem('authors', { name: '', role: '', bio: '', image: '' }, authors))}
-      </>}
-    </NodeViewWrapper>
-  )
-  const multiline = (label: string, value: string, onChange: (value: string) => void, hint?: string) => (
-    <label>
-      <span>{label}</span>
-      <textarea value={value} placeholder={hint} onChange={event => onChange(event.target.value)} />
-    </label>
-  )
-  return (
-    <NodeViewWrapper as="section" className={`editor-interactive-card interactive-${kind}`} data-interactive-kind={kind} contentEditable={false}>
-      <header>
-        <strong>{interactiveLabel(kind)}</strong>
-        <small>برای ویرایش، همین فیلدها را تغییر بدهید.</small>
-      </header>
-      {kind === 'quiz' && <>
-        <label><span>سؤال</span><input value={data.question || ''} onChange={event => updatePayload({ question: event.target.value })} /></label>
-        {multiline('گزینه‌ها', (data.options || []).join('\n'), value => updatePayload({ options: value.split(/\r?\n/).map(item => item.trim()).filter(Boolean) }), 'هر گزینه در یک خط')}
-        <label><span>شماره گزینه صحیح</span><input type="number" min="1" value={Number(data.correct ?? data.correctIndex ?? 0) + 1} onChange={event => updatePayload({ correct: Math.max(0, Number(event.target.value || 1) - 1) })} /></label>
-      </>}
-      {kind === 'truefalse' && <>
-        <label><span>گزاره</span><input value={data.statement || ''} onChange={event => updatePayload({ statement: event.target.value })} /></label>
-        <label><span>پاسخ درست</span><select value={String(Boolean(data.correct))} onChange={event => updatePayload({ correct: event.target.value === 'true' })}><option value="true">صحیح</option><option value="false">غلط</option></select></label>
-        <label><span>توضیح</span><textarea value={data.explanation || ''} onChange={event => updatePayload({ explanation: event.target.value })} /></label>
-      </>}
-      {kind === 'flashcard' && multiline('کارت‌ها', linesFromItems(data.cards, ['front', 'back']), value => updatePayload({ cards: itemsFromLines(value, ['front', 'back']) }), 'روی کارت | پشت کارت')}
-      {kind === 'accordion' && multiline('آیتم‌ها', linesFromItems(data.items, ['title', 'description']), value => updatePayload({ items: itemsFromLines(value, ['title', 'description']) }), 'عنوان | متن بازشونده')}
-      {kind === 'tabs' && multiline('تب‌ها', linesFromItems(data.tabs, ['title', 'description']), value => updatePayload({ tabs: itemsFromLines(value, ['title', 'description']) }), 'عنوان تب | محتوای تب')}
-      {kind === 'timeline' && multiline('رویدادها', linesFromItems(data.events, ['year', 'title', 'description']), value => updatePayload({ events: itemsFromLines(value, ['year', 'title', 'description']) }), 'زمان | عنوان | توضیح')}
-      {(kind === 'steps' || kind === 'algorithm') && multiline('مرحله‌ها', linesFromItems(data.steps, ['title', 'description']), value => updatePayload({ steps: itemsFromLines(value, ['title', 'description']) }), 'عنوان | توضیح')}
-      {kind === 'scrollytelling' && multiline('روایت‌ها', linesFromItems(data.steps, ['text', 'description', 'image']), value => updatePayload({ steps: itemsFromLines(value, ['text', 'description', 'image']) }), 'متن | توضیح | آدرس تصویر')}
-      {kind === 'gallery' && multiline('تصاویر', linesFromItems(data.images, ['url', 'caption']), value => updatePayload({ images: itemsFromLines(value, ['url', 'caption']) }), 'آدرس تصویر | کپشن')}
-      {kind === 'hotspot' && <>
-        <label><span>تصویر</span><input value={data.image || ''} onChange={event => updatePayload({ image: event.target.value })} /></label>
-        {multiline('نقاط', linesFromItems(data.points, ['title', 'text', 'x', 'y']), value => updatePayload({ points: itemsFromLines(value, ['title', 'text', 'x', 'y']).map(item => ({ ...item, x: Number(item.x || 50), y: Number(item.y || 50) })) }), 'عنوان | توضیح | x | y')}
-      </>}
-      {kind === 'author' && <>
-        <label><span>نام</span><input value={data.name || ''} onChange={event => updatePayload({ name: event.target.value })} /></label>
-        <label><span>نقش</span><input value={data.role || ''} onChange={event => updatePayload({ role: event.target.value })} /></label>
-        <label><span>معرفی</span><textarea value={data.bio || ''} onChange={event => updatePayload({ bio: event.target.value })} /></label>
-        <label><span>تصویر</span><input value={data.image || ''} onChange={event => updatePayload({ image: event.target.value })} /></label>
+        {field('Ø¹Ù†ÙˆØ§Ù† Ø¨Ø®Ø´', data.title || 'Ù†ÙˆÛŒØ³Ù†Ø¯Ú¯Ø§Ù† ÙØµÙ„', value => updatePayload({ title: value }), 'Ù…Ø«Ù„Ø§: Ù†ÙˆÛŒØ³Ù†Ø¯Ú¯Ø§Ù† Ø§ÛŒÙ† ÙØµÙ„', true)}
+        {authors.map((author: any, index: number) => itemCard('Ù†ÙˆÛŒØ³Ù†Ø¯Ù‡', index, () => removeItem('authors', index, authors), <>
+          {field('Ù†Ø§Ù… Ù†ÙˆÛŒØ³Ù†Ø¯Ù‡', author.name || '', value => updateItem('authors', index, { name: value }, authors), 'Ù†Ø§Ù… Ù†ÙˆÛŒØ³Ù†Ø¯Ù‡')}
+          {field('Ø³Ù…Øª / ØªØ®ØµØµ', author.role || '', value => updateItem('authors', index, { role: value }, authors), 'Ø§Ø®ØªÛŒØ§Ø±ÛŒ')}
+          {textarea('Ù…Ø¹Ø±ÙÛŒ Ú©ÙˆØªØ§Ù‡', author.bio || '', value => updateItem('authors', index, { bio: value }, authors))}
+        </>, mediaSlot('ØªØµÙˆÛŒØ±', author.image || '', value => updateItem('authors', index, { image: value }, authors))))}
+        {addButton('Ø§ÙØ²ÙˆØ¯Ù† Ù†ÙˆÛŒØ³Ù†Ø¯Ù‡', () => addItem('authors', { name: '', role: '', bio: '', image: '' }, authors))}
       </>}
     </NodeViewWrapper>
   )
@@ -355,7 +314,7 @@ const InteractiveBlock = Node.create({
   },
   renderHTML({ HTMLAttributes }) {
     const data = decodePayload(HTMLAttributes.payload)
-    return ['section', mergeAttributes(HTMLAttributes, { class: 'editor-interactive-block', 'data-interactive-kind': HTMLAttributes.kind }), ['strong', `بخش تعاملی: ${interactiveLabel(HTMLAttributes.kind)}`], ...interactivePreview(HTMLAttributes.kind, data)]
+    return ['section', mergeAttributes(HTMLAttributes, { class: 'editor-interactive-block', 'data-interactive-kind': HTMLAttributes.kind }), ['strong', `Ø¨Ø®Ø´ ØªØ¹Ø§Ù…Ù„ÛŒ: ${interactiveLabel(HTMLAttributes.kind)}`], ...interactivePreview(HTMLAttributes.kind, data)]
   },
 })
 
@@ -382,11 +341,11 @@ function CalloutNodeView({ node, updateAttributes, editor, getPos }: any) {
         <span className="book-callout-icon">{icon}</span>
         <input
           value={title}
-          aria-label="عنوان کال‌اوت"
+          aria-label="Ø¹Ù†ÙˆØ§Ù† Ú©Ø§Ù„â€ŒØ§ÙˆØª"
           onChange={event => updateAttributes({ title: event.target.value })}
           onBlur={event => updateAttributes({ title: event.target.value.trim() || preset.label })}
         />
-        <button type="button" className="book-callout-unwrap" title="حذف قاب کال‌اوت و نگه داشتن متن" onClick={unwrapCallout}>×</button>
+        <button type="button" className="book-callout-unwrap" title="Ø­Ø°Ù Ù‚Ø§Ø¨ Ú©Ø§Ù„â€ŒØ§ÙˆØª Ùˆ Ù†Ú¯Ù‡ Ø¯Ø§Ø´ØªÙ† Ù…ØªÙ†" onClick={unwrapCallout}>Ã—</button>
       </div>
       <NodeViewContent className="book-callout-content" />
     </NodeViewWrapper>
@@ -401,8 +360,8 @@ const CalloutBlock = Node.create({
   addAttributes() {
     return {
       variant: { default: 'key', parseHTML: element => element.getAttribute('data-callout-variant') || 'key', renderHTML: attrs => ({ 'data-callout-variant': attrs.variant || 'key' }) },
-      title: { default: 'نکته کلیدی', parseHTML: element => element.getAttribute('data-callout-title') || 'نکته کلیدی', renderHTML: attrs => ({ 'data-callout-title': attrs.title || 'نکته کلیدی' }) },
-      icon: { default: '💡', parseHTML: element => element.getAttribute('data-callout-icon') || '💡', renderHTML: attrs => ({ 'data-callout-icon': attrs.icon || '💡' }) },
+      title: { default: 'Ù†Ú©ØªÙ‡ Ú©Ù„ÛŒØ¯ÛŒ', parseHTML: element => element.getAttribute('data-callout-title') || 'Ù†Ú©ØªÙ‡ Ú©Ù„ÛŒØ¯ÛŒ', renderHTML: attrs => ({ 'data-callout-title': attrs.title || 'Ù†Ú©ØªÙ‡ Ú©Ù„ÛŒØ¯ÛŒ' }) },
+      icon: { default: 'ðŸ’¡', parseHTML: element => element.getAttribute('data-callout-icon') || 'ðŸ’¡', renderHTML: attrs => ({ 'data-callout-icon': attrs.icon || 'ðŸ’¡' }) },
     }
   },
   parseHTML() {
@@ -433,37 +392,37 @@ const ResizableImage = Image.extend({
 })
 
 const LEGACY_INTERACTIVE_TYPES = [
-  ['flashcard', 'فلش‌کارت'], ['steps', 'مرحله‌سازی'], ['gallery', 'گالری عکس'], ['scrollytelling', 'استوری‌تلینگ'],
-  ['quiz', 'کوییز ساده'], ['timeline', 'تایم‌لاین'], ['hotspot', 'هات‌اسپات تعاملی'],
+  ['flashcard', 'ÙÙ„Ø´â€ŒÚ©Ø§Ø±Øª'], ['steps', 'Ù…Ø±Ø­Ù„Ù‡â€ŒØ³Ø§Ø²ÛŒ'], ['gallery', 'Ú¯Ø§Ù„Ø±ÛŒ Ø¹Ú©Ø³'], ['scrollytelling', 'Ø§Ø³ØªÙˆØ±ÛŒâ€ŒØªÙ„ÛŒÙ†Ú¯'],
+  ['quiz', 'Ú©ÙˆÛŒÛŒØ² Ø³Ø§Ø¯Ù‡'], ['timeline', 'ØªØ§ÛŒÙ…â€ŒÙ„Ø§ÛŒÙ†'], ['hotspot', 'Ù‡Ø§Øªâ€ŒØ§Ø³Ù¾Ø§Øª ØªØ¹Ø§Ù…Ù„ÛŒ'],
 ] as const
 const INTERACTIVE_TYPES = [
-  ['quiz', 'Quiz چندگزینه‌ای'],
-  ['truefalse', 'صحیح/غلط'],
-  ['flashcard', 'فلش‌کارت'],
-  ['accordion', 'آکاردئون'],
-  ['tabs', 'تب‌ها'],
-  ['timeline', 'تایم‌لاین'],
-  ['gallery', 'گالری تصویر'],
-  ['scrollytelling', 'استوری‌تلینگ چندمرحله‌ای'],
-  ['algorithm', 'الگوریتم تعاملی'],
-  ['author', 'معرفی نویسنده مطلب'],
-  ['steps', 'مرحله‌سازی'],
-  ['hotspot', 'هات‌اسپات تعاملی'],
+  ['quiz', 'Quiz Ú†Ù†Ø¯Ú¯Ø²ÛŒÙ†Ù‡â€ŒØ§ÛŒ'],
+  ['truefalse', 'ØµØ­ÛŒØ­/ØºÙ„Ø·'],
+  ['flashcard', 'ÙÙ„Ø´â€ŒÚ©Ø§Ø±Øª'],
+  ['accordion', 'Ø¢Ú©Ø§Ø±Ø¯Ø¦ÙˆÙ†'],
+  ['tabs', 'ØªØ¨â€ŒÙ‡Ø§'],
+  ['timeline', 'ØªØ§ÛŒÙ…â€ŒÙ„Ø§ÛŒÙ†'],
+  ['gallery', 'Ú¯Ø§Ù„Ø±ÛŒ ØªØµÙˆÛŒØ±'],
+  ['scrollytelling', 'Ø§Ø³ØªÙˆØ±ÛŒâ€ŒØªÙ„ÛŒÙ†Ú¯ Ú†Ù†Ø¯Ù…Ø±Ø­Ù„Ù‡â€ŒØ§ÛŒ'],
+  ['algorithm', 'Ø§Ù„Ú¯ÙˆØ±ÛŒØªÙ… ØªØ¹Ø§Ù…Ù„ÛŒ'],
+  ['author', 'Ù…Ø¹Ø±ÙÛŒ Ù†ÙˆÛŒØ³Ù†Ø¯Ù‡ Ù…Ø·Ù„Ø¨'],
+  ['steps', 'Ù…Ø±Ø­Ù„Ù‡â€ŒØ³Ø§Ø²ÛŒ'],
+  ['hotspot', 'Ù‡Ø§Øªâ€ŒØ§Ø³Ù¾Ø§Øª ØªØ¹Ø§Ù…Ù„ÛŒ'],
 ] as const
 const interactiveKinds = new Set<string>(INTERACTIVE_TYPES.map(item => item[0]))
 void LEGACY_INTERACTIVE_TYPES
 
 const CALLOUT_PRESETS = [
-  { value: 'key', label: 'نکته کلیدی', group: 'کال‌اوت آموزشی', icon: Lightbulb, emoji: '💡', className: 'callout-key', description: 'خلاصه مهم‌ترین نکته متن' },
-  { value: 'question', label: 'مکث و فکر کن', group: 'کال‌اوت آموزشی', icon: Info, emoji: '❔', className: 'callout-question', description: 'سؤال کوتاه برای درگیر کردن خواننده' },
-  { value: 'warning', label: 'اشتباه رایج', group: 'کال‌اوت آموزشی', icon: AlertTriangle, emoji: '⚠️', className: 'callout-warning', description: 'هشدار یا اصلاح برداشت اشتباه' },
-  { value: 'quote', label: 'جمله طلایی', group: 'کال‌اوت ادبی و مرجع', icon: Quote, emoji: '❝', className: 'callout-quote', description: 'نقل‌قول یا جمله مهم و ماندگار' },
-  { value: 'deep', label: 'عمیق‌تر بخوان', group: 'کال‌اوت ادبی و مرجع', icon: BookOpen, emoji: '🔍', className: 'callout-deep', description: 'محتوای تکمیلی یا توضیح پیشرفته' },
-  { value: 'practice', label: 'تمرین سریع', group: 'کال‌اوت کاربردی', icon: Bookmark, emoji: '✅', className: 'callout-practice', description: 'تمرین یا فعالیت کوتاه داخل کتاب' },
-  { value: 'glossary', label: 'تعریف واژه', group: 'کال‌اوت کاربردی', icon: FileText, emoji: '📘', className: 'callout-glossary', description: 'تعریف یک اصطلاح یا مفهوم' },
-  { value: 'data', label: 'داده و منبع', group: 'کال‌اوت کاربردی', icon: FileText, emoji: '📊', className: 'callout-data', description: 'نمایش آمار، عدد، منبع یا رفرنس' },
-  { value: 'margin', label: 'یادداشت حاشیه‌ای', group: 'کال‌اوت کاربردی', icon: Feather, emoji: '📝', className: 'callout-margin', description: 'توضیح کوتاه در حاشیه یا کنار متن' },
-  { value: 'normal', label: 'متن عادی', group: 'بازنشانی', icon: Pilcrow, emoji: '', className: 'editor-normal', description: 'بازگشت به متن ساده' },
+  { value: 'key', label: 'Ù†Ú©ØªÙ‡ Ú©Ù„ÛŒØ¯ÛŒ', group: 'Ú©Ø§Ù„â€ŒØ§ÙˆØª Ø¢Ù…ÙˆØ²Ø´ÛŒ', icon: Lightbulb, emoji: 'ðŸ’¡', className: 'callout-key', description: 'Ø®Ù„Ø§ØµÙ‡ Ù…Ù‡Ù…â€ŒØªØ±ÛŒÙ† Ù†Ú©ØªÙ‡ Ù…ØªÙ†' },
+  { value: 'question', label: 'Ù…Ú©Ø« Ùˆ ÙÚ©Ø± Ú©Ù†', group: 'Ú©Ø§Ù„â€ŒØ§ÙˆØª Ø¢Ù…ÙˆØ²Ø´ÛŒ', icon: Info, emoji: 'â”', className: 'callout-question', description: 'Ø³Ø¤Ø§Ù„ Ú©ÙˆØªØ§Ù‡ Ø¨Ø±Ø§ÛŒ Ø¯Ø±Ú¯ÛŒØ± Ú©Ø±Ø¯Ù† Ø®ÙˆØ§Ù†Ù†Ø¯Ù‡' },
+  { value: 'warning', label: 'Ø§Ø´ØªØ¨Ø§Ù‡ Ø±Ø§ÛŒØ¬', group: 'Ú©Ø§Ù„â€ŒØ§ÙˆØª Ø¢Ù…ÙˆØ²Ø´ÛŒ', icon: AlertTriangle, emoji: 'âš ï¸', className: 'callout-warning', description: 'Ù‡Ø´Ø¯Ø§Ø± ÛŒØ§ Ø§ØµÙ„Ø§Ø­ Ø¨Ø±Ø¯Ø§Ø´Øª Ø§Ø´ØªØ¨Ø§Ù‡' },
+  { value: 'quote', label: 'Ø¬Ù…Ù„Ù‡ Ø·Ù„Ø§ÛŒÛŒ', group: 'Ú©Ø§Ù„â€ŒØ§ÙˆØª Ø§Ø¯Ø¨ÛŒ Ùˆ Ù…Ø±Ø¬Ø¹', icon: Quote, emoji: 'â', className: 'callout-quote', description: 'Ù†Ù‚Ù„â€ŒÙ‚ÙˆÙ„ ÛŒØ§ Ø¬Ù…Ù„Ù‡ Ù…Ù‡Ù… Ùˆ Ù…Ø§Ù†Ø¯Ú¯Ø§Ø±' },
+  { value: 'deep', label: 'Ø¹Ù…ÛŒÙ‚â€ŒØªØ± Ø¨Ø®ÙˆØ§Ù†', group: 'Ú©Ø§Ù„â€ŒØ§ÙˆØª Ø§Ø¯Ø¨ÛŒ Ùˆ Ù…Ø±Ø¬Ø¹', icon: BookOpen, emoji: 'ðŸ”', className: 'callout-deep', description: 'Ù…Ø­ØªÙˆØ§ÛŒ ØªÚ©Ù…ÛŒÙ„ÛŒ ÛŒØ§ ØªÙˆØ¶ÛŒØ­ Ù¾ÛŒØ´Ø±ÙØªÙ‡' },
+  { value: 'practice', label: 'ØªÙ…Ø±ÛŒÙ† Ø³Ø±ÛŒØ¹', group: 'Ú©Ø§Ù„â€ŒØ§ÙˆØª Ú©Ø§Ø±Ø¨Ø±Ø¯ÛŒ', icon: Bookmark, emoji: 'âœ…', className: 'callout-practice', description: 'ØªÙ…Ø±ÛŒÙ† ÛŒØ§ ÙØ¹Ø§Ù„ÛŒØª Ú©ÙˆØªØ§Ù‡ Ø¯Ø§Ø®Ù„ Ú©ØªØ§Ø¨' },
+  { value: 'glossary', label: 'ØªØ¹Ø±ÛŒÙ ÙˆØ§Ú˜Ù‡', group: 'Ú©Ø§Ù„â€ŒØ§ÙˆØª Ú©Ø§Ø±Ø¨Ø±Ø¯ÛŒ', icon: FileText, emoji: 'ðŸ“˜', className: 'callout-glossary', description: 'ØªØ¹Ø±ÛŒÙ ÛŒÚ© Ø§ØµØ·Ù„Ø§Ø­ ÛŒØ§ Ù…ÙÙ‡ÙˆÙ…' },
+  { value: 'data', label: 'Ø¯Ø§Ø¯Ù‡ Ùˆ Ù…Ù†Ø¨Ø¹', group: 'Ú©Ø§Ù„â€ŒØ§ÙˆØª Ú©Ø§Ø±Ø¨Ø±Ø¯ÛŒ', icon: FileText, emoji: 'ðŸ“Š', className: 'callout-data', description: 'Ù†Ù…Ø§ÛŒØ´ Ø¢Ù…Ø§Ø±ØŒ Ø¹Ø¯Ø¯ØŒ Ù…Ù†Ø¨Ø¹ ÛŒØ§ Ø±ÙØ±Ù†Ø³' },
+  { value: 'margin', label: 'ÛŒØ§Ø¯Ø¯Ø§Ø´Øª Ø­Ø§Ø´ÛŒÙ‡â€ŒØ§ÛŒ', group: 'Ú©Ø§Ù„â€ŒØ§ÙˆØª Ú©Ø§Ø±Ø¨Ø±Ø¯ÛŒ', icon: Feather, emoji: 'ðŸ“', className: 'callout-margin', description: 'ØªÙˆØ¶ÛŒØ­ Ú©ÙˆØªØ§Ù‡ Ø¯Ø± Ø­Ø§Ø´ÛŒÙ‡ ÛŒØ§ Ú©Ù†Ø§Ø± Ù…ØªÙ†' },
+  { value: 'normal', label: 'Ù…ØªÙ† Ø¹Ø§Ø¯ÛŒ', group: 'Ø¨Ø§Ø²Ù†Ø´Ø§Ù†ÛŒ', icon: Pilcrow, emoji: '', className: 'editor-normal', description: 'Ø¨Ø§Ø²Ú¯Ø´Øª Ø¨Ù‡ Ù…ØªÙ† Ø³Ø§Ø¯Ù‡' },
 ] as const
 const calloutPreset = (variant = 'key') => CALLOUT_PRESETS.find(item => item.value === variant) || CALLOUT_PRESETS[0]
 function interactiveLabel(kind: string) { return INTERACTIVE_TYPES.find(item => item[0] === kind)?.[1] || kind }
@@ -475,35 +434,35 @@ function compactAiContent(content?: AiStructuredContent | null) {
   return [content.title, content.lead, ...content.sections.flatMap((section: { heading: string; paragraphs: string[]; bullets?: string[] }) => [section.heading, ...section.paragraphs, ...(section.bullets || []).map((item: string) => `- ${item}`)])].filter(Boolean).join('\n')
 }
 function interactiveTemplate(kind: string) {
-  if (kind === 'quiz') return { type: kind, question: 'سؤال را اینجا بنویسید', options: ['گزینه صحیح', 'گزینه دوم', 'گزینه سوم', 'گزینه چهارم'], correct: 0 }
-  if (kind === 'truefalse') return { type: kind, statement: 'گزاره را اینجا بنویسید', correct: true, explanation: 'توضیح پاسخ' }
-  if (kind === 'accordion') return { type: kind, title: 'آکاردئون', items: [{ title: 'عنوان بخش', description: 'متن بازشونده این بخش' }] }
-  if (kind === 'tabs') return { type: kind, title: 'تب‌ها', tabs: [{ title: 'تب اول', description: 'محتوای تب اول' }, { title: 'تب دوم', description: 'محتوای تب دوم' }] }
-  if (kind === 'algorithm') return { type: kind, title: 'الگوریتم تعاملی', steps: [{ title: 'اگر...', description: 'شرط یا تصمیم اول' }, { title: 'آنگاه...', description: 'نتیجه یا مسیر بعدی' }] }
-  if (kind === 'author') return { type: kind, title: 'نویسندگان فصل', authors: [{ name: 'نام نویسنده', role: 'نقش یا تخصص', bio: 'معرفی کوتاه نویسنده', image: '' }] }
-  if (kind === 'quiz') return { type: kind, question: 'سؤال را اینجا بنویسید', options: ['گزینه صحیح', 'گزینه دوم', 'گزینه سوم'], correct: 0 }
-  if (kind === 'timeline') return { type: kind, events: [{ year: 'مرحله ۱', title: 'شروع', description: 'توضیح مرحله نخست' }, { year: 'مرحله ۲', title: 'ادامه', description: 'توضیح مرحله دوم' }] }
-  if (kind === 'scrollytelling') return { type: kind, steps: [{ image: '', text: 'بخش نخست روایت' }, { image: '', text: 'بخش دوم روایت' }] }
-  if (kind === 'hotspot') return { type: kind, image: '', caption: 'تصویر هات‌اسپات', points: [{ x: 50, y: 50, title: 'نقطه ۱', text: 'توضیح این نقطه' }] }
-  if (kind === 'flashcard') return { type: kind, cards: [{ front: 'روی کارت', back: 'پشت کارت' }] }
-  if (kind === 'gallery') return { type: kind, images: [{ url: '', caption: 'تصویر گالری' }] }
-  return { type: kind, title: 'فرآیند مرحله‌ای', steps: [{ title: 'مرحله ۱', description: 'توضیح مرحله نخست', image: '' }, { title: 'مرحله ۲', description: 'توضیح مرحله دوم', image: '' }] }
+  if (kind === 'quiz') return { type: kind, question: 'Ø³Ø¤Ø§Ù„ Ø±Ø§ Ø§ÛŒÙ†Ø¬Ø§ Ø¨Ù†ÙˆÛŒØ³ÛŒØ¯', options: ['Ú¯Ø²ÛŒÙ†Ù‡ ØµØ­ÛŒØ­', 'Ú¯Ø²ÛŒÙ†Ù‡ Ø¯ÙˆÙ…', 'Ú¯Ø²ÛŒÙ†Ù‡ Ø³ÙˆÙ…', 'Ú¯Ø²ÛŒÙ†Ù‡ Ú†Ù‡Ø§Ø±Ù…'], correct: 0 }
+  if (kind === 'truefalse') return { type: kind, statement: 'Ú¯Ø²Ø§Ø±Ù‡ Ø±Ø§ Ø§ÛŒÙ†Ø¬Ø§ Ø¨Ù†ÙˆÛŒØ³ÛŒØ¯', correct: true, explanation: 'ØªÙˆØ¶ÛŒØ­ Ù¾Ø§Ø³Ø®' }
+  if (kind === 'accordion') return { type: kind, title: 'Ø¢Ú©Ø§Ø±Ø¯Ø¦ÙˆÙ†', items: [{ title: 'Ø¹Ù†ÙˆØ§Ù† Ø¨Ø®Ø´', description: 'Ù…ØªÙ† Ø¨Ø§Ø²Ø´ÙˆÙ†Ø¯Ù‡ Ø§ÛŒÙ† Ø¨Ø®Ø´' }] }
+  if (kind === 'tabs') return { type: kind, title: 'ØªØ¨â€ŒÙ‡Ø§', tabs: [{ title: 'ØªØ¨ Ø§ÙˆÙ„', description: 'Ù…Ø­ØªÙˆØ§ÛŒ ØªØ¨ Ø§ÙˆÙ„' }, { title: 'ØªØ¨ Ø¯ÙˆÙ…', description: 'Ù…Ø­ØªÙˆØ§ÛŒ ØªØ¨ Ø¯ÙˆÙ…' }] }
+  if (kind === 'algorithm') return { type: kind, title: 'Ø§Ù„Ú¯ÙˆØ±ÛŒØªÙ… ØªØ¹Ø§Ù…Ù„ÛŒ', steps: [{ title: 'Ø§Ú¯Ø±...', description: 'Ø´Ø±Ø· ÛŒØ§ ØªØµÙ…ÛŒÙ… Ø§ÙˆÙ„' }, { title: 'Ø¢Ù†Ú¯Ø§Ù‡...', description: 'Ù†ØªÛŒØ¬Ù‡ ÛŒØ§ Ù…Ø³ÛŒØ± Ø¨Ø¹Ø¯ÛŒ' }] }
+  if (kind === 'author') return { type: kind, title: 'Ù†ÙˆÛŒØ³Ù†Ø¯Ú¯Ø§Ù† ÙØµÙ„', authors: [{ name: 'Ù†Ø§Ù… Ù†ÙˆÛŒØ³Ù†Ø¯Ù‡', role: 'Ù†Ù‚Ø´ ÛŒØ§ ØªØ®ØµØµ', bio: 'Ù…Ø¹Ø±ÙÛŒ Ú©ÙˆØªØ§Ù‡ Ù†ÙˆÛŒØ³Ù†Ø¯Ù‡', image: '' }] }
+  if (kind === 'quiz') return { type: kind, question: 'Ø³Ø¤Ø§Ù„ Ø±Ø§ Ø§ÛŒÙ†Ø¬Ø§ Ø¨Ù†ÙˆÛŒØ³ÛŒØ¯', options: ['Ú¯Ø²ÛŒÙ†Ù‡ ØµØ­ÛŒØ­', 'Ú¯Ø²ÛŒÙ†Ù‡ Ø¯ÙˆÙ…', 'Ú¯Ø²ÛŒÙ†Ù‡ Ø³ÙˆÙ…'], correct: 0 }
+  if (kind === 'timeline') return { type: kind, events: [{ year: 'Ù…Ø±Ø­Ù„Ù‡ Û±', title: 'Ø´Ø±ÙˆØ¹', description: 'ØªÙˆØ¶ÛŒØ­ Ù…Ø±Ø­Ù„Ù‡ Ù†Ø®Ø³Øª' }, { year: 'Ù…Ø±Ø­Ù„Ù‡ Û²', title: 'Ø§Ø¯Ø§Ù…Ù‡', description: 'ØªÙˆØ¶ÛŒØ­ Ù…Ø±Ø­Ù„Ù‡ Ø¯ÙˆÙ…' }] }
+  if (kind === 'scrollytelling') return { type: kind, steps: [{ image: '', text: 'Ø¨Ø®Ø´ Ù†Ø®Ø³Øª Ø±ÙˆØ§ÛŒØª' }, { image: '', text: 'Ø¨Ø®Ø´ Ø¯ÙˆÙ… Ø±ÙˆØ§ÛŒØª' }] }
+  if (kind === 'hotspot') return { type: kind, image: '', caption: 'ØªØµÙˆÛŒØ± Ù‡Ø§Øªâ€ŒØ§Ø³Ù¾Ø§Øª', points: [{ x: 50, y: 50, title: 'Ù†Ù‚Ø·Ù‡ Û±', text: 'ØªÙˆØ¶ÛŒØ­ Ø§ÛŒÙ† Ù†Ù‚Ø·Ù‡' }] }
+  if (kind === 'flashcard') return { type: kind, cards: [{ front: 'Ø±ÙˆÛŒ Ú©Ø§Ø±Øª', back: 'Ù¾Ø´Øª Ú©Ø§Ø±Øª' }] }
+  if (kind === 'gallery') return { type: kind, images: [{ url: '', caption: 'ØªØµÙˆÛŒØ± Ú¯Ø§Ù„Ø±ÛŒ' }] }
+  return { type: kind, title: 'ÙØ±Ø¢ÛŒÙ†Ø¯ Ù…Ø±Ø­Ù„Ù‡â€ŒØ§ÛŒ', steps: [{ title: 'Ù…Ø±Ø­Ù„Ù‡ Û±', description: 'ØªÙˆØ¶ÛŒØ­ Ù…Ø±Ø­Ù„Ù‡ Ù†Ø®Ø³Øª', image: '' }, { title: 'Ù…Ø±Ø­Ù„Ù‡ Û²', description: 'ØªÙˆØ¶ÛŒØ­ Ù…Ø±Ø­Ù„Ù‡ Ø¯ÙˆÙ…', image: '' }] }
 }
 function interactivePreview(kind: string, data: any): any[] {
-  if (kind === 'truefalse') return [['h4', data.statement || 'گزاره صحیح/غلط'], ['div', { class: 'editor-interactive-options' }, ['span', data.correct ? 'پاسخ: صحیح' : 'پاسخ: غلط'], ['span', data.explanation || '']]]
-  if (kind === 'accordion') return [['h4', data.title || 'آکاردئون'], ['div', { class: 'editor-interactive-steps' }, ...(data.items || []).map((item: any, index: number) => ['span', `${index + 1}. ${item.title || 'بخش'}`])]]
-  if (kind === 'tabs') return [['h4', data.title || 'تب‌ها'], ['div', { class: 'editor-interactive-steps' }, ...(data.tabs || []).map((item: any, index: number) => ['span', `${index + 1}. ${item.title || 'تب'}`])]]
-  if (kind === 'algorithm') return [['h4', data.title || 'الگوریتم تعاملی'], ['div', { class: 'editor-interactive-steps' }, ...(data.steps || []).map((item: any, index: number) => ['span', `${index + 1}. ${item.title || 'تصمیم'}`])]]
+  if (kind === 'truefalse') return [['h4', data.statement || 'Ú¯Ø²Ø§Ø±Ù‡ ØµØ­ÛŒØ­/ØºÙ„Ø·'], ['div', { class: 'editor-interactive-options' }, ['span', data.correct ? 'Ù¾Ø§Ø³Ø®: ØµØ­ÛŒØ­' : 'Ù¾Ø§Ø³Ø®: ØºÙ„Ø·'], ['span', data.explanation || '']]]
+  if (kind === 'accordion') return [['h4', data.title || 'Ø¢Ú©Ø§Ø±Ø¯Ø¦ÙˆÙ†'], ['div', { class: 'editor-interactive-steps' }, ...(data.items || []).map((item: any, index: number) => ['span', `${index + 1}. ${item.title || 'Ø¨Ø®Ø´'}`])]]
+  if (kind === 'tabs') return [['h4', data.title || 'ØªØ¨â€ŒÙ‡Ø§'], ['div', { class: 'editor-interactive-steps' }, ...(data.tabs || []).map((item: any, index: number) => ['span', `${index + 1}. ${item.title || 'ØªØ¨'}`])]]
+  if (kind === 'algorithm') return [['h4', data.title || 'Ø§Ù„Ú¯ÙˆØ±ÛŒØªÙ… ØªØ¹Ø§Ù…Ù„ÛŒ'], ['div', { class: 'editor-interactive-steps' }, ...(data.steps || []).map((item: any, index: number) => ['span', `${index + 1}. ${item.title || 'ØªØµÙ…ÛŒÙ…'}`])]]
   if (kind === 'author') {
     const authors = Array.isArray(data.authors) ? data.authors : [{ name: data.name, role: data.role, bio: data.bio }]
-    return [['h4', data.title || 'نویسندگان فصل'], ['div', { class: 'editor-interactive-steps' }, ...authors.map((author: any) => ['span', `${author.name || 'نویسنده'}${author.role ? ` - ${author.role}` : ''}`])]]
+    return [['h4', data.title || 'Ù†ÙˆÛŒØ³Ù†Ø¯Ú¯Ø§Ù† ÙØµÙ„'], ['div', { class: 'editor-interactive-steps' }, ...authors.map((author: any) => ['span', `${author.name || 'Ù†ÙˆÛŒØ³Ù†Ø¯Ù‡'}${author.role ? ` - ${author.role}` : ''}`])]]
   }
-  if (kind === 'quiz') return [['h4', data.question || 'سؤال'], ['div', { class: 'editor-interactive-options' }, ...(data.options || []).map((option: string) => ['span', option])]]
-  if (kind === 'gallery') return [['div', { class: 'editor-interactive-gallery' }, ...(data.images || []).map((image: any) => image.url ? ['img', { src: image.url, alt: image.caption || '' }] : ['span', image.caption || 'تصویر'])]]
-  if (kind === 'hotspot') return [data.image ? ['img', { src: data.image, alt: data.caption || '' }] : ['span', data.caption || 'تصویر هات‌اسپات'], ['small', `${(data.points || []).length} نقطه تعاملی`]]
+  if (kind === 'quiz') return [['h4', data.question || 'Ø³Ø¤Ø§Ù„'], ['div', { class: 'editor-interactive-options' }, ...(data.options || []).map((option: string) => ['span', option])]]
+  if (kind === 'gallery') return [['div', { class: 'editor-interactive-gallery' }, ...(data.images || []).map((image: any) => image.url ? ['img', { src: image.url, alt: image.caption || '' }] : ['span', image.caption || 'ØªØµÙˆÛŒØ±'])]]
+  if (kind === 'hotspot') return [data.image ? ['img', { src: data.image, alt: data.caption || '' }] : ['span', data.caption || 'ØªØµÙˆÛŒØ± Ù‡Ø§Øªâ€ŒØ§Ø³Ù¾Ø§Øª'], ['small', `${(data.points || []).length} Ù†Ù‚Ø·Ù‡ ØªØ¹Ø§Ù…Ù„ÛŒ`]]
   const items = data.steps || data.events || data.cards || []
-  if (items.length) return [['h4', data.title || data.caption || interactiveLabel(kind)], ['div', { class: 'editor-interactive-steps' }, ...items.map((item: any, index: number) => ['span', `${index + 1}. ${item.title || item.year || item.front || item.text || 'مرحله'}`])]]
-  return [['span', data.title || data.question || data.caption || 'برای ویرایش جزئیات، این بخش را انتخاب کنید']]
+  if (items.length) return [['h4', data.title || data.caption || interactiveLabel(kind)], ['div', { class: 'editor-interactive-steps' }, ...items.map((item: any, index: number) => ['span', `${index + 1}. ${item.title || item.year || item.front || item.text || 'Ù…Ø±Ø­Ù„Ù‡'}`])]]
+  return [['span', data.title || data.question || data.caption || 'Ø¨Ø±Ø§ÛŒ ÙˆÛŒØ±Ø§ÛŒØ´ Ø¬Ø²Ø¦ÛŒØ§ØªØŒ Ø§ÛŒÙ† Ø¨Ø®Ø´ Ø±Ø§ Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ù†ÛŒØ¯']]
 }
 
 function inlineHtml(block: any) {
@@ -533,12 +492,12 @@ function blockAttributes(block: any) {
 function legacyListFromText(text = '') {
   const lines = String(text).split(/\n+/).map(line => line.trim()).filter(Boolean)
   if (lines.length < 2) return null
-  const ordered = lines.every(line => /^[\d۰-۹٠-٩]+[.)-]\s+/.test(line))
-  const bullet = lines.every(line => /^[•●*-]\s+/.test(line))
+  const ordered = lines.every(line => /^[\dÛ°-Û¹Ù -Ù©]+[.)-]\s+/.test(line))
+  const bullet = lines.every(line => /^[â€¢â—*-]\s+/.test(line))
   if (!ordered && !bullet) return null
   return {
     ordered,
-    items: lines.map(line => line.replace(ordered ? /^[\d۰-۹٠-٩]+[.)-]\s+/ : /^[•●*-]\s+/, '')),
+    items: lines.map(line => line.replace(ordered ? /^[\dÛ°-Û¹Ù -Ù©]+[.)-]\s+/ : /^[â€¢â—*-]\s+/, '')),
   }
 }
 
@@ -604,16 +563,16 @@ function confirmedTocFromBook(book: any): ConfirmedTocEntry[] {
     .map((item: any) => ({ id: item.id, title: item.title, level: Math.min(6, Math.max(1, Number(item.level || 1))), page: item.page, styleId: item.styleId }))
 }
 
-function buildConfirmedTocSegments(pages: any[] = [], toc: ConfirmedTocEntry[] = [], preludeTitle = 'ابتدای کتاب'): EditorSegment[] {
-  if (!pages.length) return [{ key: 'empty', label: 'سند خالی', level: 1, start: 0, end: 0, startBlock: 0, endBlock: 0 }]
-  if (!toc.length) return [{ key: 'all', label: 'کل متن کتاب', level: 1, start: 0, end: pages.length, startBlock: 0, endBlock: pages[pages.length - 1]?.blocks?.length || 0 }]
+function buildConfirmedTocSegments(pages: any[] = [], toc: ConfirmedTocEntry[] = [], preludeTitle = 'Ø§Ø¨ØªØ¯Ø§ÛŒ Ú©ØªØ§Ø¨'): EditorSegment[] {
+  if (!pages.length) return [{ key: 'empty', label: 'Ø³Ù†Ø¯ Ø®Ø§Ù„ÛŒ', level: 1, start: 0, end: 0, startBlock: 0, endBlock: 0 }]
+  if (!toc.length) return [{ key: 'all', label: 'Ú©Ù„ Ù…ØªÙ† Ú©ØªØ§Ø¨', level: 1, start: 0, end: pages.length, startBlock: 0, endBlock: pages[pages.length - 1]?.blocks?.length || 0 }]
   const positions = toc.map(item => findTocPosition(pages, item))
   const segments: EditorSegment[] = []
   const first = positions[0]
   if (first && (first.pageIndex > 0 || first.blockIndex > 0)) {
     segments.push({
       key: 'prelude',
-      label: preludeTitle || 'ابتدای کتاب',
+      label: preludeTitle || 'Ø§Ø¨ØªØ¯Ø§ÛŒ Ú©ØªØ§Ø¨',
       level: 1,
       start: 0,
       end: first.pageIndex + 1,
@@ -823,7 +782,7 @@ function editorNodeToBlock(node: any): any | null {
 }
 
 function editorJsonToPages(json: any) {
-  const pages: any[] = [{ title: 'صفحه ۱', blocks: [] }]
+  const pages: any[] = [{ title: 'ØµÙØ­Ù‡ Û±', blocks: [] }]
   for (const node of json?.content || []) {
     if (node.type === 'calloutBlock') {
       const page = pages[pages.length - 1]
@@ -831,7 +790,7 @@ function editorJsonToPages(json: any) {
       if (block) page.blocks.push(block)
       continue
     }
-    if (node.type === 'horizontalRule') { pages.push({ title: `صفحه ${pages.length + 1}`, blocks: [] }); continue }
+    if (node.type === 'horizontalRule') { pages.push({ title: `ØµÙØ­Ù‡ ${pages.length + 1}`, blocks: [] }); continue }
     const page = pages[pages.length - 1]
     const inline = inlineFromNode(node)
     const content = inline.map((span: any) => span.text).join('') || nodeText(node)
@@ -866,7 +825,7 @@ export default function Edit() {
   const [title, setTitle] = useState(localInitial?.title || '')
   const [subtitle, setSubtitle] = useState(localInitial?.subtitle || '')
   const [description, setDescription] = useState(localInitial?.description || '')
-  const [preludeTitle, setPreludeTitle] = useState<string>(String(localInitial?.metadata?.prelude_title || 'ابتدای کتاب'))
+  const [preludeTitle, setPreludeTitle] = useState<string>(String(localInitial?.metadata?.prelude_title || 'Ø§Ø¨ØªØ¯Ø§ÛŒ Ú©ØªØ§Ø¨'))
   const [metadataOpen, setMetadataOpen] = useState(false)
   const [savedAt, setSavedAt] = useState<Date | null>(null)
   const [saving, setSaving] = useState(false)
@@ -904,7 +863,7 @@ export default function Edit() {
         key: block.imageId || `${pageIndex}-${blockIndex}-${block.url || 'missing'}`,
         pageIndex,
         printPage: block.printPage || page.printNumber || page.number || pageIndex + 1,
-        issue: !block.url ? 'تصویر در متن کتاب آدرس ندارد' : !block.caption ? 'کپشن برای این تصویر شناخته نشده' : block.conversionStatus === 'conversion-failed' ? 'تبدیل تصویر ناموفق بوده' : '',
+        issue: !block.url ? 'ØªØµÙˆÛŒØ± Ø¯Ø± Ù…ØªÙ† Ú©ØªØ§Ø¨ Ø¢Ø¯Ø±Ø³ Ù†Ø¯Ø§Ø±Ø¯' : !block.caption ? 'Ú©Ù¾Ø´Ù† Ø¨Ø±Ø§ÛŒ Ø§ÛŒÙ† ØªØµÙˆÛŒØ± Ø´Ù†Ø§Ø®ØªÙ‡ Ù†Ø´Ø¯Ù‡' : block.conversionStatus === 'conversion-failed' ? 'ØªØ¨Ø¯ÛŒÙ„ ØªØµÙˆÛŒØ± Ù†Ø§Ù…ÙˆÙÙ‚ Ø¨ÙˆØ¯Ù‡' : '',
       })))
     const knownIds = new Set(pageImages.map((image: any) => image.imageId).filter(Boolean))
     const metadataImages = Array.isArray(book?.metadata?.import_images) ? book.metadata.import_images : []
@@ -914,10 +873,10 @@ export default function Edit() {
         key: `failed-${image.id || index}`,
         imageId: image.id,
         url: '',
-        caption: image.caption || image.originalName || image.name || 'تصویر تبدیل‌نشده',
-        printPage: image.wordPages?.[0] || 'نامشخص',
+        caption: image.caption || image.originalName || image.name || 'ØªØµÙˆÛŒØ± ØªØ¨Ø¯ÛŒÙ„â€ŒÙ†Ø´Ø¯Ù‡',
+        printPage: image.wordPages?.[0] || 'Ù†Ø§Ù…Ø´Ø®Øµ',
         conversionStatus: image.conversionStatus,
-        issue: image.conversionError || 'تصویر در تبدیل محلی/سروری آماده نشده است',
+        issue: image.conversionError || 'ØªØµÙˆÛŒØ± Ø¯Ø± ØªØ¨Ø¯ÛŒÙ„ Ù…Ø­Ù„ÛŒ/Ø³Ø±ÙˆØ±ÛŒ Ø¢Ù…Ø§Ø¯Ù‡ Ù†Ø´Ø¯Ù‡ Ø§Ø³Øª',
       }))
     return [...pageImages, ...missingImages]
   }, [allPages, book])
@@ -966,11 +925,11 @@ export default function Edit() {
     if (localInitial || !import.meta.env.VITE_SUPABASE_URL?.startsWith('http')) return
     ;(supabase as any).from('books').select('*').eq('id', id).maybeSingle().then(({ data }: { data: any }) => {
       if (!data) return
-      setBook(data); setTitle(data.title); setSubtitle(data.subtitle || ''); setDescription(data.description || ''); setPreludeTitle(data.metadata?.prelude_title || 'ابتدای کتاب')
+      setBook(data); setTitle(data.title); setSubtitle(data.subtitle || ''); setDescription(data.description || ''); setPreludeTitle(data.metadata?.prelude_title || 'Ø§Ø¨ØªØ¯Ø§ÛŒ Ú©ØªØ§Ø¨')
       setBackgroundUrl(data.metadata?.page_background_url || ''); setBackgroundAlpha(Number(data.metadata?.page_background_alpha || 0))
       setAllPages(data.pages || [])
       setActiveSegmentIndex(0)
-      loadSegment(buildConfirmedTocSegments(data.pages || [], confirmedTocFromBook(data), data.metadata?.prelude_title || 'ابتدای کتاب')[0], data.pages || [])
+      loadSegment(buildConfirmedTocSegments(data.pages || [], confirmedTocFromBook(data), data.metadata?.prelude_title || 'Ø§Ø¨ØªØ¯Ø§ÛŒ Ú©ØªØ§Ø¨')[0], data.pages || [])
     })
   }, [editor, id, localInitial])
 
@@ -1058,14 +1017,14 @@ export default function Edit() {
     : editor?.isActive('calloutBlock')
       ? calloutPreset(editor.getAttributes('calloutBlock').variant).label
       : editor?.isActive('image')
-        ? 'تصویر'
+        ? 'ØªØµÙˆÛŒØ±'
         : editor?.isActive('table')
-          ? 'جدول'
-          : 'پاراگراف'
+          ? 'Ø¬Ø¯ÙˆÙ„'
+          : 'Ù¾Ø§Ø±Ø§Ú¯Ø±Ø§Ù'
   const currentDirection = (editor?.getAttributes('heading').dir || editor?.getAttributes('paragraph').dir || 'rtl') as 'rtl' | 'ltr'
-  const currentLanguage = currentDirection === 'ltr' ? 'English' : 'فارسی'
+  const currentLanguage = currentDirection === 'ltr' ? 'English' : 'ÙØ§Ø±Ø³ÛŒ'
 
-  if (!book && !localInitial) return <div className="max-w-4xl mx-auto px-4 py-20 text-center"><h1 className="text-2xl font-bold">در حال دریافت پیش‌نویس کتاب…</h1></div>
+  if (!book && !localInitial) return <div className="max-w-4xl mx-auto px-4 py-20 text-center"><h1 className="text-2xl font-bold">Ø¯Ø± Ø­Ø§Ù„ Ø¯Ø±ÛŒØ§ÙØª Ù¾ÛŒØ´â€ŒÙ†ÙˆÛŒØ³ Ú©ØªØ§Ø¨â€¦</h1></div>
 
   const command = (action: (activeEditor: NonNullable<typeof editor>) => void) => {
     const activeEditor = getEditor()
@@ -1079,36 +1038,36 @@ export default function Edit() {
     const attrs = editor.getAttributes('interactiveBlock') as { kind: string; payload: string }
     const payload = decodePayload(attrs.payload)
     if (attrs.kind === 'quiz') {
-      const question = window.prompt('متن سوال', payload.question || '') ?? payload.question
-      const optionsText = window.prompt('گزینه‌ها؛ هر گزینه در یک خط', (payload.options || []).join('\n'))
+      const question = window.prompt('Ù…ØªÙ† Ø³ÙˆØ§Ù„', payload.question || '') ?? payload.question
+      const optionsText = window.prompt('Ú¯Ø²ÛŒÙ†Ù‡â€ŒÙ‡Ø§Ø› Ù‡Ø± Ú¯Ø²ÛŒÙ†Ù‡ Ø¯Ø± ÛŒÚ© Ø®Ø·', (payload.options || []).join('\n'))
       payload.question = question
       if (optionsText) payload.options = optionsText.split(/\r?\n/).map((item: string) => item.trim()).filter(Boolean)
-      const correct = window.prompt('شماره گزینه صحیح', String((payload.correct ?? 0) + 1))
+      const correct = window.prompt('Ø´Ù…Ø§Ø±Ù‡ Ú¯Ø²ÛŒÙ†Ù‡ ØµØ­ÛŒØ­', String((payload.correct ?? 0) + 1))
       if (correct && !Number.isNaN(Number(correct))) payload.correct = Math.max(0, Number(correct) - 1)
       updateInteractivePayload(attrs, payload)
       return
     }
     if (attrs.kind === 'timeline') {
-      const rawEvents = window.prompt('رویدادها؛ هر خط به شکل عنوان | توضیح | زمان', (payload.events || []).map((event: any) => `${event.title || ''} | ${event.description || ''} | ${event.year || ''}`).join('\n'))
+      const rawEvents = window.prompt('Ø±ÙˆÛŒØ¯Ø§Ø¯Ù‡Ø§Ø› Ù‡Ø± Ø®Ø· Ø¨Ù‡ Ø´Ú©Ù„ Ø¹Ù†ÙˆØ§Ù† | ØªÙˆØ¶ÛŒØ­ | Ø²Ù…Ø§Ù†', (payload.events || []).map((event: any) => `${event.title || ''} | ${event.description || ''} | ${event.year || ''}`).join('\n'))
       if (rawEvents) payload.events = rawEvents.split(/\r?\n/).map((line: string) => line.split('|').map(part => part.trim())).filter((parts: string[]) => parts[0]).map((parts: string[]) => ({ title: parts[0], description: parts[1] || '', year: parts[2] || '' }))
       updateInteractivePayload(attrs, payload)
       return
     }
     if (attrs.kind === 'gallery') {
-      const rawImages = window.prompt('کپشن‌های گالری؛ هر خط یک کپشن', (payload.images || []).map((image: any) => image.caption || '').join('\n'))
+      const rawImages = window.prompt('Ú©Ù¾Ø´Ù†â€ŒÙ‡Ø§ÛŒ Ú¯Ø§Ù„Ø±ÛŒØ› Ù‡Ø± Ø®Ø· ÛŒÚ© Ú©Ù¾Ø´Ù†', (payload.images || []).map((image: any) => image.caption || '').join('\n'))
       if (rawImages) payload.images = rawImages.split(/\r?\n/).map((line: string) => line.trim()).filter(Boolean).map((caption: string, index: number) => ({ url: payload.images?.[index]?.url || '', caption }))
-      if (window.confirm('می‌خواهید یک تصویر جدید هم به گالری اضافه کنید؟')) await insertImageIntoInteractive()
+      if (window.confirm('Ù…ÛŒâ€ŒØ®ÙˆØ§Ù‡ÛŒØ¯ ÛŒÚ© ØªØµÙˆÛŒØ± Ø¬Ø¯ÛŒØ¯ Ù‡Ù… Ø¨Ù‡ Ú¯Ø§Ù„Ø±ÛŒ Ø§Ø¶Ø§ÙÙ‡ Ú©Ù†ÛŒØ¯ØŸ')) await insertImageIntoInteractive()
       updateInteractivePayload(attrs, payload)
       return
     }
     if (attrs.kind === 'flashcard') {
-      const rawCards = window.prompt('فلش‌کارت‌ها؛ هر خط به شکل روی کارت | پشت کارت', (payload.cards || []).map((card: any) => `${card.front || ''} | ${card.back || ''}`).join('\n'))
+      const rawCards = window.prompt('ÙÙ„Ø´â€ŒÚ©Ø§Ø±Øªâ€ŒÙ‡Ø§Ø› Ù‡Ø± Ø®Ø· Ø¨Ù‡ Ø´Ú©Ù„ Ø±ÙˆÛŒ Ú©Ø§Ø±Øª | Ù¾Ø´Øª Ú©Ø§Ø±Øª', (payload.cards || []).map((card: any) => `${card.front || ''} | ${card.back || ''}`).join('\n'))
       if (rawCards) payload.cards = rawCards.split(/\r?\n/).map((line: string) => line.split('|').map(part => part.trim())).filter((parts: string[]) => parts[0]).map((parts: string[]) => ({ front: parts[0], back: parts[1] || '' }))
       updateInteractivePayload(attrs, payload)
       return
     }
     if (attrs.kind === 'scrollytelling' || attrs.kind === 'steps') {
-      const rawSteps = window.prompt('مرحله‌ها؛ هر خط به شکل عنوان | توضیح', (payload.steps || []).map((step: any) => `${step.title || step.text || ''} | ${step.description || ''}`).join('\n'))
+      const rawSteps = window.prompt('Ù…Ø±Ø­Ù„Ù‡â€ŒÙ‡Ø§Ø› Ù‡Ø± Ø®Ø· Ø¨Ù‡ Ø´Ú©Ù„ Ø¹Ù†ÙˆØ§Ù† | ØªÙˆØ¶ÛŒØ­', (payload.steps || []).map((step: any) => `${step.title || step.text || ''} | ${step.description || ''}`).join('\n'))
       if (rawSteps) {
         payload.steps = rawSteps.split(/\r?\n/).map((line: string) => line.split('|').map(part => part.trim())).filter((parts: string[]) => parts[0]).map((parts: string[], index: number) => ({
           ...(payload.steps?.[index] || {}),
@@ -1117,20 +1076,20 @@ export default function Edit() {
           description: parts[1] || '',
         }))
       }
-      if (window.confirm('می‌خواهید برای مرحله نخست تصویر هم اضافه کنید؟')) await insertImageIntoInteractive()
+      if (window.confirm('Ù…ÛŒâ€ŒØ®ÙˆØ§Ù‡ÛŒØ¯ Ø¨Ø±Ø§ÛŒ Ù…Ø±Ø­Ù„Ù‡ Ù†Ø®Ø³Øª ØªØµÙˆÛŒØ± Ù‡Ù… Ø§Ø¶Ø§ÙÙ‡ Ú©Ù†ÛŒØ¯ØŸ')) await insertImageIntoInteractive()
       updateInteractivePayload(attrs, payload)
       return
     }
     if (attrs.kind === 'hotspot') {
-      const caption = window.prompt('عنوان یا کپشن تصویر', payload.caption || payload.title || '') ?? payload.caption
-      const rawPoints = window.prompt('نقاط تعاملی؛ هر خط به شکل عنوان | توضیح | x | y', (payload.points || []).map((point: any) => `${point.title || ''} | ${point.text || ''} | ${point.x ?? 50} | ${point.y ?? 50}`).join('\n'))
+      const caption = window.prompt('Ø¹Ù†ÙˆØ§Ù† ÛŒØ§ Ú©Ù¾Ø´Ù† ØªØµÙˆÛŒØ±', payload.caption || payload.title || '') ?? payload.caption
+      const rawPoints = window.prompt('Ù†Ù‚Ø§Ø· ØªØ¹Ø§Ù…Ù„ÛŒØ› Ù‡Ø± Ø®Ø· Ø¨Ù‡ Ø´Ú©Ù„ Ø¹Ù†ÙˆØ§Ù† | ØªÙˆØ¶ÛŒØ­ | x | y', (payload.points || []).map((point: any) => `${point.title || ''} | ${point.text || ''} | ${point.x ?? 50} | ${point.y ?? 50}`).join('\n'))
       payload.caption = caption
       if (rawPoints) payload.points = rawPoints.split(/\r?\n/).map((line: string) => line.split('|').map(part => part.trim())).filter((parts: string[]) => parts[0]).map((parts: string[]) => ({ title: parts[0], text: parts[1] || '', x: Number(parts[2] || 50), y: Number(parts[3] || 50) }))
-      if (window.confirm('می‌خواهید تصویر اصلی هات‌اسپات را هم تغییر دهید؟')) await insertImageIntoInteractive()
+      if (window.confirm('Ù…ÛŒâ€ŒØ®ÙˆØ§Ù‡ÛŒØ¯ ØªØµÙˆÛŒØ± Ø§ØµÙ„ÛŒ Ù‡Ø§Øªâ€ŒØ§Ø³Ù¾Ø§Øª Ø±Ø§ Ù‡Ù… ØªØºÛŒÛŒØ± Ø¯Ù‡ÛŒØ¯ØŸ')) await insertImageIntoInteractive()
       updateInteractivePayload(attrs, payload)
       return
     }
-    const title = window.prompt('عنوان بخش تعاملی', payload.title || payload.caption || interactiveLabel(attrs.kind))
+    const title = window.prompt('Ø¹Ù†ÙˆØ§Ù† Ø¨Ø®Ø´ ØªØ¹Ø§Ù…Ù„ÛŒ', payload.title || payload.caption || interactiveLabel(attrs.kind))
     if (title !== null) payload.title = title
     updateInteractivePayload(attrs, payload)
   }
@@ -1155,7 +1114,7 @@ export default function Edit() {
   const setLink = () => {
     if (!editor) return
     const current = editor.getAttributes('link').href || ''
-    const href = window.prompt('آدرس پیوند', current)
+    const href = window.prompt('Ø¢Ø¯Ø±Ø³ Ù¾ÛŒÙˆÙ†Ø¯', current)
     if (href === null) return
     if (!href.trim()) editor.chain().focus().unsetLink().run()
     else editor.chain().focus().extendMarkRange('link').setLink({ href: href.trim() }).run()
@@ -1175,11 +1134,11 @@ export default function Edit() {
   const editCalloutTitle = () => {
     command(activeEditor => {
       if (!activeEditor.isActive('calloutBlock')) {
-        window.alert('ابتدا داخل کال‌اوت مورد نظر کلیک کنید، سپس عنوان را ویرایش کنید.')
+        window.alert('Ø§Ø¨ØªØ¯Ø§ Ø¯Ø§Ø®Ù„ Ú©Ø§Ù„â€ŒØ§ÙˆØª Ù…ÙˆØ±Ø¯ Ù†Ø¸Ø± Ú©Ù„ÛŒÚ© Ú©Ù†ÛŒØ¯ØŒ Ø³Ù¾Ø³ Ø¹Ù†ÙˆØ§Ù† Ø±Ø§ ÙˆÛŒØ±Ø§ÛŒØ´ Ú©Ù†ÛŒØ¯.')
         return
       }
       const attrs = activeEditor.getAttributes('calloutBlock')
-      const nextTitle = window.prompt('عنوان کال‌اوت', attrs.title || calloutPreset(attrs.variant).label)
+      const nextTitle = window.prompt('Ø¹Ù†ÙˆØ§Ù† Ú©Ø§Ù„â€ŒØ§ÙˆØª', attrs.title || calloutPreset(attrs.variant).label)
       if (nextTitle === null) return
       activeEditor.chain().focus().updateAttributes('calloutBlock', { title: nextTitle.trim() || calloutPreset(attrs.variant).label }).run()
     })
@@ -1205,12 +1164,12 @@ export default function Edit() {
     if (!activeEditor?.isActive('interactiveBlock') || !url) return
     const attrs = activeEditor.getAttributes('interactiveBlock') as { kind: string; payload: string }
     const payload = decodePayload(attrs.payload)
-    if (attrs.kind === 'gallery') payload.images = [...(payload.images || []), { url, caption: 'تصویر انتخاب‌شده از کتاب' }]
-    else if (attrs.kind === 'scrollytelling') payload.steps = (payload.steps || [{ text: 'روایت تصویری' }]).map((step: any, index: number) => index === 0 ? { ...step, image: url } : step)
-    else if (attrs.kind === 'steps') payload.steps = (payload.steps || [{ title: 'مرحله ۱' }]).map((step: any, index: number) => index === 0 ? { ...step, image: url } : step)
-    else if (attrs.kind === 'algorithm') payload.steps = (payload.steps || [{ title: 'گام اول' }]).map((step: any, index: number) => index === 0 ? { ...step, image: url } : step)
+    if (attrs.kind === 'gallery') payload.images = [...(payload.images || []), { url, caption: 'ØªØµÙˆÛŒØ± Ø§Ù†ØªØ®Ø§Ø¨â€ŒØ´Ø¯Ù‡ Ø§Ø² Ú©ØªØ§Ø¨' }]
+    else if (attrs.kind === 'scrollytelling') payload.steps = (payload.steps || [{ text: 'Ø±ÙˆØ§ÛŒØª ØªØµÙˆÛŒØ±ÛŒ' }]).map((step: any, index: number) => index === 0 ? { ...step, image: url } : step)
+    else if (attrs.kind === 'steps') payload.steps = (payload.steps || [{ title: 'Ù…Ø±Ø­Ù„Ù‡ Û±' }]).map((step: any, index: number) => index === 0 ? { ...step, image: url } : step)
+    else if (attrs.kind === 'algorithm') payload.steps = (payload.steps || [{ title: 'Ú¯Ø§Ù… Ø§ÙˆÙ„' }]).map((step: any, index: number) => index === 0 ? { ...step, image: url } : step)
     else if (attrs.kind === 'author') {
-      const authors = Array.isArray(payload.authors) && payload.authors.length ? payload.authors : [{ name: payload.name || 'نویسنده', role: payload.role || '', bio: payload.bio || '' }]
+      const authors = Array.isArray(payload.authors) && payload.authors.length ? payload.authors : [{ name: payload.name || 'Ù†ÙˆÛŒØ³Ù†Ø¯Ù‡', role: payload.role || '', bio: payload.bio || '' }]
       payload.authors = authors.map((author: any, index: number) => index === 0 ? { ...author, image: url } : author)
     }
     else payload.image = url
@@ -1245,41 +1204,41 @@ export default function Edit() {
   }
   const recordAiUsage = (usage: RunAiResult['usage']) => {
     setAiUsage(usage)
-    setAiMessage(`${usage.chargedCredits.toLocaleString('fa-IR')} کردیت کسر شد · ${usage.chargedToman.toLocaleString('fa-IR')} تومان · $${usage.chargedUsd.toFixed(6)}`)
+    setAiMessage(`${usage.chargedCredits.toLocaleString('fa-IR')} Ú©Ø±Ø¯ÛŒØª Ú©Ø³Ø± Ø´Ø¯ Â· ${usage.chargedToman.toLocaleString('fa-IR')} ØªÙˆÙ…Ø§Ù† Â· $${usage.chargedUsd.toFixed(6)}`)
   }
   const runEditorAi = async (mode: 'summary' | 'quiz' | 'callout' | 'interactive') => {
     const pageText = selectedOrCurrentText()
     if (!pageText) {
-      setAiMessage('اول بخشی از متن را انتخاب کنید یا داخل بخش مورد نظر قرار بگیرید.')
+      setAiMessage('Ø§ÙˆÙ„ Ø¨Ø®Ø´ÛŒ Ø§Ø² Ù…ØªÙ† Ø±Ø§ Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ù†ÛŒØ¯ ÛŒØ§ Ø¯Ø§Ø®Ù„ Ø¨Ø®Ø´ Ù…ÙˆØ±Ø¯ Ù†Ø¸Ø± Ù‚Ø±Ø§Ø± Ø¨Ú¯ÛŒØ±ÛŒØ¯.')
       return
     }
     setAiLoading(true)
     setAiDraft(null)
     setAiCalloutSuggestions([])
-    setAiMessage('در حال تولید خروجی هوشمند...')
+    setAiMessage('Ø¯Ø± Ø­Ø§Ù„ ØªÙˆÙ„ÛŒØ¯ Ø®Ø±ÙˆØ¬ÛŒ Ù‡ÙˆØ´Ù…Ù†Ø¯...')
     try {
       const action = mode === 'quiz' ? 'quiz' : mode === 'interactive' ? 'learning_path' : mode === 'summary' ? 'summary' : 'explain'
-      const result = await runAiThroughGateway({ action, bookTitle: title || book?.title || 'کتاب', pageTitle: activeSegment?.label, pageText, bookId: id, pageIndex: activeSegmentIndex, user })
+      const result = await runAiThroughGateway({ action, bookTitle: title || book?.title || 'Ú©ØªØ§Ø¨', pageTitle: activeSegment?.label, pageText, bookId: id, pageIndex: activeSegmentIndex, user })
       recordAiUsage(result.usage)
       const text = compactAiContent(result.content) || result.text || ''
       if (mode === 'summary') {
-        setAiDraft({ type: 'summary', title: 'خلاصه هوشمند', text })
+        setAiDraft({ type: 'summary', title: 'Ø®Ù„Ø§ØµÙ‡ Ù‡ÙˆØ´Ù…Ù†Ø¯', text })
       } else if (mode === 'quiz' && result.content?.type === 'quiz') {
-        setAiDraft({ type: 'quiz', title: 'سؤال تولیدشده', kind: 'quiz', payload: { question: result.content.question, options: result.content.options, correct: result.content.correctIndex, explanation: result.content.explanation } })
+        setAiDraft({ type: 'quiz', title: 'Ø³Ø¤Ø§Ù„ ØªÙˆÙ„ÛŒØ¯Ø´Ø¯Ù‡', kind: 'quiz', payload: { question: result.content.question, options: result.content.options, correct: result.content.correctIndex, explanation: result.content.explanation } })
       } else if (mode === 'callout') {
         const base = text || pageText.slice(0, 420)
         setAiCalloutSuggestions([
-          { variant: 'key', title: 'نکته کلیدی پیشنهادی', text: base.split('\n').filter(Boolean)[0] || base },
-          { variant: 'question', title: 'مکث و فکر کن', text: 'از این بخش چه نتیجه‌ای می‌توان گرفت؟' },
-          { variant: 'deep', title: 'عمیق‌تر بخوان', text: base },
+          { variant: 'key', title: 'Ù†Ú©ØªÙ‡ Ú©Ù„ÛŒØ¯ÛŒ Ù¾ÛŒØ´Ù†Ù‡Ø§Ø¯ÛŒ', text: base.split('\n').filter(Boolean)[0] || base },
+          { variant: 'question', title: 'Ù…Ú©Ø« Ùˆ ÙÚ©Ø± Ú©Ù†', text: 'Ø§Ø² Ø§ÛŒÙ† Ø¨Ø®Ø´ Ú†Ù‡ Ù†ØªÛŒØ¬Ù‡â€ŒØ§ÛŒ Ù…ÛŒâ€ŒØªÙˆØ§Ù† Ú¯Ø±ÙØªØŸ' },
+          { variant: 'deep', title: 'Ø¹Ù…ÛŒÙ‚â€ŒØªØ± Ø¨Ø®ÙˆØ§Ù†', text: base },
         ])
       } else if (mode === 'interactive') {
-        const wantsImage = window.confirm('ساخت تصویر هوش مصنوعی برای این بخش بعداً هزینه جداگانه دارد. فعلاً ساختار تعاملی متنی ساخته شود؟')
-        const steps = result.content?.type === 'timeline' ? result.content.steps : [{ title: 'مفهوم اصلی', description: text || pageText.slice(0, 240) }]
-        setAiDraft({ type: 'interactive', title: 'بخش تعاملی پیشنهادی', kind: 'algorithm', payload: { title: 'مسیر یادگیری تعاملی', steps, needsAiImage: wantsImage, imagePrompt: wantsImage ? `تصویر آموزشی برای: ${pageText.slice(0, 180)}` : '' } })
+        const wantsImage = window.confirm('Ø³Ø§Ø®Øª ØªØµÙˆÛŒØ± Ù‡ÙˆØ´ Ù…ØµÙ†ÙˆØ¹ÛŒ Ø¨Ø±Ø§ÛŒ Ø§ÛŒÙ† Ø¨Ø®Ø´ Ø¨Ø¹Ø¯Ø§Ù‹ Ù‡Ø²ÛŒÙ†Ù‡ Ø¬Ø¯Ø§Ú¯Ø§Ù†Ù‡ Ø¯Ø§Ø±Ø¯. ÙØ¹Ù„Ø§Ù‹ Ø³Ø§Ø®ØªØ§Ø± ØªØ¹Ø§Ù…Ù„ÛŒ Ù…ØªÙ†ÛŒ Ø³Ø§Ø®ØªÙ‡ Ø´ÙˆØ¯ØŸ')
+        const steps = result.content?.type === 'timeline' ? result.content.steps : [{ title: 'Ù…ÙÙ‡ÙˆÙ… Ø§ØµÙ„ÛŒ', description: text || pageText.slice(0, 240) }]
+        setAiDraft({ type: 'interactive', title: 'Ø¨Ø®Ø´ ØªØ¹Ø§Ù…Ù„ÛŒ Ù¾ÛŒØ´Ù†Ù‡Ø§Ø¯ÛŒ', kind: 'algorithm', payload: { title: 'Ù…Ø³ÛŒØ± ÛŒØ§Ø¯Ú¯ÛŒØ±ÛŒ ØªØ¹Ø§Ù…Ù„ÛŒ', steps, needsAiImage: wantsImage, imagePrompt: wantsImage ? `ØªØµÙˆÛŒØ± Ø¢Ù…ÙˆØ²Ø´ÛŒ Ø¨Ø±Ø§ÛŒ: ${pageText.slice(0, 180)}` : '' } })
       }
     } catch (error) {
-      setAiMessage(error instanceof Error ? error.message : 'اجرای هوش مصنوعی ناموفق بود.')
+      setAiMessage(error instanceof Error ? error.message : 'Ø§Ø¬Ø±Ø§ÛŒ Ù‡ÙˆØ´ Ù…ØµÙ†ÙˆØ¹ÛŒ Ù†Ø§Ù…ÙˆÙÙ‚ Ø¨ÙˆØ¯.')
     } finally {
       setAiLoading(false)
     }
@@ -1293,7 +1252,7 @@ export default function Edit() {
     }
   }
   const persistPreludeTitle = (nextTitle: string) => {
-    const cleanTitle = nextTitle.trim() || 'ابتدای کتاب'
+    const cleanTitle = nextTitle.trim() || 'Ø§Ø¨ØªØ¯Ø§ÛŒ Ú©ØªØ§Ø¨'
     setPreludeTitle(cleanTitle)
     const metadata = { ...(book?.metadata || {}), prelude_title: cleanTitle }
     setBook((current: any) => ({ ...current, metadata }))
@@ -1373,53 +1332,53 @@ export default function Edit() {
         onMetadata={() => setMetadataOpen(value => !value)}
         onPreview={() => void previewCurrentBook()}
         onSave={() => void save()}
-        onBack={<RouterLink to="/publisher/me"><ArrowLeft className="h-4 w-4" />بازگشت به انتشارات</RouterLink>}
+        onBack={<RouterLink to="/publisher/me"><ArrowLeft className="h-4 w-4" />Ø¨Ø§Ø²Ú¯Ø´Øª Ø¨Ù‡ Ø§Ù†ØªØ´Ø§Ø±Ø§Øª</RouterLink>}
       />
 
       {metadataOpen && <section className="book-editor-meta menu-glass-70">
-        <label>عنوان<input value={title} onChange={event => setTitle(event.target.value)} /></label>
-        <label>زیرعنوان<input value={subtitle} onChange={event => setSubtitle(event.target.value)} /></label>
-        <label>توضیح کوتاه<textarea value={description} onChange={event => setDescription(event.target.value)} /></label>
-        <label>تصویر پس‌زمینه صفحه<input value={backgroundUrl} onChange={event => setBackgroundUrl(event.target.value)} placeholder="آدرس تصویر" /></label>
-        <label>شفافیت پس‌زمینه<input type="range" min="0" max="0.8" step="0.05" value={backgroundAlpha} onChange={event => setBackgroundAlpha(Number(event.target.value))} /></label>
-        <button onClick={() => setMetadataOpen(false)}><ChevronUp />بستن مشخصات</button>
+        <label>Ø¹Ù†ÙˆØ§Ù†<input value={title} onChange={event => setTitle(event.target.value)} /></label>
+        <label>Ø²ÛŒØ±Ø¹Ù†ÙˆØ§Ù†<input value={subtitle} onChange={event => setSubtitle(event.target.value)} /></label>
+        <label>ØªÙˆØ¶ÛŒØ­ Ú©ÙˆØªØ§Ù‡<textarea value={description} onChange={event => setDescription(event.target.value)} /></label>
+        <label>ØªØµÙˆÛŒØ± Ù¾Ø³â€ŒØ²Ù…ÛŒÙ†Ù‡ ØµÙØ­Ù‡<input value={backgroundUrl} onChange={event => setBackgroundUrl(event.target.value)} placeholder="Ø¢Ø¯Ø±Ø³ ØªØµÙˆÛŒØ±" /></label>
+        <label>Ø´ÙØ§ÙÛŒØª Ù¾Ø³â€ŒØ²Ù…ÛŒÙ†Ù‡<input type="range" min="0" max="0.8" step="0.05" value={backgroundAlpha} onChange={event => setBackgroundAlpha(Number(event.target.value))} /></label>
+        <button onClick={() => setMetadataOpen(false)}><ChevronUp />Ø¨Ø³ØªÙ† Ù…Ø´Ø®ØµØ§Øª</button>
       </section>}
 
       <EditorToolbarFrame>
       <div className="book-editor-toolbar">
-        <div className="book-toolbar-group" aria-label="تاریخچه">
-          <button title="بازگشت" onClick={() => command(activeEditor => activeEditor.chain().focus().undo().run())}><Undo2 /></button>
-          <button title="انجام دوباره" onClick={() => command(activeEditor => activeEditor.chain().focus().redo().run())}><Redo2 /></button>
+        <div className="book-toolbar-group" aria-label="ØªØ§Ø±ÛŒØ®Ú†Ù‡">
+          <button title="Ø¨Ø§Ø²Ú¯Ø´Øª" onClick={() => command(activeEditor => activeEditor.chain().focus().undo().run())}><Undo2 /></button>
+          <button title="Ø§Ù†Ø¬Ø§Ù… Ø¯ÙˆØ¨Ø§Ø±Ù‡" onClick={() => command(activeEditor => activeEditor.chain().focus().redo().run())}><Redo2 /></button>
         </div>
 
-        <div className="book-toolbar-group" aria-label="ساختار">
+        <div className="book-toolbar-group" aria-label="Ø³Ø§Ø®ØªØ§Ø±">
           <div className="book-toolbar-menu-wrap">
-            <button title="سطح سرفصل" className={toolbarMenu === 'heading' ? 'active' : ''} onClick={() => setToolbarMenu(value => value === 'typography' ? null : value === 'heading' ? null : 'heading')}><Heading1 /><ChevronDown /></button>
+            <button title="Ø³Ø·Ø­ Ø³Ø±ÙØµÙ„" className={toolbarMenu === 'heading' ? 'active' : ''} onClick={() => setToolbarMenu(value => value === 'typography' ? null : value === 'heading' ? null : 'heading')}><Heading1 /><ChevronDown /></button>
             {toolbarMenu === 'heading' && <div className="book-toolbar-popover compact frosted-menu-surface">
               <button onClick={() => { command(activeEditor => activeEditor.chain().focus().setParagraph().run()); setToolbarMenu(null) }}><span className="book-heading-sample normal">P</span></button>
               {[1, 2, 3, 4, 5, 6].map(level => <button key={level} onClick={() => { promoteSelection(level as 1 | 2 | 3 | 4 | 5 | 6); setToolbarMenu(null) }}><span className={`book-heading-sample h${level}`}>H{level}</span></button>)}
             </div>}
           </div>
-          <button title="صفحه جدید" onClick={() => command(activeEditor => activeEditor.chain().focus().setHorizontalRule().run())}><FileImage /></button>
+          <button title="ØµÙØ­Ù‡ Ø¬Ø¯ÛŒØ¯" onClick={() => command(activeEditor => activeEditor.chain().focus().setHorizontalRule().run())}><FileImage /></button>
         </div>
 
-        <div className="book-toolbar-group" aria-label="متن">
-          <button title="پررنگ" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleBold().run())}><Bold /></button>
-          <button title="مورب" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleItalic().run())}><Italic /></button>
-          <button title="زیرخط" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleUnderline().run())}><UnderlineIcon /></button>
-          <button title="خط‌خورده" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleStrike().run())}><Strikethrough /></button>
-          <button title="بالانویس" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleSuperscript().run())}><SuperIcon /></button>
-          <button title="زیرنویس" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleSubscript().run())}><SubIcon /></button>
-          <button title="افزودن یا ویرایش پیوند" onClick={setLink}><Link2 /></button>
+        <div className="book-toolbar-group" aria-label="Ù…ØªÙ†">
+          <button title="Ù¾Ø±Ø±Ù†Ú¯" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleBold().run())}><Bold /></button>
+          <button title="Ù…ÙˆØ±Ø¨" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleItalic().run())}><Italic /></button>
+          <button title="Ø²ÛŒØ±Ø®Ø·" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleUnderline().run())}><UnderlineIcon /></button>
+          <button title="Ø®Ø·â€ŒØ®ÙˆØ±Ø¯Ù‡" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleStrike().run())}><Strikethrough /></button>
+          <button title="Ø¨Ø§Ù„Ø§Ù†ÙˆÛŒØ³" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleSuperscript().run())}><SuperIcon /></button>
+          <button title="Ø²ÛŒØ±Ù†ÙˆÛŒØ³" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleSubscript().run())}><SubIcon /></button>
+          <button title="Ø§ÙØ²ÙˆØ¯Ù† ÛŒØ§ ÙˆÛŒØ±Ø§ÛŒØ´ Ù¾ÛŒÙˆÙ†Ø¯" onClick={setLink}><Link2 /></button>
         </div>
 
-        <div className="book-toolbar-group" aria-label="تایپوگرافی">
-          <select title="فونت" onChange={event => command(activeEditor => activeEditor.chain().focus().setMark('textStyle', { fontFamily: event.target.value }).run())}><option value="Vazirmatn">وزیرمتن</option><option value="Tahoma">Tahoma</option><option value="Arial">Arial</option><option value="Georgia">Georgia</option></select>
-          <select title="اندازه متن انتخاب‌شده" defaultValue="" onChange={event => { if (event.target.value) command(activeEditor => activeEditor.chain().focus().setMark('textStyle', { fontSize: event.target.value }).run()); event.target.value = '' }}><option value="" disabled>اندازه</option>{[12,14,16,18,20,24,28,32,40].map(size => <option key={size} value={`${size}px`}>{size}</option>)}</select>
+        <div className="book-toolbar-group" aria-label="ØªØ§ÛŒÙ¾ÙˆÚ¯Ø±Ø§ÙÛŒ">
+          <select title="ÙÙˆÙ†Øª" onChange={event => command(activeEditor => activeEditor.chain().focus().setMark('textStyle', { fontFamily: event.target.value }).run())}><option value="Vazirmatn">ÙˆØ²ÛŒØ±Ù…ØªÙ†</option><option value="Tahoma">Tahoma</option><option value="Arial">Arial</option><option value="Georgia">Georgia</option></select>
+          <select title="Ø§Ù†Ø¯Ø§Ø²Ù‡ Ù…ØªÙ† Ø§Ù†ØªØ®Ø§Ø¨â€ŒØ´Ø¯Ù‡" defaultValue="" onChange={event => { if (event.target.value) command(activeEditor => activeEditor.chain().focus().setMark('textStyle', { fontSize: event.target.value }).run()); event.target.value = '' }}><option value="" disabled>Ø§Ù†Ø¯Ø§Ø²Ù‡</option>{[12,14,16,18,20,24,28,32,40].map(size => <option key={size} value={`${size}px`}>{size}</option>)}</select>
           <div className="book-toolbar-menu-wrap">
-            <button title="تایپوگرافی آماده" className={toolbarMenu === 'typography' ? 'active' : ''} onClick={() => setToolbarMenu(value => value === 'typography' ? null : 'typography')}><Type /><ChevronDown /></button>
+            <button title="ØªØ§ÛŒÙ¾ÙˆÚ¯Ø±Ø§ÙÛŒ Ø¢Ù…Ø§Ø¯Ù‡" className={toolbarMenu === 'typography' ? 'active' : ''} onClick={() => setToolbarMenu(value => value === 'typography' ? null : 'typography')}><Type /><ChevronDown /></button>
             {toolbarMenu === 'typography' && <div className="book-toolbar-popover typography frosted-menu-surface">
-              <button className="book-callout-title-action" onClick={() => { editCalloutTitle(); setToolbarMenu(null) }}><Edit3 /><span>ویرایش عنوان کال‌اوت انتخاب‌شده</span></button>
+              <button className="book-callout-title-action" onClick={() => { editCalloutTitle(); setToolbarMenu(null) }}><Edit3 /><span>ÙˆÛŒØ±Ø§ÛŒØ´ Ø¹Ù†ÙˆØ§Ù† Ú©Ø§Ù„â€ŒØ§ÙˆØª Ø§Ù†ØªØ®Ø§Ø¨â€ŒØ´Ø¯Ù‡</span></button>
               {Array.from(new Set(CALLOUT_PRESETS.map(item => item.group))).map(group => <section key={group}>
                 <b>{group}</b>
                 {CALLOUT_PRESETS.filter(item => item.group === group).map(item => {
@@ -1429,55 +1388,55 @@ export default function Edit() {
               </section>)}
             </div>}
           </div>
-          <input title="رنگ متن" type="color" onChange={event => command(activeEditor => activeEditor.chain().focus().setColor(event.target.value).run())} />
+          <input title="Ø±Ù†Ú¯ Ù…ØªÙ†" type="color" onChange={event => command(activeEditor => activeEditor.chain().focus().setColor(event.target.value).run())} />
         </div>
 
-        <div className="book-toolbar-group" aria-label="جهت و چینش">
-          <button title="جهت راست‌به‌چپ" onClick={() => setDirection('rtl')}><span className="book-dir-icon is-rtl" /></button>
-          <button title="جهت چپ‌به‌راست" onClick={() => setDirection('ltr')}><span className="book-dir-icon is-ltr" /></button>
-          <button title="راست‌چین" onClick={() => command(activeEditor => activeEditor.chain().focus().setTextAlign('right').run())}><AlignRight /></button>
-          <button title="وسط‌چین" onClick={() => command(activeEditor => activeEditor.chain().focus().setTextAlign('center').run())}><AlignCenter /></button>
-          <button title="چپ‌چین" onClick={() => command(activeEditor => activeEditor.chain().focus().setTextAlign('left').run())}><AlignLeft /></button>
-          <button title="تراز کامل" onClick={() => command(activeEditor => activeEditor.chain().focus().setTextAlign('justify').run())}><AlignJustify /></button>
+        <div className="book-toolbar-group" aria-label="Ø¬Ù‡Øª Ùˆ Ú†ÛŒÙ†Ø´">
+          <button title="Ø¬Ù‡Øª Ø±Ø§Ø³Øªâ€ŒØ¨Ù‡â€ŒÚ†Ù¾" onClick={() => setDirection('rtl')}><span className="book-dir-icon is-rtl" /></button>
+          <button title="Ø¬Ù‡Øª Ú†Ù¾â€ŒØ¨Ù‡â€ŒØ±Ø§Ø³Øª" onClick={() => setDirection('ltr')}><span className="book-dir-icon is-ltr" /></button>
+          <button title="Ø±Ø§Ø³Øªâ€ŒÚ†ÛŒÙ†" onClick={() => command(activeEditor => activeEditor.chain().focus().setTextAlign('right').run())}><AlignRight /></button>
+          <button title="ÙˆØ³Ø·â€ŒÚ†ÛŒÙ†" onClick={() => command(activeEditor => activeEditor.chain().focus().setTextAlign('center').run())}><AlignCenter /></button>
+          <button title="Ú†Ù¾â€ŒÚ†ÛŒÙ†" onClick={() => command(activeEditor => activeEditor.chain().focus().setTextAlign('left').run())}><AlignLeft /></button>
+          <button title="ØªØ±Ø§Ø² Ú©Ø§Ù…Ù„" onClick={() => command(activeEditor => activeEditor.chain().focus().setTextAlign('justify').run())}><AlignJustify /></button>
         </div>
 
-        <div className="book-toolbar-group" aria-label="لیست">
-          <button title="فهرست نقطه‌ای" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleBulletList().run())}><List /></button>
-          <button title="فهرست شماره‌ای" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleOrderedList().run())}><ListOrdered /></button>
+        <div className="book-toolbar-group" aria-label="Ù„ÛŒØ³Øª">
+          <button title="ÙÙ‡Ø±Ø³Øª Ù†Ù‚Ø·Ù‡â€ŒØ§ÛŒ" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleBulletList().run())}><List /></button>
+          <button title="ÙÙ‡Ø±Ø³Øª Ø´Ù…Ø§Ø±Ù‡â€ŒØ§ÛŒ" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleOrderedList().run())}><ListOrdered /></button>
         </div>
 
-        <div className="book-toolbar-group" aria-label="مدیا و جدول">
-          <button title="افزودن تصویر" onClick={() => imageInputRef.current?.click()}><ImagePlus /></button>
-          <button title="نمایش تصاویر کتاب" onClick={() => setPanelMode('media')} className={panelMode === 'media' ? 'active' : ''}><Images /></button>
+        <div className="book-toolbar-group" aria-label="Ù…Ø¯ÛŒØ§ Ùˆ Ø¬Ø¯ÙˆÙ„">
+          <button title="Ø§ÙØ²ÙˆØ¯Ù† ØªØµÙˆÛŒØ±" onClick={() => imageInputRef.current?.click()}><ImagePlus /></button>
+          <button title="Ù†Ù…Ø§ÛŒØ´ ØªØµØ§ÙˆÛŒØ± Ú©ØªØ§Ø¨" onClick={() => setPanelMode('media')} className={panelMode === 'media' ? 'active' : ''}><Images /></button>
           <input ref={imageInputRef} hidden type="file" accept="image/*" onChange={event => event.target.files?.[0] && addImage(event.target.files[0])} />
-          <select title="اندازه تصویر انتخاب‌شده" defaultValue="" onChange={event => { if (event.target.value) command(activeEditor => activeEditor.chain().focus().updateAttributes('image', { width: event.target.value }).run()); event.target.value = '' }}><option value="" disabled>عکس</option><option value="25%">۲۵٪</option><option value="50%">۵۰٪</option><option value="75%">۷۵٪</option><option value="100%">۱۰۰٪</option></select>
-          <button title="جدول جدید" onClick={() => command(activeEditor => activeEditor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())}><Table2 /></button>
-          <select title="ویرایش جدول انتخاب‌شده" defaultValue="" onChange={event => { tableAction(event.target.value); event.target.value = '' }}><option value="" disabled>جدول</option><option value="row-after">افزودن ردیف</option><option value="column-after">افزودن ستون</option><option value="delete-row">حذف ردیف</option><option value="delete-column">حذف ستون</option><option value="delete-table">حذف جدول</option></select>
+          <select title="Ø§Ù†Ø¯Ø§Ø²Ù‡ ØªØµÙˆÛŒØ± Ø§Ù†ØªØ®Ø§Ø¨â€ŒØ´Ø¯Ù‡" defaultValue="" onChange={event => { if (event.target.value) command(activeEditor => activeEditor.chain().focus().updateAttributes('image', { width: event.target.value }).run()); event.target.value = '' }}><option value="" disabled>Ø¹Ú©Ø³</option><option value="25%">Û²ÛµÙª</option><option value="50%">ÛµÛ°Ùª</option><option value="75%">Û·ÛµÙª</option><option value="100%">Û±Û°Û°Ùª</option></select>
+          <button title="Ø¬Ø¯ÙˆÙ„ Ø¬Ø¯ÛŒØ¯" onClick={() => command(activeEditor => activeEditor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())}><Table2 /></button>
+          <select title="ÙˆÛŒØ±Ø§ÛŒØ´ Ø¬Ø¯ÙˆÙ„ Ø§Ù†ØªØ®Ø§Ø¨â€ŒØ´Ø¯Ù‡" defaultValue="" onChange={event => { tableAction(event.target.value); event.target.value = '' }}><option value="" disabled>Ø¬Ø¯ÙˆÙ„</option><option value="row-after">Ø§ÙØ²ÙˆØ¯Ù† Ø±Ø¯ÛŒÙ</option><option value="column-after">Ø§ÙØ²ÙˆØ¯Ù† Ø³ØªÙˆÙ†</option><option value="delete-row">Ø­Ø°Ù Ø±Ø¯ÛŒÙ</option><option value="delete-column">Ø­Ø°Ù Ø³ØªÙˆÙ†</option><option value="delete-table">Ø­Ø°Ù Ø¬Ø¯ÙˆÙ„</option></select>
         </div>
 
-        <div className="book-toolbar-group" aria-label="تعاملی">
-          <select title="بخش تعاملی" defaultValue="" onChange={event => { void handleInteractiveAction(event.target.value); event.target.value = '' }}><option value="" disabled>تعاملی</option><option value="edit-current">ویرایش بخش انتخاب‌شده</option>{INTERACTIVE_TYPES.map(item => <option key={item[0]} value={item[0]}>{`افزودن ${item[1]}`}</option>)}</select>
-          {bookImages.length > 0 && <select title="استفاده از تصویر کتاب در بخش تعاملی انتخاب‌شده" defaultValue="" onChange={event => { applyImageToInteractive(event.target.value); event.target.value = '' }}><option value="" disabled>تصویر</option>{bookImages.slice(0, 100).map((image: any, index: number) => <option key={`${image.url}-${index}`} value={image.url}>{image.caption || `تصویر ${index + 1}`}</option>)}</select>}
-          <button title="ویرایش جزئیات بخش تعاملی انتخاب‌شده" onClick={() => void openInteractiveEditor()}><LayoutTemplate /></button>
+        <div className="book-toolbar-group" aria-label="ØªØ¹Ø§Ù…Ù„ÛŒ">
+          <select title="Ø¨Ø®Ø´ ØªØ¹Ø§Ù…Ù„ÛŒ" defaultValue="" onChange={event => { void handleInteractiveAction(event.target.value); event.target.value = '' }}><option value="" disabled>ØªØ¹Ø§Ù…Ù„ÛŒ</option><option value="edit-current">ÙˆÛŒØ±Ø§ÛŒØ´ Ø¨Ø®Ø´ Ø§Ù†ØªØ®Ø§Ø¨â€ŒØ´Ø¯Ù‡</option>{INTERACTIVE_TYPES.map(item => <option key={item[0]} value={item[0]}>{`Ø§ÙØ²ÙˆØ¯Ù† ${item[1]}`}</option>)}</select>
+          {bookImages.length > 0 && <select title="Ø§Ø³ØªÙØ§Ø¯Ù‡ Ø§Ø² ØªØµÙˆÛŒØ± Ú©ØªØ§Ø¨ Ø¯Ø± Ø¨Ø®Ø´ ØªØ¹Ø§Ù…Ù„ÛŒ Ø§Ù†ØªØ®Ø§Ø¨â€ŒØ´Ø¯Ù‡" defaultValue="" onChange={event => { applyImageToInteractive(event.target.value); event.target.value = '' }}><option value="" disabled>ØªØµÙˆÛŒØ±</option>{bookImages.slice(0, 100).map((image: any, index: number) => <option key={`${image.url}-${index}`} value={image.url}>{image.caption || `ØªØµÙˆÛŒØ± ${index + 1}`}</option>)}</select>}
+          <button title="ÙˆÛŒØ±Ø§ÛŒØ´ Ø¬Ø²Ø¦ÛŒØ§Øª Ø¨Ø®Ø´ ØªØ¹Ø§Ù…Ù„ÛŒ Ø§Ù†ØªØ®Ø§Ø¨â€ŒØ´Ø¯Ù‡" onClick={() => void openInteractiveEditor()}><LayoutTemplate /></button>
         </div>
 
-        <div className="book-toolbar-group" aria-label="نمایش">
-          <button title="کوچک کردن متن" onClick={() => setFontSize(value => Math.max(12, value - 1))}><Minus /></button>
+        <div className="book-toolbar-group" aria-label="Ù†Ù…Ø§ÛŒØ´">
+          <button title="Ú©ÙˆÚ†Ú© Ú©Ø±Ø¯Ù† Ù…ØªÙ†" onClick={() => setFontSize(value => Math.max(12, value - 1))}><Minus /></button>
           <span>{fontSize.toLocaleString('fa-IR')}</span>
-          <button title="بزرگ کردن متن" onClick={() => setFontSize(value => Math.min(34, value + 1))}><Plus /></button>
+          <button title="Ø¨Ø²Ø±Ú¯ Ú©Ø±Ø¯Ù† Ù…ØªÙ†" onClick={() => setFontSize(value => Math.min(34, value + 1))}><Plus /></button>
         </div>
       </div>
       </EditorToolbarFrame>
 
       <div className="mb-editor-workspace">
         <aside className="mb-editor-panel">
-          <div className="mb-editor-panel-switcher" aria-label="ابزارهای ادیتور">
+          <div className="mb-editor-panel-switcher" aria-label="Ø§Ø¨Ø²Ø§Ø±Ù‡Ø§ÛŒ Ø§Ø¯ÛŒØªÙˆØ±">
             {[
-              ['toc', 'فهرست', BookOpen],
-              ['upgrade', 'ارتقا متن', Type],
-              ['media', 'رسانه', Images],
-              ['interactive', 'ابزار تعاملی', LayoutTemplate],
-              ['ai', 'هوش مصنوعی', Sparkles],
+              ['toc', 'ÙÙ‡Ø±Ø³Øª', BookOpen],
+              ['upgrade', 'Ø§Ø±ØªÙ‚Ø§ Ù…ØªÙ†', Type],
+              ['media', 'Ø±Ø³Ø§Ù†Ù‡', Images],
+              ['interactive', 'Ø§Ø¨Ø²Ø§Ø± ØªØ¹Ø§Ù…Ù„ÛŒ', LayoutTemplate],
+              ['ai', 'Ù‡ÙˆØ´ Ù…ØµÙ†ÙˆØ¹ÛŒ', Sparkles],
             ].map(([mode, label, Icon]) => {
               const PanelIcon = Icon as typeof BookOpen
               return <button key={String(mode)} className={panelMode === mode ? 'is-active' : ''} onClick={() => setPanelMode(mode as EditorPanelMode)}><PanelIcon />{String(label)}</button>
@@ -1485,14 +1444,14 @@ export default function Edit() {
           </div>
           {panelMode === 'upgrade' ? <div className="mb-panel-content is-callout-only">
             <section className="book-editor-side-card">
-              <h3><Type />ارتقا متن</h3>
-              <p>متن انتخاب‌شده را به سرفصل، کال‌اوت، جدول یا صفحه جدید تبدیل کنید.</p>
+              <h3><Type />Ø§Ø±ØªÙ‚Ø§ Ù…ØªÙ†</h3>
+              <p>Ù…ØªÙ† Ø§Ù†ØªØ®Ø§Ø¨â€ŒØ´Ø¯Ù‡ Ø±Ø§ Ø¨Ù‡ Ø³Ø±ÙØµÙ„ØŒ Ú©Ø§Ù„â€ŒØ§ÙˆØªØŒ Ø¬Ø¯ÙˆÙ„ ÛŒØ§ ØµÙØ­Ù‡ Ø¬Ø¯ÛŒØ¯ ØªØ¨Ø¯ÛŒÙ„ Ú©Ù†ÛŒØ¯.</p>
             </section>
             <div className="mb-command-grid">
               {[1, 2, 3, 4, 5, 6].map(level => <button key={level} onClick={() => promoteSelection(level as 1 | 2 | 3 | 4 | 5 | 6)}><Heading1 />H{level}</button>)}
-              <button onClick={() => command(activeEditor => activeEditor.chain().focus().setParagraph().run())}><Pilcrow />متن عادی</button>
-              <button onClick={() => command(activeEditor => activeEditor.chain().focus().setHorizontalRule().run())}><FileImage />صفحه جدید</button>
-              <button onClick={() => command(activeEditor => activeEditor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())}><Table2 />جدول</button>
+              <button onClick={() => command(activeEditor => activeEditor.chain().focus().setParagraph().run())}><Pilcrow />Ù…ØªÙ† Ø¹Ø§Ø¯ÛŒ</button>
+              <button onClick={() => command(activeEditor => activeEditor.chain().focus().setHorizontalRule().run())}><FileImage />ØµÙØ­Ù‡ Ø¬Ø¯ÛŒØ¯</button>
+              <button onClick={() => command(activeEditor => activeEditor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())}><Table2 />Ø¬Ø¯ÙˆÙ„</button>
             </div>
             <section className="mb-callout-palette compact">
               {CALLOUT_PRESETS.filter(item => item.value !== 'normal').map(item => {
@@ -1502,101 +1461,101 @@ export default function Edit() {
             </section>
           </div> : panelMode === 'media' ? <div className={`book-editor-image-drawer is-embedded media-view-${mediaPanelView}`}>
             <div className="mb-command-grid">
-              <button onClick={() => imageInputRef.current?.click()}><ImagePlus />بارگذاری تصویر جدید</button>
-              <button onClick={() => setMediaPanelView('library')}><Images />تصاویر خود کتاب</button>
-              <button onClick={() => setBackgroundUrl(window.prompt('آدرس تصویر پس‌زمینه صفحه', backgroundUrl) || backgroundUrl)}><FileImage />پس‌زمینه صفحه</button>
-              {mediaPanelView === 'library' && <button onClick={() => setMediaPanelView('home')}><ChevronUp />بازگشت به گزینه‌های رسانه</button>}
+              <button onClick={() => imageInputRef.current?.click()}><ImagePlus />Ø¨Ø§Ø±Ú¯Ø°Ø§Ø±ÛŒ ØªØµÙˆÛŒØ± Ø¬Ø¯ÛŒØ¯</button>
+              <button onClick={() => setMediaPanelView('library')}><Images />ØªØµØ§ÙˆÛŒØ± Ø®ÙˆØ¯ Ú©ØªØ§Ø¨</button>
+              <button onClick={() => setBackgroundUrl(window.prompt('Ø¢Ø¯Ø±Ø³ ØªØµÙˆÛŒØ± Ù¾Ø³â€ŒØ²Ù…ÛŒÙ†Ù‡ ØµÙØ­Ù‡', backgroundUrl) || backgroundUrl)}><FileImage />Ù¾Ø³â€ŒØ²Ù…ÛŒÙ†Ù‡ ØµÙØ­Ù‡</button>
+              {mediaPanelView === 'library' && <button onClick={() => setMediaPanelView('home')}><ChevronUp />Ø¨Ø§Ø²Ú¯Ø´Øª Ø¨Ù‡ Ú¯Ø²ÛŒÙ†Ù‡â€ŒÙ‡Ø§ÛŒ Ø±Ø³Ø§Ù†Ù‡</button>}
             </div>
-            <header><h3><Images />تصاویر کتاب</h3><button onClick={() => setPanelMode('toc')}>فهرست</button></header>
-            {bookImages.length === 0 && <p className="book-editor-empty-state">هنوز تصویری برای این کتاب ثبت نشده است.</p>}
+            <header><h3><Images />ØªØµØ§ÙˆÛŒØ± Ú©ØªØ§Ø¨</h3><button onClick={() => setPanelMode('toc')}>ÙÙ‡Ø±Ø³Øª</button></header>
+            {bookImages.length === 0 && <p className="book-editor-empty-state">Ù‡Ù†ÙˆØ² ØªØµÙˆÛŒØ±ÛŒ Ø¨Ø±Ø§ÛŒ Ø§ÛŒÙ† Ú©ØªØ§Ø¨ Ø«Ø¨Øª Ù†Ø´Ø¯Ù‡ Ø§Ø³Øª.</p>}
             <div>
               {bookImages.map((image: any, index: number) => (
-                <button key={image.key || `${image.url}-${index}`} className={image.issue ? 'has-issue' : ''} disabled={!image.url} title={image.issue || 'افزودن تصویر در محل نشانگر'} onClick={() => image.url && command(activeEditor => activeEditor.chain().focus().setImage({ src: image.url, alt: image.caption || '', width: image.widthPx ? `${image.widthPx}px` : image.widthPercent ? `${image.widthPercent}%` : '100%', imageId: image.imageId || undefined, printPage: image.printPage || undefined, conversionStatus: image.conversionStatus || undefined } as any).run())}>
+                <button key={image.key || `${image.url}-${index}`} className={image.issue ? 'has-issue' : ''} disabled={!image.url} title={image.issue || 'Ø§ÙØ²ÙˆØ¯Ù† ØªØµÙˆÛŒØ± Ø¯Ø± Ù…Ø­Ù„ Ù†Ø´Ø§Ù†Ú¯Ø±'} onClick={() => image.url && command(activeEditor => activeEditor.chain().focus().setImage({ src: image.url, alt: image.caption || '', width: image.widthPx ? `${image.widthPx}px` : image.widthPercent ? `${image.widthPercent}%` : '100%', imageId: image.imageId || undefined, printPage: image.printPage || undefined, conversionStatus: image.conversionStatus || undefined } as any).run())}>
                   {image.url ? <img src={image.url} alt={image.caption || ''} /> : <span><AlertTriangle /></span>}
-                  <b>{image.caption || image.originalName || image.name || `تصویر ${index + 1}`}</b>
-                  <small>صفحه چاپی: {String(image.printPage || 'نامشخص')}</small>
+                  <b>{image.caption || image.originalName || image.name || `ØªØµÙˆÛŒØ± ${index + 1}`}</b>
+                  <small>ØµÙØ­Ù‡ Ú†Ø§Ù¾ÛŒ: {String(image.printPage || 'Ù†Ø§Ù…Ø´Ø®Øµ')}</small>
                   {image.issue && <em>{image.issue}</em>}
                 </button>
               ))}
             </div>
           </div> : panelMode === 'interactive' ? <div className="mb-panel-content">
             <section className="book-editor-side-card">
-              <h3><LayoutTemplate />ابزار تعاملی</h3>
-              <p>ابزار را انتخاب کنید؛ بعد از درج، همان‌جا داخل متن قابل ویرایش است.</p>
+              <h3><LayoutTemplate />Ø§Ø¨Ø²Ø§Ø± ØªØ¹Ø§Ù…Ù„ÛŒ</h3>
+              <p>Ø§Ø¨Ø²Ø§Ø± Ø±Ø§ Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ù†ÛŒØ¯Ø› Ø¨Ø¹Ø¯ Ø§Ø² Ø¯Ø±Ø¬ØŒ Ù‡Ù…Ø§Ù†â€ŒØ¬Ø§ Ø¯Ø§Ø®Ù„ Ù…ØªÙ† Ù‚Ø§Ø¨Ù„ ÙˆÛŒØ±Ø§ÛŒØ´ Ø§Ø³Øª.</p>
             </section>
             <div className="mb-command-grid">
               {INTERACTIVE_TYPES.map(([kind, label]) => <button key={kind} onClick={() => addInteractive(kind)}><LayoutTemplate />{label}</button>)}
             </div>
-            <button className="mb-wide-action" onClick={() => void openInteractiveEditor()}><Edit3 />ویرایش سریع ابزار انتخاب‌شده</button>
-            {bookImages.length > 0 && <select className="mb-wide-select" title="افزودن تصویر به ابزار تعاملی انتخاب‌شده" defaultValue="" onChange={event => { applyImageToInteractive(event.target.value); event.target.value = '' }}><option value="" disabled>افزودن تصویر از کتاب</option>{bookImages.slice(0, 100).filter((image: any) => image.url).map((image: any, index: number) => <option key={`${image.url}-${index}`} value={image.url}>{image.caption || `تصویر ${index + 1}`}</option>)}</select>}
+            <button className="mb-wide-action" onClick={() => void openInteractiveEditor()}><Edit3 />ÙˆÛŒØ±Ø§ÛŒØ´ Ø³Ø±ÛŒØ¹ Ø§Ø¨Ø²Ø§Ø± Ø§Ù†ØªØ®Ø§Ø¨â€ŒØ´Ø¯Ù‡</button>
+            {bookImages.length > 0 && <select className="mb-wide-select" title="Ø§ÙØ²ÙˆØ¯Ù† ØªØµÙˆÛŒØ± Ø¨Ù‡ Ø§Ø¨Ø²Ø§Ø± ØªØ¹Ø§Ù…Ù„ÛŒ Ø§Ù†ØªØ®Ø§Ø¨â€ŒØ´Ø¯Ù‡" defaultValue="" onChange={event => { applyImageToInteractive(event.target.value); event.target.value = '' }}><option value="" disabled>Ø§ÙØ²ÙˆØ¯Ù† ØªØµÙˆÛŒØ± Ø§Ø² Ú©ØªØ§Ø¨</option>{bookImages.slice(0, 100).filter((image: any) => image.url).map((image: any, index: number) => <option key={`${image.url}-${index}`} value={image.url}>{image.caption || `ØªØµÙˆÛŒØ± ${index + 1}`}</option>)}</select>}
           </div> : panelMode === 'ai' ? <div className="mb-panel-content">
             <section className="book-editor-side-card">
-              <h3><Sparkles />هوش مصنوعی</h3>
-              <p>ابتدا متن را انتخاب کنید. هزینه واقعی بعد از پاسخ از gateway محاسبه و از کردیت کاربر کم می‌شود.</p>
+              <h3><Sparkles />Ù‡ÙˆØ´ Ù…ØµÙ†ÙˆØ¹ÛŒ</h3>
+              <p>Ø§Ø¨ØªØ¯Ø§ Ù…ØªÙ† Ø±Ø§ Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ù†ÛŒØ¯. Ù‡Ø²ÛŒÙ†Ù‡ ÙˆØ§Ù‚Ø¹ÛŒ Ø¨Ø¹Ø¯ Ø§Ø² Ù¾Ø§Ø³Ø® Ø§Ø² gateway Ù…Ø­Ø§Ø³Ø¨Ù‡ Ùˆ Ø§Ø² Ú©Ø±Ø¯ÛŒØª Ú©Ø§Ø±Ø¨Ø± Ú©Ù… Ù…ÛŒâ€ŒØ´ÙˆØ¯.</p>
             </section>
             <div className="mb-command-grid">
-              <button disabled={aiLoading} onClick={() => void runEditorAi('summary')}><Sparkles />خلاصه انتخاب</button>
-              <button disabled={aiLoading} onClick={() => void runEditorAi('quiz')}><Sparkles />تولید سؤال</button>
-              <button disabled={aiLoading} onClick={() => void runEditorAi('callout')}><Lightbulb />پیشنهاد Callout</button>
-              <button disabled={aiLoading} onClick={() => void runEditorAi('interactive')}><LayoutTemplate />پیشنهاد تعاملی</button>
+              <button disabled={aiLoading} onClick={() => void runEditorAi('summary')}><Sparkles />Ø®Ù„Ø§ØµÙ‡ Ø§Ù†ØªØ®Ø§Ø¨</button>
+              <button disabled={aiLoading} onClick={() => void runEditorAi('quiz')}><Sparkles />ØªÙˆÙ„ÛŒØ¯ Ø³Ø¤Ø§Ù„</button>
+              <button disabled={aiLoading} onClick={() => void runEditorAi('callout')}><Lightbulb />Ù¾ÛŒØ´Ù†Ù‡Ø§Ø¯ Callout</button>
+              <button disabled={aiLoading} onClick={() => void runEditorAi('interactive')}><LayoutTemplate />Ù¾ÛŒØ´Ù†Ù‡Ø§Ø¯ ØªØ¹Ø§Ù…Ù„ÛŒ</button>
             </div>
-            {aiLoading && <p className="book-editor-empty-state">در حال تولید خروجی هوشمند...</p>}
+            {aiLoading && <p className="book-editor-empty-state">Ø¯Ø± Ø­Ø§Ù„ ØªÙˆÙ„ÛŒØ¯ Ø®Ø±ÙˆØ¬ÛŒ Ù‡ÙˆØ´Ù…Ù†Ø¯...</p>}
             {aiMessage && <p className="mb-ai-cost">{aiMessage}</p>}
-            {aiUsage && <small className="mb-ai-usage">{aiUsage.inputTokens.toLocaleString('fa-IR')} توکن ورودی · {aiUsage.outputTokens.toLocaleString('fa-IR')} توکن خروجی</small>}
+            {aiUsage && <small className="mb-ai-usage">{aiUsage.inputTokens.toLocaleString('fa-IR')} ØªÙˆÚ©Ù† ÙˆØ±ÙˆØ¯ÛŒ Â· {aiUsage.outputTokens.toLocaleString('fa-IR')} ØªÙˆÚ©Ù† Ø®Ø±ÙˆØ¬ÛŒ</small>}
             {aiDraft && <section className="mb-ai-draft">
               <h3>{aiDraft.title}</h3>
               {aiDraft.text && <p>{aiDraft.text}</p>}
-              {aiDraft.type === 'summary' && <button onClick={() => aiDraft.text && insertCalloutWithText('key', aiDraft.title, aiDraft.text)}>افزودن خلاصه به کال‌اوت</button>}
-              {aiDraft.type === 'quiz' && aiDraft.payload && <button onClick={() => insertInteractivePayload('quiz', aiDraft.payload!)}>افزودن سؤال به کتاب</button>}
-              {aiDraft.type === 'interactive' && aiDraft.payload && <button onClick={() => insertInteractivePayload(aiDraft.kind || 'algorithm', aiDraft.payload!)}>افزودن بخش تعاملی</button>}
+              {aiDraft.type === 'summary' && <button onClick={() => aiDraft.text && insertCalloutWithText('key', aiDraft.title, aiDraft.text)}>Ø§ÙØ²ÙˆØ¯Ù† Ø®Ù„Ø§ØµÙ‡ Ø¨Ù‡ Ú©Ø§Ù„â€ŒØ§ÙˆØª</button>}
+              {aiDraft.type === 'quiz' && aiDraft.payload && <button onClick={() => insertInteractivePayload('quiz', aiDraft.payload!)}>Ø§ÙØ²ÙˆØ¯Ù† Ø³Ø¤Ø§Ù„ Ø¨Ù‡ Ú©ØªØ§Ø¨</button>}
+              {aiDraft.type === 'interactive' && aiDraft.payload && <button onClick={() => insertInteractivePayload(aiDraft.kind || 'algorithm', aiDraft.payload!)}>Ø§ÙØ²ÙˆØ¯Ù† Ø¨Ø®Ø´ ØªØ¹Ø§Ù…Ù„ÛŒ</button>}
             </section>}
             {aiCalloutSuggestions.length > 0 && <section className="mb-ai-suggestions">
-              <h3>پیشنهادهای Callout</h3>
+              <h3>Ù¾ÛŒØ´Ù†Ù‡Ø§Ø¯Ù‡Ø§ÛŒ Callout</h3>
               {aiCalloutSuggestions.map((item, index) => <button key={`${item.variant}-${index}`} onClick={() => insertCalloutWithText(item.variant, item.title, item.text)}><Lightbulb /><span>{item.title}<small>{item.text}</small></span></button>)}
             </section>}
           </div> : <>
           <div className="book-editor-side-card">
-            <h3><BookOpen />فهرست کتاب</h3>
-            <p>این همان فهرستی است که در زمان تبدیل Word تایید شده است.</p>
-            <span className="book-editor-segment-note">در حال ویرایش: {activeSegment?.label || 'سند'} · صفحه {activeSegment?.page || (activeSegment?.start ?? 0) + 1}</span>
+            <h3><BookOpen />ÙÙ‡Ø±Ø³Øª Ú©ØªØ§Ø¨</h3>
+            <p>Ø§ÛŒÙ† Ù‡Ù…Ø§Ù† ÙÙ‡Ø±Ø³ØªÛŒ Ø§Ø³Øª Ú©Ù‡ Ø¯Ø± Ø²Ù…Ø§Ù† ØªØ¨Ø¯ÛŒÙ„ Word ØªØ§ÛŒÛŒØ¯ Ø´Ø¯Ù‡ Ø§Ø³Øª.</p>
+            <span className="book-editor-segment-note">Ø¯Ø± Ø­Ø§Ù„ ÙˆÛŒØ±Ø§ÛŒØ´: {activeSegment?.label || 'Ø³Ù†Ø¯'} Â· ØµÙØ­Ù‡ {activeSegment?.page || (activeSegment?.start ?? 0) + 1}</span>
           </div>
-          <div className="book-editor-toc-tools" aria-label="ابزارهای فهرست">
-            <button title="باز کردن همه شاخه‌ها" onClick={expandAllToc}><ChevronUp /></button>
-            <button title="جمع کردن همه شاخه‌ها" onClick={collapseAllToc}><ChevronLeft /></button>
-            <button title="جمع کردن فصل‌های اصلی" onClick={() => collapseTocByLevel(1)}>H1</button>
-            <button title="جمع کردن تا سطح دوم" onClick={() => collapseTocByLevel(2)}>H2</button>
+          <div className="book-editor-toc-tools" aria-label="Ø§Ø¨Ø²Ø§Ø±Ù‡Ø§ÛŒ ÙÙ‡Ø±Ø³Øª">
+            <button title="Ø¨Ø§Ø² Ú©Ø±Ø¯Ù† Ù‡Ù…Ù‡ Ø´Ø§Ø®Ù‡â€ŒÙ‡Ø§" onClick={expandAllToc}><ChevronUp /></button>
+            <button title="Ø¬Ù…Ø¹ Ú©Ø±Ø¯Ù† Ù‡Ù…Ù‡ Ø´Ø§Ø®Ù‡â€ŒÙ‡Ø§" onClick={collapseAllToc}><ChevronLeft /></button>
+            <button title="Ø¬Ù…Ø¹ Ú©Ø±Ø¯Ù† ÙØµÙ„â€ŒÙ‡Ø§ÛŒ Ø§ØµÙ„ÛŒ" onClick={() => collapseTocByLevel(1)}>H1</button>
+            <button title="Ø¬Ù…Ø¹ Ú©Ø±Ø¯Ù† ØªØ§ Ø³Ø·Ø­ Ø¯ÙˆÙ…" onClick={() => collapseTocByLevel(2)}>H2</button>
           </div>
           <div className="book-editor-toc-list">
-            {tocEntries.length === 0 && <p className="book-editor-empty-state">برای این کتاب فهرست تاییدشده‌ای ثبت نشده است.</p>}
+            {tocEntries.length === 0 && <p className="book-editor-empty-state">Ø¨Ø±Ø§ÛŒ Ø§ÛŒÙ† Ú©ØªØ§Ø¨ ÙÙ‡Ø±Ø³Øª ØªØ§ÛŒÛŒØ¯Ø´Ø¯Ù‡â€ŒØ§ÛŒ Ø«Ø¨Øª Ù†Ø´Ø¯Ù‡ Ø§Ø³Øª.</p>}
             {tocTreeRows.filter(row => !row.hidden).map(({ segment, index, level, hasChildren, collapsed, h1Counter }) => (
               <div
                 className={`book-editor-toc-row level-${level} ${index === activeSegmentIndex ? 'is-active' : ''} ${hasChildren ? 'has-children' : ''}`}
                 key={segment.key}
-                title={segment.label || 'سرفصل بدون عنوان'}
+                title={segment.label || 'Ø³Ø±ÙØµÙ„ Ø¨Ø¯ÙˆÙ† Ø¹Ù†ÙˆØ§Ù†'}
                 style={{ '--toc-level': level } as CSSProperties}
               >
                 {editingTocIndex === segment.tocIndex ? (
                   <form className="book-editor-toc-inline-edit" onSubmit={event => { event.preventDefault(); submitInlineTocEdit() }}>
                     <input value={editingTocTitle} autoFocus onChange={event => setEditingTocTitle(event.target.value)} onKeyDown={event => { if (event.key === 'Escape') { setEditingTocIndex(null); setEditingTocTitle('') } }} />
-                    <button type="submit">ثبت</button>
+                    <button type="submit">Ø«Ø¨Øª</button>
                   </form>
                 ) : (
                   <button className="book-editor-toc-link" onClick={() => changeActiveSegment(index)}>
                     <span className="book-editor-toc-number">{level === 1 ? h1Counter.toLocaleString('fa-IR') : (index + 1).toLocaleString('fa-IR')}</span>
-                    <span className="book-editor-toc-title">{segment.label || 'سرفصل بدون عنوان'}</span>
+                    <span className="book-editor-toc-title">{segment.label || 'Ø³Ø±ÙØµÙ„ Ø¨Ø¯ÙˆÙ† Ø¹Ù†ÙˆØ§Ù†'}</span>
                   </button>
                 )}
                 {typeof segment.tocIndex === 'number' ? (
                   <span className="book-editor-toc-actions">
-                    {hasChildren && <button title={collapsed ? 'باز کردن شاخه' : 'جمع کردن شاخه'} onClick={() => toggleTocBranch(segment.key)}>{collapsed ? <ChevronLeft /> : <ChevronUp />}</button>}
-                    <button title="کاهش سطح" onClick={() => shiftTocEntryLevel(segment.tocIndex!, -1)}><ArrowUp /></button>
-                    <button title="افزایش سطح" onClick={() => shiftTocEntryLevel(segment.tocIndex!, 1)}><ArrowDown /></button>
-                    <button title="ویرایش عنوان" onClick={() => startInlineTocEdit(segment.tocIndex!, segment.label || '')}><Edit3 /></button>
-                    <button title="حذف از فهرست" onClick={() => setConfirmTocDelete(segment.tocIndex!)}><Trash2 /></button>
+                    {hasChildren && <button title={collapsed ? 'Ø¨Ø§Ø² Ú©Ø±Ø¯Ù† Ø´Ø§Ø®Ù‡' : 'Ø¬Ù…Ø¹ Ú©Ø±Ø¯Ù† Ø´Ø§Ø®Ù‡'} onClick={() => toggleTocBranch(segment.key)}>{collapsed ? <ChevronLeft /> : <ChevronUp />}</button>}
+                    <button title="Ú©Ø§Ù‡Ø´ Ø³Ø·Ø­" onClick={() => shiftTocEntryLevel(segment.tocIndex!, -1)}><ArrowUp /></button>
+                    <button title="Ø§ÙØ²Ø§ÛŒØ´ Ø³Ø·Ø­" onClick={() => shiftTocEntryLevel(segment.tocIndex!, 1)}><ArrowDown /></button>
+                    <button title="ÙˆÛŒØ±Ø§ÛŒØ´ Ø¹Ù†ÙˆØ§Ù†" onClick={() => startInlineTocEdit(segment.tocIndex!, segment.label || '')}><Edit3 /></button>
+                    <button title="Ø­Ø°Ù Ø§Ø² ÙÙ‡Ø±Ø³Øª" onClick={() => setConfirmTocDelete(segment.tocIndex!)}><Trash2 /></button>
                   </span>
                 ) : segment.isPrelude ? (
                   <span className="book-editor-toc-actions">
-                    <button title="ویرایش عنوان ابتدای کتاب" onClick={() => startInlineTocEdit(-1, segment.label || preludeTitle)}><Edit3 /></button>
+                    <button title="ÙˆÛŒØ±Ø§ÛŒØ´ Ø¹Ù†ÙˆØ§Ù† Ø§Ø¨ØªØ¯Ø§ÛŒ Ú©ØªØ§Ø¨" onClick={() => startInlineTocEdit(-1, segment.label || preludeTitle)}><Edit3 /></button>
                   </span>
                 ) : <span className="book-editor-toc-jump"><ChevronLeft /></span>}
               </div>
@@ -1610,16 +1569,16 @@ export default function Edit() {
         <section className="app-message-modal menu-glass-70">
           <div className="app-message-art"><AlertTriangle /></div>
           <div>
-            <h3>حذف سرفصل از فهرست</h3>
-            <p>«{tocEntries[confirmTocDelete]?.title}» فقط از فهرست کتاب حذف می‌شود و متن اصلی کتاب دست‌نخورده باقی می‌ماند.</p>
+            <h3>Ø­Ø°Ù Ø³Ø±ÙØµÙ„ Ø§Ø² ÙÙ‡Ø±Ø³Øª</h3>
+            <p>Â«{tocEntries[confirmTocDelete]?.title}Â» ÙÙ‚Ø· Ø§Ø² ÙÙ‡Ø±Ø³Øª Ú©ØªØ§Ø¨ Ø­Ø°Ù Ù…ÛŒâ€ŒØ´ÙˆØ¯ Ùˆ Ù…ØªÙ† Ø§ØµÙ„ÛŒ Ú©ØªØ§Ø¨ Ø¯Ø³Øªâ€ŒÙ†Ø®ÙˆØ±Ø¯Ù‡ Ø¨Ø§Ù‚ÛŒ Ù…ÛŒâ€ŒÙ…Ø§Ù†Ø¯.</p>
           </div>
           <footer>
-            <button className="app-modal-secondary" onClick={() => setConfirmTocDelete(null)}>انصراف</button>
-            <button className="app-modal-danger" onClick={() => removeTocEntry(confirmTocDelete)}>حذف از فهرست</button>
+            <button className="app-modal-secondary" onClick={() => setConfirmTocDelete(null)}>Ø§Ù†ØµØ±Ø§Ù</button>
+            <button className="app-modal-danger" onClick={() => removeTocEntry(confirmTocDelete)}>Ø­Ø°Ù Ø§Ø² ÙÙ‡Ø±Ø³Øª</button>
           </footer>
         </section>
       </div>}
-      <button className="book-editor-scroll-top" title="بازگشت به ابتدای پنل محتوا" onClick={() => documentStageRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}><ArrowUp /></button>
+      <button className="book-editor-scroll-top" title="Ø¨Ø§Ø²Ú¯Ø´Øª Ø¨Ù‡ Ø§Ø¨ØªØ¯Ø§ÛŒ Ù¾Ù†Ù„ Ù…Ø­ØªÙˆØ§" onClick={() => documentStageRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}><ArrowUp /></button>
       <EditorStatusBar wordCount={wordCount} language={currentLanguage} blockLabel={currentBlockLabel} zoom={100} savedAt={savedAt} saving={saving} />
     </main>
   )
