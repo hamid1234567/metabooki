@@ -264,49 +264,95 @@ export default function Admin() {
       {tab === 'users' && (
         <div className="glass rounded-2xl overflow-hidden">
           <div className="p-6 border-b bg-primary/5">
-            <div className="flex flex-wrap items-start justify-between gap-4 mb-5">
+            <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <h2 className="font-bold text-lg flex items-center gap-2"><KeyRound className="w-5 h-5 text-primary" />مدیریت رمز عبور کاربران</h2>
+                <h2 className="font-bold text-lg flex items-center gap-2"><Users className="w-5 h-5 text-primary" />مدیریت کاربران</h2>
                 <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-                  در حالت لوکال/mock رمز مستقیم تغییر می‌کند. در حالت Supabase واقعی، تغییر رمز و ساخت لینک ریست از طریق Edge Function امن و فقط با دسترسی ادمین انجام می‌شود.
+                  ویرایش مشخصات، نقش‌ها، کردیت، لینک ریست و تغییر رمز از ردیف هر کاربر انجام می‌شود.
                 </p>
               </div>
               <Button variant="outline" size="sm" onClick={refreshAdminUsers} disabled={usersLoading} className="gap-2">
                 <RefreshCw className={`w-4 h-4 ${usersLoading ? 'animate-spin' : ''}`} />به‌روزرسانی کاربران
               </Button>
             </div>
-            <div className="grid lg:grid-cols-[1fr_1fr_auto_auto] gap-3 items-end">
-              <label className="grid gap-2 text-sm">
-                <span className="text-muted-foreground">کاربر</span>
-                <input list="admin-users-list" value={selectedUserEmail} onChange={event => setSelectedUserEmail(event.target.value)} className="w-full p-2.5 rounded-xl border border-input bg-background text-sm" dir="ltr" placeholder="user@example.com" />
-                <datalist id="admin-users-list">
-                  {(adminUsers.length ? adminUsers : mockUsers.map(u => ({ id: u.id, email: u.email, displayName: u.display_name }))).map(u => <option key={u.id} value={u.email}>{u.displayName}</option>)}
-                </datalist>
-              </label>
-              <label className="grid gap-2 text-sm">
-                <span className="text-muted-foreground">رمز عبور جدید</span>
-                <input type="text" value={newUserPassword} onChange={event => setNewUserPassword(event.target.value)} className="w-full p-2.5 rounded-xl border border-input bg-background text-sm" dir="ltr" placeholder="حداقل ۸ کاراکتر" />
-              </label>
-              <Button onClick={changeUserPasswordFromAdmin} disabled={passwordActionLoading} className="gap-2"><KeyRound className="w-4 h-4" />ثبت رمز</Button>
-              <Button variant="outline" onClick={sendPasswordResetFromAdmin} disabled={passwordActionLoading}>ارسال لینک ریست</Button>
-            </div>
             {message && <p className="mt-4 rounded-xl bg-primary/10 p-3 text-sm text-primary break-all">{message}</p>}
           </div>
           <div className="p-6 border-b"><h2 className="font-bold text-lg">لیست کاربران</h2></div>
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead><tr className="bg-muted/50">{['نام','ایمیل','نقش‌ها','کردیت','تلفن','وضعیت'].map(h=><th key={h} className="p-4 text-right text-sm font-semibold">{h}</th>)}</tr></thead>
+              <thead><tr className="bg-muted/50">{['نام','ایمیل','نقش‌ها','کردیت','تلفن','وضعیت','عملیات'].map(h=><th key={h} className="p-4 text-right text-sm font-semibold">{h}</th>)}</tr></thead>
               <tbody>
-                {(adminUsers.length ? adminUsers : mockUsers.map(u => ({ id: u.id, email: u.email, displayName: u.display_name, roles: u.roles, credits: u.credits, phone: u.phone }))).map(u => (
-                  <tr key={u.id} className="border-t hover:bg-muted/30 transition-colors">
-                    <td className="p-4 font-medium">{u.displayName || 'کاربر بدون نام'}</td>
-                    <td className="p-4 text-sm">{u.email}</td>
-                    <td className="p-4"><div className="flex flex-wrap gap-1">{u.roles.map(r=><span key={r} className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">{r==='super_admin'?'مدیر ارشد':r==='admin'?'ادمین':r==='publisher'?'ناشر':r==='editor'?'ویراستار':'کاربر'}</span>)}</div></td>
-                    <td className="p-4 font-bold">{(u.credits || 0).toLocaleString()}</td>
-                    <td className="p-4 text-sm" dir="ltr">{'phone' in u ? u.phone : '-'}</td>
-                    <td className="p-4"><span className="text-xs bg-success/20 text-success px-2 py-0.5 rounded-full">فعال</span></td>
-                  </tr>
-                ))}
+                {(adminUsers.length ? adminUsers : mockUsers.map(u => ({ id: u.id, email: u.email, displayName: u.display_name, roles: u.roles, credits: u.credits, phone: u.phone }))).map(u => {
+                  const passwordDraft = rowPasswordDrafts[u.id] || ''
+                  const userBookCount = mockBooks.filter(book => book.publisher_id === u.id || book.author === u.displayName).length
+                  const isExpanded = expandedUserId === u.id
+                  return (
+                    <Fragment key={u.id}>
+                      <tr className="border-t hover:bg-muted/30 transition-colors">
+                        <td className="p-4 font-medium">{u.displayName || 'کاربر بدون نام'}</td>
+                        <td className="p-4 text-sm" dir="ltr">{u.email}</td>
+                        <td className="p-4"><div className="flex flex-wrap gap-1">{u.roles.map(r=><span key={r} className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">{r==='super_admin'?'مدیر ارشد':r==='admin'?'ادمین':r==='publisher'?'ناشر':r==='editor'?'ویراستار':'کاربر'}</span>)}</div></td>
+                        <td className="p-4 font-bold">{(u.credits || 0).toLocaleString()}</td>
+                        <td className="p-4 text-sm" dir="ltr">{'phone' in u ? u.phone : '-'}</td>
+                        <td className="p-4"><span className="text-xs bg-success/20 text-success px-2 py-0.5 rounded-full">فعال</span></td>
+                        <td className="p-4">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Button variant="outline" size="sm" onClick={() => setExpandedUserId(isExpanded ? null : u.id)} className="gap-1"><Edit3 className="w-3.5 h-3.5" />ویرایش</Button>
+                            <Button variant="outline" size="sm" onClick={() => sendPasswordResetForUser(u.email)} disabled={passwordActionLoading} className="gap-1"><Mail className="w-3.5 h-3.5" />ریست</Button>
+                          </div>
+                        </td>
+                      </tr>
+                      {isExpanded && (
+                        <tr className="border-t bg-muted/20">
+                          <td colSpan={7} className="p-4">
+                            <div className="grid xl:grid-cols-[1.1fr_1fr_1fr] gap-4">
+                              <div className="rounded-2xl border bg-background/70 p-4">
+                                <div className="flex items-center gap-3 mb-4">
+                                  <div className="w-14 h-14 rounded-2xl bg-primary/10 text-primary grid place-items-center font-bold text-lg">{(u.displayName || u.email || 'U').slice(0, 1).toUpperCase()}</div>
+                                  <div>
+                                    <h3 className="font-bold">{u.displayName || 'کاربر بدون نام'}</h3>
+                                    <p className="text-xs text-muted-foreground" dir="ltr">{u.email}</p>
+                                  </div>
+                                </div>
+                                <div className="grid sm:grid-cols-2 gap-3 text-sm">
+                                  <label className="grid gap-1"><span className="text-muted-foreground">نام نمایشی</span><input className="rounded-xl border bg-background px-3 py-2" defaultValue={u.displayName || ''} /></label>
+                                  <label className="grid gap-1"><span className="text-muted-foreground">تلفن</span><input className="rounded-xl border bg-background px-3 py-2" dir="ltr" defaultValue={'phone' in u ? u.phone || '' : ''} /></label>
+                                  <label className="grid gap-1"><span className="text-muted-foreground">نقش‌ها</span><input className="rounded-xl border bg-background px-3 py-2" dir="ltr" defaultValue={u.roles.join(', ')} /></label>
+                                  <label className="grid gap-1"><span className="text-muted-foreground">کردیت</span><input className="rounded-xl border bg-background px-3 py-2" type="number" defaultValue={u.credits || 0} /></label>
+                                </div>
+                                <p className="mt-3 text-xs text-muted-foreground">ذخیره مشخصات عمومی بعد از اتصال کامل جدول پروفایل و تراکنش‌ها فعال می‌شود؛ تغییر رمز و لینک ریست همین حالا عملیاتی است.</p>
+                              </div>
+                              <div className="rounded-2xl border bg-background/70 p-4">
+                                <h3 className="font-bold mb-3 flex items-center gap-2"><KeyRound className="w-4 h-4 text-primary" />امنیت و رمز عبور</h3>
+                                <label className="grid gap-2 text-sm">
+                                  <span className="text-muted-foreground">رمز عبور جدید</span>
+                                  <input type="text" value={passwordDraft} onChange={event => setRowPasswordDrafts(current => ({ ...current, [u.id]: event.target.value }))} className="w-full p-2.5 rounded-xl border border-input bg-background text-sm" dir="ltr" placeholder="حداقل ۸ کاراکتر" />
+                                </label>
+                                <div className="flex flex-wrap gap-2 mt-3">
+                                  <Button size="sm" onClick={() => changePasswordForUser(u.email, passwordDraft)} disabled={passwordActionLoading || passwordDraft.length < 8} className="gap-1"><KeyRound className="w-3.5 h-3.5" />ثبت رمز</Button>
+                                  <Button size="sm" variant="outline" onClick={() => sendPasswordResetForUser(u.email)} disabled={passwordActionLoading} className="gap-1"><Mail className="w-3.5 h-3.5" />ارسال لینک ریست</Button>
+                                </div>
+                                <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
+                                  <div className="rounded-xl bg-muted/40 p-3"><Clock3 className="w-4 h-4 text-primary mb-2" /><p className="text-muted-foreground">آخرین ورود</p><strong>در انتظار لاگ</strong></div>
+                                  <div className="rounded-xl bg-muted/40 p-3"><Receipt className="w-4 h-4 text-primary mb-2" /><p className="text-muted-foreground">پرداخت‌ها</p><strong>در انتظار اتصال</strong></div>
+                                </div>
+                              </div>
+                              <div className="rounded-2xl border bg-background/70 p-4">
+                                <h3 className="font-bold mb-3 flex items-center gap-2"><LibraryBig className="w-4 h-4 text-primary" />فعالیت در سامانه</h3>
+                                <div className="grid grid-cols-2 gap-3 text-sm">
+                                  <div className="rounded-xl bg-primary/10 p-3"><p className="text-muted-foreground">کتاب‌های کاربر</p><strong className="text-2xl">{userBookCount}</strong></div>
+                                  <div className="rounded-xl bg-primary/10 p-3"><p className="text-muted-foreground">کردیت فعلی</p><strong className="text-2xl">{(u.credits || 0).toLocaleString()}</strong></div>
+                                  <div className="rounded-xl bg-muted/40 p-3"><p className="text-muted-foreground">هزینه‌های AI</p><strong>در انتظار گزارش</strong></div>
+                                  <div className="rounded-xl bg-muted/40 p-3"><p className="text-muted-foreground">خریدها</p><strong>در انتظار اتصال</strong></div>
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  )
+                })}
               </tbody>
             </table>
           </div>
