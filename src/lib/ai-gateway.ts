@@ -53,6 +53,14 @@ export interface RunAiResult {
   }
 }
 
+export interface AiProviderTestResult {
+  ok: boolean
+  provider: string
+  model: string
+  message: string
+  sample?: string
+}
+
 export const DEFAULT_USD_TO_TOMAN = 170_000
 export const DEFAULT_AI_CHARGE_MULTIPLIER = 2
 
@@ -85,6 +93,15 @@ export async function saveAiGatewaySettings(settings: AiGatewaySettings) {
   if (error) throw new Error(error.message)
 }
 
+export async function testAiProvider(provider: AiProviderConfig): Promise<AiProviderTestResult> {
+  const { data, error } = await supabase.functions.invoke('ai-gateway', { body: { operation: 'admin_test_provider', provider } })
+  if (error) {
+    const details = (error as any)?.context?.error || (error as any)?.context?.message || error.message
+    throw new Error(details || 'تست کلید هوش مصنوعی ناموفق بود.')
+  }
+  return data as AiProviderTestResult
+}
+
 export function maskApiKey(key: string) {
   return key ? 'ذخیره‌شده روی سرور' : 'وارد نشده'
 }
@@ -98,6 +115,9 @@ export async function runAiThroughGateway(request: RunAiRequest): Promise<RunAiR
   const { data, error } = await supabase.functions.invoke('ai-gateway', {
     body: { action: request.action, bookTitle: request.bookTitle, pageTitle: request.pageTitle, pageText: request.pageText, bookId: request.bookId, pageIndex: request.pageIndex },
   })
-  if (error) throw new Error(error.message || 'اجرای درخواست هوش مصنوعی ناموفق بود.')
+  if (error) {
+    const details = (error as any)?.context?.error || (error as any)?.context?.message || error.message
+    throw new Error(details || 'اجرای درخواست هوش مصنوعی ناموفق بود.')
+  }
   return data as RunAiResult
 }

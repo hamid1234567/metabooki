@@ -5,7 +5,7 @@ import { mockUsers, mockBooks, CREDIT_VALUE_TOMAN, setCreditValue } from '@/lib/
 import { Shield, Users, Activity, BookOpen, DollarSign, Settings, Bug, MessageSquare, Eye, EyeOff, Trash2, Sparkles, KeyRound, Server, CheckCircle, AlertTriangle, RefreshCw, ExternalLink, Filter, Edit3, Mail, Receipt, Clock3, LibraryBig } from 'lucide-react'
 import { deleteComment, getAllComments, updateCommentStatus, type MockComment } from '@/lib/mock-comments'
 import { Button } from '@/components/ui/button'
-import { loadAiGatewaySettings, loadAiGatewaySettingsRemote, maskApiKey, saveAiGatewaySettings, type AiGatewaySettings, type AiProviderConfig } from '@/lib/ai-gateway'
+import { loadAiGatewaySettings, loadAiGatewaySettingsRemote, maskApiKey, saveAiGatewaySettings, testAiProvider, type AiGatewaySettings, type AiProviderConfig } from '@/lib/ai-gateway'
 import { useRoles } from '@/hooks/useRoles'
 import { supabase } from '@/integrations/supabase/client'
 import { emptyFilterSettings, loadBookFilterSettings, parseFilterLines, saveBookFilterSettings, type BookFilterSettings } from '@/lib/filter-settings'
@@ -22,6 +22,7 @@ export default function Admin() {
   const [aiSettings, setAiSettings] = useState<AiGatewaySettings>(() => loadAiGatewaySettings())
   const [connectionTest, setConnectionTest] = useState<'idle' | 'testing' | 'ok' | 'error'>('idle')
   const [connectionMessage, setConnectionMessage] = useState('')
+  const [aiProviderTests, setAiProviderTests] = useState<Record<string, { state: 'idle' | 'testing' | 'ok' | 'error'; message: string; sample?: string }>>({})
   const [filterSettings, setFilterSettings] = useState<BookFilterSettings>(emptyFilterSettings)
   const [filterDraft, setFilterDraft] = useState({ categories: '', tags: '', bookTypes: '' })
   const [adminUsers, setAdminUsers] = useState<AdminUserRow[]>([])
@@ -107,6 +108,22 @@ export default function Admin() {
       setMessage(error instanceof Error ? error.message : 'ذخیره تنظیمات ناموفق بود')
     }
     setTimeout(() => setMessage(''), 3000)
+  }
+
+  const runAiProviderTest = async (provider: AiProviderConfig) => {
+    setAiProviderTests(current => ({ ...current, [provider.id]: { state: 'testing', message: 'در حال تست کلید و مدل...' } }))
+    try {
+      const result = await testAiProvider(provider)
+      setAiProviderTests(current => ({
+        ...current,
+        [provider.id]: { state: 'ok', message: `${result.message} (${result.provider} / ${result.model})`, sample: result.sample },
+      }))
+    } catch (error) {
+      setAiProviderTests(current => ({
+        ...current,
+        [provider.id]: { state: 'error', message: error instanceof Error ? error.message : 'تست کلید ناموفق بود.' },
+      }))
+    }
   }
 
   const saveFilterOptions = async () => {
@@ -502,6 +519,10 @@ export default function Admin() {
             <div className="grid lg:grid-cols-2 gap-4">
               {aiSettings.providers.map(provider => (
                 <div key={provider.id} className={`rounded-2xl border p-4 ${aiSettings.activeProvider === provider.id ? 'border-primary bg-primary/5' : 'border-border bg-background/50'}`}>
+                  {(() => {
+                    const test = aiProviderTests[provider.id] || { state: 'idle' as const, message: '' }
+                    return (
+                      <>
                   <div className="flex items-center justify-between gap-3 mb-4">
                     <div>
                       <h3 className="font-bold flex items-center gap-2"><KeyRound className="w-4 h-4 text-primary" />{provider.label}</h3>
@@ -520,6 +541,16 @@ export default function Admin() {
                       <div><label className="text-xs text-muted-foreground block mb-1">هزینه خروجی / ۱۰۰۰ توکن ($)</label><input title="هزینه خروجی" type="number" step="0.000001" value={provider.outputCostPer1kUsd} onChange={e => updateAiProvider(provider.id, { outputCostPer1kUsd: Number(e.target.value) })} className="w-full p-2 rounded-xl border border-input bg-background text-sm" /></div>
                     </div>
                   </div>
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => void runAiProviderTest(provider)} disabled={test.state === 'testing'} className="gap-2">
+                      <RefreshCw className={`w-4 h-4 ${test.state === 'testing' ? 'animate-spin' : ''}`} />تست کلید
+                    </Button>
+                    {test.message && <span className={`text-xs rounded-full px-3 py-1.5 ${test.state === 'ok' ? 'bg-success/15 text-success' : test.state === 'error' ? 'bg-destructive/15 text-destructive' : 'bg-muted text-muted-foreground'}`}>{test.message}</span>}
+                  </div>
+                  {test.sample && <pre className="mt-3 max-h-24 overflow-auto rounded-xl bg-muted/50 p-3 text-xs leading-relaxed whitespace-pre-wrap" dir="auto">{test.sample}</pre>}
+                      </>
+                    )
+                  })()}
                 </div>
               ))}
             </div>

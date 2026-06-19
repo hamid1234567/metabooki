@@ -40,6 +40,38 @@ function parseStructuredContent(text: string) {
   return JSON.parse(cleaned)
 }
 
+async function callProvider(provider: AiProviderConfig, prompt: string, maxTokens = 512) {
+  let text = ''
+  let inputTokens = estimateTokens(prompt)
+  let outputTokens = 0
+
+  if (provider.provider === 'gemini') {
+    const res = await fetch(`${provider.base_url}/models/${provider.model}:generateContent?key=${provider.api_key}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: maxTokens, temperature: 0.2 } }),
+    })
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(json.error?.message || `Gemini request failed (${res.status})`)
+    text = json.candidates?.[0]?.content?.parts?.[0]?.text || ''
+    inputTokens = json.usageMetadata?.promptTokenCount || inputTokens
+    outputTokens = json.usageMetadata?.candidatesTokenCount || estimateTokens(text)
+  } else {
+    const res = await fetch(`${provider.base_url}/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${provider.api_key}` },
+      body: JSON.stringify({ model: provider.model, messages: [{ role: 'user', content: prompt }], temperature: 0.2, max_tokens: maxTokens }),
+    })
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(json.error?.message || json.message || `AI request failed (${res.status})`)
+    text = json.choices?.[0]?.message?.content || ''
+    inputTokens = json.usage?.prompt_tokens || inputTokens
+    outputTokens = json.usage?.completion_tokens || estimateTokens(text)
+  }
+
+  return { text, inputTokens, outputTokens }
+}
+
 function safeActionPrompt(action: string, bookTitle: string, pageTitle: string | undefined, pageText: string) {
   const header = `Book: ${bookTitle}\n${pageTitle ? `Page title: ${pageTitle}\n` : ''}Page text:\n${pageText}`
   const common = 'Answer only from this page text. Do not invent facts. Write fluent Persian. Return only valid JSON without markdown.'
@@ -105,6 +137,40 @@ serve(async (req) => {
       return new Response(JSON.stringify({ ok: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
+    if (body.operation === 'admin_test_provider') {
+      const { data: role } = await adminClient.from('user_roles').select('role').eq('user_id', user.id).in('role', ['admin', 'super_admin']).limit(1)
+      if (!role?.length) throw new Error('Admin access required')
+
+      const incoming = body.provider || {}
+      let apiKey = incoming.apiKey
+      if (!apiKey || apiKey === '__stored__') {
+        const { data: stored } = await adminClient.from('ai_provider_settings').select('api_key').eq('provider', incoming.id).single()
+        apiKey = stored?.api_key
+      }
+      if (!apiKey) throw new Error('API key is empty or not stored for this provider')
+
+      const provider: AiProviderConfig = {
+        provider: incoming.id,
+        label: incoming.label || incoming.id,
+        enabled: true,
+        api_key: apiKey,
+        base_url: incoming.baseUrl,
+        model: incoming.model,
+        input_cost_per_1k_usd: Number(incoming.inputCostPer1kUsd || 0),
+        output_cost_per_1k_usd: Number(incoming.outputCostPer1kUsd || 0),
+      }
+      if (!provider.base_url || !provider.model) throw new Error('Base URL or model is missing')
+
+      const result = await callProvider(provider, 'Return exactly this Persian JSON: {"ok":true,"message":"اتصال برقرار است"}', 128)
+      return new Response(JSON.stringify({
+        ok: true,
+        provider: provider.label || provider.provider,
+        model: provider.model,
+        message: 'کلید و مدل با موفقیت پاسخ دادند.',
+        sample: result.text.slice(0, 300),
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
+
     const prompt = safeActionPrompt(body.action, body.bookTitle, body.pageTitle, body.pageText)
 
     const { data: settings } = await adminClient.from('ai_gateway_settings').select('*').eq('id', 1).single()
@@ -122,33 +188,7 @@ serve(async (req) => {
     const provider = providerRow as AiProviderConfig | null
     if (!provider?.api_key) throw new Error('AI provider is not configured')
 
-    let text = ''
-    let inputTokens = estimateTokens(prompt)
-    let outputTokens = 0
-
-    if (provider.provider === 'gemini') {
-      const res = await fetch(`${provider.base_url}/models/${provider.model}:generateContent?key=${provider.api_key}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
-      })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error?.message || 'Gemini request failed')
-      text = json.candidates?.[0]?.content?.parts?.[0]?.text || ''
-      inputTokens = json.usageMetadata?.promptTokenCount || inputTokens
-      outputTokens = json.usageMetadata?.candidatesTokenCount || estimateTokens(text)
-    } else {
-      const res = await fetch(`${provider.base_url}/chat/completions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${provider.api_key}` },
-        body: JSON.stringify({ model: provider.model, messages: [{ role: 'user', content: prompt }], temperature: 0.4 }),
-      })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error?.message || 'AI request failed')
-      text = json.choices?.[0]?.message?.content || ''
-      inputTokens = json.usage?.prompt_tokens || inputTokens
-      outputTokens = json.usage?.completion_tokens || estimateTokens(text)
-    }
+    const { text, inputTokens, outputTokens } = await callProvider(provider, prompt)
 
     const rawUsd = (inputTokens / 1000) * Number(provider.input_cost_per_1k_usd) + (outputTokens / 1000) * Number(provider.output_cost_per_1k_usd)
     const chargedUsd = rawUsd * chargeMultiplier
