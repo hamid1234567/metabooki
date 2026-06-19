@@ -303,10 +303,6 @@ function pagesToHtml(pages: any[] = []) {
 type EditorSegment = { key: string; label: string; level?: number; start: number; end: number; startBlock?: number; endBlock?: number; page?: number; tocIndex?: number; isPrelude?: boolean }
 type ConfirmedTocEntry = { id?: string; title: string; level: number; page?: number; styleId?: string }
 
-function pageTitle(page: any, index: number) {
-  return page?.title || page?.blocks?.find((block: any) => block.type === 'heading')?.content || `صفحه ${index + 1}`
-}
-
 function pageIndexForPrintPage(pages: any[] = [], printPage?: number) {
   if (!printPage) return 0
   const exact = pages.findIndex((page, index) => Number(page.printNumber || page.number || index + 1) === Number(printPage))
@@ -584,7 +580,6 @@ export default function Edit() {
   const [fontSize, setFontSize] = useState(18)
   const [allPages, setAllPages] = useState<any[]>(localInitial?.pages || [])
   const [activeSegmentIndex, setActiveSegmentIndex] = useState(0)
-  const [headings, setHeadings] = useState<Array<{ text: string; level: number; pos: number }>>([])
   const [backgroundUrl, setBackgroundUrl] = useState('')
   const [backgroundAlpha, setBackgroundAlpha] = useState(0)
   const [editingTocIndex, setEditingTocIndex] = useState<number | null>(null)
@@ -625,7 +620,7 @@ export default function Edit() {
         issue: image.conversionError || 'تصویر در تبدیل محلی/سروری آماده نشده است',
       }))
     return [...pageImages, ...missingImages]
-  }, [allPages, book?.metadata])
+  }, [allPages, book])
 
   const editor = useEditor({
     extensions: [
@@ -637,14 +632,6 @@ export default function Edit() {
   })
 
   const getEditor = () => editor && !editor.isDestroyed ? editor : null
-
-  const refreshHeadings = () => {
-    const activeEditor = getEditor()
-    if (!activeEditor) return
-    const result: Array<{ text: string; level: number; pos: number }> = []
-    activeEditor.state.doc.descendants((node, pos) => { if (node.type.name === 'heading') result.push({ text: node.textContent, level: node.attrs.level, pos }) })
-    setHeadings(result)
-  }
 
   const mergeCurrentSegment = (sourcePages = allPages) => {
     const activeEditor = getEditor()
@@ -660,7 +647,6 @@ export default function Edit() {
     ;(window as any).__metabookiAllowPageBreakChange = true
     activeEditor.commands.setContent(pagesToHtml(extractSegmentPages(pages, segment)))
     window.setTimeout(() => {
-      refreshHeadings()
       switchingSegmentRef.current = false
       ;(window as any).__metabookiAllowPageBreakChange = false
       documentStageRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -693,11 +679,6 @@ export default function Edit() {
     loadSegment(activeSegment, allPages)
   }, [editor])
 
-  useEffect(() => {
-    if (activeSegmentIndex <= segments.length - 1) return
-    setActiveSegmentIndex(Math.max(0, segments.length - 1))
-  }, [activeSegmentIndex, segments.length])
-
   const save = async (quiet = false) => {
     const activeEditor = getEditor()
     if (!activeEditor || !id) return
@@ -711,7 +692,7 @@ export default function Edit() {
     if (import.meta.env.VITE_SUPABASE_URL?.startsWith('http') && /^[0-9a-f-]{36}$/i.test(id)) {
       await (supabase as any).from('books').update({ title, subtitle, description, pages, metadata, content_updated_at: patch.content_updated_at }).eq('id', id)
     }
-    setAllPages(pages); setBook((current: any) => ({ ...current, ...patch })); setSavedAt(new Date()); setSaving(false); refreshHeadings()
+    setAllPages(pages); setBook((current: any) => ({ ...current, ...patch })); setSavedAt(new Date()); setSaving(false)
     if (!quiet) activeEditor.commands.focus()
   }
 
@@ -799,7 +780,7 @@ export default function Edit() {
     if (attrs.kind === 'gallery') {
       const rawImages = window.prompt('کپشن‌های گالری؛ هر خط یک کپشن', (payload.images || []).map((image: any) => image.caption || '').join('\n'))
       if (rawImages) payload.images = rawImages.split(/\r?\n/).map((line: string) => line.trim()).filter(Boolean).map((caption: string, index: number) => ({ url: payload.images?.[index]?.url || '', caption }))
-      if (window.confirm('می‌خواهید یک تصویر جدید هم به گالری اضافه کنید؟')) await insertImageIntoInteractive(attrs)
+      if (window.confirm('می‌خواهید یک تصویر جدید هم به گالری اضافه کنید؟')) await insertImageIntoInteractive()
       updateInteractivePayload(attrs, payload)
       return
     }
@@ -812,14 +793,14 @@ export default function Edit() {
     if (attrs.kind === 'scrollytelling' || attrs.kind === 'steps') {
       const rawSteps = window.prompt('مرحله‌ها؛ هر خط به شکل عنوان | توضیح', (payload.steps || []).map((step: any) => `${step.title || step.text || ''} | ${step.description || ''}`).join('\n'))
       if (rawSteps) {
-        payload.steps = rawSteps.split(/\r?\n/).map((line: string, index: number) => line.split('|').map(part => part.trim())).filter((parts: string[]) => parts[0]).map((parts: string[], index: number) => ({
+        payload.steps = rawSteps.split(/\r?\n/).map((line: string) => line.split('|').map(part => part.trim())).filter((parts: string[]) => parts[0]).map((parts: string[], index: number) => ({
           ...(payload.steps?.[index] || {}),
           title: attrs.kind === 'steps' ? parts[0] : undefined,
           text: attrs.kind === 'scrollytelling' ? parts[0] : undefined,
           description: parts[1] || '',
         }))
       }
-      if (window.confirm('می‌خواهید برای مرحله نخست تصویر هم اضافه کنید؟')) await insertImageIntoInteractive(attrs)
+      if (window.confirm('می‌خواهید برای مرحله نخست تصویر هم اضافه کنید؟')) await insertImageIntoInteractive()
       updateInteractivePayload(attrs, payload)
       return
     }
@@ -828,7 +809,7 @@ export default function Edit() {
       const rawPoints = window.prompt('نقاط تعاملی؛ هر خط به شکل عنوان | توضیح | x | y', (payload.points || []).map((point: any) => `${point.title || ''} | ${point.text || ''} | ${point.x ?? 50} | ${point.y ?? 50}`).join('\n'))
       payload.caption = caption
       if (rawPoints) payload.points = rawPoints.split(/\r?\n/).map((line: string) => line.split('|').map(part => part.trim())).filter((parts: string[]) => parts[0]).map((parts: string[]) => ({ title: parts[0], text: parts[1] || '', x: Number(parts[2] || 50), y: Number(parts[3] || 50) }))
-      if (window.confirm('می‌خواهید تصویر اصلی هات‌اسپات را هم تغییر دهید؟')) await insertImageIntoInteractive(attrs)
+      if (window.confirm('می‌خواهید تصویر اصلی هات‌اسپات را هم تغییر دهید؟')) await insertImageIntoInteractive()
       updateInteractivePayload(attrs, payload)
       return
     }
@@ -852,7 +833,7 @@ export default function Edit() {
     const src = await prepareEditorImage(file)
     activeEditor.chain().focus().setImage({ src, alt: file.name, width: '100%' } as any).run()
   }
-  const promoteSelection = (level: 1 | 2 | 3 | 4 | 5 | 6) => { command(activeEditor => activeEditor.chain().focus().toggleHeading({ level }).run()); window.setTimeout(refreshHeadings, 20) }
+  const promoteSelection = (level: 1 | 2 | 3 | 4 | 5 | 6) => command(activeEditor => activeEditor.chain().focus().toggleHeading({ level }).run())
   const setDirection = (direction: 'rtl' | 'ltr') => command(activeEditor => activeEditor.chain().focus().updateAttributes(activeEditor.isActive('heading') ? 'heading' : 'paragraph', { dir: direction }).run())
   const setLink = () => {
     if (!editor) return
@@ -889,7 +870,7 @@ export default function Edit() {
   const updateInteractivePayload = (attrs: { kind: string; payload: string }, payload: Record<string, unknown>) => {
     command(activeEditor => activeEditor.chain().focus().updateAttributes('interactiveBlock', { kind: attrs.kind, payload: encodePayload(payload) }).run())
   }
-  const insertImageIntoInteractive = async (attrs: { kind: string; payload: string }) => {
+  const insertImageIntoInteractive = async () => {
     const selected = await new Promise<File | null>(resolve => {
       const picker = document.createElement('input')
       picker.type = 'file'
@@ -921,28 +902,6 @@ export default function Edit() {
     if (action === 'delete-row') chain.deleteRow().run()
     if (action === 'delete-column') chain.deleteColumn().run()
     if (action === 'delete-table') chain.deleteTable().run()
-  }
-  const changeHeadingLevel = (pos: number, value: string) => {
-    if (!editor) return
-    const chain = editor.chain().focus().setTextSelection(pos + 1)
-    if (value === 'body') chain.setParagraph().run()
-    else chain.setHeading({ level: Number(value) as 1 | 2 | 3 | 4 | 5 | 6 }).run()
-    window.setTimeout(refreshHeadings, 20)
-  }
-  const shiftHeadingLevel = (pos: number, delta: -1 | 1) => {
-    const heading = headings.find(item => item.pos === pos)
-    if (!heading) return
-    changeHeadingLevel(pos, String(Math.min(6, Math.max(1, heading.level + delta))))
-  }
-  const removeHeadingFromToc = (pos: number) => changeHeadingLevel(pos, 'body')
-  const renameHeading = (pos: number, currentText: string) => {
-    if (!editor) return
-    const nextText = window.prompt('عنوان جدید این سرفصل', currentText)
-    if (nextText === null || nextText.trim() === currentText.trim()) return
-    const heading = headings.find(item => item.pos === pos)
-    if (!heading) return
-    editor.chain().focus().setTextSelection({ from: pos + 1, to: pos + 1 + heading.text.length }).insertContent(nextText.trim()).run()
-    window.setTimeout(refreshHeadings, 20)
   }
   const persistTocEntries = (nextToc: ConfirmedTocEntry[]) => {
     const metadata = { ...(book?.metadata || {}), confirmed_toc: nextToc }
