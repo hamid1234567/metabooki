@@ -752,6 +752,16 @@ export default function Edit() {
     return () => window.clearTimeout(timer)
   }, [editorRevision])
 
+  useEffect(() => {
+    if (!toolbarMenu) return
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      if ((event.target as HTMLElement | null)?.closest('.book-editor-toolbar')) return
+      setToolbarMenu(null)
+    }
+    document.addEventListener('pointerdown', closeOnOutsideClick)
+    return () => document.removeEventListener('pointerdown', closeOnOutsideClick)
+  }, [toolbarMenu])
+
   if (!book && !localInitial) return <div className="max-w-4xl mx-auto px-4 py-20 text-center"><h1 className="text-2xl font-bold">در حال دریافت پیش‌نویس کتاب…</h1></div>
 
   const command = (action: (activeEditor: NonNullable<typeof editor>) => void) => {
