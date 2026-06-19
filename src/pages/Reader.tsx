@@ -859,63 +859,99 @@ export default function Reader() {
       case 'image': return <div key={idx} className="mb-8 flex flex-col items-center"><img src={block.url} alt={block.caption||''} className="h-auto max-w-full rounded-2xl shadow-book" style={{ width: block.widthPx ? (String(block.widthPx).endsWith('%') || String(block.widthPx).endsWith('px') ? String(block.widthPx) : `${block.widthPx}px`) : block.widthPercent ? `${block.widthPercent}%` : '100%' }} loading="lazy" />{block.caption && <p className="text-center text-sm text-muted-foreground mt-3">{block.caption}</p>}</div>
       case 'quiz': {
         const ua = quizAnswers[qKey]; const answered = ua !== undefined
+        const options = block.options || []
         return (
           <div key={idx} className="reader-interactive glass rounded-2xl p-6 mb-8 border-2 border-primary/10">
-            <h3 className="font-semibold mb-4 text-lg">📝 {block.question}</h3>
-            <div className="space-y-2">{block.options.map((opt:string,i:number)=>(<button key={i} onClick={()=>{if(!answered)setQuizAnswers(q=>({...q,[qKey]:i}))}} disabled={answered} className={`w-full text-right p-3.5 rounded-xl border-2 transition-all ${answered?i===block.correct?'bg-success/20 border-success':i===ua?'bg-destructive/20 border-destructive':'bg-muted/30 border-border opacity-60':'bg-muted/50 border-border hover:bg-muted hover:border-primary/30 cursor-pointer'}`}><div className="flex items-center justify-between"><span>{opt}</span>{answered&&i===block.correct&&<Check className="w-5 h-5 text-success"/>}{answered&&i===ua&&i!==block.correct&&<XIcon className="w-5 h-5 text-destructive"/>}</div></button>))}</div>
-            {answered&&<p className={`mt-3 text-sm font-medium ${ua===block.correct?'text-success':'text-destructive'}`}>{ua===block.correct?'✅ پاسخ صحیح! آفرین!':'❌ پاسخ نادرست'}</p>}
+            <h3 className="font-semibold mb-4 text-lg">{textOf(block.question, block.title, 'سؤال')}</h3>
+            {renderInteractiveImage(block.image, block.question)}
+            <div className="space-y-2">{options.map((opt:string,i:number)=>(<button key={i} onClick={()=>{if(!answered)setQuizAnswers(q=>({...q,[qKey]:i}))}} disabled={answered} className={`w-full text-right p-3.5 rounded-xl border-2 transition-all ${answered?i===block.correct?'bg-success/20 border-success':i===ua?'bg-destructive/20 border-destructive':'bg-muted/30 border-border opacity-60':'bg-muted/50 border-border hover:bg-muted hover:border-primary/30 cursor-pointer'}`}><div className="flex items-center justify-between"><span>{textOf(opt)}</span>{answered&&i===block.correct&&<Check className="w-5 h-5 text-success"/>}{answered&&i===ua&&i!==block.correct&&<XIcon className="w-5 h-5 text-destructive"/>}</div></button>))}</div>
+            {answered&&<div className={`mt-3 rounded-xl p-3 text-sm font-medium ${ua===block.correct?'bg-success/10 text-success':'bg-destructive/10 text-destructive'}`}>
+              <p>{ua===block.correct?'پاسخ صحیح است.':'پاسخ نادرست است.'}</p>
+              {block.explanation && <p className="mt-2 text-muted-foreground leading-relaxed">{textOf(block.explanation)}</p>}
+            </div>}
           </div>)
       }
-      case 'flashcard': return <div key={idx} className="reader-interactive menu-glass-70 rounded-2xl p-5 mb-8"><h3 className="font-semibold mb-4">فلش‌کارت‌ها</h3><div className="grid sm:grid-cols-2 gap-3">{(block.cards || []).map((card:any, cardIndex:number)=><details key={cardIndex} className="rounded-xl border bg-background/55 p-4 cursor-pointer"><summary className="font-bold">{card.front}</summary><p className="mt-3 text-sm text-muted-foreground">{card.back}</p></details>)}</div></div>
-      case 'steps': return <div key={idx} className="reader-interactive menu-glass-70 rounded-2xl p-5 mb-8"><h3 className="font-semibold mb-4">{block.title || 'مراحل فرآیند'}</h3><div className="grid gap-3">{(block.steps || []).map((step:any, stepIndex:number)=><div key={stepIndex} className="grid grid-cols-[2.5rem_1fr] gap-3 items-start rounded-xl bg-background/55 p-3"><span className="w-10 h-10 rounded-full bg-primary text-primary-foreground grid place-items-center font-bold">{stepIndex+1}</span><div>{step.image && <img src={step.image} alt={step.title || ''} className="max-h-44 rounded-lg mb-2" />}<h4 className="font-bold">{step.title}</h4><p className="text-sm text-muted-foreground">{step.description}</p></div></div>)}</div></div>
-      case 'gallery': return <div key={idx} className="reader-interactive menu-glass-70 rounded-2xl p-4 mb-8"><div className="grid sm:grid-cols-2 gap-3">{(block.images || []).map((image:any, imageIndex:number)=><figure key={imageIndex} className="rounded-xl overflow-hidden bg-background/55">{image.url && <img src={image.url} alt={image.caption || ''} className="w-full h-auto" />}<figcaption className="p-3 text-sm text-muted-foreground">{image.caption}</figcaption></figure>)}</div></div>
+      case 'truefalse': {
+        const ua = quizAnswers[qKey]; const answered = ua !== undefined
+        const correct = block.answer === true || block.correct === true || block.correct === 0 ? 0 : 1
+        return <div key={idx} className="reader-interactive menu-glass-70 rounded-2xl p-5 mb-8">
+          <h3 className="font-semibold mb-4">{textOf(block.statement, block.question, block.title, 'درست یا نادرست')}</h3>
+          {renderInteractiveImage(block.image, block.statement)}
+          <div className="grid grid-cols-2 gap-3">
+            {['صحیح', 'غلط'].map((label, i) => <button key={label} onClick={()=>{if(!answered)setQuizAnswers(q=>({...q,[qKey]:i}))}} disabled={answered} className={`rounded-xl border p-3 transition-all ${answered ? i === correct ? 'bg-success/15 border-success text-success' : i === ua ? 'bg-destructive/15 border-destructive text-destructive' : 'bg-background/40' : 'bg-background/60 hover:border-primary/40'}`}>{label}</button>)}
+          </div>
+          {answered && block.explanation && <p className="mt-3 rounded-xl bg-background/60 p-3 text-sm text-muted-foreground leading-relaxed">{textOf(block.explanation)}</p>}
+        </div>
+      }
+      case 'flashcard': return <div key={idx} className="reader-interactive menu-glass-70 rounded-2xl p-5 mb-8"><h3 className="font-semibold mb-4">{textOf(block.title, 'فلش‌کارت‌ها')}</h3><div className="grid sm:grid-cols-2 gap-3">{(block.cards || []).map((card:any, cardIndex:number)=><details key={cardIndex} className="rounded-xl border bg-background/55 p-4 cursor-pointer"><summary className="font-bold">{textOf(card.front, card.title)}</summary>{renderInteractiveImage(card.image, card.front, 'mt-3 max-h-44 rounded-lg object-contain bg-background/50')}<p className="mt-3 text-sm text-muted-foreground leading-relaxed">{textOf(card.back, card.description, card.text)}</p></details>)}</div></div>
+      case 'algorithm':
+      case 'steps': {
+        const steps = block.steps || block.items || block.events || []
+        return <div key={idx} className="reader-interactive menu-glass-70 rounded-2xl p-5 mb-8"><h3 className="font-semibold mb-4">{textOf(block.title, block.type === 'algorithm' ? 'الگوریتم تعاملی' : 'مراحل فرآیند')}</h3><div className="grid gap-3">{steps.map((step:any, stepIndex:number)=><div key={stepIndex} className="grid grid-cols-[2.5rem_1fr] gap-3 items-start rounded-xl bg-background/55 p-3"><span className="w-10 h-10 rounded-full bg-primary text-primary-foreground grid place-items-center font-bold">{stepIndex+1}</span><div>{renderInteractiveImage(step.image, step.title, 'max-h-44 rounded-lg mb-2 object-contain bg-background/50')}<h4 className="font-bold">{textOf(step.title, step.label, `مرحله ${stepIndex + 1}`)}</h4><p className="text-sm text-muted-foreground leading-relaxed">{textOf(step.description, step.text, step.body)}</p></div></div>)}</div></div>
+      }
+      case 'accordion': return <div key={idx} className="reader-interactive menu-glass-70 rounded-2xl p-5 mb-8"><h3 className="font-semibold mb-4">{textOf(block.title, 'آکاردئون')}</h3><div className="space-y-3">{(block.items || block.steps || []).map((item:any, itemIndex:number)=><details key={itemIndex} className="rounded-xl border bg-background/55 p-4"><summary className="font-bold cursor-pointer">{textOf(item.title, item.label, `بخش ${itemIndex + 1}`)}</summary>{renderInteractiveImage(item.image, item.title, 'mt-3 max-h-44 rounded-lg object-contain bg-background/50')}<p className="mt-3 text-sm text-muted-foreground leading-relaxed">{textOf(item.description, item.text, item.body)}</p></details>)}</div></div>
+      case 'tabs': {
+        const tabs = block.tabs || block.items || block.steps || []
+        const active = Math.min(tabStep[qKey] ?? 0, Math.max(0, tabs.length - 1))
+        const tab = tabs[active] || {}
+        return <div key={idx} className="reader-interactive menu-glass-70 rounded-2xl p-5 mb-8" data-no-swipe="true"><h3 className="font-semibold mb-4">{textOf(block.title, 'تب‌ها')}</h3><div className="flex gap-2 overflow-x-auto pb-2">{tabs.map((item:any, ti:number)=><button key={ti} onClick={()=>setTabStep(s=>({...s,[qKey]:ti}))} className={`shrink-0 rounded-xl px-4 py-2 text-sm ${active===ti?'bg-primary text-primary-foreground':'bg-background/60 hover:bg-muted'}`}>{textOf(item.title, item.label, `تب ${ti + 1}`)}</button>)}</div><div className="mt-3 rounded-xl bg-background/55 p-4">{renderInteractiveImage(tab.image, tab.title)}<p className="text-sm text-muted-foreground leading-relaxed">{textOf(tab.description, tab.text, tab.body)}</p></div></div>
+      }
+      case 'author': {
+        const authors = block.authors || block.items || [{ name: block.name || block.title, role: block.role, bio: block.bio || block.description, image: block.image }]
+        return <div key={idx} className="reader-interactive menu-glass-70 rounded-2xl p-5 mb-8"><h3 className="font-semibold mb-4">{textOf(block.title, 'معرفی نویسنده')}</h3><div className="grid sm:grid-cols-2 gap-3">{authors.map((author:any, authorIndex:number)=><div key={authorIndex} className="rounded-xl border bg-background/55 p-4">{author.image && <img src={author.image} alt={author.name || ''} className="w-20 h-20 rounded-full object-cover mb-3" loading="lazy" />}<h4 className="font-bold">{textOf(author.name, `نویسنده ${authorIndex + 1}`)}</h4>{author.role && <p className="text-xs text-primary mt-1">{textOf(author.role)}</p>}<p className="mt-3 text-sm text-muted-foreground leading-relaxed">{textOf(author.bio, author.description, author.text)}</p></div>)}</div></div>
+      }
+      case 'gallery': return <div key={idx} className="reader-interactive menu-glass-70 rounded-2xl p-4 mb-8"><h3 className="font-semibold mb-4">{textOf(block.title, '')}</h3><div className="grid sm:grid-cols-2 gap-3">{(block.images || []).map((image:any, imageIndex:number)=><figure key={imageIndex} className="rounded-xl overflow-hidden bg-background/55">{image.url && <img src={image.url} alt={image.caption || ''} className="w-full h-auto" loading="lazy" />}<figcaption className="p-3 text-sm text-muted-foreground">{textOf(image.caption)}</figcaption></figure>)}</div></div>
       case 'table': return <div key={idx} className="overflow-x-auto mb-8"><table className="w-full glass rounded-2xl overflow-hidden"><thead><tr className="bg-primary/10">{block.headers.map((h:string,i:number)=><th key={i} className="p-4 text-right font-semibold text-sm">{h}</th>)}</tr></thead><tbody>{block.rows.map((row:string[],ri:number)=><tr key={ri} className="border-t border-border">{row.map((c:string,ci:number)=><td key={ci} className="p-4 text-sm">{c}</td>)}</tr>)}</tbody></table></div>
       case 'math': return <div key={idx} className="glass rounded-2xl p-6 mb-8 text-center text-lg font-mono bg-muted/30 overflow-x-auto">{block.content}</div>
       case 'code': return <div key={idx} className="mb-8"><div className="glass rounded-2xl overflow-hidden"><div className="bg-muted px-4 py-2 text-xs flex items-center justify-between"><span>{block.language}</span><button onClick={()=>navigator.clipboard.writeText(block.code)} className="text-xs hover:text-primary">📋 کپی</button></div><pre className="p-5 text-sm font-mono overflow-x-auto" dir="ltr">{block.code}</pre></div></div>
       case 'timeline': {
+        const events = block.events || block.steps || []
         const active = timelineStep[qKey] ?? 0
-        const ev = block.events[active] || block.events[0]
+        const ev = events[active] || events[0] || {}
         return (
           <div key={idx} className="reader-interactive menu-glass-70 rounded-2xl p-5 mb-8">
-            <h3 className="font-semibold mb-5 text-lg">⏳ تایم‌لاین تعاملی</h3>
+            <h3 className="font-semibold mb-5 text-lg">{textOf(block.title, 'تایم‌لاین تعاملی')}</h3>
             <div className="relative overflow-x-auto pb-4" data-no-swipe="true">
               <div className="absolute top-5 right-8 left-8 h-0.5 bg-primary/25" />
               <div className="relative flex gap-4 min-w-max px-2">
-              {block.events.map((item:any, ei:number) => (
+              {events.map((item:any, ei:number) => (
                 <button key={ei} onClick={()=>setTimelineStep(s=>({...s,[qKey]:ei}))} className="w-44 text-center" title={item.title}>
                   <span className={`mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all ${active===ei?'bg-primary text-primary-foreground border-primary shadow-glow':'bg-background border-primary/40 text-primary'}`}>{ei+1}</span>
-                  <span className={`block rounded-xl px-3 py-2 text-xs transition-all ${active===ei?'bg-primary/10 text-primary font-bold':'bg-muted/40 text-muted-foreground'}`}>{item.year}</span>
+                  <span className={`block rounded-xl px-3 py-2 text-xs transition-all ${active===ei?'bg-primary/10 text-primary font-bold':'bg-muted/40 text-muted-foreground'}`}>{textOf(item.year, item.title, `مرحله ${ei + 1}`)}</span>
                 </button>
               ))}
               </div>
             </div>
             <div className="rounded-2xl bg-background/55 border p-5 animate-fade-in">
-              <p className="text-xs text-primary font-bold mb-1">{ev.year}</p>
-              <h4 className="font-bold text-lg mb-2">{ev.title}</h4>
-              <p className="text-sm text-muted-foreground leading-relaxed">{ev.description}</p>
+              {renderInteractiveImage(ev.image, ev.title)}
+              <p className="text-xs text-primary font-bold mb-1">{textOf(ev.year)}</p>
+              <h4 className="font-bold text-lg mb-2">{textOf(ev.title, ev.label)}</h4>
+              <p className="text-sm text-muted-foreground leading-relaxed">{textOf(ev.description, ev.text, ev.body)}</p>
             </div>
           </div>
         )
       }
-      case 'mindmap': return <div key={idx} className="glass rounded-2xl p-6 mb-8 text-center"><h3 className="font-semibold mb-4 text-lg">🧠 {block.central}</h3><div className="flex flex-wrap justify-center gap-3">{block.nodes.map((n:string,ni:number)=><div key={ni} className="px-5 py-2.5 rounded-full bg-primary/10 text-primary font-medium">{n}</div>)}</div></div>
+      case 'mindmap': return <div key={idx} className="glass rounded-2xl p-6 mb-8 text-center"><h3 className="font-semibold mb-4 text-lg">{textOf(block.central, block.title, 'نقشه ذهنی')}</h3>{renderInteractiveImage(block.image, block.central)}<div className="flex flex-wrap justify-center gap-3">{(block.nodes || block.items || []).map((n:any,ni:number)=><div key={ni} className="px-5 py-2.5 rounded-full bg-primary/10 text-primary font-medium">{textOf(n.title, n.label, n)}</div>)}</div></div>
       case 'scrollytelling': {
+        const steps = block.steps || block.items || []
         const active = storyStep[qKey] ?? 0
-        const step = block.steps[active] || block.steps[0]
+        const step = steps[active] || steps[0] || {}
         return (
           <div key={idx} className="reader-interactive reader-story menu-glass-70 rounded-2xl p-4 mb-8" data-no-swipe="true">
             <div className="grid md:grid-cols-[1.2fr_0.8fr] gap-4 items-stretch">
               <div className="relative rounded-2xl overflow-hidden min-h-72">
-                <img src={step.image} alt={step.text} className="absolute inset-0 w-full h-full object-cover transition-all duration-500" />
+                {step.image ? <img src={step.image} alt={textOf(step.title, step.text)} className="absolute inset-0 w-full h-full object-cover transition-all duration-500" loading="lazy" /> : <div className="absolute inset-0 bg-primary/10" />}
                 <div className="absolute inset-0 bg-gradient-to-l from-black/55 via-black/10 to-transparent" />
                 <div className="absolute top-4 right-4 rounded-full bg-white/20 backdrop-blur px-3 py-1 text-xs text-white">استوری {active + 1}</div>
               </div>
               <div className="rounded-2xl bg-background/65 p-5 flex flex-col justify-between">
                 <div>
-                  <p className="text-xs text-primary font-bold mb-2">روایت تصویری</p>
-                  <p className="leading-relaxed text-sm">{step.text}</p>
+                  <p className="text-xs text-primary font-bold mb-2">{textOf(block.title, 'روایت تصویری')}</p>
+                  {step.title && <h4 className="font-bold mb-2">{textOf(step.title)}</h4>}
+                  <p className="leading-relaxed text-sm">{textOf(step.text, step.description, step.body)}</p>
                 </div>
                 <div className="mt-5 flex gap-2">
-                  {block.steps.map((_:any, si:number)=>(
+                  {steps.map((_:any, si:number)=>(
                     <button key={si} onClick={()=>setStoryStep(s=>({...s,[qKey]:si}))}
                       className={`flex-1 rounded-xl py-2 text-xs transition-all ${active===si?'bg-primary text-primary-foreground':'bg-muted/60 hover:bg-muted'}`}
                       title={`استوری ${si+1}`}
