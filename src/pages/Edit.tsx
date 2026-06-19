@@ -1,5 +1,5 @@
 ﻿/* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent } from 'react'
 import { Link as RouterLink, useParams } from 'react-router-dom'
 import { EditorContent, NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer, useEditor } from '@tiptap/react'
 import { Extension, Mark, Node, mergeAttributes } from '@tiptap/core'
@@ -201,6 +201,16 @@ function InteractiveNodeView({ node, updateAttributes, editor, getPos }: any) {
   const images = list('images', [{ url: '', caption: '' }])
   const points = list('points', [{ title: '', text: '', x: 50, y: 50 }])
   const authors = Array.isArray(data.authors) ? data.authors : [{ name: data.name || '', role: data.role || '', bio: data.bio || '', image: data.image || '' }]
+  const [activeHotspotIndex, setActiveHotspotIndex] = useState<number | null>(points.length ? 0 : null)
+  const addHotspotPoint = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (!data.image) return
+    const rect = event.currentTarget.getBoundingClientRect()
+    const x = Math.round(Math.min(100, Math.max(0, ((event.clientX - rect.left) / rect.width) * 100)))
+    const y = Math.round(Math.min(100, Math.max(0, ((event.clientY - rect.top) / rect.height) * 100)))
+    const next = [...points, { title: '', text: '', x, y }]
+    setList('points', next)
+    setActiveHotspotIndex(next.length - 1)
+  }
   return (
     <NodeViewWrapper as="section" className={`editor-interactive-card interactive-${kind}`} data-interactive-kind={kind} contentEditable={false} onPointerDown={stopEditorSelection} onMouseDown={stopEditorSelection}>
       <header className="interactive-form-header">
@@ -303,15 +313,29 @@ function InteractiveNodeView({ node, updateAttributes, editor, getPos }: any) {
       </>}
       {kind === 'hotspot' && <>
         {mediaSlot('تصویر اصلی', data.image || '', value => updatePayload({ image: value }))}
-        {points.map((point: any, index: number) => itemCard('نقطه', index, () => removeItem('points', index, points), <>
-          {field('عنوان', point.title || '', value => updateItem('points', index, { title: value }, points), 'عنوان نقطه')}
-          {textarea('متن', point.text || '', value => updateItem('points', index, { text: value }, points), 'متن نقطه تعاملی')}
-          <div className="interactive-coordinates">
-            {field('X', String(point.x ?? 50), value => updateItem('points', index, { x: Number(value || 50) }, points))}
-            {field('Y', String(point.y ?? 50), value => updateItem('points', index, { y: Number(value || 50) }, points))}
-          </div>
-        </>))}
-        {addButton('افزودن نقطه', () => addItem('points', { title: '', text: '', x: 50, y: 50 }, points))}
+        <div className={`interactive-hotspot-builder ${data.image ? 'has-image' : ''}`}>
+          <p>روی تصویر کلیک کنید تا نقطه جدید ساخته شود. سپس همان‌جا عنوان و توضیح نقطه را بنویسید.</p>
+          {data.image ? (
+            <div className="interactive-hotspot-stage" onClick={addHotspotPoint}>
+              <img src={data.image} alt={data.caption || ''} />
+              {points.map((point: any, index: number) => (
+                <div
+                  key={index}
+                  className={`interactive-hotspot-point ${activeHotspotIndex === index ? 'is-active' : ''}`}
+                  style={{ left: `${point.x ?? 50}%`, top: `${point.y ?? 50}%` }}
+                  onClick={event => { event.stopPropagation(); setActiveHotspotIndex(activeHotspotIndex === index ? null : index) }}
+                >
+                  <button type="button">{index + 1}</button>
+                  {activeHotspotIndex === index && <section className="interactive-hotspot-popover" onClick={event => event.stopPropagation()}>
+                    <button type="button" className="interactive-remove-item" title="حذف نقطه" onClick={() => { removeItem('points', index, points); setActiveHotspotIndex(null) }}>×</button>
+                    <input value={point.title || ''} placeholder="عنوان نقطه" onChange={event => updateItem('points', index, { title: event.target.value }, points)} />
+                    <textarea value={point.text || ''} placeholder="توضیحی که با کلیک روی نقطه دیده می‌شود" onChange={event => updateItem('points', index, { text: event.target.value }, points)} />
+                  </section>}
+                </div>
+              ))}
+            </div>
+          ) : <div className="interactive-hotspot-empty">ابتدا تصویر اصلی هات‌اسپات را بارگذاری کنید.</div>}
+        </div>
       </>}
       {kind === 'author' && <>
         {field('عنوان بخش', data.title || '', value => updatePayload({ title: value }), 'مثلا: نویسندگان این فصل', true)}
