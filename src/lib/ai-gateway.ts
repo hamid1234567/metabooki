@@ -99,6 +99,15 @@ export const defaultAiGatewaySettings: AiGatewaySettings = {
   providers: defaultProviders,
 }
 
+function hasSupabaseConnection() {
+  return Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_URL.startsWith('http'))
+}
+
+function gatewayError(error: unknown, fallback: string) {
+  const details = (error as any)?.context?.error || (error as any)?.context?.message || (error as Error)?.message
+  return new Error(details || fallback)
+}
+
 export function loadAiGatewaySettings(): AiGatewaySettings {
   return defaultAiGatewaySettings
 }
@@ -116,10 +125,7 @@ export async function saveAiGatewaySettings(settings: AiGatewaySettings) {
 
 export async function testAiProvider(provider: AiProviderConfig): Promise<AiProviderTestResult> {
   const { data, error } = await supabase.functions.invoke('ai-gateway', { body: { operation: 'admin_test_provider', provider } })
-  if (error) {
-    const details = (error as any)?.context?.error || (error as any)?.context?.message || error.message
-    throw new Error(details || 'تست کلید هوش مصنوعی ناموفق بود.')
-  }
+  if (error) throw gatewayError(error, 'تست کلید هوش مصنوعی ناموفق بود.')
   return data as AiProviderTestResult
 }
 
@@ -130,41 +136,34 @@ export function maskApiKey(key: string) {
 export async function runAiThroughGateway(request: RunAiRequest): Promise<RunAiResult> {
   if (!request.user) throw new Error('برای استفاده از دستیار هوش مصنوعی ابتدا وارد حساب شوید.')
   if (!request.pageText.trim()) throw new Error('متنی در این صفحه برای تحلیل پیدا نشد.')
-  const hasSupabase = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_URL.startsWith('http'))
-  if (!hasSupabase) throw new Error('برای استفاده امن از هوش مصنوعی، اتصال Supabase و Edge Function را فعال کنید.')
+  if (!hasSupabaseConnection()) throw new Error('برای استفاده امن از هوش مصنوعی، اتصال Supabase و Edge Function را فعال کنید.')
 
   const { data, error } = await supabase.functions.invoke('ai-gateway', {
     body: { action: request.action, bookTitle: request.bookTitle, pageTitle: request.pageTitle, pageText: request.pageText, bookId: request.bookId, pageIndex: request.pageIndex },
   })
-  if (error) {
-    const details = (error as any)?.context?.error || (error as any)?.context?.message || error.message
-    throw new Error(details || 'اجرای درخواست هوش مصنوعی ناموفق بود.')
-  }
+  if (error) throw gatewayError(error, 'اجرای درخواست هوش مصنوعی ناموفق بود.')
   return data as RunAiResult
 }
 
 export async function estimateAiImageGeneration(request: { prompt: string; bookId?: string; pageIndex?: number; user: AppUser | null }): Promise<AiImageEstimateResult> {
   if (!request.user) throw new Error('برای تولید تصویر ابتدا وارد حساب شوید.')
   if (!request.prompt.trim()) throw new Error('برای تولید تصویر، متن انتخاب‌شده یا پرامپت لازم است.')
+  if (!hasSupabaseConnection()) throw new Error('اتصال Supabase و Edge Function برای تولید تصویر فعال نیست.')
   const { data, error } = await supabase.functions.invoke('ai-gateway', {
     body: { operation: 'estimate_image', prompt: request.prompt, bookId: request.bookId, pageIndex: request.pageIndex },
   })
-  if (error) {
-    const details = (error as any)?.context?.error || (error as any)?.context?.message || error.message
-    throw new Error(details || 'برآورد هزینه تولید تصویر ناموفق بود.')
-  }
+  if (error) throw gatewayError(error, 'برآورد هزینه تولید تصویر ناموفق بود.')
   return data as AiImageEstimateResult
 }
 
 export async function generateAiImageThroughGateway(request: { prompt: string; bookId?: string; pageIndex?: number; user: AppUser | null }): Promise<AiImageGenerationResult> {
   if (!request.user) throw new Error('برای تولید تصویر ابتدا وارد حساب شوید.')
   if (!request.prompt.trim()) throw new Error('برای تولید تصویر، متن انتخاب‌شده یا پرامپت لازم است.')
+  if (!hasSupabaseConnection()) throw new Error('اتصال Supabase و Edge Function برای تولید تصویر فعال نیست.')
   const { data, error } = await supabase.functions.invoke('ai-gateway', {
     body: { operation: 'generate_image', prompt: request.prompt, bookId: request.bookId, pageIndex: request.pageIndex },
   })
-  if (error) {
-    const details = (error as any)?.context?.error || (error as any)?.context?.message || error.message
-    throw new Error(details || 'تولید تصویر ناموفق بود.')
-  }
+  if (error) throw gatewayError(error, 'تولید تصویر ناموفق بود.')
+  if (!(data as AiImageGenerationResult)?.imageUrl) throw new Error('هوش مصنوعی تصویری برنگرداند.')
   return data as AiImageGenerationResult
 }
