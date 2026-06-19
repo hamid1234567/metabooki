@@ -200,13 +200,13 @@ function InlineMediaPicker({ label, value, onChange, stopEditorSelection }: { la
   }
   return (
     <div className={`interactive-media-slot inline-media-picker ${value ? 'has-image' : ''}`} onPointerDown={stopEditorSelection} onMouseDown={stopEditorSelection} onClick={stopEditorSelection}>
+      <div className="inline-media-quick-actions" aria-label="افزودن تصویر">
+        <label title="آپلود تصویر"><ImagePlus /><input type="file" accept="image/*" onChange={event => void upload(event.target.files?.[0])} /></label>
+        <button type="button" title="انتخاب از تصاویر کتاب" onClick={() => setMode('library')}><Images /></button>
+        <button type="button" title="تولید با هوش مصنوعی" onClick={() => setMode(mode === 'ai' ? 'closed' : 'ai')}><Sparkles /></button>
+      </div>
       <div className="inline-media-preview">
         {value ? <img src={value} alt="" /> : <span><ImagePlus />{label}</span>}
-        <div className="inline-media-quick-actions" aria-label="افزودن تصویر">
-          <label title="آپلود تصویر"><ImagePlus /><input type="file" accept="image/*" onChange={event => void upload(event.target.files?.[0])} /></label>
-          <button type="button" title="انتخاب از تصاویر کتاب" onClick={() => setMode('library')}><Images /></button>
-          <button type="button" title="تولید با هوش مصنوعی" onClick={() => setMode(mode === 'ai' ? 'closed' : 'ai')}><Sparkles /></button>
-        </div>
         {busy && <div className="inline-media-busy">در حال پردازش...</div>}
       </div>
       {mode === 'library' && <div className="inline-media-modal" role="dialog" aria-modal="true">

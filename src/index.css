@@ -1327,6 +1327,8 @@ body {
 .inline-media-picker {
   position: relative;
   display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
   gap: .55rem;
   border: 1px solid hsl(var(--border) / .78);
   border-radius: .85rem;
@@ -1337,6 +1339,7 @@ body {
 
 .inline-media-preview {
   position: relative;
+  grid-column: 2;
   min-height: 6.5rem;
   border: 1px dashed hsl(var(--primary) / .26);
   border-radius: .75rem;
@@ -1369,31 +1372,30 @@ body {
 }
 
 .inline-media-quick-actions {
-  position: absolute;
-  inset-inline-start: .45rem;
-  top: .45rem;
+  grid-column: 1;
+  grid-row: 1;
   z-index: 2;
-  display: inline-flex;
-  gap: .28rem;
-  padding: .25rem;
-  border: 1px solid hsl(var(--border) / .68);
+  display: inline-grid;
+  gap: .32rem;
+  padding: .28rem;
+  border: 1px solid hsl(var(--primary) / .2);
   border-radius: 999px;
-  background: hsl(var(--background) / .78);
-  box-shadow: 0 10px 26px hsl(222 47% 11% / .12);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: linear-gradient(180deg, hsl(var(--background) / .96), hsl(var(--muted) / .62));
+  box-shadow: 0 10px 26px hsl(222 47% 11% / .1), inset 0 1px 0 hsl(0 0% 100% / .7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
 .inline-media-quick-actions button,
 .inline-media-quick-actions label {
   display: grid;
   place-items: center;
-  width: 1.8rem;
-  height: 1.8rem;
+  width: 1.7rem;
+  height: 1.7rem;
   border: 0;
   border-radius: 999px;
-  background: transparent;
-  color: hsl(var(--foreground));
+  background: hsl(var(--background) / .82);
+  color: hsl(var(--muted-foreground));
   cursor: pointer;
   transition: background .16s ease, color .16s ease, transform .16s ease;
 }
@@ -1422,6 +1424,13 @@ body {
   text-align: center;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+}
+
+.inline-media-ai,
+.inline-media-notice,
+.inline-media-url,
+.inline-media-modal {
+  grid-column: 1 / -1;
 }
 
 .inline-media-actions {
@@ -1467,11 +1476,13 @@ body {
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
   gap: .5rem;
-  border: 1px solid hsl(var(--border) / .62);
+  border: 1px solid hsl(var(--primary) / .22);
   border-radius: 1.15rem;
-  background: hsl(var(--background) / .9);
-  box-shadow: 0 28px 88px hsl(222 47% 11% / .28);
-  padding: .85rem;
+  background:
+    linear-gradient(135deg, hsl(var(--background) / .98), hsl(var(--primary) / .08)),
+    hsl(var(--background));
+  box-shadow: 0 30px 95px hsl(222 47% 11% / .34), inset 0 1px 0 hsl(0 0% 100% / .75);
+  padding: 1rem;
   animation: mediaModalIn .2s ease both;
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
@@ -1482,10 +1493,14 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: .75rem;
+  border-bottom: 1px solid hsl(var(--border) / .6);
+  padding-bottom: .65rem;
 }
 
 .inline-media-library-head strong {
-  font-size: .74rem;
+  color: hsl(var(--foreground));
+  font-size: .88rem;
+  font-weight: 950;
 }
 
 .inline-media-library-head small {
@@ -1502,7 +1517,7 @@ body {
   height: 2rem;
   border: 1px solid hsl(var(--border) / .72);
   border-radius: 999px;
-  background: hsl(var(--background) / .78);
+  background: hsl(var(--background) / .95);
   color: hsl(var(--foreground));
   font-size: 1.3rem;
   line-height: 1;
@@ -1516,7 +1531,7 @@ body {
   width: 100%;
   border: 1px solid hsl(var(--border) / .78);
   border-radius: .8rem;
-  background: hsl(var(--background) / .86);
+  background: hsl(var(--background) / .95);
   color: hsl(var(--foreground));
   padding: .58rem .75rem;
   font-size: .76rem;
@@ -1537,7 +1552,8 @@ body {
   gap: .55rem;
   border: 1px solid hsl(var(--border) / .74);
   border-radius: .75rem;
-  background: hsl(var(--background) / .65);
+  background: hsl(var(--background) / .92);
+  box-shadow: 0 8px 24px hsl(222 47% 11% / .06);
   padding: .38rem;
   text-align: right;
   transition: border-color .16s ease, background .16s ease, transform .16s ease;
@@ -1545,8 +1561,8 @@ body {
 
 .inline-media-library-list button:hover,
 .inline-media-library-list button.is-selected {
-  border-color: hsl(var(--primary) / .46);
-  background: hsl(var(--primary) / .08);
+  border-color: hsl(var(--primary) / .5);
+  background: linear-gradient(135deg, hsl(var(--primary) / .12), hsl(var(--background) / .96));
 }
 
 .inline-media-library-list button:active {
@@ -1604,9 +1620,11 @@ body {
   position: fixed;
   inset: 0;
   border: 0;
-  background: hsl(222 47% 11% / .22);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background:
+    radial-gradient(circle at 20% 15%, hsl(var(--primary) / .2), transparent 32rem),
+    hsl(222 47% 11% / .36);
+  backdrop-filter: blur(14px) saturate(1.12);
+  -webkit-backdrop-filter: blur(14px) saturate(1.12);
   animation: mediaBackdropIn .18s ease both;
 }
 
