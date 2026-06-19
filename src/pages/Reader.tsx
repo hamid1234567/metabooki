@@ -810,8 +810,14 @@ export default function Reader() {
     switch (block.type) {
       case 'callout':
         return (
-          <section key={idx} className={`book-callout reader-callout callout-${block.variant || 'key'}`} data-callout-variant={block.variant || 'key'} data-callout-title={block.title || 'نکته کلیدی'} data-callout-icon={block.icon || '💡'}>
-            {(block.blocks || []).map((child: any, childIndex: number) => renderBlock(child, childIndex))}
+          <section key={idx} className={`book-callout reader-callout has-rendered-title callout-${block.variant || 'key'}`} data-callout-variant={block.variant || 'key'} data-callout-title={block.title || 'نکته کلیدی'} data-callout-icon={block.icon || '💡'}>
+            <div className="book-callout-head">
+              <span className="book-callout-icon">{block.icon || '💡'}</span>
+              <strong>{block.title || 'نکته کلیدی'}</strong>
+            </div>
+            <div className="book-callout-content">
+              {(block.blocks || []).map((child: any, childIndex: number) => renderBlock(child, childIndex))}
+            </div>
           </section>
         )
       case 'list': {

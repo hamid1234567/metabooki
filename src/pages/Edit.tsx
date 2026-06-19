@@ -603,6 +603,7 @@ export default function Edit() {
   const [confirmTocDelete, setConfirmTocDelete] = useState<number | null>(null)
   const [collapsedTocKeys, setCollapsedTocKeys] = useState<Set<string>>(() => new Set())
   const [toolbarMenu, setToolbarMenu] = useState<'heading' | 'typography' | null>(null)
+  const [editorRevision, setEditorRevision] = useState(0)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const documentStageRef = useRef<HTMLElement>(null)
   const switchingSegmentRef = useRef(false)
@@ -739,12 +740,17 @@ export default function Edit() {
     if (!activeEditor) return
     const onUpdate = () => {
       if (switchingSegmentRef.current) return
-      window.clearTimeout((onUpdate as any).timer)
-      ;(onUpdate as any).timer = window.setTimeout(() => save(true), 1400)
+      setEditorRevision(revision => revision + 1)
     }
     activeEditor.on('update', onUpdate)
-    return () => { activeEditor.off('update', onUpdate); window.clearTimeout((onUpdate as any).timer) }
-  })
+    return () => { activeEditor.off('update', onUpdate) }
+  }, [editor])
+
+  useEffect(() => {
+    if (!editorRevision) return
+    const timer = window.setTimeout(() => save(true), 1400)
+    return () => window.clearTimeout(timer)
+  }, [editorRevision])
 
   if (!book && !localInitial) return <div className="max-w-4xl mx-auto px-4 py-20 text-center"><h1 className="text-2xl font-bold">در حال دریافت پیش‌نویس کتاب…</h1></div>
 
