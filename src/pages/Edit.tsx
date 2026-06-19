@@ -151,6 +151,7 @@ function InlineMediaPicker({ label, value, onChange, stopEditorSelection }: { la
   const [prompt, setPrompt] = useState('')
   const [search, setSearch] = useState('')
   const [busy, setBusy] = useState(false)
+  const [notice, setNotice] = useState('')
   const visibleImages = useMemo(() => {
     const q = search.trim().toLowerCase()
     return media.bookImages
@@ -164,8 +165,11 @@ function InlineMediaPicker({ label, value, onChange, stopEditorSelection }: { la
   const upload = async (file?: File) => {
     if (!file) return
     setBusy(true)
+    setNotice('')
     try {
       onChange(await media.uploadImage(file))
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'آپلود تصویر ناموفق بود.')
     } finally {
       setBusy(false)
     }
@@ -173,14 +177,23 @@ function InlineMediaPicker({ label, value, onChange, stopEditorSelection }: { la
   const generate = async () => {
     const cleanPrompt = prompt.trim()
     if (!cleanPrompt) {
-      window.alert('برای تولید تصویر، پرامپت تصویر را داخل همین بلوک بنویسید.')
+      setNotice('برای تولید تصویر، پرامپت تصویر را داخل همین بلوک بنویسید.')
       return
     }
     setBusy(true)
+    setNotice('در حال بررسی هزینه و تولید تصویر...')
     try {
-      onChange(await media.generateImage(cleanPrompt))
+      const generatedUrl = await Promise.race([
+        media.generateImage(cleanPrompt),
+        new Promise<string>((_, reject) => window.setTimeout(() => reject(new Error('پاسخ تولید تصویر طولانی شد. اتصال هوش مصنوعی یا Edge Function را در پنل ادمین بررسی کنید.')), 60000)),
+      ])
+      if (!generatedUrl) throw new Error('هوش مصنوعی تصویری برنگرداند.')
+      onChange(generatedUrl)
       setPrompt('')
       setMode('closed')
+      setNotice('تصویر تولید شد.')
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'تولید تصویر ناموفق بود. کلید API، کردیت کاربر و Edge Function را بررسی کنید.')
     } finally {
       setBusy(false)
     }
@@ -189,38 +202,47 @@ function InlineMediaPicker({ label, value, onChange, stopEditorSelection }: { la
     <div className={`interactive-media-slot inline-media-picker ${value ? 'has-image' : ''}`} onPointerDown={stopEditorSelection} onMouseDown={stopEditorSelection} onClick={stopEditorSelection}>
       <div className="inline-media-preview">
         {value ? <img src={value} alt="" /> : <span><ImagePlus />{label}</span>}
-      </div>
-      <div className="inline-media-actions">
-        <label><ImagePlus />آپلود<input type="file" accept="image/*" onChange={event => void upload(event.target.files?.[0])} /></label>
-        <button type="button" onClick={() => setMode(mode === 'library' ? 'closed' : 'library')}><Images />تصاویر کتاب</button>
-        <button type="button" onClick={() => setMode(mode === 'ai' ? 'closed' : 'ai')}><Sparkles />AI</button>
-      </div>
-      {mode === 'library' && <div className="inline-media-library">
-        <div className="inline-media-library-head">
-          <strong>انتخاب از تصاویر کتاب</strong>
-          <input value={search} onChange={event => setSearch(event.target.value)} placeholder="جستجو در کپشن یا شماره صفحه..." />
+        <div className="inline-media-quick-actions" aria-label="افزودن تصویر">
+          <label title="آپلود تصویر"><ImagePlus /><input type="file" accept="image/*" onChange={event => void upload(event.target.files?.[0])} /></label>
+          <button type="button" title="انتخاب از تصاویر کتاب" onClick={() => setMode('library')}><Images /></button>
+          <button type="button" title="تولید با هوش مصنوعی" onClick={() => setMode(mode === 'ai' ? 'closed' : 'ai')}><Sparkles /></button>
         </div>
-        {visibleImages.length === 0 && <p>تصویری از کتاب پیدا نشد.</p>}
-        <div className="inline-media-library-list">
-          {visibleImages.map((image: any, index: number) => {
-            const selected = value && image.url === value
-            return (
-              <button type="button" key={image.key || `${image.url}-${index}`} className={selected ? 'is-selected' : ''} onClick={() => { onChange(image.url); setMode('closed') }} title={image.caption || 'انتخاب تصویر'}>
-                <img src={image.url} alt={image.caption || ''} loading="lazy" />
-                <span>
-                  <b>{image.caption || image.originalName || image.name || `تصویر ${index + 1}`}</b>
-                  <small>{image.sameSegment ? 'اولویت: همین بخش' : `صفحه چاپی: ${String(image.printPage || 'نامشخص')}`}</small>
-                </span>
-                <em>{selected ? 'انتخاب شده' : 'انتخاب'}</em>
-              </button>
-            )
-          })}
+        {busy && <div className="inline-media-busy">در حال پردازش...</div>}
+      </div>
+      {mode === 'library' && <div className="inline-media-modal" role="dialog" aria-modal="true">
+        <button type="button" className="inline-media-modal-backdrop" onClick={() => setMode('closed')} aria-label="بستن" />
+        <div className="inline-media-library">
+          <header className="inline-media-library-head">
+            <div>
+              <strong>انتخاب از تصاویر کتاب</strong>
+              <small>{visibleImages.length.toLocaleString('fa-IR')} تصویر قابل انتخاب</small>
+            </div>
+            <button type="button" onClick={() => setMode('closed')} aria-label="بستن">×</button>
+          </header>
+          <input value={search} onChange={event => setSearch(event.target.value)} placeholder="جستجو در کپشن، نام فایل یا شماره صفحه..." />
+          {visibleImages.length === 0 && <p>تصویری از کتاب پیدا نشد.</p>}
+          <div className="inline-media-library-list">
+            {visibleImages.map((image: any, index: number) => {
+              const selected = value && image.url === value
+              return (
+                <button type="button" key={image.key || `${image.url}-${index}`} className={selected ? 'is-selected' : ''} onClick={() => { onChange(image.url); setMode('closed'); setNotice('تصویر انتخاب شد.') }} title={image.caption || 'انتخاب تصویر'}>
+                  <img src={image.url} alt={image.caption || ''} loading="lazy" />
+                  <span>
+                    <b>{image.caption || image.originalName || image.name || `تصویر ${index + 1}`}</b>
+                    <small>{image.sameSegment ? 'اولویت: همین بخش' : `صفحه چاپی: ${String(image.printPage || 'نامشخص')}`}</small>
+                  </span>
+                  <em>{selected ? 'انتخاب شده' : 'انتخاب'}</em>
+                </button>
+              )
+            })}
+          </div>
         </div>
       </div>}
       {mode === 'ai' && <div className="inline-media-ai">
         <textarea value={prompt} onChange={event => setPrompt(event.target.value)} placeholder="پرامپت تصویر را بنویسید..." />
         <button type="button" disabled={busy} onClick={() => void generate()}>{busy ? 'در حال تولید...' : 'برآورد هزینه و تولید'}</button>
       </div>}
+      {notice && <p className={`inline-media-notice ${notice.includes('ناموفق') || notice.includes('بررسی کنید') || notice.includes('طولانی') ? 'is-error' : ''}`}>{notice}</p>}
       <input className="inline-media-url" value={value || ''} placeholder="یا آدرس تصویر را وارد کنید" onChange={event => onChange(event.target.value)} />
     </div>
   )
