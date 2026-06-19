@@ -1416,13 +1416,13 @@ export default function Edit() {
 
       <div className="mb-editor-workspace">
         <aside className="mb-editor-panel">
-          <div className="mb-editor-panel-switcher" aria-label="Ø§Ø¨Ø²Ø§Ø±Ù‡Ø§ÛŒ Ø§Ø¯ÛŒØªÙˆØ±">
+          <div className="mb-editor-panel-switcher" aria-label="ابزارهای ادیتور">
             {[
-              ['toc', 'ÙÙ‡Ø±Ø³Øª', BookOpen],
-              ['upgrade', 'Ø§Ø±ØªÙ‚Ø§ Ù…ØªÙ†', Type],
-              ['media', 'Ø±Ø³Ø§Ù†Ù‡', Images],
-              ['interactive', 'Ø§Ø¨Ø²Ø§Ø± ØªØ¹Ø§Ù…Ù„ÛŒ', LayoutTemplate],
-              ['ai', 'Ù‡ÙˆØ´ Ù…ØµÙ†ÙˆØ¹ÛŒ', Sparkles],
+              ['toc', 'فهرست', BookOpen],
+              ['upgrade', 'ارتقا متن', Type],
+              ['media', 'رسانه', Images],
+              ['interactive', 'ابزار تعاملی', LayoutTemplate],
+              ['ai', 'هوش مصنوعی', Sparkles],
             ].map(([mode, label, Icon]) => {
               const PanelIcon = Icon as typeof BookOpen
               return <button key={String(mode)} className={panelMode === mode ? 'is-active' : ''} onClick={() => setPanelMode(mode as EditorPanelMode)}><PanelIcon />{String(label)}</button>
@@ -1430,14 +1430,14 @@ export default function Edit() {
           </div>
           {panelMode === 'upgrade' ? <div className="mb-panel-content is-callout-only">
             <section className="book-editor-side-card">
-              <h3><Type />Ø§Ø±ØªÙ‚Ø§ Ù…ØªÙ†</h3>
-              <p>Ù…ØªÙ† Ø§Ù†ØªØ®Ø§Ø¨â€ŒØ´Ø¯Ù‡ Ø±Ø§ Ø¨Ù‡ Ø³Ø±ÙØµÙ„ØŒ Ú©Ø§Ù„â€ŒØ§ÙˆØªØŒ Ø¬Ø¯ÙˆÙ„ ÛŒØ§ ØµÙØ­Ù‡ Ø¬Ø¯ÛŒØ¯ ØªØ¨Ø¯ÛŒÙ„ Ú©Ù†ÛŒØ¯.</p>
+              <h3><Type />ارتقا متن</h3>
+              <p>متن انتخاب‌شده را به یک کال‌اوت مناسب تبدیل کنید.</p>
             </section>
             <div className="mb-command-grid">
               {[1, 2, 3, 4, 5, 6].map(level => <button key={level} onClick={() => promoteSelection(level as 1 | 2 | 3 | 4 | 5 | 6)}><Heading1 />H{level}</button>)}
-              <button onClick={() => command(activeEditor => activeEditor.chain().focus().setParagraph().run())}><Pilcrow />Ù…ØªÙ† Ø¹Ø§Ø¯ÛŒ</button>
-              <button onClick={() => command(activeEditor => activeEditor.chain().focus().setHorizontalRule().run())}><FileImage />ØµÙØ­Ù‡ Ø¬Ø¯ÛŒØ¯</button>
-              <button onClick={() => command(activeEditor => activeEditor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())}><Table2 />Ø¬Ø¯ÙˆÙ„</button>
+              <button onClick={() => command(activeEditor => activeEditor.chain().focus().setParagraph().run())}><Pilcrow />متن عادی</button>
+              <button onClick={() => command(activeEditor => activeEditor.chain().focus().setHorizontalRule().run())}><FileImage />صفحه جدید</button>
+              <button onClick={() => command(activeEditor => activeEditor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())}><Table2 />جدول</button>
             </div>
             <section className="mb-callout-palette compact">
               {CALLOUT_PRESETS.filter(item => item.value !== 'normal').map(item => {
@@ -1447,43 +1447,43 @@ export default function Edit() {
             </section>
           </div> : panelMode === 'media' ? <div className={`book-editor-image-drawer is-embedded media-view-${mediaPanelView}`}>
             <div className="mb-command-grid">
-              <button onClick={() => imageInputRef.current?.click()}><ImagePlus />Ø¨Ø§Ø±Ú¯Ø°Ø§Ø±ÛŒ ØªØµÙˆÛŒØ± Ø¬Ø¯ÛŒØ¯</button>
-              <button onClick={() => setMediaPanelView('library')}><Images />ØªØµØ§ÙˆÛŒØ± Ø®ÙˆØ¯ Ú©ØªØ§Ø¨</button>
-              <button onClick={() => setBackgroundUrl(window.prompt('Ø¢Ø¯Ø±Ø³ ØªØµÙˆÛŒØ± Ù¾Ø³â€ŒØ²Ù…ÛŒÙ†Ù‡ ØµÙØ­Ù‡', backgroundUrl) || backgroundUrl)}><FileImage />Ù¾Ø³â€ŒØ²Ù…ÛŒÙ†Ù‡ ØµÙØ­Ù‡</button>
-              {mediaPanelView === 'library' && <button onClick={() => setMediaPanelView('home')}><ChevronUp />Ø¨Ø§Ø²Ú¯Ø´Øª Ø¨Ù‡ Ú¯Ø²ÛŒÙ†Ù‡â€ŒÙ‡Ø§ÛŒ Ø±Ø³Ø§Ù†Ù‡</button>}
+              <button onClick={() => imageInputRef.current?.click()}><ImagePlus />بارگذاری تصویر جدید</button>
+              <button onClick={() => setMediaPanelView('library')}><Images />تصاویر خود کتاب</button>
+              <button onClick={() => setBackgroundUrl(window.prompt('آدرس تصویر پس‌زمینه صفحه', backgroundUrl) || backgroundUrl)}><FileImage />پس‌زمینه صفحه</button>
+              {mediaPanelView === 'library' && <button onClick={() => setMediaPanelView('home')}><ChevronUp />بازگشت به گزینه‌های رسانه</button>}
             </div>
-            <header><h3><Images />ØªØµØ§ÙˆÛŒØ± Ú©ØªØ§Ø¨</h3><button onClick={() => setPanelMode('toc')}>ÙÙ‡Ø±Ø³Øª</button></header>
-            {bookImages.length === 0 && <p className="book-editor-empty-state">Ù‡Ù†ÙˆØ² ØªØµÙˆÛŒØ±ÛŒ Ø¨Ø±Ø§ÛŒ Ø§ÛŒÙ† Ú©ØªØ§Ø¨ Ø«Ø¨Øª Ù†Ø´Ø¯Ù‡ Ø§Ø³Øª.</p>}
+            <header><h3><Images />تصاویر کتاب</h3><button onClick={() => setPanelMode('toc')}>فهرست</button></header>
+            {bookImages.length === 0 && <p className="book-editor-empty-state">هنوز تصویری برای این کتاب ثبت نشده است.</p>}
             <div>
               {bookImages.map((image: any, index: number) => (
-                <button key={image.key || `${image.url}-${index}`} className={image.issue ? 'has-issue' : ''} disabled={!image.url} title={image.issue || 'Ø§ÙØ²ÙˆØ¯Ù† ØªØµÙˆÛŒØ± Ø¯Ø± Ù…Ø­Ù„ Ù†Ø´Ø§Ù†Ú¯Ø±'} onClick={() => image.url && command(activeEditor => activeEditor.chain().focus().setImage({ src: image.url, alt: image.caption || '', width: image.widthPx ? `${image.widthPx}px` : image.widthPercent ? `${image.widthPercent}%` : '100%', imageId: image.imageId || undefined, printPage: image.printPage || undefined, conversionStatus: image.conversionStatus || undefined } as any).run())}>
+                <button key={image.key || `${image.url}-${index}`} className={image.issue ? 'has-issue' : ''} disabled={!image.url} title={image.issue || 'افزودن تصویر در محل نشانگر'} onClick={() => image.url && command(activeEditor => activeEditor.chain().focus().setImage({ src: image.url, alt: image.caption || '', width: image.widthPx ? `${image.widthPx}px` : image.widthPercent ? `${image.widthPercent}%` : '100%', imageId: image.imageId || undefined, printPage: image.printPage || undefined, conversionStatus: image.conversionStatus || undefined } as any).run())}>
                   {image.url ? <img src={image.url} alt={image.caption || ''} /> : <span><AlertTriangle /></span>}
-                  <b>{image.caption || image.originalName || image.name || `ØªØµÙˆÛŒØ± ${index + 1}`}</b>
-                  <small>ØµÙØ­Ù‡ Ú†Ø§Ù¾ÛŒ: {String(image.printPage || 'Ù†Ø§Ù…Ø´Ø®Øµ')}</small>
+                  <b>{image.caption || image.originalName || image.name || `تصویر ${index + 1}`}</b>
+                  <small>صفحه چاپی: {String(image.printPage || 'نامشخص')}</small>
                   {image.issue && <em>{image.issue}</em>}
                 </button>
               ))}
             </div>
           </div> : panelMode === 'interactive' ? <div className="mb-panel-content">
             <section className="book-editor-side-card">
-              <h3><LayoutTemplate />Ø§Ø¨Ø²Ø§Ø± ØªØ¹Ø§Ù…Ù„ÛŒ</h3>
-              <p>Ø§Ø¨Ø²Ø§Ø± Ø±Ø§ Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ù†ÛŒØ¯Ø› Ø¨Ø¹Ø¯ Ø§Ø² Ø¯Ø±Ø¬ØŒ Ù‡Ù…Ø§Ù†â€ŒØ¬Ø§ Ø¯Ø§Ø®Ù„ Ù…ØªÙ† Ù‚Ø§Ø¨Ù„ ÙˆÛŒØ±Ø§ÛŒØ´ Ø§Ø³Øª.</p>
+              <h3><LayoutTemplate />ابزار تعاملی</h3>
+              <p>ابزار را انتخاب کنید؛ بعد از درج، همان‌جا داخل متن قابل ویرایش است.</p>
             </section>
             <div className="mb-command-grid">
               {INTERACTIVE_TYPES.map(([kind, label]) => <button key={kind} onClick={() => addInteractive(kind)}><LayoutTemplate />{label}</button>)}
             </div>
-            <button className="mb-wide-action" onClick={() => void openInteractiveEditor()}><Edit3 />ÙˆÛŒØ±Ø§ÛŒØ´ Ø³Ø±ÛŒØ¹ Ø§Ø¨Ø²Ø§Ø± Ø§Ù†ØªØ®Ø§Ø¨â€ŒØ´Ø¯Ù‡</button>
-            {bookImages.length > 0 && <select className="mb-wide-select" title="Ø§ÙØ²ÙˆØ¯Ù† ØªØµÙˆÛŒØ± Ø¨Ù‡ Ø§Ø¨Ø²Ø§Ø± ØªØ¹Ø§Ù…Ù„ÛŒ Ø§Ù†ØªØ®Ø§Ø¨â€ŒØ´Ø¯Ù‡" defaultValue="" onChange={event => { applyImageToInteractive(event.target.value); event.target.value = '' }}><option value="" disabled>Ø§ÙØ²ÙˆØ¯Ù† ØªØµÙˆÛŒØ± Ø§Ø² Ú©ØªØ§Ø¨</option>{bookImages.slice(0, 100).filter((image: any) => image.url).map((image: any, index: number) => <option key={`${image.url}-${index}`} value={image.url}>{image.caption || `ØªØµÙˆÛŒØ± ${index + 1}`}</option>)}</select>}
+            <button className="mb-wide-action" onClick={() => void openInteractiveEditor()}><Edit3 />ویرایش سریع ابزار انتخاب‌شده</button>
+            {bookImages.length > 0 && <select className="mb-wide-select" title="افزودن تصویر به ابزار تعاملی انتخاب‌شده" defaultValue="" onChange={event => { applyImageToInteractive(event.target.value); event.target.value = '' }}><option value="" disabled>افزودن تصویر از کتاب</option>{bookImages.slice(0, 100).filter((image: any) => image.url).map((image: any, index: number) => <option key={`${image.url}-${index}`} value={image.url}>{image.caption || `تصویر ${index + 1}`}</option>)}</select>}
           </div> : panelMode === 'ai' ? <div className="mb-panel-content">
             <section className="book-editor-side-card">
-              <h3><Sparkles />Ù‡ÙˆØ´ Ù…ØµÙ†ÙˆØ¹ÛŒ</h3>
-              <p>Ø§Ø¨ØªØ¯Ø§ Ù…ØªÙ† Ø±Ø§ Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ù†ÛŒØ¯. Ù‡Ø²ÛŒÙ†Ù‡ ÙˆØ§Ù‚Ø¹ÛŒ Ø¨Ø¹Ø¯ Ø§Ø² Ù¾Ø§Ø³Ø® Ø§Ø² gateway Ù…Ø­Ø§Ø³Ø¨Ù‡ Ùˆ Ø§Ø² Ú©Ø±Ø¯ÛŒØª Ú©Ø§Ø±Ø¨Ø± Ú©Ù… Ù…ÛŒâ€ŒØ´ÙˆØ¯.</p>
+              <h3><Sparkles />هوش مصنوعی</h3>
+              <p>ابتدا متن را انتخاب کنید. هزینه واقعی بعد از پاسخ gateway محاسبه و از کردیت کاربر کم می‌شود.</p>
             </section>
             <div className="mb-command-grid">
-              <button disabled={aiLoading} onClick={() => void runEditorAi('summary')}><Sparkles />Ø®Ù„Ø§ØµÙ‡ Ø§Ù†ØªØ®Ø§Ø¨</button>
-              <button disabled={aiLoading} onClick={() => void runEditorAi('quiz')}><Sparkles />ØªÙˆÙ„ÛŒØ¯ Ø³Ø¤Ø§Ù„</button>
-              <button disabled={aiLoading} onClick={() => void runEditorAi('callout')}><Lightbulb />Ù¾ÛŒØ´Ù†Ù‡Ø§Ø¯ Callout</button>
-              <button disabled={aiLoading} onClick={() => void runEditorAi('interactive')}><LayoutTemplate />Ù¾ÛŒØ´Ù†Ù‡Ø§Ø¯ ØªØ¹Ø§Ù…Ù„ÛŒ</button>
+              <button disabled={aiLoading} onClick={() => void runEditorAi('summary')}><Sparkles />خلاصه انتخاب</button>
+              <button disabled={aiLoading} onClick={() => void runEditorAi('quiz')}><Sparkles />تولید سؤال</button>
+              <button disabled={aiLoading} onClick={() => void runEditorAi('callout')}><Lightbulb />پیشنهاد Callout</button>
+              <button disabled={aiLoading} onClick={() => void runEditorAi('interactive')}><LayoutTemplate />پیشنهاد تعاملی</button>
             </div>
             {aiLoading && <p className="book-editor-empty-state">Ø¯Ø± Ø­Ø§Ù„ ØªÙˆÙ„ÛŒØ¯ Ø®Ø±ÙˆØ¬ÛŒ Ù‡ÙˆØ´Ù…Ù†Ø¯...</p>}
             {aiMessage && <p className="mb-ai-cost">{aiMessage}</p>}
