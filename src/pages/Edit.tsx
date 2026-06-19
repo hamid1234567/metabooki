@@ -614,13 +614,31 @@ function tocEntryInsideSegment(pages: any[] = [], item: ConfirmedTocEntry, segme
 
 function resolveTocAfterHeadingSync(pages: any[] = [], generatedToc: ConfirmedTocEntry[] = [], currentToc: ConfirmedTocEntry[] = [], segment?: EditorSegment) {
   if (!currentToc.length) return generatedToc
-  if (!generatedToc.length && (!segment || (segment.start <= 0 && segment.end >= pages.length))) return currentToc
-  if (!segment) return generatedToc.length ? generatedToc : currentToc
+  if (!generatedToc.length) return currentToc
+  const mergeWithoutDroppingCurrent = (base: ConfirmedTocEntry[], generated: ConfirmedTocEntry[]) => {
+    const known = new Set(base.map(item => item.id || `${item.level}:${normalizeBookText(item.title).trim()}`))
+    return [...base, ...generated.filter(item => {
+      const key = item.id || `${item.level}:${normalizeBookText(item.title).trim()}`
+      if (known.has(key)) return false
+      known.add(key)
+      return true
+    })].sort((a, b) => {
+      const pa = findTocPosition(pages, a)
+      const pb = findTocPosition(pages, b)
+      return pa.pageIndex - pb.pageIndex || pa.blockIndex - pb.blockIndex
+    })
+  }
+  if (!segment) {
+    if (generatedToc.length < Math.ceil(currentToc.length * 0.7)) return mergeWithoutDroppingCurrent(currentToc, generatedToc)
+    return generatedToc
+  }
   const outsideCurrent = currentToc.filter(item => !tocEntryInsideSegment(pages, item, segment))
   const insideCurrent = currentToc.filter(item => tocEntryInsideSegment(pages, item, segment))
   const insideGenerated = generatedToc.filter(item => tocEntryInsideSegment(pages, item, segment))
   const lostTooMuchToc = currentToc.length >= 3 && generatedToc.length > 0 && generatedToc.length < Math.ceil(currentToc.length * 0.35)
   if (lostTooMuchToc) return currentToc
+  const lostTooMuchInsideSegment = insideCurrent.length >= 2 && insideGenerated.length < Math.ceil(insideCurrent.length * 0.7)
+  if (lostTooMuchInsideSegment) return mergeWithoutDroppingCurrent(currentToc, insideGenerated)
   if (!insideGenerated.length && insideCurrent.length > 1) return currentToc
   if (!insideGenerated.length && generatedToc.length === 0 && outsideCurrent.length === 0) return currentToc
   return [...outsideCurrent, ...insideGenerated].sort((a, b) => {
@@ -930,7 +948,7 @@ export default function Edit() {
   useEffect(() => {
     if (!editor) return
     loadSegment(activeSegment, allPages)
-  }, [editor])
+  }, [editor, allPages, tocEntries, activeSegment, book?.metadata, backgroundUrl, backgroundAlpha, preludeTitle])
 
   const save = async (quiet = false) => {
     const activeEditor = getEditor()
@@ -987,7 +1005,7 @@ export default function Edit() {
       activeEditor.off('update', onUpdate)
       if (liveTocTimerRef.current) window.clearTimeout(liveTocTimerRef.current)
     }
-  }, [editor])
+  }, [editor, allPages, tocEntries, activeSegment, book?.metadata])
 
   useEffect(() => {
     if (!editorRevision) return
