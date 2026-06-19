@@ -1003,14 +1003,14 @@ export default function Edit() {
     : editor?.isActive('calloutBlock')
       ? calloutPreset(editor.getAttributes('calloutBlock').variant).label
       : editor?.isActive('image')
-        ? 'ØªØµÙˆÛŒØ±'
+        ? 'تصویر'
         : editor?.isActive('table')
-          ? 'Ø¬Ø¯ÙˆÙ„'
-          : 'Ù¾Ø§Ø±Ø§Ú¯Ø±Ø§Ù'
+          ? 'جدول'
+          : 'پاراگراف'
   const currentDirection = (editor?.getAttributes('heading').dir || editor?.getAttributes('paragraph').dir || 'rtl') as 'rtl' | 'ltr'
-  const currentLanguage = currentDirection === 'ltr' ? 'English' : 'ÙØ§Ø±Ø³ÛŒ'
+  const currentLanguage = currentDirection === 'ltr' ? 'English' : 'فارسی'
 
-  if (!book && !localInitial) return <div className="max-w-4xl mx-auto px-4 py-20 text-center"><h1 className="text-2xl font-bold">Ø¯Ø± Ø­Ø§Ù„ Ø¯Ø±ÛŒØ§ÙØª Ù¾ÛŒØ´â€ŒÙ†ÙˆÛŒØ³ Ú©ØªØ§Ø¨â€¦</h1></div>
+  if (!book && !localInitial) return <div className="max-w-4xl mx-auto px-4 py-20 text-center"><h1 className="text-2xl font-bold">در حال دریافت پیش‌نویس کتاب...</h1></div>
 
   const command = (action: (activeEditor: NonNullable<typeof editor>) => void) => {
     const activeEditor = getEditor()
@@ -1318,51 +1318,51 @@ export default function Edit() {
         onMetadata={() => setMetadataOpen(value => !value)}
         onPreview={() => void previewCurrentBook()}
         onSave={() => void save()}
-        onBack={<RouterLink to="/publisher/me"><ArrowLeft className="h-4 w-4" />Ø¨Ø§Ø²Ú¯Ø´Øª Ø¨Ù‡ Ø§Ù†ØªØ´Ø§Ø±Ø§Øª</RouterLink>}
+        onBack={<RouterLink to="/publisher/me"><ArrowLeft className="h-4 w-4" />بازگشت به انتشارات</RouterLink>}
       />
 
       {metadataOpen && <section className="book-editor-meta menu-glass-70">
-        <label>Ø¹Ù†ÙˆØ§Ù†<input value={title} onChange={event => setTitle(event.target.value)} /></label>
-        <label>Ø²ÛŒØ±Ø¹Ù†ÙˆØ§Ù†<input value={subtitle} onChange={event => setSubtitle(event.target.value)} /></label>
-        <label>ØªÙˆØ¶ÛŒØ­ Ú©ÙˆØªØ§Ù‡<textarea value={description} onChange={event => setDescription(event.target.value)} /></label>
-        <label>ØªØµÙˆÛŒØ± Ù¾Ø³â€ŒØ²Ù…ÛŒÙ†Ù‡ ØµÙØ­Ù‡<input value={backgroundUrl} onChange={event => setBackgroundUrl(event.target.value)} placeholder="Ø¢Ø¯Ø±Ø³ ØªØµÙˆÛŒØ±" /></label>
-        <label>Ø´ÙØ§ÙÛŒØª Ù¾Ø³â€ŒØ²Ù…ÛŒÙ†Ù‡<input type="range" min="0" max="0.8" step="0.05" value={backgroundAlpha} onChange={event => setBackgroundAlpha(Number(event.target.value))} /></label>
-        <button onClick={() => setMetadataOpen(false)}><ChevronUp />Ø¨Ø³ØªÙ† Ù…Ø´Ø®ØµØ§Øª</button>
+        <label>عنوان<input value={title} onChange={event => setTitle(event.target.value)} /></label>
+        <label>زیرعنوان<input value={subtitle} onChange={event => setSubtitle(event.target.value)} /></label>
+        <label>توضیح کوتاه<textarea value={description} onChange={event => setDescription(event.target.value)} /></label>
+        <label>تصویر پس‌زمینه صفحه<input value={backgroundUrl} onChange={event => setBackgroundUrl(event.target.value)} placeholder="آدرس تصویر" /></label>
+        <label>شفافیت پس‌زمینه<input type="range" min="0" max="0.8" step="0.05" value={backgroundAlpha} onChange={event => setBackgroundAlpha(Number(event.target.value))} /></label>
+        <button onClick={() => setMetadataOpen(false)}><ChevronUp />بستن مشخصات</button>
       </section>}
 
       <EditorToolbarFrame>
       <div className="book-editor-toolbar">
-        <div className="book-toolbar-group" aria-label="ØªØ§Ø±ÛŒØ®Ú†Ù‡">
-          <button title="Ø¨Ø§Ø²Ú¯Ø´Øª" onClick={() => command(activeEditor => activeEditor.chain().focus().undo().run())}><Undo2 /></button>
-          <button title="Ø§Ù†Ø¬Ø§Ù… Ø¯ÙˆØ¨Ø§Ø±Ù‡" onClick={() => command(activeEditor => activeEditor.chain().focus().redo().run())}><Redo2 /></button>
+        <div className="book-toolbar-group" aria-label="تاریخچه">
+          <button title="بازگشت" onClick={() => command(activeEditor => activeEditor.chain().focus().undo().run())}><Undo2 /></button>
+          <button title="انجام دوباره" onClick={() => command(activeEditor => activeEditor.chain().focus().redo().run())}><Redo2 /></button>
         </div>
 
-        <div className="book-toolbar-group" aria-label="Ø³Ø§Ø®ØªØ§Ø±">
+        <div className="book-toolbar-group" aria-label="ساختار">
           <div className="book-toolbar-menu-wrap">
-            <button title="Ø³Ø·Ø­ Ø³Ø±ÙØµÙ„" className={toolbarMenu === 'heading' ? 'active' : ''} onClick={() => setToolbarMenu(value => value === 'typography' ? null : value === 'heading' ? null : 'heading')}><Heading1 /><ChevronDown /></button>
+            <button title="سطح سرفصل" className={toolbarMenu === 'heading' ? 'active' : ''} onClick={() => setToolbarMenu(value => value === 'typography' ? null : value === 'heading' ? null : 'heading')}><Heading1 /><ChevronDown /></button>
             {toolbarMenu === 'heading' && <div className="book-toolbar-popover compact frosted-menu-surface">
               <button onClick={() => { command(activeEditor => activeEditor.chain().focus().setParagraph().run()); setToolbarMenu(null) }}><span className="book-heading-sample normal">P</span></button>
               {[1, 2, 3, 4, 5, 6].map(level => <button key={level} onClick={() => { promoteSelection(level as 1 | 2 | 3 | 4 | 5 | 6); setToolbarMenu(null) }}><span className={`book-heading-sample h${level}`}>H{level}</span></button>)}
             </div>}
           </div>
-          <button title="ØµÙØ­Ù‡ Ø¬Ø¯ÛŒØ¯" onClick={() => command(activeEditor => activeEditor.chain().focus().setHorizontalRule().run())}><FileImage /></button>
+          <button title="صفحه جدید" onClick={() => command(activeEditor => activeEditor.chain().focus().setHorizontalRule().run())}><FileImage /></button>
         </div>
 
-        <div className="book-toolbar-group" aria-label="Ù…ØªÙ†">
-          <button title="Ù¾Ø±Ø±Ù†Ú¯" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleBold().run())}><Bold /></button>
-          <button title="Ù…ÙˆØ±Ø¨" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleItalic().run())}><Italic /></button>
-          <button title="Ø²ÛŒØ±Ø®Ø·" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleUnderline().run())}><UnderlineIcon /></button>
-          <button title="Ø®Ø·â€ŒØ®ÙˆØ±Ø¯Ù‡" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleStrike().run())}><Strikethrough /></button>
-          <button title="Ø¨Ø§Ù„Ø§Ù†ÙˆÛŒØ³" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleSuperscript().run())}><SuperIcon /></button>
-          <button title="Ø²ÛŒØ±Ù†ÙˆÛŒØ³" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleSubscript().run())}><SubIcon /></button>
-          <button title="Ø§ÙØ²ÙˆØ¯Ù† ÛŒØ§ ÙˆÛŒØ±Ø§ÛŒØ´ Ù¾ÛŒÙˆÙ†Ø¯" onClick={setLink}><Link2 /></button>
+        <div className="book-toolbar-group" aria-label="متن">
+          <button title="پررنگ" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleBold().run())}><Bold /></button>
+          <button title="مورب" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleItalic().run())}><Italic /></button>
+          <button title="زیرخط" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleUnderline().run())}><UnderlineIcon /></button>
+          <button title="خط‌خورده" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleStrike().run())}><Strikethrough /></button>
+          <button title="بالانویس" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleSuperscript().run())}><SuperIcon /></button>
+          <button title="زیرنویس" onClick={() => command(activeEditor => activeEditor.chain().focus().toggleSubscript().run())}><SubIcon /></button>
+          <button title="افزودن یا ویرایش پیوند" onClick={setLink}><Link2 /></button>
         </div>
 
-        <div className="book-toolbar-group" aria-label="ØªØ§ÛŒÙ¾ÙˆÚ¯Ø±Ø§ÙÛŒ">
-          <select title="ÙÙˆÙ†Øª" onChange={event => command(activeEditor => activeEditor.chain().focus().setMark('textStyle', { fontFamily: event.target.value }).run())}><option value="Vazirmatn">ÙˆØ²ÛŒØ±Ù…ØªÙ†</option><option value="Tahoma">Tahoma</option><option value="Arial">Arial</option><option value="Georgia">Georgia</option></select>
-          <select title="Ø§Ù†Ø¯Ø§Ø²Ù‡ Ù…ØªÙ† Ø§Ù†ØªØ®Ø§Ø¨â€ŒØ´Ø¯Ù‡" defaultValue="" onChange={event => { if (event.target.value) command(activeEditor => activeEditor.chain().focus().setMark('textStyle', { fontSize: event.target.value }).run()); event.target.value = '' }}><option value="" disabled>Ø§Ù†Ø¯Ø§Ø²Ù‡</option>{[12,14,16,18,20,24,28,32,40].map(size => <option key={size} value={`${size}px`}>{size}</option>)}</select>
+        <div className="book-toolbar-group" aria-label="تایپوگرافی">
+          <select title="فونت" onChange={event => command(activeEditor => activeEditor.chain().focus().setMark('textStyle', { fontFamily: event.target.value }).run())}><option value="Vazirmatn">وزیرمتن</option><option value="Tahoma">Tahoma</option><option value="Arial">Arial</option><option value="Georgia">Georgia</option></select>
+          <select title="اندازه متن انتخاب‌شده" defaultValue="" onChange={event => { if (event.target.value) command(activeEditor => activeEditor.chain().focus().setMark('textStyle', { fontSize: event.target.value }).run()); event.target.value = '' }}><option value="" disabled>اندازه</option>{[12,14,16,18,20,24,28,32,40].map(size => <option key={size} value={`${size}px`}>{size}</option>)}</select>
           <div className="book-toolbar-menu-wrap">
-            <button title="ØªØ§ÛŒÙ¾ÙˆÚ¯Ø±Ø§ÙÛŒ Ø¢Ù…Ø§Ø¯Ù‡" className={toolbarMenu === 'typography' ? 'active' : ''} onClick={() => setToolbarMenu(value => value === 'typography' ? null : 'typography')}><Type /><ChevronDown /></button>
+            <button title="تایپوگرافی آماده" className={toolbarMenu === 'typography' ? 'active' : ''} onClick={() => setToolbarMenu(value => value === 'typography' ? null : 'typography')}><Type /><ChevronDown /></button>
             {toolbarMenu === 'typography' && <div className="book-toolbar-popover typography frosted-menu-surface">
               <button className="book-callout-title-action" onClick={() => { editCalloutTitle(); setToolbarMenu(null) }}><Edit3 /><span>ÙˆÛŒØ±Ø§ÛŒØ´ Ø¹Ù†ÙˆØ§Ù† Ú©Ø§Ù„â€ŒØ§ÙˆØª Ø§Ù†ØªØ®Ø§Ø¨â€ŒØ´Ø¯Ù‡</span></button>
               {Array.from(new Set(CALLOUT_PRESETS.map(item => item.group))).map(group => <section key={group}>
