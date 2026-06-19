@@ -31,6 +31,7 @@ const openBookPreview = (id: string) => window.open(appPath(`/read/${id}`), '_bl
 
 type EditorPanelMode = 'toc' | 'upgrade' | 'media' | 'interactive' | 'ai'
 type MediaPanelView = 'home' | 'library'
+type InteractiveMediaView = 'home' | 'library' | 'ai'
 
 const RichTextStyle = Extension.create({
   name: 'richTextStyle',
@@ -403,6 +404,39 @@ function compactAiContent(content?: AiStructuredContent | null) {
   if (content.type === 'timeline') return [content.title, ...content.steps.map((step: { title: string; description: string }, index: number) => `${index + 1}. ${step.title}: ${step.description}`)].join('\n')
   if (content.type === 'mindmap') return [content.title, ...content.branches.flatMap((branch: { title: string; items: string[] }) => [branch.title, ...branch.items.map((item: string) => `- ${item}`)])].join('\n')
   return [content.title, content.lead, ...content.sections.flatMap((section: { heading: string; paragraphs: string[]; bullets?: string[] }) => [section.heading, ...section.paragraphs, ...(section.bullets || []).map((item: string) => `- ${item}`)])].filter(Boolean).join('\n')
+}
+function generatedInteractiveImageDataUrl(prompt: string, label = 'تصویر آموزشی') {
+  const cleanPrompt = normalizeBookText(prompt || label).replace(/\s+/g, ' ').trim().slice(0, 160)
+  const cleanLabel = normalizeBookText(label || 'تصویر آموزشی').replace(/\s+/g, ' ').trim().slice(0, 48)
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#eef7ff"/>
+      <stop offset=".52" stop-color="#fff7ed"/>
+      <stop offset="1" stop-color="#eefdf5"/>
+    </linearGradient>
+    <linearGradient id="line" x1="0" x2="1">
+      <stop offset="0" stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#d97706"/>
+    </linearGradient>
+    <filter id="soft"><feGaussianBlur stdDeviation="22"/></filter>
+  </defs>
+  <rect width="1200" height="760" rx="56" fill="url(#bg)"/>
+  <circle cx="1010" cy="130" r="170" fill="#60a5fa" opacity=".18" filter="url(#soft)"/>
+  <circle cx="205" cy="610" r="210" fill="#f59e0b" opacity=".14" filter="url(#soft)"/>
+  <path d="M150 492 C300 355 420 557 560 418 S820 302 1035 388" fill="none" stroke="url(#line)" stroke-width="22" stroke-linecap="round" opacity=".55"/>
+  <g transform="translate(760 176)">
+    <rect width="260" height="260" rx="46" fill="#ffffff" opacity=".72"/>
+    <path d="M70 173h120M70 128h120M70 83h120" stroke="#2563eb" stroke-width="16" stroke-linecap="round"/>
+    <circle cx="55" cy="83" r="12" fill="#d97706"/><circle cx="55" cy="128" r="12" fill="#10b981"/><circle cx="55" cy="173" r="12" fill="#6366f1"/>
+  </g>
+  <text x="96" y="142" direction="rtl" unicode-bidi="bidi-override" font-family="Vazirmatn, Arial, sans-serif" font-size="42" font-weight="800" fill="#0f172a">${escape(cleanLabel)}</text>
+  <foreignObject x="90" y="186" width="610" height="270">
+    <div xmlns="http://www.w3.org/1999/xhtml" dir="rtl" style="font-family:Vazirmatn,Arial,sans-serif;font-size:34px;line-height:1.85;color:#334155;font-weight:600">${escape(cleanPrompt)}</div>
+  </foreignObject>
+  <text x="96" y="676" direction="rtl" unicode-bidi="bidi-override" font-family="Vazirmatn, Arial, sans-serif" font-size="24" fill="#64748b">MetaBooki AI visual draft</text>
+</svg>`
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`
 }
 function interactiveTemplate(kind: string) {
   return sharedInteractiveTemplate(kind)
@@ -792,6 +826,8 @@ export default function Edit() {
   const [editorRevision, setEditorRevision] = useState(0)
   const [panelMode, setPanelMode] = useState<EditorPanelMode>('toc')
   const [mediaPanelView, setMediaPanelView] = useState<MediaPanelView>('home')
+  const [interactiveMediaView, setInteractiveMediaView] = useState<InteractiveMediaView>('home')
+  const [interactiveImagePrompt, setInteractiveImagePrompt] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
   const [aiMessage, setAiMessage] = useState('')
   const [aiUsage, setAiUsage] = useState<RunAiResult['usage'] | null>(null)
@@ -830,6 +866,14 @@ export default function Edit() {
       }))
     return [...pageImages, ...missingImages]
   }, [allPages, book])
+  const interactiveImageChoices = useMemo(() => {
+    const start = activeSegment?.start ?? 0
+    const end = activeSegment?.end ?? start + 1
+    return bookImages
+      .filter((image: any) => image.url)
+      .map((image: any) => ({ ...image, sameSegment: Number(image.pageIndex ?? -1) >= start && Number(image.pageIndex ?? -1) < end }))
+      .sort((a: any, b: any) => Number(b.sameSegment) - Number(a.sameSegment) || Number(a.pageIndex ?? 9999) - Number(b.pageIndex ?? 9999))
+  }, [bookImages, activeSegment?.start, activeSegment?.end])
 
   const editor = useEditor({
     extensions: [
@@ -973,6 +1017,8 @@ export default function Edit() {
           : 'پاراگراف'
   const currentDirection = (editor?.getAttributes('heading').dir || editor?.getAttributes('paragraph').dir || 'rtl') as 'rtl' | 'ltr'
   const currentLanguage = currentDirection === 'ltr' ? 'English' : 'فارسی'
+  const selectedInteractiveKind = editor?.isActive('interactiveBlock') ? String(editor.getAttributes('interactiveBlock').kind || 'interactive') : ''
+  const selectedInteractiveLabel = selectedInteractiveKind ? interactiveLabel(selectedInteractiveKind) : ''
 
   if (!book && !localInitial) return <div className="max-w-4xl mx-auto px-4 py-20 text-center"><h1 className="text-2xl font-bold">در حال دریافت پیش‌نویس کتاب...</h1></div>
 
@@ -1124,6 +1170,47 @@ export default function Edit() {
     }
     else payload.image = url
     activeEditor.chain().focus().updateAttributes('interactiveBlock', { payload: encodePayload(payload) }).run()
+  }
+  const uploadImageToInteractive = async (file?: File) => {
+    if (!file) return
+    const src = await prepareEditorImage(file)
+    applyImageToInteractive(src)
+  }
+  const generateImageForInteractive = async () => {
+    const activeEditor = getEditor()
+    if (!activeEditor?.isActive('interactiveBlock')) {
+      setAiMessage('اول داخل یک بلوک تعاملی کلیک کنید، بعد تصویر را بسازید.')
+      return
+    }
+    const attrs = activeEditor.getAttributes('interactiveBlock') as { kind: string; payload: string }
+    const payload = { ...interactiveTemplate(attrs.kind), ...decodePayload(attrs.payload) }
+    const baseText = selectedOrCurrentText()
+    const seed = interactiveImagePrompt.trim()
+      || String(payload.title || payload.caption || payload.question || activeSegment?.label || title || 'تصویر آموزشی کتاب')
+    let visualPrompt = seed
+    setAiLoading(true)
+    setAiMessage('در حال آماده‌سازی تصویر پیشنهادی برای بلوک تعاملی...')
+    try {
+      if (user) {
+        const result = await runAiThroughGateway({
+          action: 'explain',
+          bookTitle: title || book?.title || 'کتاب',
+          pageTitle: activeSegment?.label,
+          pageText: `برای یک بلوک تعاملی کتاب، یک توصیف تصویری کوتاه و دقیق بساز. موضوع: ${seed}\nمتن زمینه:\n${baseText.slice(0, 900)}`,
+          bookId: id,
+          pageIndex: activeSegmentIndex,
+          user,
+        })
+        recordAiUsage(result.usage)
+        visualPrompt = (compactAiContent(result.content) || result.text || seed).replace(/\s+/g, ' ').slice(0, 180)
+      }
+    } catch (error) {
+      setAiMessage(error instanceof Error ? `${error.message} · تصویر پیشنهادی محلی ساخته شد.` : 'تصویر پیشنهادی محلی ساخته شد.')
+    } finally {
+      setAiLoading(false)
+    }
+    applyImageToInteractive(generatedInteractiveImageDataUrl(visualPrompt, interactiveLabel(attrs.kind)))
+    setInteractiveImagePrompt('')
   }
   const tableAction = (action: string) => {
     if (!editor) return
