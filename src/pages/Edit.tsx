@@ -329,6 +329,7 @@ const InteractiveBlock = Node.create({
   name: 'interactiveBlock',
   group: 'block',
   atom: true,
+  selectable: false,
   addAttributes() { return { kind: { default: 'quiz' }, payload: { default: '{}' } } },
   parseHTML() { return [{ tag: 'section[data-interactive-kind]' }] },
   addNodeView() {
@@ -1079,7 +1080,11 @@ export default function Edit() {
     action(activeEditor)
     activeEditor.commands.focus()
   }
-  const addInteractive = (kind: string) => command(activeEditor => activeEditor.chain().focus().insertContent({ type: 'interactiveBlock', attrs: { kind, payload: encodePayload(interactiveTemplate(kind)) } }).run())
+  const clearNativeSelectionSoon = () => window.setTimeout(() => window.getSelection()?.removeAllRanges(), 0)
+  const addInteractive = (kind: string) => {
+    command(activeEditor => activeEditor.chain().focus().insertContent({ type: 'interactiveBlock', attrs: { kind, payload: encodePayload(interactiveTemplate(kind)) } }).run())
+    clearNativeSelectionSoon()
+  }
   const openInteractiveEditor = async () => {
     if (!editor?.isActive('interactiveBlock')) return
     const attrs = editor.getAttributes('interactiveBlock') as { kind: string; payload: string }
@@ -1297,6 +1302,7 @@ export default function Edit() {
   }
   const insertInteractivePayload = (kind: string, payload: Record<string, unknown>) => {
     command(activeEditor => activeEditor.chain().focus().insertContent({ type: 'interactiveBlock', attrs: { kind, payload: encodePayload({ ...interactiveTemplate(kind), ...payload, type: kind }) } }).run())
+    clearNativeSelectionSoon()
   }
   const recordAiUsage = (usage: RunAiResult['usage']) => {
     setAiUsage(usage)
