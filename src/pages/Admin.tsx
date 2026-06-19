@@ -1,8 +1,8 @@
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useAuthContext } from '@/lib/auth-context'
 import { useI18n } from '@/lib/i18n'
 import { mockUsers, mockBooks, CREDIT_VALUE_TOMAN, setCreditValue } from '@/lib/mock-data'
-import { Shield, Users, Activity, BookOpen, DollarSign, Settings, Bug, MessageSquare, Eye, EyeOff, Trash2, Sparkles, KeyRound, Server, CheckCircle, AlertTriangle, RefreshCw, ExternalLink, Filter, Edit3, Mail, Receipt, Clock3, LibraryBig } from 'lucide-react'
+import { Shield, Users, Activity, BookOpen, DollarSign, Settings, Bug, MessageSquare, Eye, EyeOff, Trash2, Sparkles, KeyRound, Server, CheckCircle, AlertTriangle, RefreshCw, ExternalLink, Filter, Edit3, Mail, Receipt, Clock3, LibraryBig, Search, ShoppingCart, TrendingUp, Wallet, BarChart3, CreditCard, ArrowUpDown } from 'lucide-react'
 import { deleteComment, getAllComments, updateCommentStatus, type MockComment } from '@/lib/mock-comments'
 import { Button } from '@/components/ui/button'
 import { loadAiGatewaySettings, loadAiGatewaySettingsRemote, maskApiKey, saveAiGatewaySettings, testAiProvider, type AiGatewaySettings, type AiProviderConfig } from '@/lib/ai-gateway'
@@ -10,6 +10,7 @@ import { useRoles } from '@/hooks/useRoles'
 import { supabase } from '@/integrations/supabase/client'
 import { emptyFilterSettings, loadBookFilterSettings, parseFilterLines, saveBookFilterSettings, type BookFilterSettings } from '@/lib/filter-settings'
 import { listAdminUsers, sendAdminPasswordReset, setAdminUserPassword, type AdminUserRow } from '@/lib/admin-users'
+import { getAllReadingProgress, getMockLibraryEntries } from '@/lib/mock-library'
 
 export default function Admin() {
   const { t } = useI18n()
@@ -32,6 +33,11 @@ export default function Admin() {
   const [passwordActionLoading, setPasswordActionLoading] = useState(false)
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null)
   const [rowPasswordDrafts, setRowPasswordDrafts] = useState<Record<string, string>>({})
+  const [adminBookQuery, setAdminBookQuery] = useState('')
+  const [adminBookStatusFilter, setAdminBookStatusFilter] = useState<'all' | 'published' | 'draft' | 'pending'>('all')
+  const [adminBookSort, setAdminBookSort] = useState<'sales' | 'revenue' | 'date' | 'title'>('sales')
+  const [adminUserQuery, setAdminUserQuery] = useState('')
+  const [adminTransactionFilter, setAdminTransactionFilter] = useState<'all' | 'purchase' | 'ai' | 'topup'>('all')
   const supabaseUrl = String(import.meta.env.VITE_SUPABASE_URL || '')
   const hasSupabaseUrl = supabaseUrl.startsWith('https://') && !supabaseUrl.includes('your_supabase')
   const hasSupabaseKey = Boolean(import.meta.env.VITE_SUPABASE_ANON_KEY && !String(import.meta.env.VITE_SUPABASE_ANON_KEY).includes('your_supabase'))
@@ -219,11 +225,68 @@ export default function Admin() {
     await sendPasswordResetForUser(selectedUserEmail)
   }
 
+  const adminUserRows = useMemo(() => (
+    adminUsers.length ? adminUsers : mockUsers.map(u => ({ id: u.id, email: u.email, displayName: u.display_name, roles: u.roles, credits: u.credits, phone: u.phone }))
+  ), [adminUsers])
+  const purchaseRows = useMemo(() => mockUsers.flatMap(mockUser => getMockLibraryEntries(mockUser.id).map(entry => ({
+    ...entry,
+    userId: mockUser.id,
+    userName: mockUser.display_name,
+    userEmail: mockUser.email,
+    book: mockBooks.find(book => book.id === entry.bookId),
+  }))), [])
+  const userProgressRows = useMemo(() => mockUsers.flatMap(mockUser => Object.values(getAllReadingProgress(mockUser.id)).map(progress => ({
+    ...progress,
+    userId: mockUser.id,
+    userName: mockUser.display_name,
+    book: mockBooks.find(book => book.id === progress.bookId),
+  }))), [])
+  const bookMetrics = useMemo(() => mockBooks.map(book => {
+    const purchases = purchaseRows.filter(row => row.bookId === book.id)
+    const bookComments = comments.filter(comment => comment.bookId === book.id)
+    const revenueCredits = purchases.reduce((sum, row) => sum + Number(row.price || 0), 0)
+    return {
+      book,
+      sales: purchases.length,
+      revenueCredits,
+      revenueToman: revenueCredits * CREDIT_VALUE_TOMAN,
+      comments: bookComments.length,
+      hiddenComments: bookComments.filter(comment => comment.status !== 'visible').length,
+      readers: userProgressRows.filter(row => row.bookId === book.id).length,
+    }
+  }), [comments, purchaseRows, userProgressRows])
   const totalBooks = mockBooks.length
-  const totalUsers = mockUsers.length
+  const totalUsers = adminUserRows.length
   const publishedBooks = mockBooks.filter(b => b.status === 'published').length
+  const draftBooks = mockBooks.filter(b => b.status !== 'published').length
+  const pendingBooks = mockBooks.filter(b => b.review_status === 'pending').length
   const freeBooks = mockBooks.filter(b => b.price === 0).length
-  const totalRevenue = 0 // Mock
+  const paidBooks = publishedBooks - freeBooks
+  const totalRevenueCredits = purchaseRows.reduce((sum, row) => sum + Number(row.price || 0), 0)
+  const totalRevenueToman = totalRevenueCredits * CREDIT_VALUE_TOMAN
+  const totalUserCredits = adminUserRows.reduce((sum, row) => sum + Number(row.credits || 0), 0)
+  const lowCreditUsers = adminUserRows.filter(row => Number(row.credits || 0) < 500).length
+  const visibleComments = comments.filter(comment => comment.status === 'visible').length
+  const hiddenComments = comments.length - visibleComments
+  const enabledAiProviders = aiSettings.providers.filter(provider => provider.enabled).length
+  const configuredAiProviders = aiSettings.providers.filter(provider => provider.apiKey || provider.id === aiSettings.activeProvider).length
+  const filteredBookMetrics = bookMetrics
+    .filter(item => adminBookStatusFilter === 'all' ? true : adminBookStatusFilter === 'pending' ? item.book.review_status === 'pending' : item.book.status === adminBookStatusFilter)
+    .filter(item => !adminBookQuery.trim() || `${item.book.title} ${item.book.author || ''} ${item.book.publisher_name || ''} ${item.book.category || ''}`.toLowerCase().includes(adminBookQuery.trim().toLowerCase()))
+    .sort((a, b) => adminBookSort === 'sales' ? b.sales - a.sales : adminBookSort === 'revenue' ? b.revenueCredits - a.revenueCredits : adminBookSort === 'date' ? +new Date(b.book.created_at) - +new Date(a.book.created_at) : a.book.title.localeCompare(b.book.title, 'fa'))
+  const filteredUsers = adminUserRows.filter(row => !adminUserQuery.trim() || `${row.displayName || ''} ${row.email || ''} ${(row.roles || []).join(' ')}`.toLowerCase().includes(adminUserQuery.trim().toLowerCase()))
+  const transactionRows = [
+    ...purchaseRows.map(row => ({ id: `purchase-${row.userId}-${row.bookId}`, type: 'purchase' as const, title: 'خرید کتاب', user: row.userName, detail: row.book?.title || row.bookId, amount: -Number(row.price || 0), date: row.purchasedAt })),
+    ...comments.slice(0, 8).map(comment => ({ id: `comment-${comment.id}`, type: 'comment' as const, title: 'دیدگاه کاربر', user: comment.displayName, detail: commentBookTitle(comment.bookId), amount: 0, date: comment.createdAt })),
+    ...aiSettings.providers.filter(provider => provider.enabled).map(provider => ({ id: `ai-${provider.id}`, type: 'ai' as const, title: 'ارائه‌دهنده AI فعال', user: provider.label, detail: provider.model, amount: 0, date: new Date().toISOString() })),
+  ].filter(row => adminTransactionFilter === 'all' ? true : adminTransactionFilter === 'purchase' ? row.type === 'purchase' : adminTransactionFilter === 'ai' ? row.type === 'ai' : false)
+    .sort((a, b) => +new Date(b.date) - +new Date(a.date))
+  const topBooks = [...bookMetrics].sort((a, b) => b.sales - a.sales || b.revenueCredits - a.revenueCredits).slice(0, 5)
+  const categoryStats = Array.from(new Set(mockBooks.map(book => book.category || 'بدون دسته'))).map(category => ({
+    category,
+    count: mockBooks.filter(book => (book.category || 'بدون دسته') === category).length,
+    revenue: bookMetrics.filter(item => (item.book.category || 'بدون دسته') === category).reduce((sum, item) => sum + item.revenueCredits, 0),
+  })).sort((a, b) => b.count - a.count)
 
   const refreshComments = () => setComments(getAllComments())
   const commentBookTitle = (bookId: string) => mockBooks.find(b => b.id === bookId)?.title || bookId
