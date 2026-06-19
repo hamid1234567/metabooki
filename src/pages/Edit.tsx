@@ -476,9 +476,48 @@ function inlineFromListItem(item: any) {
   return (item.content || []).flatMap((child: any) => child.type === 'paragraph' ? inlineFromNode(child) : [])
 }
 
+function editorNodeToBlock(node: any): any | null {
+  const inline = inlineFromNode(node)
+  const content = inline.map((span: any) => span.text).join('') || nodeText(node)
+  if (node.type === 'heading') {
+    return { type: 'heading', level: node.attrs?.level || 2, content, inline, format: { alignment: node.attrs?.textAlign || undefined, direction: node.attrs?.dir || undefined, fontSizePt: node.attrs?.fontSizePt || undefined, color: node.attrs?.blockColor?.replace('#', '') || undefined, bold: node.attrs?.blockBold || undefined, italic: node.attrs?.blockItalic || undefined } }
+  }
+  if (node.type === 'image') {
+    const width = String(node.attrs?.width || '100%')
+    return { type: 'image', url: node.attrs?.src, caption: node.attrs?.alt || '', imageId: node.attrs?.imageId || undefined, printPage: node.attrs?.printPage || undefined, conversionStatus: node.attrs?.conversionStatus || undefined, ...(width.endsWith('%') ? { widthPercent: Number.parseFloat(width) } : { widthPx: Number.parseFloat(width) }) }
+  }
+  if (node.type === 'interactiveBlock') return { ...decodePayload(node.attrs?.payload), type: node.attrs?.kind }
+  if (node.type === 'bulletList' || node.type === 'orderedList') {
+    const items = (node.content || []).map((item: any) => {
+      const itemInline = inlineFromListItem(item)
+      return { text: itemInline.map((span: any) => span.text).join('') || nodeText(item), inline: itemInline }
+    }).filter((item: any) => item.text || item.inline?.length)
+    return items.length ? { type: 'list', ordered: node.type === 'orderedList', items, content: items.map((item: any) => item.text).join('\n') } : null
+  }
+  if (node.type === 'table') {
+    const rows = (node.content || []).map((row: any) => (row.content || []).map((cell: any) => nodeText(cell)))
+    return { type: 'table', headers: rows[0] || [], rows: rows.slice(1) }
+  }
+  if (node.type === 'calloutBlock') {
+    const preset = calloutPreset(node.attrs?.variant)
+    const blocks = (node.content || []).map(editorNodeToBlock).filter(Boolean)
+    return blocks.length ? { type: 'callout', variant: node.attrs?.variant || preset.value, title: node.attrs?.title || preset.label, icon: node.attrs?.icon || preset.emoji, blocks } : null
+  }
+  if (node.type === 'paragraph' && (content || inline.length)) {
+    return { type: 'paragraph', content, inline, semantic: node.attrs?.semantic || undefined, format: { alignment: node.attrs?.textAlign || undefined, direction: node.attrs?.dir || undefined, fontSizePt: node.attrs?.fontSizePt || undefined, color: node.attrs?.blockColor?.replace('#', '') || undefined, bold: node.attrs?.blockBold || undefined, italic: node.attrs?.blockItalic || undefined } }
+  }
+  return null
+}
+
 function editorJsonToPages(json: any) {
   const pages: any[] = [{ title: 'صفحه ۱', blocks: [] }]
   for (const node of json?.content || []) {
+    if (node.type === 'calloutBlock') {
+      const page = pages[pages.length - 1]
+      const block = editorNodeToBlock(node)
+      if (block) page.blocks.push(block)
+      continue
+    }
     if (node.type === 'horizontalRule') { pages.push({ title: `صفحه ${pages.length + 1}`, blocks: [] }); continue }
     const page = pages[pages.length - 1]
     const inline = inlineFromNode(node)
