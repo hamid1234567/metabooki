@@ -519,25 +519,32 @@ export default function Admin() {
       {/* Treasury Tab */}
       {tab === 'treasury' && (
         <div className="space-y-6">
+          <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
+            <div className="glass rounded-2xl p-5"><Wallet className="w-7 h-7 text-primary mb-3" /><p className="text-sm text-muted-foreground">کل موجودی کاربران</p><b className="text-3xl">{totalUserCredits.toLocaleString('fa-IR')}</b><small className="block mt-2 text-muted-foreground">{(totalUserCredits * CREDIT_VALUE_TOMAN).toLocaleString('fa-IR')} تومان</small></div>
+            <div className="glass rounded-2xl p-5"><ShoppingCart className="w-7 h-7 text-success mb-3" /><p className="text-sm text-muted-foreground">فروش ثبت‌شده</p><b className="text-3xl">{purchaseRows.length.toLocaleString('fa-IR')}</b><small className="block mt-2 text-muted-foreground">{totalRevenueCredits.toLocaleString('fa-IR')} کردیت</small></div>
+            <div className="glass rounded-2xl p-5"><CreditCard className="w-7 h-7 text-warning mb-3" /><p className="text-sm text-muted-foreground">درآمد تومانی</p><b className="text-3xl">{totalRevenueToman.toLocaleString('fa-IR')}</b><small className="block mt-2 text-muted-foreground">برآورد از تراکنش‌های موجود</small></div>
+            <div className="glass rounded-2xl p-5"><Sparkles className="w-7 h-7 text-primary mb-3" /><p className="text-sm text-muted-foreground">AI فعال</p><b className="text-3xl">{enabledAiProviders.toLocaleString('fa-IR')}</b><small className="block mt-2 text-muted-foreground">از {aiSettings.providers.length.toLocaleString('fa-IR')} provider</small></div>
+          </div>
+
           <div className="glass rounded-2xl p-6">
-            <h2 className="font-bold text-lg mb-4">آخرین تراکنش‌ها (نمونه)</h2>
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <h2 className="font-bold text-lg">دفتر رخدادها و تراکنش‌ها</h2>
+              <select value={adminTransactionFilter} onChange={event => setAdminTransactionFilter(event.target.value as typeof adminTransactionFilter)} className="rounded-xl border bg-background px-3 py-2 text-sm" title="فیلتر تراکنش‌ها"><option value="all">همه</option><option value="purchase">خرید کتاب</option><option value="ai">AI</option></select>
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead><tr className="bg-muted/50">{['کاربر','نوع','مبلغ (کردیت)','تاریخ'].map(h=><th key={h} className="p-3 text-right text-sm">{h}</th>)}</tr></thead>
+                <thead><tr className="bg-muted/50">{['کاربر/سرویس','نوع','جزئیات','مبلغ (کردیت)','تاریخ'].map(h=><th key={h} className="p-3 text-right text-sm">{h}</th>)}</tr></thead>
                 <tbody>
-                  {[
-                    {user:'سارا احمدی',type:'خرید کتاب',amount:-2500,date:'۱۴۰۵/۰۳/۲۰'},
-                    {user:'علی رضایی',type:'افزایش اعتبار',amount:5000,date:'۱۴۰۵/۰۳/۱۹'},
-                    {user:'نرگس کریمی',type:'خرید کتاب',amount:-1800,date:'۱۴۰۵/۰۳/۱۸'},
-                    {user:'انتشارات دانش نو',type:'درآمد فروش',amount:15000,date:'۱۴۰۵/۰۳/۱۷'},
-                  ].map((tx,i)=>(
-                    <tr key={i} className="border-t hover:bg-muted/30">
+                  {transactionRows.map(tx=>(
+                    <tr key={tx.id} className="border-t hover:bg-muted/30">
                       <td className="p-3 font-medium">{tx.user}</td>
-                      <td className="p-3 text-sm">{tx.type}</td>
-                      <td className={`p-3 font-bold ${tx.amount>0?'text-success':'text-destructive'}`}>{tx.amount>0?'+':''}{tx.amount.toLocaleString()}</td>
-                      <td className="p-3 text-sm">{tx.date}</td>
+                      <td className="p-3 text-sm">{tx.title}</td>
+                      <td className="p-3 text-sm text-muted-foreground">{tx.detail}</td>
+                      <td className={`p-3 font-bold ${tx.amount>0?'text-success':tx.amount<0?'text-destructive':'text-muted-foreground'}`}>{tx.amount ? tx.amount.toLocaleString('fa-IR') : '-'}</td>
+                      <td className="p-3 text-sm">{new Date(tx.date).toLocaleDateString('fa-IR')}</td>
                     </tr>
                   ))}
+                  {!transactionRows.length && <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">رخدادی برای نمایش نیست.</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -546,7 +553,7 @@ export default function Admin() {
           <div className="glass rounded-2xl p-6">
             <h2 className="font-bold text-lg mb-4">تنظیم اعتبار کاربر</h2>
             <div className="flex items-end gap-4">
-              <div className="flex-1"><label className="text-sm text-muted-foreground block mb-1">کاربر</label><select title="انتخاب کاربر" className="w-full p-2 rounded-xl border border-input bg-background text-sm"><option>سارا احمدی</option><option>علی رضایی</option><option>نرگس کریمی</option></select></div>
+              <div className="flex-1"><label className="text-sm text-muted-foreground block mb-1">کاربر</label><select title="انتخاب کاربر" className="w-full p-2 rounded-xl border border-input bg-background text-sm">{adminUserRows.map(row => <option key={row.id}>{row.displayName || row.email}</option>)}</select></div>
               <div className="w-32"><label className="text-sm text-muted-foreground block mb-1">مبلغ</label><input title="مبلغ کردیت" type="number" className="w-full p-2 rounded-xl border border-input bg-background text-sm" placeholder="کردیت" /></div>
               <Button size="sm">اعمال</Button>
             </div>
@@ -557,21 +564,40 @@ export default function Admin() {
       {/* Books Tab */}
       {tab === 'books' && (
         <div className="glass rounded-2xl overflow-hidden">
-          <div className="p-6 border-b"><h2 className="font-bold text-lg">لیست کتاب‌ها</h2></div>
+          <div className="p-6 border-b">
+            <div className="grid lg:grid-cols-[1fr_auto_auto_auto] gap-3 items-center">
+              <h2 className="font-bold text-lg">لیست کتاب‌ها و عملکرد فروش</h2>
+              <label className="relative">
+                <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <input value={adminBookQuery} onChange={event => setAdminBookQuery(event.target.value)} className="w-full lg:w-72 rounded-xl border bg-background py-2 pr-9 pl-3 text-sm" placeholder="جستجوی عنوان، ناشر، نویسنده..." />
+              </label>
+              <select value={adminBookStatusFilter} onChange={event => setAdminBookStatusFilter(event.target.value as typeof adminBookStatusFilter)} className="rounded-xl border bg-background px-3 py-2 text-sm" title="فیلتر وضعیت"><option value="all">همه وضعیت‌ها</option><option value="published">منتشر شده</option><option value="draft">پیش‌نویس</option><option value="pending">در انتظار بررسی</option></select>
+              <select value={adminBookSort} onChange={event => setAdminBookSort(event.target.value as typeof adminBookSort)} className="rounded-xl border bg-background px-3 py-2 text-sm" title="مرتب‌سازی"><option value="sales">بیشترین فروش</option><option value="revenue">بیشترین درآمد</option><option value="date">جدیدترین</option><option value="title">عنوان</option></select>
+            </div>
+            <div className="mt-4 grid sm:grid-cols-4 gap-3 text-sm">
+              <div className="rounded-xl bg-background/55 p-3"><span className="text-muted-foreground">کل کتاب‌ها</span><b className="block text-xl">{totalBooks.toLocaleString('fa-IR')}</b></div>
+              <div className="rounded-xl bg-background/55 p-3"><span className="text-muted-foreground">منتشر شده</span><b className="block text-xl">{publishedBooks.toLocaleString('fa-IR')}</b></div>
+              <div className="rounded-xl bg-background/55 p-3"><span className="text-muted-foreground">فروش کل</span><b className="block text-xl">{purchaseRows.length.toLocaleString('fa-IR')}</b></div>
+              <div className="rounded-xl bg-background/55 p-3"><span className="text-muted-foreground">درآمد کل</span><b className="block text-xl">{totalRevenueCredits.toLocaleString('fa-IR')} کردیت</b></div>
+            </div>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead><tr className="bg-muted/50">{['عنوان','ناشر','قیمت','وضعیت','دسته‌بندی','صفحات'].map(h=><th key={h} className="p-4 text-right text-sm font-semibold">{h}</th>)}</tr></thead>
+              <thead><tr className="bg-muted/50">{['عنوان','ناشر/نویسنده','قیمت','وضعیت','دسته‌بندی','فروش','درآمد','تعامل'].map(h=><th key={h} className="p-4 text-right text-sm font-semibold">{h}</th>)}</tr></thead>
               <tbody>
-                {mockBooks.map(b => (
+                {filteredBookMetrics.map(({ book: b, sales, revenueCredits, comments: commentCount, readers }) => (
                   <tr key={b.id} className="border-t hover:bg-muted/30 transition-colors">
-                    <td className="p-4 font-medium">{b.title}</td>
-                    <td className="p-4 text-sm">{b.publisher_name}</td>
-                    <td className="p-4 font-bold">{b.price === 0 ? <span className="text-success">رایگان</span> : b.price.toLocaleString() + ' تومان'}</td>
-                    <td className="p-4"><span className={`text-xs px-2 py-0.5 rounded-full ${b.status==='published'?'bg-success/20 text-success':'bg-warning/20 text-warning'}`}>{b.status==='published'?'منتشر شده':'پیش‌نویس'}</span></td>
+                    <td className="p-4"><p className="font-bold line-clamp-1">{b.title}</p><p className="text-xs text-muted-foreground mt-1">{(b.book_type || 'تألیف')} · {b.pages.length.toLocaleString('fa-IR')} صفحه</p></td>
+                    <td className="p-4 text-sm"><p>{b.publisher_name}</p><p className="text-xs text-muted-foreground mt-1">{b.author || 'نویسنده نامشخص'}</p></td>
+                    <td className="p-4 font-bold">{b.price === 0 ? <span className="text-success">رایگان</span> : `${b.price.toLocaleString('fa-IR')} کردیت`}</td>
+                    <td className="p-4"><div className="flex flex-col gap-1 items-start"><span className={`text-xs px-2 py-0.5 rounded-full ${b.status==='published'?'bg-success/20 text-success':'bg-warning/20 text-warning'}`}>{b.status==='published'?'منتشر شده':'پیش‌نویس'}</span><span className={`text-xs px-2 py-0.5 rounded-full ${b.review_status==='approved'?'bg-success/10 text-success':b.review_status==='pending'?'bg-warning/10 text-warning':'bg-destructive/10 text-destructive'}`}>{b.review_status==='approved'?'تأیید شده':b.review_status==='pending'?'در انتظار بررسی':'رد شده'}</span></div></td>
                     <td className="p-4 text-sm">{b.category}</td>
-                    <td className="p-4 text-sm">{b.pages.length}</td>
+                    <td className="p-4 font-bold">{sales.toLocaleString('fa-IR')}</td>
+                    <td className="p-4"><b>{revenueCredits.toLocaleString('fa-IR')}</b><p className="text-xs text-muted-foreground">{(revenueCredits * CREDIT_VALUE_TOMAN).toLocaleString('fa-IR')} تومان</p></td>
+                    <td className="p-4 text-sm"><p>{commentCount.toLocaleString('fa-IR')} نظر</p><p className="text-xs text-muted-foreground">{readers.toLocaleString('fa-IR')} خوانش</p></td>
                   </tr>
                 ))}
+                {!filteredBookMetrics.length && <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">کتابی با این فیلتر پیدا نشد.</td></tr>}
               </tbody>
             </table>
           </div>
