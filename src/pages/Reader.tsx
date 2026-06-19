@@ -103,6 +103,7 @@ export default function Reader() {
   const [showSearch, setShowSearch] = useState(false)
   const [timelineStep, setTimelineStep] = useState<Record<string, number>>({})
   const [storyStep, setStoryStep] = useState<Record<string, number>>({})
+  const [tabStep, setTabStep] = useState<Record<string, number>>({})
   const [hotspotsVisible, setHotspotsVisible] = useState<Record<string, boolean[]>>({})
   const [fontSize, setFontSize] = useState(18)
   const [readingMode, setReadingMode] = useState<'day'|'night'|'sepia'>('day')
@@ -799,6 +800,9 @@ export default function Reader() {
 
   const renderBlock = (block: any, idx: number) => {
     const qKey = `${currentPage}-${idx}`
+    const textOf = (...values: unknown[]) => normalizeBookText(String(values.find(value => value !== undefined && value !== null && String(value).trim()) || ''))
+    const renderInteractiveImage = (url?: string, alt?: string, className = 'max-h-52 rounded-xl mb-3 object-contain bg-background/50') =>
+      url ? <img src={url} alt={alt || ''} className={className} loading="lazy" /> : null
     const renderInline = () => block.inline?.length ? block.inline.map((span: any, inlineIndex: number) => {
       const spanText = normalizeBookText(span.text || '')
       const content = span.footnoteId ? <sup className="word-footnote-reference">{span.footnoteId}</sup> : span.superscript ? <sup>{spanText}</sup> : span.subscript ? <sub>{spanText}</sub> : spanText
