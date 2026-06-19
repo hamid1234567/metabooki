@@ -204,17 +204,6 @@ const INTERACTIVE_TYPES = [
   ['flashcard', 'فلش‌کارت'], ['steps', 'مرحله‌سازی'], ['gallery', 'گالری عکس'], ['scrollytelling', 'استوری‌تلینگ'],
   ['quiz', 'کوییز ساده'], ['timeline', 'تایم‌لاین'], ['hotspot', 'هات‌اسپات تعاملی'],
 ] as const
-const TYPOGRAPHY_PRESETS = [
-  { value: 'lead', label: 'متن آغازین', group: 'ساختار متن', icon: Type, className: 'editor-lead' },
-  { value: 'summary', label: 'جمع‌بندی', group: 'ساختار متن', icon: FileText, className: 'editor-summary' },
-  { value: 'aside', label: 'حاشیه', group: 'ساختار متن', icon: Bookmark, className: 'editor-aside' },
-  { value: 'note', label: 'نکته', group: 'آموزشی', icon: Info, className: 'editor-note' },
-  { value: 'definition', label: 'تعریف', group: 'آموزشی', icon: BookOpen, className: 'editor-definition' },
-  { value: 'example', label: 'مثال', group: 'آموزشی', icon: Lightbulb, className: 'editor-example' },
-  { value: 'quote', label: 'نقل‌قول', group: 'ادبی و ارجاعی', icon: Quote, className: 'editor-quote' },
-  { value: 'poetry', label: 'شعر', group: 'ادبی و ارجاعی', icon: Feather, className: 'editor-poetry' },
-  { value: 'normal', label: 'متن عادی', group: 'بازنشانی', icon: Pilcrow, className: 'editor-normal' },
-] as const
 const CALLOUT_PRESETS = [
   { value: 'key', label: 'نکته کلیدی', group: 'کال‌اوت آموزشی', icon: Lightbulb, emoji: '💡', className: 'callout-key', description: 'خلاصه مهم‌ترین نکته متن' },
   { value: 'question', label: 'مکث و فکر کن', group: 'کال‌اوت آموزشی', icon: Info, emoji: '❔', className: 'callout-question', description: 'سؤال کوتاه برای درگیر کردن خواننده' },
@@ -311,7 +300,6 @@ function pagesToHtml(pages: any[] = []) {
   }).join('')
 }
 
-type EditorSegmentMode = 'chapter' | 'page'
 type EditorSegment = { key: string; label: string; level?: number; start: number; end: number; startBlock?: number; endBlock?: number; page?: number; tocIndex?: number; isPrelude?: boolean }
 type ConfirmedTocEntry = { id?: string; title: string; level: number; page?: number; styleId?: string }
 
@@ -475,24 +463,6 @@ function mergeSegmentPages(sourcePages: any[] = [], segment: EditorSegment | und
   const lastEditedPage = normalizedEditedPages[normalizedEditedPages.length - 1]
   const lastEdited = { ...lastSource, ...lastEditedPage, blocks: [...(lastEditedPage.blocks || []), ...suffix] }
   return [...before, firstEdited, ...middleEdited, lastEdited, ...after]
-}
-
-function buildEditorSegments(pages: any[] = [], mode: EditorSegmentMode): EditorSegment[] {
-  if (!pages.length) return [{ key: 'empty', label: 'سند خالی', start: 0, end: 0 }]
-  if (mode === 'page') {
-    return pages.map((page, index) => ({ key: `page-${index}`, label: pageTitle(page, index), start: index, end: index + 1 }))
-  }
-  const starts = pages
-    .map((page, index) => ({ page, index }))
-    .filter(({ page }) => (page.blocks || []).some((block: any) => block.type === 'heading' && Number(block.level || 2) === 1))
-    .map(({ index }) => index)
-  const uniqueStarts = [...new Set(starts)]
-  const boundaries = uniqueStarts[0] === 0 ? uniqueStarts : [0, ...uniqueStarts]
-  if (!boundaries.length) boundaries.push(0)
-  return boundaries.map((start, index) => {
-    const end = boundaries[index + 1] ?? pages.length
-    return { key: `chapter-${start}-${end}`, label: pageTitle(pages[start], start), start, end }
-  })
 }
 
 function inlineFromNode(node: any) {
