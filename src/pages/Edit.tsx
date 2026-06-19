@@ -480,7 +480,7 @@ function interactiveTemplate(kind: string) {
   if (kind === 'accordion') return { type: kind, title: 'آکاردئون', items: [{ title: 'عنوان بخش', description: 'متن بازشونده این بخش' }] }
   if (kind === 'tabs') return { type: kind, title: 'تب‌ها', tabs: [{ title: 'تب اول', description: 'محتوای تب اول' }, { title: 'تب دوم', description: 'محتوای تب دوم' }] }
   if (kind === 'algorithm') return { type: kind, title: 'الگوریتم تعاملی', steps: [{ title: 'اگر...', description: 'شرط یا تصمیم اول' }, { title: 'آنگاه...', description: 'نتیجه یا مسیر بعدی' }] }
-  if (kind === 'author') return { type: kind, name: 'نام نویسنده', role: 'نقش یا تخصص', bio: 'معرفی کوتاه نویسنده', image: '' }
+  if (kind === 'author') return { type: kind, title: 'نویسندگان فصل', authors: [{ name: 'نام نویسنده', role: 'نقش یا تخصص', bio: 'معرفی کوتاه نویسنده', image: '' }] }
   if (kind === 'quiz') return { type: kind, question: 'سؤال را اینجا بنویسید', options: ['گزینه صحیح', 'گزینه دوم', 'گزینه سوم'], correct: 0 }
   if (kind === 'timeline') return { type: kind, events: [{ year: 'مرحله ۱', title: 'شروع', description: 'توضیح مرحله نخست' }, { year: 'مرحله ۲', title: 'ادامه', description: 'توضیح مرحله دوم' }] }
   if (kind === 'scrollytelling') return { type: kind, steps: [{ image: '', text: 'بخش نخست روایت' }, { image: '', text: 'بخش دوم روایت' }] }
@@ -494,7 +494,10 @@ function interactivePreview(kind: string, data: any): any[] {
   if (kind === 'accordion') return [['h4', data.title || 'آکاردئون'], ['div', { class: 'editor-interactive-steps' }, ...(data.items || []).map((item: any, index: number) => ['span', `${index + 1}. ${item.title || 'بخش'}`])]]
   if (kind === 'tabs') return [['h4', data.title || 'تب‌ها'], ['div', { class: 'editor-interactive-steps' }, ...(data.tabs || []).map((item: any, index: number) => ['span', `${index + 1}. ${item.title || 'تب'}`])]]
   if (kind === 'algorithm') return [['h4', data.title || 'الگوریتم تعاملی'], ['div', { class: 'editor-interactive-steps' }, ...(data.steps || []).map((item: any, index: number) => ['span', `${index + 1}. ${item.title || 'تصمیم'}`])]]
-  if (kind === 'author') return [['h4', data.name || 'نویسنده مطلب'], ['span', data.role || ''], ['small', data.bio || '']]
+  if (kind === 'author') {
+    const authors = Array.isArray(data.authors) ? data.authors : [{ name: data.name, role: data.role, bio: data.bio }]
+    return [['h4', data.title || 'نویسندگان فصل'], ['div', { class: 'editor-interactive-steps' }, ...authors.map((author: any) => ['span', `${author.name || 'نویسنده'}${author.role ? ` - ${author.role}` : ''}`])]]
+  }
   if (kind === 'quiz') return [['h4', data.question || 'سؤال'], ['div', { class: 'editor-interactive-options' }, ...(data.options || []).map((option: string) => ['span', option])]]
   if (kind === 'gallery') return [['div', { class: 'editor-interactive-gallery' }, ...(data.images || []).map((image: any) => image.url ? ['img', { src: image.url, alt: image.caption || '' }] : ['span', image.caption || 'تصویر'])]]
   if (kind === 'hotspot') return [data.image ? ['img', { src: data.image, alt: data.caption || '' }] : ['span', data.caption || 'تصویر هات‌اسپات'], ['small', `${(data.points || []).length} نقطه تعاملی`]]
@@ -1206,7 +1209,10 @@ export default function Edit() {
     else if (attrs.kind === 'scrollytelling') payload.steps = (payload.steps || [{ text: 'روایت تصویری' }]).map((step: any, index: number) => index === 0 ? { ...step, image: url } : step)
     else if (attrs.kind === 'steps') payload.steps = (payload.steps || [{ title: 'مرحله ۱' }]).map((step: any, index: number) => index === 0 ? { ...step, image: url } : step)
     else if (attrs.kind === 'algorithm') payload.steps = (payload.steps || [{ title: 'گام اول' }]).map((step: any, index: number) => index === 0 ? { ...step, image: url } : step)
-    else if (attrs.kind === 'author') payload.image = url
+    else if (attrs.kind === 'author') {
+      const authors = Array.isArray(payload.authors) && payload.authors.length ? payload.authors : [{ name: payload.name || 'نویسنده', role: payload.role || '', bio: payload.bio || '' }]
+      payload.authors = authors.map((author: any, index: number) => index === 0 ? { ...author, image: url } : author)
+    }
     else payload.image = url
     activeEditor.chain().focus().updateAttributes('interactiveBlock', { payload: encodePayload(payload) }).run()
   }
@@ -1477,7 +1483,7 @@ export default function Edit() {
               return <button key={String(mode)} className={panelMode === mode ? 'is-active' : ''} onClick={() => setPanelMode(mode as EditorPanelMode)}><PanelIcon />{String(label)}</button>
             })}
           </div>
-          {panelMode === 'upgrade' ? <div className="mb-panel-content">
+          {panelMode === 'upgrade' ? <div className="mb-panel-content is-callout-only">
             <section className="book-editor-side-card">
               <h3><Type />ارتقا متن</h3>
               <p>متن انتخاب‌شده را به سرفصل، کال‌اوت، جدول یا صفحه جدید تبدیل کنید.</p>
