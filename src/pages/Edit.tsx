@@ -390,6 +390,26 @@ function buildConfirmedTocSegments(pages: any[] = [], toc: ConfirmedTocEntry[] =
   return segments
 }
 
+function syncPagesAndTocFromHeadings(pages: any[] = [], currentToc: ConfirmedTocEntry[] = []) {
+  const existingById = new Map(currentToc.filter(item => item.id).map(item => [item.id, item]))
+  const existingByTitle = new Map(currentToc.map(item => [`${item.level}:${String(item.title || '').trim()}`, item]))
+  const toc: ConfirmedTocEntry[] = []
+  const syncBlocks = (blocks: any[] = [], page: any, pageIndex: number, path = ''): any[] => blocks.map((block, blockIndex) => {
+    const nextPath = path ? `${path}-${blockIndex}` : `${blockIndex}`
+    if (block.type === 'heading') {
+      const title = normalizeBookText(block.content || block.text || '').trim()
+      const level = Math.min(6, Math.max(1, Number(block.level || 2)))
+      const existing = existingById.get(block.anchor || block.id) || existingByTitle.get(`${level}:${title}`)
+      const id = block.anchor || block.id || existing?.id || `heading-${pageIndex + 1}-${nextPath}`
+      if (title) toc.push({ id, title, level, page: page.printNumber || page.number || pageIndex + 1, styleId: existing?.styleId })
+      return { ...block, anchor: id, id }
+    }
+    if (Array.isArray(block.blocks)) return { ...block, blocks: syncBlocks(block.blocks, page, pageIndex, nextPath) }
+    return block
+  })
+  return { pages: pages.map((page, pageIndex) => ({ ...page, blocks: syncBlocks(page.blocks || [], page, pageIndex) })), toc }
+}
+
 function segmentHasChildren(segments: EditorSegment[], index: number) {
   const level = Number(segments[index]?.level || 1)
   for (let cursor = index + 1; cursor < segments.length; cursor++) {
@@ -712,8 +732,10 @@ export default function Edit() {
     const activeEditor = getEditor()
     if (!activeEditor || !id) return
     setSaving(true)
-    const pages = mergeCurrentSegment()
-    const metadata = { ...(book?.metadata || {}), page_background_url: backgroundUrl, page_background_alpha: backgroundAlpha, prelude_title: preludeTitle }
+    const mergedPages = mergeCurrentSegment()
+    const synced = syncPagesAndTocFromHeadings(mergedPages, tocEntries)
+    const pages = synced.pages
+    const metadata = { ...(book?.metadata || {}), confirmed_toc: synced.toc, page_background_url: backgroundUrl, page_background_alpha: backgroundAlpha, prelude_title: preludeTitle }
     const patch = { title, subtitle, description, pages, metadata, page_count: pages.length, content_updated_at: new Date().toISOString() }
     updatePublisherBook(id, patch as any)
     if (import.meta.env.VITE_SUPABASE_URL?.startsWith('http') && /^[0-9a-f-]{36}$/i.test(id)) {
