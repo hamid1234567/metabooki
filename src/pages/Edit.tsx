@@ -14,9 +14,8 @@ import Link from '@tiptap/extension-link'
 import Color from '@tiptap/extension-color'
 import { TextStyle } from '@tiptap/extension-text-style'
 import { TableKit } from '@tiptap/extension-table'
-import { AlertTriangle, AlignCenter, AlignJustify, AlignLeft, AlignRight, ArrowDown, ArrowLeft, ArrowUp, Bold, BookOpen, Bookmark, ChevronLeft, ChevronDown, ChevronUp, Edit3, Eye, Feather, FileImage, FileText, Heading1, ImagePlus, Images, Info, Italic, LayoutTemplate, Lightbulb, Link2, List, ListOrdered, Minus, PanelTopClose, Pilcrow, Plus, Quote, Redo2, Save, Strikethrough, Subscript as SubIcon, Superscript as SuperIcon, Table2, Trash2, Type, Underline as UnderlineIcon, Undo2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { AddBlockPanel, BlockSettingsPanel, EditorHeader, EditorPanel, EditorRail, EditorStatusBar, EditorToolbarFrame, EditorWorkspace, type EditorPanelMode } from '@/features/editor/EditorShell'
+import { AlertTriangle, AlignCenter, AlignJustify, AlignLeft, AlignRight, ArrowDown, ArrowLeft, ArrowUp, Bold, BookOpen, Bookmark, ChevronLeft, ChevronDown, ChevronUp, Edit3, Feather, FileImage, FileText, Heading1, ImagePlus, Images, Info, Italic, LayoutTemplate, Lightbulb, Link2, List, ListOrdered, Minus, Pilcrow, Plus, Quote, Redo2, Strikethrough, Subscript as SubIcon, Superscript as SuperIcon, Table2, Trash2, Type, Underline as UnderlineIcon, Undo2 } from 'lucide-react'
+import { AddBlockPanel, BlockSettingsPanel, EditorHeader, EditorRail, EditorStatusBar, EditorToolbarFrame, type EditorPanelMode } from '@/features/editor/EditorShell'
 import { findPublisherBook, updatePublisherBook } from '@/lib/publisher-books'
 import { findBookById } from '@/lib/mock-data'
 import { supabase } from '@/integrations/supabase/client'
@@ -1180,7 +1179,7 @@ export default function Edit() {
 
       <div className="mb-editor-workspace">
         <EditorRail active={panelMode} onChange={mode => { setPanelMode(mode); if (mode === 'media') setImagePanelOpen(true) }} />
-        <aside className="mb-editor-panel book-editor-side">
+        <aside className="mb-editor-panel">
           {panelMode === 'add' ? <AddBlockPanel
             onAddImage={() => imageInputRef.current?.click()}
             onShowMedia={() => { setPanelMode('media'); setImagePanelOpen(true) }}
@@ -1188,7 +1187,20 @@ export default function Edit() {
             onAddInteractive={kind => void handleInteractiveAction(kind)}
             onAddTable={() => command(activeEditor => activeEditor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())}
             onAddPage={() => command(activeEditor => activeEditor.chain().focus().setHorizontalRule().run())}
-          /> : <>
+          /> : panelMode === 'media' ? <div className="book-editor-image-drawer is-embedded">
+            <header><h3><Images />تصاویر کتاب</h3><button onClick={() => setPanelMode('toc')}>فهرست</button></header>
+            {bookImages.length === 0 && <p className="book-editor-empty-state">هنوز تصویری برای این کتاب ثبت نشده است.</p>}
+            <div>
+              {bookImages.map((image: any, index: number) => (
+                <button key={image.key || `${image.url}-${index}`} className={image.issue ? 'has-issue' : ''} disabled={!image.url} title={image.issue || 'افزودن تصویر در محل نشانگر'} onClick={() => image.url && command(activeEditor => activeEditor.chain().focus().setImage({ src: image.url, alt: image.caption || '', width: image.widthPx ? `${image.widthPx}px` : image.widthPercent ? `${image.widthPercent}%` : '100%', imageId: image.imageId || undefined, printPage: image.printPage || undefined, conversionStatus: image.conversionStatus || undefined } as any).run())}>
+                  {image.url ? <img src={image.url} alt={image.caption || ''} /> : <span><AlertTriangle /></span>}
+                  <b>{image.caption || image.originalName || image.name || `تصویر ${index + 1}`}</b>
+                  <small>صفحه چاپی: {String(image.printPage || 'نامشخص')}</small>
+                  {image.issue && <em>{image.issue}</em>}
+                </button>
+              ))}
+            </div>
+          </div> : <>
           <div className="book-editor-side-card">
             <h3><BookOpen />فهرست کتاب</h3>
             <p>این همان فهرستی است که در زمان تبدیل Word تایید شده است.</p>
