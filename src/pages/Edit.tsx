@@ -256,7 +256,32 @@ function InteractiveNodeView({ node, updateAttributes, editor, getPos }: any) {
         </>, mediaSlot('تصویر', eventItem.image || '', value => updateItem('events', index, { image: value }, events))))}
         {addButton('افزودن رویداد', () => addItem('events', { year: '', title: '', description: '', image: '' }, events))}
       </>}
-      {(kind === 'steps' || kind === 'algorithm' || kind === 'scrollytelling') && <>
+      {kind === 'algorithm' && <>
+        {field('عنوان الگوریتم', data.title || '', value => updatePayload({ title: value }), 'مثلا: انتخاب مسیر درمان یا تصمیم‌گیری آموزشی', true)}
+        {algorithmNodes.map((node: any, index: number) => itemCard('گره الگوریتم', index, () => removeItem('nodes', index, algorithmNodes), <>
+          <div className="interactive-coordinates">
+            {field('شناسه', node.id || '', value => updateItem('nodes', index, { id: value }, algorithmNodes), 'مثلا start یا step-1')}
+            <label className="interactive-field"><span>نوع گره</span><select value={node.kind || 'action'} onChange={event => updateItem('nodes', index, { kind: event.target.value }, algorithmNodes)}><option value="start">شروع</option><option value="decision">تصمیم</option><option value="action">اقدام</option><option value="result">نتیجه</option></select></label>
+          </div>
+          {field('عنوان', node.title || '', value => updateItem('nodes', index, { title: value }, algorithmNodes), 'عنوان گره', true)}
+          {textarea('توضیح', node.description || '', value => updateItem('nodes', index, { description: value }, algorithmNodes), 'متن توضیحی این گره')}
+          <div className="interactive-option-list">
+            {(Array.isArray(node.options) ? node.options : []).map((option: any, optionIndex: number) => (
+              <label key={optionIndex} className="interactive-option-row">
+                <input value={option.label || ''} placeholder="متن گزینه/شاخه" onChange={event => updateItem('nodes', index, { options: (node.options || []).map((item: any, itemIndex: number) => itemIndex === optionIndex ? { ...item, label: event.target.value } : item) }, algorithmNodes)} />
+                <select value={option.targetId || ''} onChange={event => updateItem('nodes', index, { options: (node.options || []).map((item: any, itemIndex: number) => itemIndex === optionIndex ? { ...item, targetId: event.target.value } : item) }, algorithmNodes)}>
+                  <option value="">مقصد</option>
+                  {algorithmNodes.map((target: any) => <option key={target.id || target.title} value={target.id || ''}>{target.title || target.id || 'گره بدون عنوان'}</option>)}
+                </select>
+                <button type="button" onClick={() => updateItem('nodes', index, { options: (node.options || []).filter((_: any, itemIndex: number) => itemIndex !== optionIndex) }, algorithmNodes)}>×</button>
+              </label>
+            ))}
+            <button type="button" className="interactive-add-button" onClick={() => updateItem('nodes', index, { options: [...(node.options || []), { label: '', targetId: '' }] }, algorithmNodes)}><Plus />افزودن شاخه</button>
+          </div>
+        </>, mediaSlot('تصویر', node.image || '', value => updateItem('nodes', index, { image: value }, algorithmNodes))))}
+        {addButton('افزودن گره الگوریتم', () => addItem('nodes', { id: `node-${algorithmNodes.length + 1}`, kind: 'action', title: '', description: '', image: '', options: [] }, algorithmNodes))}
+      </>}
+      {(kind === 'steps' || kind === 'scrollytelling') && <>
         {steps.map((step: any, index: number) => itemCard('گام', index, () => removeItem('steps', index, steps), <>
           {field('عنوان', step.title || step.text || '', value => updateItem('steps', index, { title: value, text: value }, steps), 'عنوان گام', true)}
           {textarea('توضیح', step.description || '', value => updateItem('steps', index, { description: value }, steps), 'توضیح گام')}
@@ -1189,7 +1214,10 @@ export default function Edit() {
     if (attrs.kind === 'gallery') payload.images = [...(payload.images || []), { url, caption: 'ØªØµÙˆÛŒØ± Ø§Ù†ØªØ®Ø§Ø¨â€ŒØ´Ø¯Ù‡ Ø§Ø² Ú©ØªØ§Ø¨' }]
     else if (attrs.kind === 'scrollytelling') payload.steps = (payload.steps || [{ text: 'Ø±ÙˆØ§ÛŒØª ØªØµÙˆÛŒØ±ÛŒ' }]).map((step: any, index: number) => index === 0 ? { ...step, image: url } : step)
     else if (attrs.kind === 'steps') payload.steps = (payload.steps || [{ title: 'Ù…Ø±Ø­Ù„Ù‡ Û±' }]).map((step: any, index: number) => index === 0 ? { ...step, image: url } : step)
-    else if (attrs.kind === 'algorithm') payload.steps = (payload.steps || [{ title: 'Ú¯Ø§Ù… Ø§ÙˆÙ„' }]).map((step: any, index: number) => index === 0 ? { ...step, image: url } : step)
+    else if (attrs.kind === 'algorithm') {
+      const nodes = Array.isArray(payload.nodes) && payload.nodes.length ? payload.nodes : interactiveTemplate('algorithm').nodes
+      payload.nodes = nodes.map((node: any, index: number) => index === 0 ? { ...node, image: url } : node)
+    }
     else if (attrs.kind === 'author') {
       const authors = Array.isArray(payload.authors) && payload.authors.length ? payload.authors : [{ name: payload.name || 'Ù†ÙˆÛŒØ³Ù†Ø¯Ù‡', role: payload.role || '', bio: payload.bio || '' }]
       payload.authors = authors.map((author: any, index: number) => index === 0 ? { ...author, image: url } : author)

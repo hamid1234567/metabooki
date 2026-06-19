@@ -1074,6 +1074,149 @@ body {
   background: hsl(var(--primary));
 }
 
+.reader-algorithm {
+  display: grid;
+  gap: 1rem;
+}
+
+.reader-algorithm-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.reader-algorithm-head p {
+  margin: 0 0 .2rem;
+  color: hsl(var(--primary));
+  font-size: .72rem;
+  font-weight: 900;
+}
+
+.reader-algorithm-head h3 {
+  margin: 0;
+  font-weight: 950;
+}
+
+.reader-algorithm-head button {
+  border-radius: 999px;
+  border: 1px solid hsl(var(--primary) / .25);
+  background: hsl(var(--primary) / .08);
+  color: hsl(var(--primary));
+  padding: .45rem .85rem;
+  font-size: .75rem;
+  font-weight: 900;
+}
+
+.reader-algorithm-node {
+  position: relative;
+  display: grid;
+  gap: .75rem;
+  border: 1px solid hsl(var(--border) / .78);
+  border-radius: 1.1rem;
+  background:
+    linear-gradient(135deg, hsl(var(--background) / .72), hsl(var(--background) / .46)),
+    radial-gradient(circle at 92% 10%, hsl(var(--primary) / .12), transparent 36%);
+  padding: 1rem;
+  box-shadow: 0 18px 45px hsl(var(--foreground) / .06);
+}
+
+.reader-algorithm-node.node-decision {
+  border-color: hsl(38 92% 50% / .38);
+  background:
+    linear-gradient(135deg, hsl(var(--background) / .74), hsl(38 90% 94% / .34)),
+    radial-gradient(circle at 88% 14%, hsl(38 92% 50% / .16), transparent 38%);
+}
+
+.reader-algorithm-node.node-result {
+  border-color: hsl(151 67% 38% / .34);
+  background:
+    linear-gradient(135deg, hsl(var(--background) / .74), hsl(151 62% 92% / .34)),
+    radial-gradient(circle at 88% 14%, hsl(151 67% 38% / .14), transparent 38%);
+}
+
+.reader-algorithm-badge {
+  width: max-content;
+  border-radius: 999px;
+  background: hsl(var(--foreground) / .06);
+  color: hsl(var(--muted-foreground));
+  padding: .28rem .62rem;
+  font-size: .68rem;
+  font-weight: 900;
+}
+
+.reader-algorithm-image {
+  width: 100%;
+  max-height: 18rem;
+  object-fit: contain;
+  border-radius: .9rem;
+  background: hsl(var(--background) / .55);
+}
+
+.reader-algorithm-node h4 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 950;
+}
+
+.reader-algorithm-node p {
+  margin: 0;
+  color: hsl(var(--muted-foreground));
+  line-height: 2;
+}
+
+.reader-algorithm-options {
+  display: grid;
+  gap: .55rem;
+}
+
+.reader-algorithm-options button {
+  border: 1px solid hsl(var(--primary) / .24);
+  border-radius: .85rem;
+  background: hsl(var(--primary) / .08);
+  color: hsl(var(--primary));
+  padding: .75rem .9rem;
+  text-align: start;
+  font-weight: 900;
+  transition: .18s;
+}
+
+.reader-algorithm-options button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: hsl(var(--primary) / .14);
+  border-color: hsl(var(--primary) / .45);
+}
+
+.reader-algorithm-options button:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+.reader-algorithm-finish {
+  width: max-content;
+  border-radius: 999px;
+  background: hsl(151 67% 38% / .12);
+  color: hsl(151 67% 30%);
+  padding: .45rem .85rem;
+  font-size: .75rem;
+  font-weight: 900;
+}
+
+.reader-algorithm-path {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+  color: hsl(var(--muted-foreground));
+  font-size: .72rem;
+}
+
+.reader-algorithm-path span {
+  border-radius: 999px;
+  background: hsl(var(--background) / .58);
+  border: 1px solid hsl(var(--border) / .7);
+  padding: .32rem .6rem;
+}
+
 /* Book commerce surfaces */
 .store-hero,
 .library-hero {

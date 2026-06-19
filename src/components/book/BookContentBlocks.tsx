@@ -106,6 +106,62 @@ function AuthorStrip({ block }: { block: any }) {
   )
 }
 
+function AlgorithmBlock({ block, blockKey }: { block: any; blockKey: string }) {
+  const legacySteps = Array.isArray(block.steps) ? block.steps : []
+  const nodes = Array.isArray(block.nodes) && block.nodes.length
+    ? block.nodes
+    : legacySteps.map((step: any, index: number) => ({
+      id: step.id || `step-${index + 1}`,
+      kind: index === 0 ? 'start' : index === legacySteps.length - 1 ? 'result' : 'action',
+      title: step.title,
+      description: step.description || step.text,
+      image: step.image,
+      options: index < legacySteps.length - 1 ? [{ label: 'ادامه', targetId: `step-${index + 2}` }] : [],
+    }))
+  const [currentId, setCurrentId] = useState(block.startId || nodes[0]?.id || '')
+  const [path, setPath] = useState<string[]>([])
+  const current = nodes.find((node: any) => node.id === currentId) || nodes[0] || {}
+  const choose = (option: any) => {
+    if (!option?.targetId) return
+    setPath(items => [...items, current.id || current.title || 'node'])
+    setCurrentId(option.targetId)
+  }
+  const reset = () => {
+    setPath([])
+    setCurrentId(block.startId || nodes[0]?.id || '')
+  }
+  if (!nodes.length) return null
+  return (
+    <div className="reader-interactive reader-algorithm menu-glass-70 rounded-2xl p-5 mb-8" data-no-swipe="true" data-algorithm-key={blockKey}>
+      <div className="reader-algorithm-head">
+        <div>
+          <p>الگوریتم تعاملی</p>
+          <h3>{textOf(block.title, interactiveLabel('algorithm'))}</h3>
+        </div>
+        {path.length > 0 && <button type="button" onClick={reset}>شروع دوباره</button>}
+      </div>
+      <section className={`reader-algorithm-node node-${current.kind || 'action'}`}>
+        <span className="reader-algorithm-badge">{current.kind === 'decision' ? 'تصمیم' : current.kind === 'result' ? 'نتیجه' : current.kind === 'start' ? 'شروع' : 'اقدام'}</span>
+        {renderInteractiveImage(current.image, current.title, 'reader-algorithm-image')}
+        <h4>{textOf(current.title, current.label, 'گره بدون عنوان')}</h4>
+        {current.description && <p>{textOf(current.description, current.text, current.body)}</p>}
+        {Array.isArray(current.options) && current.options.length > 0 ? (
+          <div className="reader-algorithm-options">
+            {current.options.map((option: any, index: number) => <button key={index} type="button" disabled={!option.targetId} onClick={() => choose(option)}>{textOf(option.label, `مسیر ${index + 1}`)}</button>)}
+          </div>
+        ) : <div className="reader-algorithm-finish">پایان مسیر</div>}
+      </section>
+      {path.length > 0 && <div className="reader-algorithm-path">
+        {path.map((id, index) => {
+          const node = nodes.find((item: any) => item.id === id)
+          return <span key={`${id}-${index}`}>{textOf(node?.title, id)}</span>
+        })}
+        <span>{textOf(current.title, current.id)}</span>
+      </div>}
+    </div>
+  )
+}
+
 export function BookContentBlock({
   block,
   blockKey,
@@ -191,6 +247,8 @@ export function BookContentBlock({
       ))}</div>
     </div>
   )
+
+  if (block.type === 'algorithm') return <AlgorithmBlock block={block} blockKey={blockKey} />
 
   if (block.type === 'steps' || block.type === 'algorithm') {
     const steps = block.steps || block.items || block.events || []
