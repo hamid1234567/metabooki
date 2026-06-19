@@ -16,6 +16,7 @@ import { TextStyle } from '@tiptap/extension-text-style'
 import { TableKit } from '@tiptap/extension-table'
 import { AlertTriangle, AlignCenter, AlignJustify, AlignLeft, AlignRight, ArrowDown, ArrowLeft, ArrowUp, Bold, BookOpen, Bookmark, ChevronLeft, ChevronDown, ChevronUp, Edit3, Eye, Feather, FileImage, FileText, Heading1, ImagePlus, Images, Info, Italic, LayoutTemplate, Lightbulb, Link2, List, ListOrdered, Minus, PanelTopClose, Pilcrow, Plus, Quote, Redo2, Save, Strikethrough, Subscript as SubIcon, Superscript as SuperIcon, Table2, Trash2, Type, Underline as UnderlineIcon, Undo2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { AddBlockPanel, BlockSettingsPanel, EditorHeader, EditorPanel, EditorRail, EditorStatusBar, EditorToolbarFrame, EditorWorkspace, type EditorPanelMode } from '@/features/editor/EditorShell'
 import { findPublisherBook, updatePublisherBook } from '@/lib/publisher-books'
 import { findBookById } from '@/lib/mock-data'
 import { supabase } from '@/integrations/supabase/client'
@@ -624,6 +625,7 @@ export default function Edit() {
   const [collapsedTocKeys, setCollapsedTocKeys] = useState<Set<string>>(() => new Set())
   const [toolbarMenu, setToolbarMenu] = useState<'heading' | 'typography' | null>(null)
   const [editorRevision, setEditorRevision] = useState(0)
+  const [panelMode, setPanelMode] = useState<EditorPanelMode>('toc')
   const imageInputRef = useRef<HTMLInputElement>(null)
   const documentStageRef = useRef<HTMLElement>(null)
   const switchingSegmentRef = useRef(false)
@@ -1056,9 +1058,21 @@ export default function Edit() {
     }
     addInteractive(value)
   }
+  const wordCount = useMemo(() => editor?.state.doc.textContent.trim().split(/\s+/).filter(Boolean).length || 0, [editor, editorRevision])
+  const currentBlockLabel = editor?.isActive('heading')
+    ? `H${editor.getAttributes('heading').level || 1}`
+    : editor?.isActive('calloutBlock')
+      ? calloutPreset(editor.getAttributes('calloutBlock').variant).label
+      : editor?.isActive('image')
+        ? 'تصویر'
+        : editor?.isActive('table')
+          ? 'جدول'
+          : 'پاراگراف'
+  const currentDirection = (editor?.getAttributes('heading').dir || editor?.getAttributes('paragraph').dir || 'rtl') as 'rtl' | 'ltr'
+  const currentLanguage = currentDirection === 'ltr' ? 'English' : 'فارسی'
 
   return (
-    <main className="book-editor-shell" dir="rtl">
+    <main className="mb-editor-app" dir="rtl">
       <header className="book-editor-head menu-glass-70">
         <div>
           <RouterLink to="/publisher/me" className="mb-1 inline-flex w-max items-center gap-1 text-xs font-bold text-muted-foreground transition-colors hover:text-foreground">
