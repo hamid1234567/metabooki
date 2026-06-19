@@ -35,7 +35,86 @@ export const BOOK_CONTENT_REFERENCE_RULES = [
     surfaces: ['word preview', 'editor', 'editor preview', 'reader'],
     includes: ['footnote tooltip', 'reference tooltip', 'RTL/LTR direction', 'viewport-safe placement'],
   },
+  {
+    key: 'callout-and-interactive-blocks',
+    owner: 'CALLOUT_PRESETS / INTERACTIVE_TYPES / interactiveTemplate / interactivePreview / BookContentBlock',
+    surfaces: ['editor', 'editor preview', 'reader', 'book detail previews', 'chapter previews', 'book snippets'],
+    includes: ['callout variants', 'interactive block templates', 'interactive labels', 'shared rendering behavior'],
+  },
 ] as const
+
+export type CalloutVariant = 'key' | 'question' | 'warning' | 'quote' | 'deep' | 'practice' | 'glossary' | 'data' | 'margin' | 'normal'
+export type InteractiveKind = 'quiz' | 'truefalse' | 'flashcard' | 'accordion' | 'tabs' | 'timeline' | 'gallery' | 'scrollytelling' | 'algorithm' | 'author' | 'steps' | 'hotspot'
+
+export const CALLOUT_PRESETS = [
+  { value: 'key', label: 'نکته کلیدی', group: 'کال‌اوت آموزشی', emoji: '💡', className: 'callout-key', description: 'خلاصه مهم‌ترین نکته متن' },
+  { value: 'question', label: 'مکث و فکر کن', group: 'کال‌اوت آموزشی', emoji: '❔', className: 'callout-question', description: 'سؤال کوتاه برای درگیر کردن خواننده' },
+  { value: 'warning', label: 'اشتباه رایج', group: 'کال‌اوت آموزشی', emoji: '⚠️', className: 'callout-warning', description: 'هشدار یا اصلاح برداشت اشتباه' },
+  { value: 'quote', label: 'جمله طلایی', group: 'کال‌اوت ادبی و مرجع', emoji: '❝', className: 'callout-quote', description: 'نقل‌قول یا جمله مهم و ماندگار' },
+  { value: 'deep', label: 'عمیق‌تر بخوان', group: 'کال‌اوت ادبی و مرجع', emoji: '🔍', className: 'callout-deep', description: 'محتوای تکمیلی یا توضیح پیشرفته' },
+  { value: 'practice', label: 'تمرین سریع', group: 'کال‌اوت کاربردی', emoji: '✅', className: 'callout-practice', description: 'تمرین یا فعالیت کوتاه داخل کتاب' },
+  { value: 'glossary', label: 'تعریف واژه', group: 'کال‌اوت کاربردی', emoji: '📘', className: 'callout-glossary', description: 'تعریف یک اصطلاح یا مفهوم' },
+  { value: 'data', label: 'داده و منبع', group: 'کال‌اوت کاربردی', emoji: '📊', className: 'callout-data', description: 'نمایش آمار، عدد، منبع یا رفرنس' },
+  { value: 'margin', label: 'یادداشت حاشیه‌ای', group: 'کال‌اوت کاربردی', emoji: '📝', className: 'callout-margin', description: 'توضیح کوتاه در حاشیه یا کنار متن' },
+  { value: 'normal', label: 'متن عادی', group: 'بازنشانی', emoji: '', className: 'editor-normal', description: 'بازگشت به متن ساده' },
+] as const
+
+export const INTERACTIVE_TYPES = [
+  ['quiz', 'Quiz چندگزینه‌ای'],
+  ['truefalse', 'صحیح/غلط'],
+  ['flashcard', 'فلش‌کارت'],
+  ['accordion', 'آکاردئون'],
+  ['tabs', 'تب‌ها'],
+  ['timeline', 'تایم‌لاین'],
+  ['gallery', 'گالری تصویر'],
+  ['scrollytelling', 'استوری‌تلینگ چندمرحله‌ای'],
+  ['algorithm', 'الگوریتم تعاملی'],
+  ['author', 'معرفی نویسنده مطلب'],
+  ['steps', 'مرحله‌سازی'],
+  ['hotspot', 'هات‌اسپات تعاملی'],
+] as const
+
+export const INTERACTIVE_KIND_SET = new Set<string>(INTERACTIVE_TYPES.map(item => item[0]))
+
+export function calloutPreset(variant = 'key') {
+  return CALLOUT_PRESETS.find(item => item.value === variant) || CALLOUT_PRESETS[0]
+}
+
+export function interactiveLabel(kind = '') {
+  return INTERACTIVE_TYPES.find(item => item[0] === kind)?.[1] || kind
+}
+
+export function interactiveTemplate(kind: string) {
+  if (kind === 'quiz') return { type: kind, question: '', options: ['', '', '', ''], correct: 0, explanation: '' }
+  if (kind === 'truefalse') return { type: kind, statement: '', correct: true, explanation: '' }
+  if (kind === 'accordion') return { type: kind, title: '', items: [{ title: '', description: '', image: '' }] }
+  if (kind === 'tabs') return { type: kind, title: '', tabs: [{ title: '', description: '', image: '' }, { title: '', description: '', image: '' }] }
+  if (kind === 'algorithm') return { type: kind, title: '', steps: [{ title: '', description: '', image: '' }, { title: '', description: '', image: '' }] }
+  if (kind === 'author') return { type: kind, title: '', authors: [{ name: '', role: '', bio: '', image: '' }] }
+  if (kind === 'timeline') return { type: kind, events: [{ year: '', title: '', description: '', image: '' }, { year: '', title: '', description: '', image: '' }] }
+  if (kind === 'scrollytelling') return { type: kind, title: '', steps: [{ image: '', title: '', text: '', description: '' }, { image: '', title: '', text: '', description: '' }] }
+  if (kind === 'hotspot') return { type: kind, image: '', caption: '', points: [{ x: 50, y: 50, title: '', text: '' }] }
+  if (kind === 'flashcard') return { type: kind, cards: [{ front: '', back: '', image: '' }] }
+  if (kind === 'gallery') return { type: kind, title: '', images: [{ url: '', caption: '' }] }
+  return { type: kind, title: '', steps: [{ title: '', description: '', image: '' }, { title: '', description: '', image: '' }] }
+}
+
+export function interactivePreview(kind: string, data: any): any[] {
+  if (kind === 'truefalse') return [['h4', data.statement || 'گزاره صحیح/غلط'], ['div', { class: 'editor-interactive-options' }, ['span', data.correct ? 'پاسخ: صحیح' : 'پاسخ: غلط'], ['span', data.explanation || '']]]
+  if (kind === 'accordion') return [['h4', data.title || 'آکاردئون'], ['div', { class: 'editor-interactive-steps' }, ...(data.items || []).map((item: any, index: number) => ['span', `${index + 1}. ${item.title || 'بخش'}`])]]
+  if (kind === 'tabs') return [['h4', data.title || 'تب‌ها'], ['div', { class: 'editor-interactive-steps' }, ...(data.tabs || []).map((item: any, index: number) => ['span', `${index + 1}. ${item.title || 'تب'}`])]]
+  if (kind === 'algorithm') return [['h4', data.title || 'الگوریتم تعاملی'], ['div', { class: 'editor-interactive-steps' }, ...(data.steps || []).map((item: any, index: number) => ['span', `${index + 1}. ${item.title || 'تصمیم'}`])]]
+  if (kind === 'author') {
+    const authors = Array.isArray(data.authors) ? data.authors : [{ name: data.name, role: data.role, bio: data.bio }]
+    return [['h4', data.title || 'نویسندگان فصل'], ['div', { class: 'editor-interactive-steps' }, ...authors.map((author: any) => ['span', `${author.name || 'نویسنده'}${author.role ? ` - ${author.role}` : ''}`])]]
+  }
+  if (kind === 'quiz') return [['h4', data.question || 'سؤال'], ['div', { class: 'editor-interactive-options' }, ...(data.options || []).map((option: string) => ['span', option])]]
+  if (kind === 'gallery') return [['div', { class: 'editor-interactive-gallery' }, ...(data.images || []).map((image: any) => image.url ? ['img', { src: image.url, alt: image.caption || '' }] : ['span', image.caption || 'تصویر'])]]
+  if (kind === 'hotspot') return [data.image ? ['img', { src: data.image, alt: data.caption || '' }] : ['span', data.caption || 'تصویر هات‌اسپات'], ['small', `${(data.points || []).length} نقطه تعاملی`]]
+  const items = data.steps || data.events || data.cards || []
+  if (items.length) return [['h4', data.title || data.caption || interactiveLabel(kind)], ['div', { class: 'editor-interactive-steps' }, ...items.map((item: any, index: number) => ['span', `${index + 1}. ${item.title || item.year || item.front || item.text || 'مرحله'}`])]]
+  return [['span', data.title || data.question || data.caption || 'برای ویرایش جزئیات، این بخش را انتخاب کنید']]
+}
 
 export const BOOK_CONTENT_ZWNJ = '\u200C'
 

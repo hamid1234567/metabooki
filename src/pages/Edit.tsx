@@ -20,7 +20,7 @@ import { findPublisherBook, updatePublisherBook } from '@/lib/publisher-books'
 import { findBookById } from '@/lib/mock-data'
 import { supabase } from '@/integrations/supabase/client'
 import { useAuthContext } from '@/lib/auth-context'
-import { bookTextDirection, inlineToHtml as sharedInlineToHtml, normalizeBookText, pageBreakHtml } from '@/lib/book-content'
+import { bookTextDirection, calloutPreset as sharedCalloutPreset, CALLOUT_PRESETS as SHARED_CALLOUT_PRESETS, inlineToHtml as sharedInlineToHtml, interactiveLabel as sharedInteractiveLabel, interactivePreview as sharedInteractivePreview, interactiveTemplate as sharedInteractiveTemplate, INTERACTIVE_TYPES as SHARED_INTERACTIVE_TYPES, normalizeBookText, pageBreakHtml } from '@/lib/book-content'
 import { runAiThroughGateway, type AiStructuredContent, type RunAiResult } from '@/lib/ai-gateway'
 
 const escape = (value = '') => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -385,36 +385,18 @@ const LEGACY_INTERACTIVE_TYPES = [
   ['quiz', 'کوییز ساده'], ['timeline', 'تایم‌لاین'], ['hotspot', 'هات‌اسپات تعاملی'],
 ] as const
 const INTERACTIVE_TYPES = [
-  ['quiz', 'Quiz چندگزینه‌ای'],
-  ['truefalse', 'صحیح/غلط'],
-  ['flashcard', 'فلش‌کارت'],
-  ['accordion', 'آکاردئون'],
-  ['tabs', 'تب‌ها'],
-  ['timeline', 'تایم‌لاین'],
-  ['gallery', 'گالری تصویر'],
-  ['scrollytelling', 'استوری‌تلینگ چندمرحله‌ای'],
-  ['algorithm', 'الگوریتم تعاملی'],
-  ['author', 'معرفی نویسنده مطلب'],
-  ['steps', 'مرحله‌سازی'],
-  ['hotspot', 'هات‌اسپات تعاملی'],
+  ...SHARED_INTERACTIVE_TYPES,
 ] as const
 const interactiveKinds = new Set<string>(INTERACTIVE_TYPES.map(item => item[0]))
 void LEGACY_INTERACTIVE_TYPES
 
-const CALLOUT_PRESETS = [
-  { value: 'key', label: 'نکته کلیدی', group: 'کال‌اوت آموزشی', icon: Lightbulb, emoji: '💡', className: 'callout-key', description: 'خلاصه مهم‌ترین نکته متن' },
-  { value: 'question', label: 'مکث و فکر کن', group: 'کال‌اوت آموزشی', icon: Info, emoji: '❔', className: 'callout-question', description: 'سؤال کوتاه برای درگیر کردن خواننده' },
-  { value: 'warning', label: 'اشتباه رایج', group: 'کال‌اوت آموزشی', icon: AlertTriangle, emoji: '⚠️', className: 'callout-warning', description: 'هشدار یا اصلاح برداشت اشتباه' },
-  { value: 'quote', label: 'جمله طلایی', group: 'کال‌اوت ادبی و مرجع', icon: Quote, emoji: '❝', className: 'callout-quote', description: 'نقل‌قول یا جمله مهم و ماندگار' },
-  { value: 'deep', label: 'عمیق‌تر بخوان', group: 'کال‌اوت ادبی و مرجع', icon: BookOpen, emoji: '🔍', className: 'callout-deep', description: 'محتوای تکمیلی یا توضیح پیشرفته' },
-  { value: 'practice', label: 'تمرین سریع', group: 'کال‌اوت کاربردی', icon: Bookmark, emoji: '✅', className: 'callout-practice', description: 'تمرین یا فعالیت کوتاه داخل کتاب' },
-  { value: 'glossary', label: 'تعریف واژه', group: 'کال‌اوت کاربردی', icon: FileText, emoji: '📘', className: 'callout-glossary', description: 'تعریف یک اصطلاح یا مفهوم' },
-  { value: 'data', label: 'داده و منبع', group: 'کال‌اوت کاربردی', icon: FileText, emoji: '📊', className: 'callout-data', description: 'نمایش آمار، عدد، منبع یا رفرنس' },
-  { value: 'margin', label: 'یادداشت حاشیه‌ای', group: 'کال‌اوت کاربردی', icon: Feather, emoji: '📝', className: 'callout-margin', description: 'توضیح کوتاه در حاشیه یا کنار متن' },
-  { value: 'normal', label: 'متن عادی', group: 'بازنشانی', icon: Pilcrow, emoji: '', className: 'editor-normal', description: 'بازگشت به متن ساده' },
-] as const
-const calloutPreset = (variant = 'key') => CALLOUT_PRESETS.find(item => item.value === variant) || CALLOUT_PRESETS[0]
-function interactiveLabel(kind: string) { return INTERACTIVE_TYPES.find(item => item[0] === kind)?.[1] || kind }
+const calloutIconMap = { key: Lightbulb, question: Info, warning: AlertTriangle, quote: Quote, deep: BookOpen, practice: Bookmark, glossary: FileText, data: FileText, margin: Feather, normal: Pilcrow } as const
+const CALLOUT_PRESETS = SHARED_CALLOUT_PRESETS.map(item => ({ ...item, icon: calloutIconMap[item.value as keyof typeof calloutIconMap] || Pilcrow }))
+const calloutPreset = (variant = 'key') => {
+  const preset = sharedCalloutPreset(variant)
+  return CALLOUT_PRESETS.find(item => item.value === preset.value) || CALLOUT_PRESETS[0]
+}
+function interactiveLabel(kind: string) { return sharedInteractiveLabel(kind) }
 function compactAiContent(content?: AiStructuredContent | null) {
   if (!content) return ''
   if (content.type === 'quiz') return `${content.question}\n${content.options.map((item: string, index: number) => `${index + 1}. ${item}`).join('\n')}\n${content.explanation}`
@@ -423,34 +405,10 @@ function compactAiContent(content?: AiStructuredContent | null) {
   return [content.title, content.lead, ...content.sections.flatMap((section: { heading: string; paragraphs: string[]; bullets?: string[] }) => [section.heading, ...section.paragraphs, ...(section.bullets || []).map((item: string) => `- ${item}`)])].filter(Boolean).join('\n')
 }
 function interactiveTemplate(kind: string) {
-  if (kind === 'quiz') return { type: kind, question: '', options: ['', '', '', ''], correct: 0, explanation: '' }
-  if (kind === 'truefalse') return { type: kind, statement: '', correct: true, explanation: '' }
-  if (kind === 'accordion') return { type: kind, title: '', items: [{ title: '', description: '', image: '' }] }
-  if (kind === 'tabs') return { type: kind, title: '', tabs: [{ title: '', description: '', image: '' }, { title: '', description: '', image: '' }] }
-  if (kind === 'algorithm') return { type: kind, title: '', steps: [{ title: '', description: '', image: '' }, { title: '', description: '', image: '' }] }
-  if (kind === 'author') return { type: kind, title: '', authors: [{ name: '', role: '', bio: '', image: '' }] }
-  if (kind === 'timeline') return { type: kind, events: [{ year: '', title: '', description: '', image: '' }, { year: '', title: '', description: '', image: '' }] }
-  if (kind === 'scrollytelling') return { type: kind, title: '', steps: [{ image: '', title: '', text: '', description: '' }, { image: '', title: '', text: '', description: '' }] }
-  if (kind === 'hotspot') return { type: kind, image: '', caption: '', points: [{ x: 50, y: 50, title: '', text: '' }] }
-  if (kind === 'flashcard') return { type: kind, cards: [{ front: '', back: '', image: '' }] }
-  if (kind === 'gallery') return { type: kind, title: '', images: [{ url: '', caption: '' }] }
-  return { type: kind, title: '', steps: [{ title: '', description: '', image: '' }, { title: '', description: '', image: '' }] }
+  return sharedInteractiveTemplate(kind)
 }
 function interactivePreview(kind: string, data: any): any[] {
-  if (kind === 'truefalse') return [['h4', data.statement || 'گزاره صحیح/غلط'], ['div', { class: 'editor-interactive-options' }, ['span', data.correct ? 'پاسخ: صحیح' : 'پاسخ: غلط'], ['span', data.explanation || '']]]
-  if (kind === 'accordion') return [['h4', data.title || 'آکاردئون'], ['div', { class: 'editor-interactive-steps' }, ...(data.items || []).map((item: any, index: number) => ['span', `${index + 1}. ${item.title || 'بخش'}`])]]
-  if (kind === 'tabs') return [['h4', data.title || 'تب‌ها'], ['div', { class: 'editor-interactive-steps' }, ...(data.tabs || []).map((item: any, index: number) => ['span', `${index + 1}. ${item.title || 'تب'}`])]]
-  if (kind === 'algorithm') return [['h4', data.title || 'الگوریتم تعاملی'], ['div', { class: 'editor-interactive-steps' }, ...(data.steps || []).map((item: any, index: number) => ['span', `${index + 1}. ${item.title || 'تصمیم'}`])]]
-  if (kind === 'author') {
-    const authors = Array.isArray(data.authors) ? data.authors : [{ name: data.name, role: data.role, bio: data.bio }]
-    return [['h4', data.title || 'نویسندگان فصل'], ['div', { class: 'editor-interactive-steps' }, ...authors.map((author: any) => ['span', `${author.name || 'نویسنده'}${author.role ? ` - ${author.role}` : ''}`])]]
-  }
-  if (kind === 'quiz') return [['h4', data.question || 'سؤال'], ['div', { class: 'editor-interactive-options' }, ...(data.options || []).map((option: string) => ['span', option])]]
-  if (kind === 'gallery') return [['div', { class: 'editor-interactive-gallery' }, ...(data.images || []).map((image: any) => image.url ? ['img', { src: image.url, alt: image.caption || '' }] : ['span', image.caption || 'تصویر'])]]
-  if (kind === 'hotspot') return [data.image ? ['img', { src: data.image, alt: data.caption || '' }] : ['span', data.caption || 'تصویر هات‌اسپات'], ['small', `${(data.points || []).length} نقطه تعاملی`]]
-  const items = data.steps || data.events || data.cards || []
-  if (items.length) return [['h4', data.title || data.caption || interactiveLabel(kind)], ['div', { class: 'editor-interactive-steps' }, ...items.map((item: any, index: number) => ['span', `${index + 1}. ${item.title || item.year || item.front || item.text || 'مرحله'}`])]]
-  return [['span', data.title || data.question || data.caption || 'برای ویرایش جزئیات، این بخش را انتخاب کنید']]
+  return sharedInteractivePreview(kind, data)
 }
 
 function inlineHtml(block: any) {
