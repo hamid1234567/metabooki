@@ -1362,6 +1362,34 @@ export default function Edit() {
       setAiLoading(false)
     }
   }
+  const generateInlineBlockImage = async (rawPrompt: string) => {
+    const cleanPrompt = rawPrompt.trim()
+    if (!cleanPrompt) throw new Error('پرامپت تصویر خالی است.')
+    const prompt = `یک تصویر آموزشی، تمیز، مدرن و مناسب کتاب وب تولید کن. متن یا درخواست کاربر: ${cleanPrompt.slice(0, 1400)}`
+    setAiLoading(true)
+    setAiMessage('در حال برآورد هزینه تولید تصویر...')
+    try {
+      const estimate = await estimateAiImageGeneration({ prompt, bookId: id, pageIndex: activeSegmentIndex, user })
+      const approved = window.confirm(
+        `هزینه تولید تصویر:\n` +
+        `${estimate.usage.chargedCredits.toLocaleString('fa-IR')} کردیت\n` +
+        `${estimate.usage.chargedToman.toLocaleString('fa-IR')} تومان\n` +
+        `$${estimate.usage.chargedUsd.toFixed(6)}\n\n` +
+        `مدل: ${estimate.model}\nآیا تولید تصویر انجام شود؟`
+      )
+      if (!approved) throw new Error('تولید تصویر لغو شد و کردیتی کسر نشد.')
+      setAiMessage('در حال تولید تصویر با هوش مصنوعی...')
+      const result = await generateAiImageThroughGateway({ prompt, bookId: id, pageIndex: activeSegmentIndex, user })
+      recordAiUsage(result.usage)
+      return result.imageUrl
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'تولید تصویر ناموفق بود.'
+      setAiMessage(message)
+      throw error
+    } finally {
+      setAiLoading(false)
+    }
+  }
   const tableAction = (action: string) => {
     if (!editor) return
     const chain = editor.chain().focus()
@@ -1674,45 +1702,7 @@ export default function Edit() {
             <div className="mb-command-grid">
               {INTERACTIVE_TYPES.map(([kind, label]) => <button key={kind} onClick={() => addInteractive(kind)}><LayoutTemplate />{label}</button>)}
             </div>
-            <button className="mb-wide-action" onClick={() => void openInteractiveEditor()}><Edit3 />ویرایش سریع ابزار انتخاب‌شده</button>
-            <section className="mb-interactive-media">
-              <header>
-                <h3><Images />رسانه بلوک انتخاب‌شده</h3>
-                {selectedInteractiveKind ? <span>{selectedInteractiveLabel}</span> : <span>ابتدا روی یک بلوک تعاملی کلیک کنید</span>}
-              </header>
-              <div className="mb-interactive-media-tabs">
-                <button className={interactiveMediaView === 'home' ? 'is-active' : ''} onClick={() => setInteractiveMediaView('home')}><ImagePlus />افزودن</button>
-                <button className={interactiveMediaView === 'library' ? 'is-active' : ''} onClick={() => setInteractiveMediaView('library')}><Images />تصاویر کتاب</button>
-                <button className={interactiveMediaView === 'ai' ? 'is-active' : ''} onClick={() => setInteractiveMediaView('ai')}><Sparkles />تولید AI</button>
-              </div>
-              {!selectedInteractiveKind && <p className="book-editor-empty-state">برای افزودن تصویر، داخل همان ابزار تعاملی در متن کلیک کنید.</p>}
-              {selectedInteractiveKind && interactiveMediaView === 'home' && <div className="mb-command-grid">
-                <button onClick={() => setInteractiveMediaView('library')}><Images />انتخاب از عکس‌های کتاب</button>
-                <label className="mb-upload-action"><ImagePlus />آپلود عکس جدید<input type="file" accept="image/*" onChange={event => void uploadImageToInteractive(event.target.files?.[0])} /></label>
-                <button onClick={() => setInteractiveMediaView('ai')}><Sparkles />تولید تصویر با AI</button>
-              </div>}
-              {selectedInteractiveKind && interactiveMediaView === 'library' && <>
-                <button className="mb-wide-action" onClick={() => setInteractiveMediaView('home')}><ChevronUp />بازگشت به انتخاب رسانه</button>
-                {interactiveImageChoices.length === 0 && <p className="book-editor-empty-state">تصویر قابل استفاده‌ای در این کتاب پیدا نشد.</p>}
-                <div className="mb-interactive-image-grid">
-                  {interactiveImageChoices.slice(0, 120).map((image: any, index: number) => (
-                    <button key={image.key || `${image.url}-${index}`} className={image.sameSegment ? 'is-same-page' : ''} onClick={() => applyImageToInteractive(image.url)} title={image.caption || 'افزودن تصویر به بلوک تعاملی'}>
-                      <img src={image.url} alt={image.caption || ''} />
-                      <b>{image.caption || `تصویر ${index + 1}`}</b>
-                      <small>{image.sameSegment ? 'همین بخش' : `صفحه چاپی: ${String(image.printPage || 'نامشخص')}`}</small>
-                    </button>
-                  ))}
-                </div>
-              </>}
-              {selectedInteractiveKind && interactiveMediaView === 'ai' && <div className="mb-interactive-ai">
-                <button className="mb-wide-action" onClick={() => setInteractiveMediaView('home')}><ChevronUp />بازگشت به انتخاب رسانه</button>
-                <label>توضیح تصویر مورد نیاز
-                  <textarea value={interactiveImagePrompt} onChange={event => setInteractiveImagePrompt(event.target.value)} placeholder="اگر متنی انتخاب نکرده‌اید، پرامپت تصویر را اینجا بنویسید؛ مثلا تصویر آموزشی ساده از مراحل نمونه‌برداری" />
-                </label>
-                <button className="mb-wide-action" disabled={aiLoading} onClick={() => void generateImageForInteractive()}><Sparkles />{aiLoading ? 'در حال ساخت...' : 'ساخت و افزودن تصویر'}</button>
-                <small>اگر بخشی از متن را انتخاب کرده باشید همان متن مبنای تصویر می‌شود. قبل از تولید، هزینه کردیت نمایش داده می‌شود و فقط بعد از تایید شما کسر خواهد شد.</small>
-              </div>}
-            </section>
+            <p className="book-editor-empty-state">پس از افزودن هر ابزار، متن، تصویر، گزینه‌ها و تنظیمات همان ابزار را داخل خود همان بلوک ویرایش کنید.</p>
           </div> : panelMode === 'ai' ? <div className="mb-panel-content">
             <section className="book-editor-side-card">
               <h3><Sparkles />هوش مصنوعی</h3>
