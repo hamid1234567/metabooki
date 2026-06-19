@@ -1178,8 +1178,17 @@ export default function Edit() {
       </div>
       </EditorToolbarFrame>
 
-      <div className="book-editor-layout">
-        <aside className="book-editor-side menu-glass-70">
+      <div className="mb-editor-workspace">
+        <EditorRail active={panelMode} onChange={mode => { setPanelMode(mode); if (mode === 'media') setImagePanelOpen(true) }} />
+        <aside className="mb-editor-panel book-editor-side">
+          {panelMode === 'add' ? <AddBlockPanel
+            onAddImage={() => imageInputRef.current?.click()}
+            onShowMedia={() => { setPanelMode('media'); setImagePanelOpen(true) }}
+            onAddCallout={setTypography}
+            onAddInteractive={kind => void handleInteractiveAction(kind)}
+            onAddTable={() => command(activeEditor => activeEditor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())}
+            onAddPage={() => command(activeEditor => activeEditor.chain().focus().setHorizontalRule().run())}
+          /> : <>
           <div className="book-editor-side-card">
             <h3><BookOpen />فهرست کتاب</h3>
             <p>این همان فهرستی است که در زمان تبدیل Word تایید شده است.</p>
@@ -1227,6 +1236,7 @@ export default function Edit() {
               </div>
             ))}
           </div>
+          </>}
         </aside>
         {imagePanelOpen && <aside className="book-editor-image-drawer menu-glass-70">
           <header><h3><Images />تصاویر کتاب</h3><button onClick={() => setImagePanelOpen(false)}>بستن</button></header>
