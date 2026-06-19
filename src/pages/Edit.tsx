@@ -301,7 +301,7 @@ const InteractiveBlock = Node.create({
   },
   renderHTML({ HTMLAttributes }) {
     const data = decodePayload(HTMLAttributes.payload)
-    return ['section', mergeAttributes(HTMLAttributes, { class: 'editor-interactive-block', 'data-interactive-kind': HTMLAttributes.kind }), ['strong', `Ø¨Ø®Ø´ ØªØ¹Ø§Ù…Ù„ÛŒ: ${interactiveLabel(HTMLAttributes.kind)}`], ...interactivePreview(HTMLAttributes.kind, data)]
+    return ['section', mergeAttributes(HTMLAttributes, { class: 'editor-interactive-block', 'data-interactive-kind': HTMLAttributes.kind }), ['strong', `بخش تعاملی: ${interactiveLabel(HTMLAttributes.kind)}`], ...interactivePreview(HTMLAttributes.kind, data)]
   },
 })
 
@@ -328,11 +328,11 @@ function CalloutNodeView({ node, updateAttributes, editor, getPos }: any) {
         <span className="book-callout-icon">{icon}</span>
         <input
           value={title}
-          aria-label="Ø¹Ù†ÙˆØ§Ù† Ú©Ø§Ù„â€ŒØ§ÙˆØª"
+          aria-label="عنوان کال‌اوت"
           onChange={event => updateAttributes({ title: event.target.value })}
           onBlur={event => updateAttributes({ title: event.target.value.trim() || preset.label })}
         />
-        <button type="button" className="book-callout-unwrap" title="Ø­Ø°Ù Ù‚Ø§Ø¨ Ú©Ø§Ù„â€ŒØ§ÙˆØª Ùˆ Ù†Ú¯Ù‡ Ø¯Ø§Ø´ØªÙ† Ù…ØªÙ†" onClick={unwrapCallout}>Ã—</button>
+        <button type="button" className="book-callout-unwrap" title="حذف قاب کال‌اوت و نگه داشتن متن" onClick={unwrapCallout}>×</button>
       </div>
       <NodeViewContent className="book-callout-content" />
     </NodeViewWrapper>
@@ -347,7 +347,7 @@ const CalloutBlock = Node.create({
   addAttributes() {
     return {
       variant: { default: 'key', parseHTML: element => element.getAttribute('data-callout-variant') || 'key', renderHTML: attrs => ({ 'data-callout-variant': attrs.variant || 'key' }) },
-      title: { default: 'Ù†Ú©ØªÙ‡ Ú©Ù„ÛŒØ¯ÛŒ', parseHTML: element => element.getAttribute('data-callout-title') || 'Ù†Ú©ØªÙ‡ Ú©Ù„ÛŒØ¯ÛŒ', renderHTML: attrs => ({ 'data-callout-title': attrs.title || 'Ù†Ú©ØªÙ‡ Ú©Ù„ÛŒØ¯ÛŒ' }) },
+      title: { default: 'نکته کلیدی', parseHTML: element => element.getAttribute('data-callout-title') || 'نکته کلیدی', renderHTML: attrs => ({ 'data-callout-title': attrs.title || 'نکته کلیدی' }) },
       icon: { default: 'ðŸ’¡', parseHTML: element => element.getAttribute('data-callout-icon') || 'ðŸ’¡', renderHTML: attrs => ({ 'data-callout-icon': attrs.icon || 'ðŸ’¡' }) },
     }
   },
@@ -549,16 +549,16 @@ function confirmedTocFromBook(book: any): ConfirmedTocEntry[] {
     .map((item: any) => ({ id: item.id, title: item.title, level: Math.min(6, Math.max(1, Number(item.level || 1))), page: item.page, styleId: item.styleId }))
 }
 
-function buildConfirmedTocSegments(pages: any[] = [], toc: ConfirmedTocEntry[] = [], preludeTitle = 'Ø§Ø¨ØªØ¯Ø§ÛŒ Ú©ØªØ§Ø¨'): EditorSegment[] {
-  if (!pages.length) return [{ key: 'empty', label: 'Ø³Ù†Ø¯ Ø®Ø§Ù„ÛŒ', level: 1, start: 0, end: 0, startBlock: 0, endBlock: 0 }]
-  if (!toc.length) return [{ key: 'all', label: 'Ú©Ù„ Ù…ØªÙ† Ú©ØªØ§Ø¨', level: 1, start: 0, end: pages.length, startBlock: 0, endBlock: pages[pages.length - 1]?.blocks?.length || 0 }]
+function buildConfirmedTocSegments(pages: any[] = [], toc: ConfirmedTocEntry[] = [], preludeTitle = 'ابتدای کتاب'): EditorSegment[] {
+  if (!pages.length) return [{ key: 'empty', label: 'سند خالی', level: 1, start: 0, end: 0, startBlock: 0, endBlock: 0 }]
+  if (!toc.length) return [{ key: 'all', label: 'کل متن کتاب', level: 1, start: 0, end: pages.length, startBlock: 0, endBlock: pages[pages.length - 1]?.blocks?.length || 0 }]
   const positions = toc.map(item => findTocPosition(pages, item))
   const segments: EditorSegment[] = []
   const first = positions[0]
   if (first && (first.pageIndex > 0 || first.blockIndex > 0)) {
     segments.push({
       key: 'prelude',
-      label: preludeTitle || 'Ø§Ø¨ØªØ¯Ø§ÛŒ Ú©ØªØ§Ø¨',
+      label: preludeTitle || 'ابتدای کتاب',
       level: 1,
       start: 0,
       end: first.pageIndex + 1,
@@ -768,7 +768,7 @@ function editorNodeToBlock(node: any): any | null {
 }
 
 function editorJsonToPages(json: any) {
-  const pages: any[] = [{ title: 'ØµÙØ­Ù‡ Û±', blocks: [] }]
+  const pages: any[] = [{ title: 'صفحه ۱', blocks: [] }]
   for (const node of json?.content || []) {
     if (node.type === 'calloutBlock') {
       const page = pages[pages.length - 1]
@@ -776,7 +776,7 @@ function editorJsonToPages(json: any) {
       if (block) page.blocks.push(block)
       continue
     }
-    if (node.type === 'horizontalRule') { pages.push({ title: `ØµÙØ­Ù‡ ${pages.length + 1}`, blocks: [] }); continue }
+    if (node.type === 'horizontalRule') { pages.push({ title: `صفحه ${pages.length + 1}`, blocks: [] }); continue }
     const page = pages[pages.length - 1]
     const inline = inlineFromNode(node)
     const content = inline.map((span: any) => span.text).join('') || nodeText(node)
@@ -811,7 +811,7 @@ export default function Edit() {
   const [title, setTitle] = useState(localInitial?.title || '')
   const [subtitle, setSubtitle] = useState(localInitial?.subtitle || '')
   const [description, setDescription] = useState(localInitial?.description || '')
-  const [preludeTitle, setPreludeTitle] = useState<string>(String(localInitial?.metadata?.prelude_title || 'Ø§Ø¨ØªØ¯Ø§ÛŒ Ú©ØªØ§Ø¨'))
+  const [preludeTitle, setPreludeTitle] = useState<string>(String(localInitial?.metadata?.prelude_title || 'ابتدای کتاب'))
   const [metadataOpen, setMetadataOpen] = useState(false)
   const [savedAt, setSavedAt] = useState<Date | null>(null)
   const [saving, setSaving] = useState(false)
