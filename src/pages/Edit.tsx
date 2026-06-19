@@ -1012,7 +1012,7 @@ export default function Edit() {
         <div className="book-toolbar-group" aria-label="ساختار">
           <div className="book-toolbar-menu-wrap">
             <button title="سطح سرفصل" className={toolbarMenu === 'heading' ? 'active' : ''} onClick={() => setToolbarMenu(value => value === 'heading' ? null : 'heading')}><Heading1 /><ChevronDown /></button>
-            {toolbarMenu === 'heading' && <div className="book-toolbar-popover compact">
+            {toolbarMenu === 'heading' && <div className="book-toolbar-popover compact frosted-menu-surface">
               <button onClick={() => { command(activeEditor => activeEditor.chain().focus().setParagraph().run()); setToolbarMenu(null) }}><span className="book-heading-sample normal">P</span></button>
               {[1, 2, 3, 4, 5, 6].map(level => <button key={level} onClick={() => { promoteSelection(level as 1 | 2 | 3 | 4 | 5 | 6); setToolbarMenu(null) }}><span className={`book-heading-sample h${level}`}>H{level}</span></button>)}
             </div>}
@@ -1035,12 +1035,12 @@ export default function Edit() {
           <select title="اندازه متن انتخاب‌شده" defaultValue="" onChange={event => { if (event.target.value) command(activeEditor => activeEditor.chain().focus().setMark('textStyle', { fontSize: event.target.value }).run()); event.target.value = '' }}><option value="" disabled>اندازه</option>{[12,14,16,18,20,24,28,32,40].map(size => <option key={size} value={`${size}px`}>{size}</option>)}</select>
           <div className="book-toolbar-menu-wrap">
             <button title="تایپوگرافی آماده" className={toolbarMenu === 'typography' ? 'active' : ''} onClick={() => setToolbarMenu(value => value === 'typography' ? null : 'typography')}><Type /><ChevronDown /></button>
-            {toolbarMenu === 'typography' && <div className="book-toolbar-popover typography">
-              {Array.from(new Set(TYPOGRAPHY_PRESETS.map(item => item.group))).map(group => <section key={group}>
+            {toolbarMenu === 'typography' && <div className="book-toolbar-popover typography frosted-menu-surface">
+              {Array.from(new Set(CALLOUT_PRESETS.map(item => item.group))).map(group => <section key={group}>
                 <b>{group}</b>
-                {TYPOGRAPHY_PRESETS.filter(item => item.group === group).map(item => {
+                {CALLOUT_PRESETS.filter(item => item.group === group).map(item => {
                   const Icon = item.icon
-                  return <button key={item.value} onClick={() => { setTypography(item.value); setToolbarMenu(null) }}><Icon /><span className={`book-typography-preview ${item.className}`}>{item.label}</span></button>
+                  return <button key={item.value} onClick={() => { setTypography(item.value); setToolbarMenu(null) }}><Icon /><span className={`book-typography-preview ${item.className}`} data-callout-icon={item.emoji}>{item.label}<small>{item.description}</small></span></button>
                 })}
               </section>)}
             </div>}

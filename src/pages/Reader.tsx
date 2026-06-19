@@ -808,6 +808,12 @@ export default function Reader() {
       return span.href ? <a key={inlineIndex} href={span.href} target={String(span.href).startsWith('#') ? undefined : '_blank'} rel="noreferrer" className="reader-inline-link">{formatted}</a> : <span key={inlineIndex}>{formatted}</span>
     }) : null
     switch (block.type) {
+      case 'callout':
+        return (
+          <section key={idx} className={`book-callout reader-callout callout-${block.variant || 'key'}`} data-callout-variant={block.variant || 'key'} data-callout-title={block.title || 'نکته کلیدی'} data-callout-icon={block.icon || '💡'}>
+            {(block.blocks || []).map((child: any, childIndex: number) => renderBlock(child, childIndex))}
+          </section>
+        )
       case 'list': {
         const ListTag = block.ordered ? 'ol' : 'ul'
         return (
