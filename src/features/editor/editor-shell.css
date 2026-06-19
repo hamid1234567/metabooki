@@ -465,7 +465,10 @@
 .mb-editor-panel {
   grid-column: 2;
   grid-row: 1;
-  direction: rtl;
+  direction: ltr;
+  grid-template-columns: minmax(0, 1fr) 4.8rem;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  align-items: stretch;
 }
 
 .mb-editor-canvas {
@@ -476,24 +479,34 @@
 
 .mb-editor-panel-switcher {
   display: grid;
+  grid-column: 2;
+  grid-row: 1 / 4;
+  align-content: start;
   gap: .45rem;
-  padding: .75rem;
-  border-bottom: 1px solid var(--mb-border);
-  background: linear-gradient(180deg, #ffffffd9, #f8fbffcc);
+  min-height: 0;
+  padding: .65rem .42rem;
+  border-bottom: 0;
+  border-inline-start: 1px solid var(--mb-border);
+  background: linear-gradient(180deg, #ffffffee, #f8fbffdd);
 }
 
 .mb-editor-panel-switcher button {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: .55rem;
-  min-height: 2.45rem;
-  padding: .45rem .65rem;
+  justify-content: center;
+  gap: .32rem;
+  min-height: 4.45rem;
+  padding: .45rem .25rem;
   border: 1px solid transparent;
   border-radius: .75rem;
   color: #475569;
-  font-size: .75rem;
+  font-size: .58rem;
   font-weight: 850;
+  line-height: 1.45;
+  text-align: center;
   transition: .18s ease;
+  direction: rtl;
 }
 
 .mb-editor-panel-switcher button svg {
@@ -506,12 +519,42 @@
   color: var(--mb-blue-2);
   border-color: #bfdbfe;
   background: #eff6ff;
-  box-shadow: inset 3px 0 0 var(--mb-blue-2);
+  box-shadow: inset -3px 0 0 var(--mb-blue-2);
+}
+
+.mb-editor-panel > :not(.mb-editor-panel-switcher) {
+  grid-column: 1;
+  direction: rtl;
 }
 
 .mb-panel-content {
+  grid-row: 1 / 4;
   display: grid;
   gap: .9rem;
+  min-height: 0;
+  overflow: auto;
+  padding: .85rem;
+}
+
+.mb-editor-panel > .book-editor-side-card {
+  grid-row: 1;
+  margin: .85rem .85rem .35rem;
+}
+
+.mb-editor-panel > .book-editor-toc-tools {
+  grid-row: 2;
+  margin-inline: .85rem;
+}
+
+.mb-editor-panel > .book-editor-toc-list {
+  grid-row: 3;
+  min-height: 0;
+  overflow: auto;
+  padding: .35rem .85rem .85rem;
+}
+
+.mb-editor-panel > .book-editor-image-drawer.is-embedded {
+  grid-row: 1 / 4;
   min-height: 0;
   overflow: auto;
   padding: .85rem;
@@ -710,6 +753,28 @@
     top: auto;
     height: auto;
   }
-  .mb-editor-panel { grid-row: 1; }
+  .mb-editor-panel {
+    grid-row: 1;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
   .mb-editor-canvas { grid-row: 2; }
+  .mb-editor-panel-switcher {
+    grid-column: 1;
+    grid-row: 1;
+    display: flex;
+    overflow-x: auto;
+    border-inline-start: 0;
+    border-bottom: 1px solid var(--mb-border);
+  }
+  .mb-editor-panel-switcher button {
+    min-width: 4.5rem;
+    min-height: 3.9rem;
+  }
+  .mb-editor-panel > :not(.mb-editor-panel-switcher),
+  .mb-panel-content,
+  .mb-editor-panel > .book-editor-image-drawer.is-embedded {
+    grid-column: 1;
+    grid-row: 2;
+  }
 }
