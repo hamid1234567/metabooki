@@ -16,6 +16,7 @@ export interface AiProviderConfig {
   apiKey: string
   baseUrl?: string
   model: string
+  imageModel?: string
   inputCostPer1kUsd: number
   outputCostPer1kUsd: number
 }
@@ -86,10 +87,10 @@ export const DEFAULT_USD_TO_TOMAN = 170_000
 export const DEFAULT_AI_CHARGE_MULTIPLIER = 2
 
 const defaultProviders: AiProviderConfig[] = [
-  { id: 'openai', label: 'OpenAI / ChatGPT', enabled: true, apiKey: '', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', inputCostPer1kUsd: 0.00015, outputCostPer1kUsd: 0.0006 },
+  { id: 'openai', label: 'OpenAI / ChatGPT', enabled: true, apiKey: '', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', imageModel: 'gpt-image-1', inputCostPer1kUsd: 0.00015, outputCostPer1kUsd: 0.0006 },
   { id: 'gemini', label: 'Google Gemini', enabled: false, apiKey: '', baseUrl: 'https://generativelanguage.googleapis.com/v1beta', model: 'gemini-1.5-flash', inputCostPer1kUsd: 0.000075, outputCostPer1kUsd: 0.0003 },
   { id: 'anthropic', label: 'Anthropic Claude', enabled: false, apiKey: '', baseUrl: 'https://api.anthropic.com/v1', model: 'claude-3-haiku-20240307', inputCostPer1kUsd: 0.00025, outputCostPer1kUsd: 0.00125 },
-  { id: 'custom', label: 'سرویس سفارشی OpenAI-compatible', enabled: false, apiKey: '', baseUrl: '', model: 'custom-model', inputCostPer1kUsd: 0.00015, outputCostPer1kUsd: 0.0006 },
+  { id: 'custom', label: 'سرویس سفارشی OpenAI-compatible', enabled: false, apiKey: '', baseUrl: '', model: 'custom-model', imageModel: 'gpt-image-1', inputCostPer1kUsd: 0.00015, outputCostPer1kUsd: 0.0006 },
 ]
 
 export const defaultAiGatewaySettings: AiGatewaySettings = {

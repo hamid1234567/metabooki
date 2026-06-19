@@ -16,6 +16,7 @@ type AiProviderConfig = {
   api_key: string
   base_url: string
   model: string
+  image_model?: string
   input_cost_per_1k_usd: number
   output_cost_per_1k_usd: number
 }
@@ -25,8 +26,8 @@ function estimateTokens(text: string) {
 }
 
 function imageModelForProvider(provider: AiProviderConfig) {
-  const configured = String(provider.model || '')
-  if (/image|dall-e/i.test(configured)) return configured
+  const configured = String(provider.image_model || '')
+  if (configured) return configured
   return Deno.env.get('AI_IMAGE_MODEL') || 'gpt-image-1'
 }
 
@@ -148,14 +149,14 @@ serve(async (req) => {
 
       if (body.operation === 'admin_get_settings') {
         const { data: gateway } = await adminClient.from('ai_gateway_settings').select('*').eq('id', 1).single()
-        const { data: providers } = await adminClient.from('ai_provider_settings').select('provider,label,enabled,base_url,model,input_cost_per_1k_usd,output_cost_per_1k_usd,api_key')
+        const { data: providers } = await adminClient.from('ai_provider_settings').select('provider,label,enabled,base_url,model,image_model,input_cost_per_1k_usd,output_cost_per_1k_usd,api_key')
         return new Response(JSON.stringify({
           activeProvider: gateway?.active_provider || 'openai',
           usdToToman: Number(gateway?.usd_to_toman || DEFAULT_USD_TO_TOMAN),
           chargeMultiplier: Number(gateway?.charge_multiplier || DEFAULT_CHARGE_MULTIPLIER),
           providers: (providers || []).map((p: any) => ({
             id: p.provider, label: p.label, enabled: p.enabled, apiKey: p.api_key ? '__stored__' : '',
-            baseUrl: p.base_url, model: p.model, inputCostPer1kUsd: Number(p.input_cost_per_1k_usd),
+            baseUrl: p.base_url, model: p.model, imageModel: p.image_model || '', inputCostPer1kUsd: Number(p.input_cost_per_1k_usd),
             outputCostPer1kUsd: Number(p.output_cost_per_1k_usd),
           })),
         }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
@@ -168,7 +169,7 @@ serve(async (req) => {
       })
       for (const p of incoming.providers || []) {
         const row: Record<string, unknown> = {
-          provider: p.id, label: p.label, enabled: p.enabled, base_url: p.baseUrl, model: p.model,
+          provider: p.id, label: p.label, enabled: p.enabled, base_url: p.baseUrl, model: p.model, image_model: p.imageModel || null,
           input_cost_per_1k_usd: p.inputCostPer1kUsd, output_cost_per_1k_usd: p.outputCostPer1kUsd,
           updated_at: new Date().toISOString(),
         }
@@ -197,6 +198,7 @@ serve(async (req) => {
         api_key: apiKey,
         base_url: incoming.baseUrl,
         model: incoming.model,
+        image_model: incoming.imageModel,
         input_cost_per_1k_usd: Number(incoming.inputCostPer1kUsd || 0),
         output_cost_per_1k_usd: Number(incoming.outputCostPer1kUsd || 0),
       }
