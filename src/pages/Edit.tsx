@@ -309,7 +309,7 @@ const InteractiveBlock = Node.create({
 function CalloutNodeView({ node, updateAttributes, editor, getPos }: any) {
   const variant = node.attrs?.variant || 'key'
   const preset = calloutPreset(variant)
-  const title = node.attrs?.title || preset.label
+  const title = node.attrs?.title ?? ''
   const icon = node.attrs?.icon || preset.emoji
   const unwrapCallout = () => {
     const pos = typeof getPos === 'function' ? getPos() : null
@@ -329,9 +329,10 @@ function CalloutNodeView({ node, updateAttributes, editor, getPos }: any) {
         <span className="book-callout-icon">{icon}</span>
         <input
           value={title}
+          placeholder={preset.label}
           aria-label="عنوان کال‌اوت"
           onChange={event => updateAttributes({ title: event.target.value })}
-          onBlur={event => updateAttributes({ title: event.target.value.trim() || preset.label })}
+          onBlur={event => updateAttributes({ title: event.target.value.trim() })}
         />
         <button type="button" className="book-callout-unwrap" title="حذف قاب کال‌اوت و نگه داشتن متن" onClick={unwrapCallout}>×</button>
       </div>
@@ -348,7 +349,7 @@ const CalloutBlock = Node.create({
   addAttributes() {
     return {
       variant: { default: 'key', parseHTML: element => element.getAttribute('data-callout-variant') || 'key', renderHTML: attrs => ({ 'data-callout-variant': attrs.variant || 'key' }) },
-      title: { default: 'نکته کلیدی', parseHTML: element => element.getAttribute('data-callout-title') || 'نکته کلیدی', renderHTML: attrs => ({ 'data-callout-title': attrs.title || 'نکته کلیدی' }) },
+      title: { default: '', parseHTML: element => element.getAttribute('data-callout-title') || '', renderHTML: attrs => ({ 'data-callout-title': attrs.title || '' }) },
       icon: { default: 'ðŸ’¡', parseHTML: element => element.getAttribute('data-callout-icon') || 'ðŸ’¡', renderHTML: attrs => ({ 'data-callout-icon': attrs.icon || 'ðŸ’¡' }) },
     }
   },
@@ -1117,7 +1118,7 @@ export default function Edit() {
         return
       }
       const preset = calloutPreset(semantic)
-      const attrs = { variant: preset.value, title: preset.label, icon: preset.emoji }
+      const attrs = { variant: preset.value, title: '', icon: preset.emoji }
       if (activeEditor.isActive('calloutBlock')) activeEditor.chain().focus().updateAttributes('calloutBlock', attrs).run()
       else activeEditor.chain().focus().wrapIn('calloutBlock', attrs).run()
     })
@@ -1131,7 +1132,7 @@ export default function Edit() {
       const attrs = activeEditor.getAttributes('calloutBlock')
       const nextTitle = window.prompt('Ø¹Ù†ÙˆØ§Ù† Ú©Ø§Ù„â€ŒØ§ÙˆØª', attrs.title || calloutPreset(attrs.variant).label)
       if (nextTitle === null) return
-      activeEditor.chain().focus().updateAttributes('calloutBlock', { title: nextTitle.trim() || calloutPreset(attrs.variant).label }).run()
+      activeEditor.chain().focus().updateAttributes('calloutBlock', { title: nextTitle.trim() }).run()
     })
   }
   const updateInteractivePayload = (attrs: { kind: string; payload: string }, payload: Record<string, unknown>) => {
