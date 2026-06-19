@@ -12,6 +12,18 @@ export interface Database {
           bio: string | null
           phone: string | null
           national_id: string | null
+          address_province: string | null
+          address_city: string | null
+          address_district: string | null
+          address_street: string | null
+          address_alley: string | null
+          address_plaque: string | null
+          address_unit: string | null
+          postal_code: string | null
+          address_notes: string | null
+          reading_interests: string[]
+          bank_card_number: string | null
+          bank_iban: string | null
           is_active: boolean
           phone_verified: boolean
           created_at: string
@@ -25,6 +37,18 @@ export interface Database {
           bio?: string | null
           phone?: string | null
           national_id?: string | null
+          address_province?: string | null
+          address_city?: string | null
+          address_district?: string | null
+          address_street?: string | null
+          address_alley?: string | null
+          address_plaque?: string | null
+          address_unit?: string | null
+          postal_code?: string | null
+          address_notes?: string | null
+          reading_interests?: string[]
+          bank_card_number?: string | null
+          bank_iban?: string | null
           is_active?: boolean
           phone_verified?: boolean
         }
@@ -35,6 +59,18 @@ export interface Database {
           bio?: string | null
           phone?: string | null
           national_id?: string | null
+          address_province?: string | null
+          address_city?: string | null
+          address_district?: string | null
+          address_street?: string | null
+          address_alley?: string | null
+          address_plaque?: string | null
+          address_unit?: string | null
+          postal_code?: string | null
+          address_notes?: string | null
+          reading_interests?: string[]
+          bank_card_number?: string | null
+          bank_iban?: string | null
           is_active?: boolean
           phone_verified?: boolean
         }

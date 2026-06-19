@@ -3212,3 +3212,28 @@ body {
 .book-callout-unwrap:hover {
   background: color-mix(in srgb, var(--callout-accent) 10%, #fff);
 }
+
+.profile-field {
+  display: grid;
+  gap: .45rem;
+  font-size: .875rem;
+}
+.profile-field > span {
+  color: hsl(var(--muted-foreground));
+}
+.profile-field input,
+.profile-field textarea {
+  width: 100%;
+  border: 1px solid hsl(var(--border));
+  border-radius: .85rem;
+  background: hsl(var(--background) / .86);
+  padding: .58rem .75rem;
+  outline: none;
+  transition: border-color .16s ease, box-shadow .16s ease, background .16s ease;
+}
+.profile-field input:focus,
+.profile-field textarea:focus {
+  border-color: hsl(var(--primary) / .55);
+  box-shadow: 0 0 0 3px hsl(var(--primary) / .12);
+  background: hsl(var(--background));
+}
