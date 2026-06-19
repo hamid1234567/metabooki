@@ -78,11 +78,6 @@ export default function Admin() {
     void refreshAdminUsers()
   }, [isAdmin, tab])
 
-  if (rolesLoading) return null
-  if (!isAdmin) {
-    return <div className="max-w-4xl mx-auto px-4 py-20 text-center"><Shield className="w-16 h-16 text-muted-foreground mx-auto mb-4" /><h1 className="text-2xl font-bold">دسترسی محدود</h1><p className="text-muted-foreground">فقط مدیران به این بخش دسترسی دارند</p></div>
-  }
-
   const tabs = [
     { key: 'dashboard' as const, label: 'داشبورد', icon: Activity },
     { key: 'users' as const, label: 'کاربران', icon: Users },
@@ -299,6 +294,11 @@ export default function Admin() {
   const removeComment = (id: string) => {
     deleteComment(id)
     refreshComments()
+  }
+
+  if (rolesLoading) return null
+  if (!isAdmin) {
+    return <div className="max-w-4xl mx-auto px-4 py-20 text-center"><Shield className="w-16 h-16 text-muted-foreground mx-auto mb-4" /><h1 className="text-2xl font-bold">دسترسی محدود</h1><p className="text-muted-foreground">فقط مدیران به این بخش دسترسی دارند</p></div>
   }
 
   return (
