@@ -149,7 +149,18 @@ function InlineMediaPicker({ label, value, onChange, stopEditorSelection }: { la
   const media = useContext(EditorMediaContext)
   const [mode, setMode] = useState<'closed' | 'library' | 'ai'>('closed')
   const [prompt, setPrompt] = useState('')
+  const [search, setSearch] = useState('')
   const [busy, setBusy] = useState(false)
+  const visibleImages = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return media.bookImages
+      .filter((image: any) => image.url)
+      .filter((image: any) => {
+        if (!q) return true
+        return `${image.caption || ''} ${image.originalName || ''} ${image.name || ''} ${image.printPage || ''}`.toLowerCase().includes(q)
+      })
+      .slice(0, 80)
+  }, [media.bookImages, search])
   const upload = async (file?: File) => {
     if (!file) return
     setBusy(true)
@@ -185,13 +196,26 @@ function InlineMediaPicker({ label, value, onChange, stopEditorSelection }: { la
         <button type="button" onClick={() => setMode(mode === 'ai' ? 'closed' : 'ai')}><Sparkles />AI</button>
       </div>
       {mode === 'library' && <div className="inline-media-library">
-        {media.bookImages.length === 0 && <p>تصویری از کتاب پیدا نشد.</p>}
-        {media.bookImages.slice(0, 80).map((image: any, index: number) => (
-          <button type="button" key={image.key || `${image.url}-${index}`} disabled={!image.url} onClick={() => image.url && onChange(image.url)} title={image.caption || 'انتخاب تصویر'}>
-            <img src={image.url} alt={image.caption || ''} />
-            <span>{image.sameSegment ? 'همین بخش' : String(image.printPage || index + 1)}</span>
-          </button>
-        ))}
+        <div className="inline-media-library-head">
+          <strong>انتخاب از تصاویر کتاب</strong>
+          <input value={search} onChange={event => setSearch(event.target.value)} placeholder="جستجو در کپشن یا شماره صفحه..." />
+        </div>
+        {visibleImages.length === 0 && <p>تصویری از کتاب پیدا نشد.</p>}
+        <div className="inline-media-library-list">
+          {visibleImages.map((image: any, index: number) => {
+            const selected = value && image.url === value
+            return (
+              <button type="button" key={image.key || `${image.url}-${index}`} className={selected ? 'is-selected' : ''} onClick={() => { onChange(image.url); setMode('closed') }} title={image.caption || 'انتخاب تصویر'}>
+                <img src={image.url} alt={image.caption || ''} loading="lazy" />
+                <span>
+                  <b>{image.caption || image.originalName || image.name || `تصویر ${index + 1}`}</b>
+                  <small>{image.sameSegment ? 'اولویت: همین بخش' : `صفحه چاپی: ${String(image.printPage || 'نامشخص')}`}</small>
+                </span>
+                <em>{selected ? 'انتخاب شده' : 'انتخاب'}</em>
+              </button>
+            )
+          })}
+        </div>
       </div>}
       {mode === 'ai' && <div className="inline-media-ai">
         <textarea value={prompt} onChange={event => setPrompt(event.target.value)} placeholder="پرامپت تصویر را بنویسید..." />
@@ -964,6 +988,7 @@ export default function Edit() {
   const [editorRevision, setEditorRevision] = useState(0)
   const [panelMode, setPanelMode] = useState<EditorPanelMode>('toc')
   const [mediaPanelView, setMediaPanelView] = useState<MediaPanelView>('home')
+  const [mediaSearch, setMediaSearch] = useState('')
   const [interactiveMediaView, setInteractiveMediaView] = useState<InteractiveMediaView>('home')
   const [interactiveImagePrompt, setInteractiveImagePrompt] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
@@ -1012,6 +1037,11 @@ export default function Edit() {
       .map((image: any) => ({ ...image, sameSegment: Number(image.pageIndex ?? -1) >= start && Number(image.pageIndex ?? -1) < end }))
       .sort((a: any, b: any) => Number(b.sameSegment) - Number(a.sameSegment) || Number(a.pageIndex ?? 9999) - Number(b.pageIndex ?? 9999))
   }, [bookImages, activeSegment?.start, activeSegment?.end])
+  const filteredBookImages = useMemo(() => {
+    const q = mediaSearch.trim().toLowerCase()
+    if (!q) return bookImages
+    return bookImages.filter((image: any) => `${image.caption || ''} ${image.originalName || ''} ${image.name || ''} ${image.printPage || ''} ${image.issue || ''}`.toLowerCase().includes(q))
+  }, [bookImages, mediaSearch])
 
   const editor = useEditor({
     extensions: [
@@ -1683,9 +1713,15 @@ export default function Edit() {
               {mediaPanelView === 'library' && <button onClick={() => setMediaPanelView('home')}><ChevronUp />بازگشت به گزینه‌های رسانه</button>}
             </div>
             <header><h3><Images />تصاویر کتاب</h3><button onClick={() => setPanelMode('toc')}>فهرست</button></header>
+            {mediaPanelView === 'library' && (
+              <label className="book-editor-media-search">
+                <span>جستجو در تصاویر کتاب</span>
+                <input value={mediaSearch} onChange={event => setMediaSearch(event.target.value)} placeholder="کپشن، نام فایل یا صفحه چاپی..." />
+              </label>
+            )}
             {bookImages.length === 0 && <p className="book-editor-empty-state">هنوز تصویری برای این کتاب ثبت نشده است.</p>}
-            <div>
-              {bookImages.map((image: any, index: number) => (
+            <div className="book-editor-image-list">
+              {filteredBookImages.map((image: any, index: number) => (
                 <button key={image.key || `${image.url}-${index}`} className={image.issue ? 'has-issue' : ''} disabled={!image.url} title={image.issue || 'افزودن تصویر در محل نشانگر'} onClick={() => image.url && command(activeEditor => activeEditor.chain().focus().setImage({ src: image.url, alt: image.caption || '', width: image.widthPx ? `${image.widthPx}px` : image.widthPercent ? `${image.widthPercent}%` : '100%', imageId: image.imageId || undefined, printPage: image.printPage || undefined, conversionStatus: image.conversionStatus || undefined } as any).run())}>
                   {image.url ? <img src={image.url} alt={image.caption || ''} /> : <span><AlertTriangle /></span>}
                   <b>{image.caption || image.originalName || image.name || `تصویر ${index + 1}`}</b>
@@ -1693,6 +1729,7 @@ export default function Edit() {
                   {image.issue && <em>{image.issue}</em>}
                 </button>
               ))}
+              {bookImages.length > 0 && filteredBookImages.length === 0 && <p className="book-editor-empty-state">تصویری با این جستجو پیدا نشد.</p>}
             </div>
           </div> : panelMode === 'interactive' ? <div className="mb-panel-content">
             <section className="book-editor-side-card">
