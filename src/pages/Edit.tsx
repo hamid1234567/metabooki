@@ -134,6 +134,26 @@ const InteractiveBlock = Node.create({
   },
 })
 
+const CalloutBlock = Node.create({
+  name: 'calloutBlock',
+  group: 'block',
+  content: 'block+',
+  defining: true,
+  addAttributes() {
+    return {
+      variant: { default: 'key', parseHTML: element => element.getAttribute('data-callout-variant') || 'key', renderHTML: attrs => ({ 'data-callout-variant': attrs.variant || 'key' }) },
+      title: { default: 'نکته کلیدی', parseHTML: element => element.getAttribute('data-callout-title') || 'نکته کلیدی', renderHTML: attrs => ({ 'data-callout-title': attrs.title || 'نکته کلیدی' }) },
+      icon: { default: '💡', parseHTML: element => element.getAttribute('data-callout-icon') || '💡', renderHTML: attrs => ({ 'data-callout-icon': attrs.icon || '💡' }) },
+    }
+  },
+  parseHTML() {
+    return [{ tag: 'section[data-callout-variant]' }]
+  },
+  renderHTML({ HTMLAttributes }) {
+    return ['section', mergeAttributes(HTMLAttributes, { class: `book-callout editor-callout callout-${HTMLAttributes.variant || 'key'}` }), 0]
+  },
+})
+
 const ResizableImage = Image.extend({
   addAttributes() {
     return {
