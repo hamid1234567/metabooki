@@ -185,6 +185,19 @@ const TYPOGRAPHY_PRESETS = [
   { value: 'poetry', label: 'شعر', group: 'ادبی و ارجاعی', icon: Feather, className: 'editor-poetry' },
   { value: 'normal', label: 'متن عادی', group: 'بازنشانی', icon: Pilcrow, className: 'editor-normal' },
 ] as const
+const CALLOUT_PRESETS = [
+  { value: 'key', label: 'نکته کلیدی', group: 'کال‌اوت آموزشی', icon: Lightbulb, emoji: '💡', className: 'callout-key', description: 'خلاصه مهم‌ترین نکته متن' },
+  { value: 'question', label: 'مکث و فکر کن', group: 'کال‌اوت آموزشی', icon: Info, emoji: '❔', className: 'callout-question', description: 'سؤال کوتاه برای درگیر کردن خواننده' },
+  { value: 'warning', label: 'اشتباه رایج', group: 'کال‌اوت آموزشی', icon: AlertTriangle, emoji: '⚠️', className: 'callout-warning', description: 'هشدار یا اصلاح برداشت اشتباه' },
+  { value: 'quote', label: 'جمله طلایی', group: 'کال‌اوت ادبی و مرجع', icon: Quote, emoji: '❝', className: 'callout-quote', description: 'نقل‌قول یا جمله مهم و ماندگار' },
+  { value: 'deep', label: 'عمیق‌تر بخوان', group: 'کال‌اوت ادبی و مرجع', icon: BookOpen, emoji: '🔍', className: 'callout-deep', description: 'محتوای تکمیلی یا توضیح پیشرفته' },
+  { value: 'practice', label: 'تمرین سریع', group: 'کال‌اوت کاربردی', icon: Bookmark, emoji: '✅', className: 'callout-practice', description: 'تمرین یا فعالیت کوتاه داخل کتاب' },
+  { value: 'glossary', label: 'تعریف واژه', group: 'کال‌اوت کاربردی', icon: FileText, emoji: '📘', className: 'callout-glossary', description: 'تعریف یک اصطلاح یا مفهوم' },
+  { value: 'data', label: 'داده و منبع', group: 'کال‌اوت کاربردی', icon: FileText, emoji: '📊', className: 'callout-data', description: 'نمایش آمار، عدد، منبع یا رفرنس' },
+  { value: 'margin', label: 'یادداشت حاشیه‌ای', group: 'کال‌اوت کاربردی', icon: Feather, emoji: '📝', className: 'callout-margin', description: 'توضیح کوتاه در حاشیه یا کنار متن' },
+  { value: 'normal', label: 'متن عادی', group: 'بازنشانی', icon: Pilcrow, emoji: '', className: 'editor-normal', description: 'بازگشت به متن ساده' },
+] as const
+const calloutPreset = (variant = 'key') => CALLOUT_PRESETS.find(item => item.value === variant) || CALLOUT_PRESETS[0]
 function interactiveLabel(kind: string) { return INTERACTIVE_TYPES.find(item => item[0] === kind)?.[1] || kind }
 function interactiveTemplate(kind: string) {
   if (kind === 'quiz') return { type: kind, question: 'سؤال را اینجا بنویسید', options: ['گزینه صحیح', 'گزینه دوم', 'گزینه سوم'], correct: 0 }
