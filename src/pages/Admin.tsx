@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client'
 import { emptyFilterSettings, loadBookFilterSettings, parseFilterLines, saveBookFilterSettings, type BookFilterSettings } from '@/lib/filter-settings'
 import { listAdminUsers, sendAdminPasswordReset, setAdminUserPassword, type AdminUserRow } from '@/lib/admin-users'
 import { getAllReadingProgress, getMockLibraryEntries } from '@/lib/mock-library'
+import { AiGatewaySettingsPanel } from '@/components/admin/AiGatewaySettingsPanel'
 
 export default function Admin() {
   const { t } = useI18n()
@@ -653,7 +654,16 @@ export default function Admin() {
       )}
 
       {/* AI Gateway Tab */}
-      {tab === 'ai' && (
+      {tab === 'ai' && <AiGatewaySettingsPanel
+        settings={aiSettings}
+        tests={aiProviderTests}
+        message={message}
+        onSettingsChange={setAiSettings}
+        onProviderChange={updateAiProvider}
+        onProviderTest={provider => void runAiProviderTest(provider)}
+        onSave={saveAiSettings}
+      />}
+      {false && tab === 'ai' && (
         <div className="space-y-6">
           <div className="glass rounded-2xl p-6">
             <div className="flex items-start justify-between gap-4 mb-5">
