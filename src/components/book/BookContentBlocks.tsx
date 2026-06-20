@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
-import { Check, X as XIcon } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, X as XIcon } from 'lucide-react'
 import { calloutPreset, INTERACTIVE_KIND_SET, interactiveLabel, normalizeBookText } from '@/lib/book-content'
 
 type StateMap<T> = Record<string, T>
@@ -35,23 +35,44 @@ function renderInteractiveImage(url?: string, alt?: string, className = 'max-h-5
 function GallerySlideshow({ block }: { block: any }) {
   const images = Array.isArray(block.images) ? block.images.filter((image: any) => image?.url) : []
   const [active, setActive] = useState(0)
+  const activeThumbRef = useRef<HTMLButtonElement | null>(null)
   const current = images[Math.min(active, Math.max(0, images.length - 1))]
   const go = (delta: number) => setActive(index => (index + delta + images.length) % images.length)
+  useEffect(() => {
+    if (active > images.length - 1) setActive(Math.max(0, images.length - 1))
+  }, [active, images.length])
+  useEffect(() => {
+    activeThumbRef.current?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+  }, [active])
   if (!images.length) return null
   return (
-    <div className="reader-interactive book-gallery-slider menu-glass-70 rounded-2xl p-4 mb-8" data-no-swipe="true">
-      {block.title && <h3 className="font-semibold mb-4">{textOf(block.title)}</h3>}
-      <figure className="book-gallery-slide">
-        <img src={current.url} alt={current.caption || ''} loading="lazy" />
-        {current.caption && <figcaption>{textOf(current.caption)}</figcaption>}
+    <div className="reader-interactive book-gallery-slider menu-glass-70 rounded-2xl p-4 mb-8" data-no-swipe="true" dir="rtl">
+      {block.title && <h3 className="book-gallery-title">{textOf(block.title)}</h3>}
+      <figure className="book-gallery-slide" aria-live="polite">
+        <div className="book-gallery-counter">{(active + 1).toLocaleString('fa-IR')} / {images.length.toLocaleString('fa-IR')}</div>
+        <div className="book-gallery-stage">
+          <img src={current.url} alt={current.caption || block.title || ''} loading="lazy" />
+        </div>
         {images.length > 1 && <>
-          <button className="book-gallery-nav prev" type="button" onClick={() => go(-1)} aria-label="تصویر قبلی">‹</button>
-          <button className="book-gallery-nav next" type="button" onClick={() => go(1)} aria-label="تصویر بعدی">›</button>
+          <button className="book-gallery-nav prev" type="button" onClick={() => go(-1)} aria-label="تصویر قبلی"><ChevronRight /></button>
+          <button className="book-gallery-nav next" type="button" onClick={() => go(1)} aria-label="تصویر بعدی"><ChevronLeft /></button>
         </>}
       </figure>
-      {images.length > 1 && <div className="book-gallery-dots" aria-label="تصاویر گالری">
-        {images.map((image: any, index: number) => <button key={`${image.url}-${index}`} className={active === index ? 'is-active' : ''} onClick={() => setActive(index)} title={image.caption || `تصویر ${index + 1}`} />)}
+      {images.length > 1 && <div className="book-gallery-thumbs" aria-label="تصاویر گالری">
+        {images.map((image: any, index: number) => (
+          <button
+            key={`${image.url}-${index}`}
+            ref={active === index ? activeThumbRef : null}
+            className={active === index ? 'is-active' : ''}
+            onClick={() => setActive(index)}
+            title={image.caption || `تصویر ${index + 1}`}
+            aria-label={`نمایش تصویر ${(index + 1).toLocaleString('fa-IR')}`}
+          >
+            <img src={image.url} alt={image.caption || ''} loading="lazy" />
+          </button>
+        ))}
       </div>}
+      {(current.caption || block.caption) && <p className="book-gallery-caption">{textOf(current.caption, block.caption)}</p>}
     </div>
   )
 }
