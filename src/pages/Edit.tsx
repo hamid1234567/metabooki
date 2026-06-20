@@ -58,8 +58,18 @@ type AiRunApprovalDialog = {
   supportsImage: boolean
   textPreview: string
   usage?: RunAiResult['usage']
+  imageUsage?: RunAiResult['usage']
+  totalWithImages?: RunAiResult['usage']
+  imageCount?: number
   model?: string
+  imageModel?: string
+  imageWarning?: string
   resolve: (choice: 'plain' | 'images' | null) => void
+}
+type AiProgressState = {
+  label: string
+  detail?: string
+  percent: number
 }
 type EditorMediaContextValue = {
   bookImages: any[]
@@ -1156,6 +1166,7 @@ export default function Edit() {
   const [interactiveImagePrompt, setInteractiveImagePrompt] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
   const [aiMessage, setAiMessage] = useState('')
+  const [aiProgress, setAiProgress] = useState<AiProgressState | null>(null)
   const [aiUsage, setAiUsage] = useState<RunAiResult['usage'] | null>(null)
   const [aiDraft, setAiDraft] = useState<{ type: 'summary' | 'quiz' | 'interactive'; title: string; text?: string; payload?: Record<string, unknown>; kind?: string } | null>(null)
   const [aiCalloutSuggestions, setAiCalloutSuggestions] = useState<Array<{ variant: string; title: string; text: string; sourceText?: string; reason?: string }>>([])
