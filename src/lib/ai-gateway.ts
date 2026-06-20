@@ -2,7 +2,7 @@ import { supabase } from '@/integrations/supabase/client'
 import type { AppUser } from '@/lib/auth-context'
 
 export type AiProvider = 'openai' | 'gemini' | 'anthropic' | 'custom'
-export type ReaderAiAction = 'summary' | 'quiz' | 'mindmap' | 'learning_path' | 'explain'
+export type ReaderAiAction = 'summary' | 'quiz' | 'mindmap' | 'learning_path' | 'explain' | 'callout_suggestions'
 export type AiStructuredContent =
   | { type: 'quiz'; question: string; options: string[]; correctIndex: number; explanation: string }
   | { type: 'timeline'; title: string; steps: Array<{ title: string; description: string }> }
@@ -52,6 +52,15 @@ export interface RunAiResult {
     chargedCredits: number
     creditValueToman: number
   }
+}
+
+export interface AiTextEstimateResult {
+  provider: string
+  model: string
+  action: ReaderAiAction
+  promptTokens: number
+  maxOutputTokens: number
+  usage: RunAiResult['usage']
 }
 
 export interface AiImageUsage {
@@ -162,6 +171,18 @@ export async function runAiThroughGateway(request: RunAiRequest): Promise<RunAiR
   })
   if (error) throw await gatewayError(error, 'اجرای درخواست هوش مصنوعی ناموفق بود.')
   return data as RunAiResult
+}
+
+export async function estimateAiTextUsage(request: RunAiRequest): Promise<AiTextEstimateResult> {
+  if (!request.user) throw new Error('برای استفاده از دستیار هوش مصنوعی ابتدا وارد حساب شوید.')
+  if (!request.pageText.trim()) throw new Error('متنی برای تحلیل پیدا نشد.')
+  if (!hasSupabaseConnection()) throw new Error('برای استفاده امن از هوش مصنوعی، اتصال Supabase و Edge Function را فعال کنید.')
+
+  const { data, error } = await supabase.functions.invoke('ai-gateway', {
+    body: { operation: 'estimate_text', action: request.action, bookTitle: request.bookTitle, pageTitle: request.pageTitle, pageText: request.pageText, bookId: request.bookId, pageIndex: request.pageIndex },
+  })
+  if (error) throw await gatewayError(error, 'برآورد هزینه هوش مصنوعی ناموفق بود.')
+  return data as AiTextEstimateResult
 }
 
 export async function estimateAiImageGeneration(request: { prompt: string; bookId?: string; pageIndex?: number; user: AppUser | null }): Promise<AiImageEstimateResult> {

@@ -21,7 +21,7 @@ import { findBookById } from '@/lib/mock-data'
 import { supabase } from '@/integrations/supabase/client'
 import { useAuthContext } from '@/lib/auth-context'
 import { bookTextDirection, calloutPreset as sharedCalloutPreset, CALLOUT_PRESETS as SHARED_CALLOUT_PRESETS, inlineToHtml as sharedInlineToHtml, interactiveLabel as sharedInteractiveLabel, interactivePreview as sharedInteractivePreview, interactiveTemplate as sharedInteractiveTemplate, INTERACTIVE_TYPES as SHARED_INTERACTIVE_TYPES, normalizeBookText, pageBreakHtml } from '@/lib/book-content'
-import { estimateAiImageGeneration, generateAiImageThroughGateway, runAiThroughGateway, type AiStructuredContent, type RunAiResult } from '@/lib/ai-gateway'
+import { estimateAiImageGeneration, estimateAiTextUsage, generateAiImageThroughGateway, runAiThroughGateway, type AiStructuredContent, type RunAiResult } from '@/lib/ai-gateway'
 import { useCredits } from '@/hooks/useCredits'
 import { creditsBus } from '@/lib/credits-bus'
 
@@ -64,6 +64,8 @@ type AiRunApprovalDialog = {
   description: string
   supportsImage: boolean
   textPreview: string
+  usage?: RunAiResult['usage']
+  model?: string
   resolve: (choice: 'plain' | 'images' | null) => void
 }
 type EditorMediaContextValue = {
@@ -1098,6 +1100,25 @@ const buildAiUpgradeSuggestions = (pageText: string, aiText = ''): AiUpgradeSugg
   return suggestions.slice(0, 6)
 }
 
+const aiCalloutSuggestionsFromContent = (content: AiStructuredContent | undefined, pageText: string, fallbackText = ''): AiUpgradeSuggestion[] => {
+  const calloutContent = content as any
+  if (calloutContent?.type === 'callout_suggestions' && Array.isArray(calloutContent.suggestions)) {
+    return calloutContent.suggestions
+      .filter((item: any) => item?.sourceQuote && item?.text)
+      .slice(0, 5)
+      .map((item: any, index: number) => ({
+        id: `callout-ai-${Date.now()}-${index}`,
+        kind: 'callout',
+        variant: item.variant || 'key',
+        title: item.title || 'پیشنهاد کال‌اوت',
+        text: item.text,
+        sourceText: item.sourceQuote,
+        reason: item.reason || 'برای بهتر شدن خوانش این بخش',
+      }))
+  }
+  return buildAiUpgradeSuggestions(pageText, fallbackText).filter(item => item.kind === 'callout')
+}
+
 export default function Edit() {
   const { id = '' } = useParams<{ id: string }>()
   const { user } = useAuthContext()
@@ -1644,8 +1665,8 @@ export default function Edit() {
     aiCostDialog?.resolve(approved)
     setAiCostDialog(null)
   }
-  const requestAiRunApproval = (title: string, description: string, supportsImage: boolean, textPreview: string) => new Promise<'plain' | 'images' | null>(resolve => {
-    setAiRunDialog({ title, description, supportsImage, textPreview, resolve })
+  const requestAiRunApproval = (title: string, description: string, supportsImage: boolean, textPreview: string, usage?: RunAiResult['usage'], model?: string) => new Promise<'plain' | 'images' | null>(resolve => {
+    setAiRunDialog({ title, description, supportsImage, textPreview, usage, model, resolve })
   })
   const closeAiRunDialog = (choice: 'plain' | 'images' | null) => {
     aiRunDialog?.resolve(choice)
@@ -1658,6 +1679,20 @@ export default function Edit() {
       attrs: { variant: preset.value, title: heading || preset.label, icon: preset.emoji },
       content: [{ type: 'paragraph', content: [{ type: 'text', text: text || heading || preset.label }] }],
     }, insertionPos)
+  }
+  const replaceSourceWithCallout = (variant: string, heading: string, text: string, sourceText?: string, insertionPos?: number) => {
+    const preset = calloutPreset(variant)
+    const content = {
+      type: 'calloutBlock',
+      attrs: { variant: preset.value, title: heading || preset.label, icon: preset.emoji },
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: text || sourceText || heading || preset.label }] }],
+    }
+    command(activeEditor => {
+      const range = sourceText ? findTextRange(sourceText) : null
+      if (range) activeEditor.chain().focus().setTextSelection(range).insertContent(content).run()
+      else activeEditor.chain().focus().setTextSelection(insertionPos ?? activeEditor.state.selection.to).insertContent(content).run()
+    })
+    clearNativeSelectionSoon()
   }
   const insertInteractivePayload = (kind: string, payload: Record<string, unknown>, sourceText?: string, insertionPos?: number) => {
     insertContentAfterSource(sourceText, { type: 'interactiveBlock', attrs: { kind, payload: encodePayload({ ...interactiveTemplate(kind), ...payload, type: kind }) } }, insertionPos)
@@ -1758,7 +1793,7 @@ export default function Edit() {
   }
   const applyAiUpgradeSuggestion = async (item: AiUpgradeSuggestion, withImages = false) => {
     previewAiSuggestion(item)
-    if (item.kind === 'callout') insertCalloutWithText(item.variant || 'key', item.title, item.text || '', item.sourceText)
+    if (item.kind === 'callout') replaceSourceWithCallout(item.variant || 'key', item.title, item.text || item.sourceText, item.sourceText)
     if (item.kind === 'interactive') {
       const kind = item.interactiveKind || 'steps'
       const payload = withImages ? await enrichInteractivePayloadWithImages(kind, item.payload || {}, item.sourceText) : (item.payload || {})
@@ -1774,15 +1809,16 @@ export default function Edit() {
       setAiMessage('اول بخشی از متن را انتخاب کنید یا داخل بخش مورد نظر قرار بگیرید.')
       return
     }
-    const modeTitle = mode === 'summary' ? 'ساخت خلاصه' : mode === 'quiz' ? 'تولید سؤال' : mode === 'callout' ? 'ساخت کال‌اوت' : mode === 'interactive' ? 'ساخت بخش تعاملی' : 'بررسی و پیشنهاد ارتقا'
-    const roughInput = Math.ceil(pageText.length / 4)
-    const roughOutput = mode === 'quiz' ? 220 : mode === 'interactive' || mode === 'review' ? 520 : 320
-    const roughToman = roughInput + roughOutput * 2
+    const action = mode === 'quiz' ? 'quiz' : mode === 'interactive' ? 'learning_path' : mode === 'summary' ? 'summary' : mode === 'callout' ? 'callout_suggestions' : 'explain'
+    const estimate = await estimateAiTextUsage({ action, bookTitle: title || book?.title || 'کتاب', pageTitle: activeSegment?.label, pageText, bookId: id, pageIndex: activeSegmentIndex, user })
+    const modeTitle = mode === 'summary' ? 'ساخت خلاصه' : mode === 'quiz' ? 'تولید سؤال' : mode === 'callout' ? 'پیشنهاد کال‌اوت‌های درک مطلب' : mode === 'interactive' ? 'ساخت بخش تعاملی' : 'بررسی و پیشنهاد ارتقا'
     const choice = await requestAiRunApproval(
       modeTitle,
-      `${context.hasSelection ? 'فقط متن انتخاب‌شده بررسی می‌شود.' : 'چون متنی انتخاب نشده، کل همین بخش/صفحه بررسی می‌شود.'} برآورد تقریبی متن: ${roughToman.toLocaleString('fa-IR')} تومان. هزینه دقیق بعد از پاسخ gateway ثبت می‌شود.`,
+      `${context.hasSelection ? 'فقط متن انتخاب‌شده بررسی می‌شود.' : 'چون متنی انتخاب نشده، کل همین بخش/صفحه بررسی می‌شود.'} این برآورد دست‌بالاست و قبل از مصرف واقعی از کاربر تایید گرفته می‌شود.`,
       mode === 'interactive',
       pageText.slice(0, 520),
+      estimate.usage,
+      estimate.model,
     )
     if (!choice) {
       setAiMessage('درخواست هوش مصنوعی لغو شد و کردیتی کسر نشد.')
@@ -1794,7 +1830,6 @@ export default function Edit() {
     setAiUpgradeSuggestions([])
     setAiMessage('در حال تولید خروجی هوشمند...')
     try {
-      const action = mode === 'quiz' ? 'quiz' : mode === 'interactive' ? 'learning_path' : mode === 'summary' ? 'summary' : 'explain'
       const result = await runAiThroughGateway({ action, bookTitle: title || book?.title || 'کتاب', pageTitle: activeSegment?.label, pageText, bookId: id, pageIndex: activeSegmentIndex, user })
       recordAiUsage(result.usage)
       const text = compactAiContent(result.content) || result.text || ''
@@ -1805,10 +1840,9 @@ export default function Edit() {
         insertInteractivePayload('quiz', { question: result.content.question, options: result.content.options, correct: result.content.correctIndex, explanation: result.content.explanation }, context.sourceText, context.insertionPos)
         setAiMessage('سؤال تعاملی در محل انتخاب‌شده اضافه شد.')
       } else if (mode === 'callout') {
-        const base = text || pageText.slice(0, 420)
-        const calloutText = base.split('\n').filter(Boolean)[0] || base
-        insertCalloutWithText('key', 'نکته کلیدی پیشنهادی', calloutText, context.sourceText, context.insertionPos)
-        setAiMessage('کال‌اوت هوشمند در محل انتخاب‌شده اضافه شد.')
+        const suggestions = aiCalloutSuggestionsFromContent(result.content, pageText, text)
+        setAiUpgradeSuggestions(suggestions)
+        setAiMessage(suggestions.length ? 'پیشنهادهای کال‌اوت آماده‌اند. روی «نمایش محل» بزنید، پیش‌نمایش را بررسی کنید و بعد متن همان بخش را به کال‌اوت تبدیل کنید.' : 'پیشنهاد کال‌اوت مناسبی برای این بخش پیدا نشد.')
       } else if (mode === 'interactive') {
         const process = aiParagraphCandidates(pageText).find(isProcessCandidate) || aiParagraphCandidates(pageText)[0] || pageText
         const kind = isTimelineCandidate(process) ? 'timeline' : 'steps'
@@ -2120,11 +2154,12 @@ export default function Edit() {
                   <div>
                     <strong>{item.title}</strong>
                     <small>{item.reason}</small>
-                    <p>{item.sourceText.slice(0, 170)}{item.sourceText.length > 170 ? '...' : ''}</p>
+                    <p><b>بخش متن:</b> {item.sourceText.slice(0, 170)}{item.sourceText.length > 170 ? '...' : ''}</p>
+                    {item.text && <p><b>پیش‌نمایش:</b> {item.text.slice(0, 190)}{item.text.length > 190 ? '...' : ''}</p>}
                   </div>
                   <footer>
                     <button type="button" onClick={() => previewAiSuggestion(item)}>نمایش محل</button>
-                    <button type="button" onClick={() => item.kind === 'interactive' ? setInteractiveImageChoice(item) : void applyAiUpgradeSuggestion(item)}>افزودن</button>
+                    <button type="button" onClick={() => item.kind === 'interactive' ? setInteractiveImageChoice(item) : void applyAiUpgradeSuggestion(item)}>{item.kind === 'callout' ? 'تبدیل به کال‌اوت' : 'افزودن'}</button>
                   </footer>
                 </article>
               ))}
@@ -2199,6 +2234,13 @@ export default function Edit() {
           <div>
             <h3>{aiRunDialog.title}</h3>
             <p>{aiRunDialog.description}</p>
+            {aiRunDialog.model && <small>مدل: {aiRunDialog.model}</small>}
+            {aiRunDialog.usage && <div className="ai-credit-flow">
+              <span><b>{aiRunDialog.usage.chargedCredits.toLocaleString('fa-IR')}</b><small>حداکثر کردیت</small></span>
+              <span><b>{aiRunDialog.usage.chargedToman.toLocaleString('fa-IR')}</b><small>تومان</small></span>
+              <span><b>${aiRunDialog.usage.chargedUsd.toFixed(6)}</b><small>دلار</small></span>
+            </div>}
+            {aiRunDialog.usage && <small>{aiRunDialog.usage.inputTokens.toLocaleString('fa-IR')} توکن ورودی تخمینی · سقف {aiRunDialog.usage.outputTokens.toLocaleString('fa-IR')} توکن خروجی</small>}
             <small>{aiRunDialog.textPreview}</small>
           </div>
           <footer>

@@ -55,6 +55,23 @@ function imageUsage(provider: AiProviderConfig, prompt: string, usdToToman: numb
   return { inputTokens, outputTokens: 0, rawUsd, chargedUsd, chargedToman, chargedCredits, creditValueToman: Math.round(1 / creditsPerToman) }
 }
 
+function textUsage(provider: AiProviderConfig, prompt: string, maxOutputTokens: number, usdToToman: number, chargeMultiplier: number, creditsPerToman: number) {
+  const inputTokens = Math.ceil(estimateTokens(prompt) * 1.15)
+  const outputTokens = Math.ceil(maxOutputTokens * 1.15)
+  const rawUsd = (inputTokens / 1000) * Number(provider.input_cost_per_1k_usd || 0) + (outputTokens / 1000) * Number(provider.output_cost_per_1k_usd || 0)
+  const chargedUsd = rawUsd * chargeMultiplier
+  const chargedToman = Math.ceil(chargedUsd * usdToToman)
+  const chargedCredits = Math.max(1, Math.ceil(chargedToman * creditsPerToman))
+  return { inputTokens, outputTokens, rawUsd, chargedUsd, chargedToman, chargedCredits, creditValueToman: Math.round(1 / creditsPerToman) }
+}
+
+function maxOutputTokensForAction(action: string) {
+  if (action === 'callout_suggestions') return 900
+  if (action === 'learning_path' || action === 'mindmap') return 700
+  if (action === 'quiz') return 420
+  return 620
+}
+
 async function callImageProvider(provider: AiProviderConfig, prompt: string) {
   if (!['openai', 'custom'].includes(provider.provider)) {
     throw new Error('Image generation is currently available only for OpenAI-compatible providers')
@@ -142,6 +159,14 @@ function safeActionPrompt(action: string, bookTitle: string, pageTitle: string |
   if (action === 'learning_path') return `${common}\nUse: {"type":"timeline","title":"...","steps":[{"title":"...","description":"..."}]}\nOrder the steps for an interactive learning view.\n\n${header}`
   if (action === 'summary') return `${common}\nUse: {"type":"article","title":"...","lead":"...","sections":[{"heading":"...","paragraphs":["..."],"bullets":["..."]}]}\n\n${header}`
   if (action === 'explain') return `${common}\nUse: {"type":"article","title":"...","lead":"...","sections":[{"heading":"...","paragraphs":["..."],"bullets":["..."]}]}\nExplain deeply but only from the supplied text.\n\n${header}`
+  if (action === 'callout_suggestions') return `${common}
+Read the selected/page text and suggest only the places where converting a specific existing sentence or short paragraph into a callout improves comprehension, attention, memory, or learning.
+Do not summarize the whole page generically. Each suggestion must point to an exact short quote copied from the page text in sourceQuote.
+Allowed variants: key, question, warning, quote, deep, practice, glossary, data, margin.
+Use: {"type":"callout_suggestions","suggestions":[{"variant":"key","title":"...","text":"...","sourceQuote":"exact quote from page text","reason":"why this improves learning"}]}
+Return 1 to 5 strong suggestions only.
+
+${header}`
   return `${common}\nUser request: ${action}\n\n${header}`
 }
 
@@ -308,8 +333,21 @@ serve(async (req) => {
     }
 
     const prompt = safeActionPrompt(body.action, body.bookTitle, body.pageTitle, body.pageText)
+    const maxTokens = maxOutputTokensForAction(body.action)
 
-    const { text, inputTokens, outputTokens } = await callProvider(provider, prompt)
+    if (body.operation === 'estimate_text') {
+      const usage = textUsage(provider, prompt, maxTokens, usdToToman, chargeMultiplier, creditsPerToman)
+      return new Response(JSON.stringify({
+        provider: provider.label || provider.provider,
+        model: provider.model,
+        action: body.action,
+        promptTokens: usage.inputTokens,
+        maxOutputTokens: usage.outputTokens,
+        usage,
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
+
+    const { text, inputTokens, outputTokens } = await callProvider(provider, prompt, maxTokens)
 
     const rawUsd = (inputTokens / 1000) * Number(provider.input_cost_per_1k_usd) + (outputTokens / 1000) * Number(provider.output_cost_per_1k_usd)
     const chargedUsd = rawUsd * chargeMultiplier
