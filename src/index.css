@@ -1170,6 +1170,287 @@ body {
   text-align: center;
 }
 
+.reader-step-slider {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 8% 34%, hsl(var(--primary) / .12), transparent 13rem),
+    radial-gradient(circle at 90% 10%, hsl(220 95% 70% / .12), transparent 13rem),
+    hsl(var(--background) / .54);
+}
+
+.reader-step-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .55rem;
+  margin-bottom: 1.05rem;
+  color: hsl(var(--foreground));
+}
+
+.reader-step-head h3 {
+  margin: 0;
+  font-size: clamp(1rem, 3.8vw, 1.45rem);
+  font-weight: 950;
+  letter-spacing: 0;
+  text-align: center;
+}
+
+.reader-step-head svg {
+  width: 1.15rem;
+  height: 1.15rem;
+  color: hsl(var(--primary));
+}
+
+.reader-step-track {
+  position: relative;
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: start;
+  justify-content: space-between;
+  gap: .5rem;
+  max-width: 34rem;
+  margin: 0 auto .55rem;
+  padding: 0 .35rem;
+}
+
+.reader-step-line {
+  position: absolute;
+  z-index: 0;
+  inset-inline: 1.7rem;
+  top: 1.2rem;
+  height: 2px;
+  background: linear-gradient(90deg, hsl(var(--primary) / .48), hsl(var(--border)), hsl(var(--primary) / .48));
+}
+
+.reader-step-track button {
+  position: relative;
+  z-index: 1;
+  min-width: 2.65rem;
+  display: grid;
+  gap: .42rem;
+  justify-items: center;
+  color: hsl(var(--muted-foreground));
+  font-size: .72rem;
+  font-weight: 850;
+}
+
+.reader-step-track button span {
+  width: 2.55rem;
+  height: 2.55rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid hsl(var(--border) / .85);
+  border-radius: 999px;
+  background: hsl(var(--background) / .76);
+  color: hsl(var(--muted-foreground));
+  box-shadow: 0 9px 24px rgb(15 23 42 / .08);
+  transition: .22s ease;
+}
+
+.reader-step-track button small {
+  min-height: 1rem;
+  color: currentColor;
+  font-size: .66rem;
+  line-height: 1.2;
+}
+
+.reader-step-track button.is-seen span {
+  border-color: hsl(var(--primary) / .34);
+  color: hsl(var(--primary));
+}
+
+.reader-step-track button.is-active {
+  color: hsl(var(--primary));
+}
+
+.reader-step-track button.is-active span {
+  border-color: hsl(var(--primary));
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  transform: scale(1.08);
+  box-shadow: 0 16px 36px hsl(var(--primary) / .28);
+}
+
+.reader-step-progress {
+  height: .38rem;
+  max-width: 34rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: hsl(var(--muted-foreground) / .2);
+  margin: .35rem auto 1.35rem;
+}
+
+.reader-step-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, hsl(var(--primary)), hsl(220 88% 62%));
+  transition: width .32s ease;
+}
+
+.reader-step-card {
+  position: relative;
+  display: grid;
+  gap: 1rem;
+  place-items: center;
+  max-width: 33rem;
+  margin: 0 auto;
+  border: 1px solid hsl(var(--border) / .58);
+  border-radius: 1.35rem;
+  background:
+    linear-gradient(180deg, hsl(var(--background) / .9), hsl(var(--background) / .72)),
+    hsl(var(--background) / .72);
+  padding: clamp(1rem, 4vw, 1.45rem);
+  box-shadow: 0 22px 54px rgb(15 23 42 / .12);
+  animation: fade-in .24s ease;
+}
+
+.reader-step-image {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: clamp(12rem, 42vw, 20rem);
+  border-radius: 1.15rem;
+  background:
+    radial-gradient(circle at 30% 18%, hsl(44 94% 70% / .18), transparent 12rem),
+    hsl(var(--muted) / .22);
+}
+
+.reader-step-image img {
+  max-width: 100%;
+  max-height: min(44vh, 19rem);
+  object-fit: contain;
+  filter: drop-shadow(0 12px 20px rgb(15 23 42 / .1));
+}
+
+.reader-step-body {
+  text-align: center;
+}
+
+.reader-step-body > span {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 999px;
+  background: hsl(var(--primary) / .09);
+  color: hsl(var(--primary));
+  font-size: .75rem;
+  font-weight: 950;
+  margin-bottom: .55rem;
+}
+
+.reader-step-body h4 {
+  margin: 0;
+  font-size: clamp(1.08rem, 4vw, 1.55rem);
+  font-weight: 950;
+  line-height: 1.8;
+}
+
+.reader-step-body p {
+  margin: .45rem auto 0;
+  max-width: 28rem;
+  color: hsl(var(--muted-foreground));
+  line-height: 2.05;
+}
+
+.reader-step-side {
+  position: absolute;
+  z-index: 2;
+  top: 47%;
+  width: clamp(2.55rem, 8vw, 3.25rem);
+  height: clamp(2.55rem, 8vw, 3.25rem);
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid hsl(var(--border) / .54);
+  background: hsl(var(--background) / .7);
+  color: hsl(var(--foreground));
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow: 0 16px 36px rgb(15 23 42 / .14);
+  transition: .2s ease;
+}
+
+.reader-step-side:hover {
+  transform: scale(1.05);
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+.reader-step-side svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.reader-step-side.prev {
+  inset-inline-start: -1.25rem;
+}
+
+.reader-step-side.next {
+  inset-inline-end: -1.25rem;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+.reader-step-footer {
+  display: grid;
+  grid-template-columns: 2.65rem minmax(5rem, auto) 2.65rem;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.reader-step-footer button {
+  width: 2.65rem;
+  height: 2.65rem;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: hsl(var(--background) / .6);
+  border: 1px solid hsl(var(--border) / .56);
+  color: hsl(var(--foreground));
+}
+
+.reader-step-footer b {
+  font-weight: 850;
+}
+
+.reader-step-footer svg {
+  width: 1rem;
+}
+
+@media (max-width: 640px) {
+  .reader-step-slider {
+    padding: .9rem !important;
+  }
+
+  .reader-step-track {
+    overflow-x: auto;
+    justify-content: start;
+    padding-bottom: .25rem;
+  }
+
+  .reader-step-track button {
+    flex: 0 0 4rem;
+  }
+
+  .reader-step-line {
+    inset-inline: 2rem;
+  }
+
+  .reader-step-side.prev {
+    inset-inline-start: -.55rem;
+  }
+
+  .reader-step-side.next {
+    inset-inline-end: -.55rem;
+  }
+}
+
 .reader-algorithm {
   display: grid;
   gap: 1rem;
