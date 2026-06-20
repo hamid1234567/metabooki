@@ -141,10 +141,30 @@ export function loadAiGatewaySettings(): AiGatewaySettings {
   return defaultAiGatewaySettings
 }
 
+function mergeAiGatewaySettings(settings: Partial<AiGatewaySettings> | null | undefined): AiGatewaySettings {
+  const incomingProviders = Array.isArray(settings?.providers) ? settings.providers : []
+  const providers = defaultProviders.map(defaultProvider => {
+    const incoming = incomingProviders.find(provider => provider.id === defaultProvider.id)
+    return incoming ? { ...defaultProvider, ...incoming } : defaultProvider
+  })
+  for (const provider of incomingProviders) {
+    if (!providers.some(item => item.id === provider.id)) providers.push(provider)
+  }
+  const activeProvider = settings?.activeProvider && providers.some(provider => provider.id === settings.activeProvider)
+    ? settings.activeProvider
+    : defaultAiGatewaySettings.activeProvider
+  return {
+    activeProvider,
+    usdToToman: Number(settings?.usdToToman || defaultAiGatewaySettings.usdToToman),
+    chargeMultiplier: Number(settings?.chargeMultiplier || defaultAiGatewaySettings.chargeMultiplier),
+    providers,
+  }
+}
+
 export async function loadAiGatewaySettingsRemote(): Promise<AiGatewaySettings> {
   const { data, error } = await supabase.functions.invoke('ai-gateway', { body: { operation: 'admin_get_settings' } })
   if (error) throw new Error(error.message)
-  return data as AiGatewaySettings
+  return mergeAiGatewaySettings(data as Partial<AiGatewaySettings>)
 }
 
 export async function saveAiGatewaySettings(settings: AiGatewaySettings) {
