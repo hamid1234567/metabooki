@@ -1562,22 +1562,26 @@ export default function Edit() {
       return
     }
     setAiLoading(true)
-    setAiMessage('در حال برآورد هزینه تولید تصویر...')
+    progressAi('برآورد هزینه تصویر', 12, 'در حال برآورد هزینه تولید تصویر...')
     try {
       const prompt = `یک تصویر آموزشی، تمیز، مدرن و مناسب کتاب وب تولید کن. متن یا درخواست کاربر: ${visualPrompt.slice(0, 1400)}`
       const estimate = await estimateAiImageGeneration({ prompt, bookId: id, pageIndex: activeSegmentIndex, user })
+      progressAi('در انتظار تایید', 28, 'برآورد تصویر آماده است؛ تایید یا لغو کنید.')
       const approved = await requestAiCostApproval('تولید تصویر با هوش مصنوعی', 'پس از تایید، تصویر تولید می‌شود و هزینه از کردیت کاربر کسر خواهد شد.', estimate.usage, estimate.model)
       if (!approved) {
         setAiMessage('تولید تصویر لغو شد و کردیتی کسر نشد.')
+        setAiProgress(null)
         return
       }
-      setAiMessage('در حال تولید تصویر با هوش مصنوعی...')
+      progressAi('تولید تصویر', 54, 'در حال تولید تصویر با هوش مصنوعی...')
       const result = await generateAiImageThroughGateway({ prompt, bookId: id, pageIndex: activeSegmentIndex, user })
       applyImageToInteractive(result.imageUrl)
       recordAiUsage(result.usage)
       setInteractiveImagePrompt('')
+      progressAi('تکمیل شد', 100, 'تصویر تولید و در بلوک قرار گرفت.')
     } catch (error) {
       setAiMessage(error instanceof Error ? error.message : 'تولید تصویر ناموفق بود.')
+      setAiProgress({ label: 'خطا در تولید تصویر', detail: error instanceof Error ? error.message : 'تولید تصویر ناموفق بود.', percent: 100 })
     } finally {
       setAiLoading(false)
     }
@@ -1587,18 +1591,21 @@ export default function Edit() {
     if (!cleanPrompt) throw new Error('پرامپت تصویر خالی است.')
     const prompt = `یک تصویر آموزشی، تمیز، مدرن و مناسب کتاب وب تولید کن. متن یا درخواست کاربر: ${cleanPrompt.slice(0, 1400)}`
     setAiLoading(true)
-    setAiMessage('در حال برآورد هزینه تولید تصویر...')
+    progressAi('برآورد هزینه تصویر', 12, 'در حال برآورد هزینه تولید تصویر...')
     try {
       const estimate = await estimateAiImageGeneration({ prompt, bookId: id, pageIndex: activeSegmentIndex, user })
+      progressAi('در انتظار تایید', 28, 'برآورد تصویر آماده است؛ تایید یا لغو کنید.')
       const approved = await requestAiCostApproval('تولید تصویر داخل بلوک', 'این تصویر داخل همان جایگاه تصویر بلوک تعاملی قرار می‌گیرد.', estimate.usage, estimate.model)
       if (!approved) throw new Error('تولید تصویر لغو شد و کردیتی کسر نشد.')
-      setAiMessage('در حال تولید تصویر با هوش مصنوعی...')
+      progressAi('تولید تصویر', 54, 'در حال تولید تصویر با هوش مصنوعی...')
       const result = await generateAiImageThroughGateway({ prompt, bookId: id, pageIndex: activeSegmentIndex, user })
       recordAiUsage(result.usage)
+      progressAi('تکمیل شد', 100, 'تصویر تولید و در بلوک قرار گرفت.')
       return result.imageUrl
     } catch (error) {
       const message = error instanceof Error ? error.message : 'تولید تصویر ناموفق بود.'
       setAiMessage(message)
+      setAiProgress({ label: 'خطا در تولید تصویر', detail: message, percent: 100 })
       throw error
     } finally {
       setAiLoading(false)
@@ -2210,7 +2217,14 @@ export default function Edit() {
               <button disabled={aiLoading} onClick={() => void runEditorAi('interactive')}><LayoutTemplate />پیشنهاد تعاملی</button>
               <button disabled={aiLoading} onClick={() => void runEditorAi('review')}><Sparkles />بررسی کل بخش</button>
             </div>
-            {aiLoading && <p className="book-editor-empty-state">در حال تولید خروجی هوشمند...</p>}
+            {(aiLoading || aiProgress) && <section className="mb-ai-progress" aria-live="polite">
+              <div className="mb-ai-progress-orb"><Sparkles /></div>
+              <div>
+                <strong>{aiProgress?.label || 'در حال پردازش هوش مصنوعی'}</strong>
+                <p>{aiProgress?.detail || 'در حال آماده‌سازی درخواست...'}</p>
+                <div className="mb-ai-progress-bar"><span style={{ width: `${aiProgress?.percent ?? 12}%` }} /></div>
+              </div>
+            </section>}
             {aiMessage && <p className="mb-ai-cost">{aiMessage}</p>}
             {aiUsage && <small className="mb-ai-usage">{aiUsage.inputTokens.toLocaleString('fa-IR')} توکن ورودی · {aiUsage.outputTokens.toLocaleString('fa-IR')} توکن خروجی</small>}
             {aiDraft && <section className="mb-ai-draft">
@@ -2320,19 +2334,38 @@ export default function Edit() {
             <h3>{aiRunDialog.title}</h3>
             <p>{aiRunDialog.description}</p>
             {aiRunDialog.model && <small>مدل: {aiRunDialog.model}</small>}
-            {aiRunDialog.usage && <div className="ai-credit-flow">
-              <span><b>{aiRunDialog.usage.chargedCredits.toLocaleString('fa-IR')}</b><small>حداکثر کردیت</small></span>
-              <span><b>{aiRunDialog.usage.chargedToman.toLocaleString('fa-IR')}</b><small>تومان</small></span>
-              <span><b>${aiRunDialog.usage.chargedUsd.toFixed(6)}</b><small>دلار</small></span>
+            {aiRunDialog.usage && <div className={aiRunDialog.supportsImage && aiRunDialog.totalWithImages ? 'ai-credit-choice-grid' : 'ai-credit-flow'}>
+              <span className="ai-credit-choice-card">
+                <small>بدون تصویر</small>
+                <b>{aiRunDialog.usage.chargedCredits.toLocaleString('fa-IR')} کردیت</b>
+                <em>{aiRunDialog.usage.chargedToman.toLocaleString('fa-IR')} تومان · ${aiRunDialog.usage.chargedUsd.toFixed(6)}</em>
+              </span>
+              {aiRunDialog.supportsImage && aiRunDialog.imageUsage && aiRunDialog.totalWithImages ? <>
+                <span className="ai-credit-choice-card is-image">
+                  <small>فقط تصاویر</small>
+                  <b>{aiRunDialog.imageUsage.chargedCredits.toLocaleString('fa-IR')} کردیت</b>
+                  <em>{(aiRunDialog.imageCount || 0).toLocaleString('fa-IR')} تصویر · {aiRunDialog.imageUsage.chargedToman.toLocaleString('fa-IR')} تومان</em>
+                </span>
+                <span className="ai-credit-choice-card is-total">
+                  <small>با تصویر، جمع نهایی</small>
+                  <b>{aiRunDialog.totalWithImages.chargedCredits.toLocaleString('fa-IR')} کردیت</b>
+                  <em>{aiRunDialog.totalWithImages.chargedToman.toLocaleString('fa-IR')} تومان · ${aiRunDialog.totalWithImages.chargedUsd.toFixed(6)}</em>
+                </span>
+              </> : <>
+                <span><b>{aiRunDialog.usage.chargedToman.toLocaleString('fa-IR')}</b><small>تومان</small></span>
+                <span><b>${aiRunDialog.usage.chargedUsd.toFixed(6)}</b><small>دلار</small></span>
+              </>}
             </div>}
             {aiRunDialog.usage && <small>{aiRunDialog.usage.inputTokens.toLocaleString('fa-IR')} توکن ورودی تخمینی · سقف {aiRunDialog.usage.outputTokens.toLocaleString('fa-IR')} توکن خروجی</small>}
+            {aiRunDialog.imageModel && <small>مدل تصویر: {aiRunDialog.imageModel}</small>}
+            {aiRunDialog.imageWarning && <small className="text-warning">{aiRunDialog.imageWarning}</small>}
             <small>{aiRunDialog.textPreview}</small>
           </div>
           <footer>
             <button className="app-modal-secondary" onClick={() => closeAiRunDialog(null)}>انصراف</button>
             {aiRunDialog.supportsImage ? <>
-              <button className="app-modal-secondary" onClick={() => closeAiRunDialog('plain')}>بدون تصویر</button>
-              <button className="app-modal-primary" onClick={() => closeAiRunDialog('images')}>با تصویر</button>
+              <button className="app-modal-secondary" onClick={() => closeAiRunDialog('plain')}>تایید بدون تصویر</button>
+              <button className="app-modal-primary" onClick={() => closeAiRunDialog('images')}>تایید با تصویر</button>
             </> : <button className="app-modal-primary" onClick={() => closeAiRunDialog('plain')}>تایید و تولید</button>}
           </footer>
         </section>
