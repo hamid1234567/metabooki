@@ -1129,6 +1129,7 @@ export default function Edit() {
   const [activeAiSuggestionId, setActiveAiSuggestionId] = useState<string | null>(null)
   const [aiCreditNotice, setAiCreditNotice] = useState<AiCreditNotice | null>(null)
   const [aiCostDialog, setAiCostDialog] = useState<AiCostDialog | null>(null)
+  const [interactiveImageChoice, setInteractiveImageChoice] = useState<AiUpgradeSuggestion | null>(null)
   const [animatedCreditBalance, setAnimatedCreditBalance] = useState(creditBalance)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const documentStageRef = useRef<HTMLElement>(null)
@@ -1622,6 +1623,87 @@ export default function Edit() {
   const insertInteractivePayload = (kind: string, payload: Record<string, unknown>, sourceText?: string) => {
     insertContentAfterSource(sourceText, { type: 'interactiveBlock', attrs: { kind, payload: encodePayload({ ...interactiveTemplate(kind), ...payload, type: kind }) } })
   }
+  const combineAiUsage = (items: Array<RunAiResult['usage']>): RunAiResult['usage'] => items.reduce((acc, usage) => ({
+    inputTokens: acc.inputTokens + usage.inputTokens,
+    outputTokens: acc.outputTokens + usage.outputTokens,
+    rawUsd: acc.rawUsd + usage.rawUsd,
+    chargedUsd: acc.chargedUsd + usage.chargedUsd,
+    chargedToman: acc.chargedToman + usage.chargedToman,
+    chargedCredits: acc.chargedCredits + usage.chargedCredits,
+    creditValueToman: usage.creditValueToman || acc.creditValueToman,
+  }), { inputTokens: 0, outputTokens: 0, rawUsd: 0, chargedUsd: 0, chargedToman: 0, chargedCredits: 0, creditValueToman: 1000 })
+  const multiplyAiUsage = (usage: RunAiResult['usage'], count: number): RunAiResult['usage'] => ({
+    ...usage,
+    inputTokens: usage.inputTokens * count,
+    outputTokens: usage.outputTokens * count,
+    rawUsd: usage.rawUsd * count,
+    chargedUsd: usage.chargedUsd * count,
+    chargedToman: usage.chargedToman * count,
+    chargedCredits: usage.chargedCredits * count,
+  })
+  const imagePromptsForInteractive = (kind: string, payload: Record<string, any>, sourceText: string) => {
+    const basePrompt = (text: string) => `تصویر آموزشی، تمیز و مناسب کتاب وب بساز. تصویر باید مفهوم همین آیتم را نشان دهد و متن داخل تصویر نداشته باشد. آیتم: ${text.slice(0, 900)}`
+    if (kind === 'steps' || kind === 'scrollytelling') {
+      const steps = Array.isArray(payload.steps) ? payload.steps : []
+      return steps.map((step: any, index: number) => ({
+        target: 'steps',
+        index,
+        prompt: basePrompt(`${step.title || step.text || `مرحله ${index + 1}`}: ${step.description || ''}`),
+      })).filter((item: any) => item.prompt.length > 40)
+    }
+    if (kind === 'timeline') {
+      const events = Array.isArray(payload.events) ? payload.events : []
+      return events.map((event: any, index: number) => ({
+        target: 'events',
+        index,
+        prompt: basePrompt(`${event.year || ''} ${event.title || `رویداد ${index + 1}`}: ${event.description || ''}`),
+      })).filter((item: any) => item.prompt.length > 40)
+    }
+    if (kind === 'algorithm') {
+      const nodes = Array.isArray(payload.nodes) ? payload.nodes : []
+      return nodes.map((node: any, index: number) => ({
+        target: 'nodes',
+        index,
+        prompt: basePrompt(`${node.title || `گره ${index + 1}`}: ${node.description || node.text || ''}`),
+      })).filter((item: any) => item.prompt.length > 40)
+    }
+    return [{ target: 'image', index: 0, prompt: basePrompt(payload.title || payload.question || sourceText || 'مفهوم آموزشی این بخش') }]
+  }
+  const enrichInteractivePayloadWithImages = async (kind: string, payload: Record<string, unknown>, sourceText: string) => {
+    const nextPayload = JSON.parse(JSON.stringify(payload || {}))
+    const prompts = imagePromptsForInteractive(kind, nextPayload, sourceText).slice(0, 6)
+    if (!prompts.length) return nextPayload
+    setAiLoading(true)
+    setAiMessage(`در حال برآورد هزینه ${prompts.length.toLocaleString('fa-IR')} تصویر...`)
+    try {
+      const firstEstimate = await estimateAiImageGeneration({ prompt: prompts[0].prompt, bookId: id, pageIndex: activeSegmentIndex, user })
+      const estimatedUsage = multiplyAiUsage(firstEstimate.usage, prompts.length)
+      const approved = await requestAiCostApproval(
+        `تولید ${prompts.length.toLocaleString('fa-IR')} تصویر برای بخش تعاملی`,
+        `برای هر آیتم تعاملی، متن همان آیتم به عنوان پرامپت تصویر استفاده می‌شود. ${firstEstimate.warning || ''}`.trim(),
+        estimatedUsage,
+        firstEstimate.model,
+      )
+      if (!approved) {
+        setAiMessage('افزودن تصویر لغو شد؛ بخش تعاملی بدون تصویر اضافه می‌شود.')
+        return nextPayload
+      }
+      const usages: Array<RunAiResult['usage']> = []
+      for (const item of prompts) {
+        setAiMessage(`در حال تولید تصویر ${(item.index + 1).toLocaleString('fa-IR')} از ${prompts.length.toLocaleString('fa-IR')}...`)
+        const result = await generateAiImageThroughGateway({ prompt: item.prompt, bookId: id, pageIndex: activeSegmentIndex, user })
+        usages.push(result.usage)
+        if (item.target === 'steps' && Array.isArray(nextPayload.steps)) nextPayload.steps[item.index] = { ...nextPayload.steps[item.index], image: result.imageUrl }
+        else if (item.target === 'events' && Array.isArray(nextPayload.events)) nextPayload.events[item.index] = { ...nextPayload.events[item.index], image: result.imageUrl }
+        else if (item.target === 'nodes' && Array.isArray(nextPayload.nodes)) nextPayload.nodes[item.index] = { ...nextPayload.nodes[item.index], image: result.imageUrl }
+        else nextPayload.image = result.imageUrl
+      }
+      recordAiUsage(combineAiUsage(usages))
+      return nextPayload
+    } finally {
+      setAiLoading(false)
+    }
+  }
   const recordAiUsage = (usage: RunAiResult['usage']) => {
     setAiUsage(usage)
     const before = Math.max(Number(animatedCreditBalance || 0), Number(usage.chargedCredits || 0))
@@ -1635,10 +1717,14 @@ export default function Edit() {
     setActiveAiSuggestionId(item.id)
     if (!focusTextSource(item.sourceText)) setAiMessage('محل دقیق متن پیدا نشد، اما پیشنهاد آماده افزودن است.')
   }
-  const applyAiUpgradeSuggestion = (item: AiUpgradeSuggestion) => {
+  const applyAiUpgradeSuggestion = async (item: AiUpgradeSuggestion, withImages = false) => {
     previewAiSuggestion(item)
     if (item.kind === 'callout') insertCalloutWithText(item.variant || 'key', item.title, item.text || '', item.sourceText)
-    if (item.kind === 'interactive') insertInteractivePayload(item.interactiveKind || 'steps', item.payload || {}, item.sourceText)
+    if (item.kind === 'interactive') {
+      const kind = item.interactiveKind || 'steps'
+      const payload = withImages ? await enrichInteractivePayloadWithImages(kind, item.payload || {}, item.sourceText) : (item.payload || {})
+      insertInteractivePayload(kind, payload, item.sourceText)
+    }
     if (item.kind === 'quiz' && item.payload) insertInteractivePayload('quiz', item.payload, item.sourceText)
     if (item.kind === 'summary') insertCalloutWithText('key', item.title, item.text || '', item.sourceText)
   }
@@ -1957,7 +2043,15 @@ export default function Edit() {
               {aiDraft.text && <p>{aiDraft.text}</p>}
               {aiDraft.type === 'summary' && <button onClick={() => aiDraft.text && insertCalloutWithText('key', aiDraft.title, aiDraft.text, selectedOrCurrentText())}>افزودن خلاصه به کال‌اوت</button>}
               {aiDraft.type === 'quiz' && aiDraft.payload && <button onClick={() => insertInteractivePayload('quiz', aiDraft.payload!, selectedOrCurrentText())}>افزودن سؤال به کتاب</button>}
-              {aiDraft.type === 'interactive' && aiDraft.payload && <button onClick={() => insertInteractivePayload(aiDraft.kind || 'algorithm', aiDraft.payload!, selectedOrCurrentText())}>افزودن بخش تعاملی</button>}
+              {aiDraft.type === 'interactive' && aiDraft.payload && <button onClick={() => setInteractiveImageChoice({
+                id: `draft-${Date.now()}`,
+                kind: 'interactive',
+                title: aiDraft.title,
+                interactiveKind: aiDraft.kind || 'algorithm',
+                payload: aiDraft.payload!,
+                sourceText: selectedOrCurrentText(),
+                reason: 'ساختار پیشنهادی هوش مصنوعی',
+              })}>افزودن بخش تعاملی</button>}
             </section>}
             {aiCalloutSuggestions.length > 0 && <section className="mb-ai-suggestions">
               <h3>پیشنهادهای Callout</h3>
@@ -1974,7 +2068,7 @@ export default function Edit() {
                   </div>
                   <footer>
                     <button type="button" onClick={() => previewAiSuggestion(item)}>نمایش محل</button>
-                    <button type="button" onClick={() => applyAiUpgradeSuggestion(item)}>افزودن</button>
+                    <button type="button" onClick={() => item.kind === 'interactive' ? setInteractiveImageChoice(item) : void applyAiUpgradeSuggestion(item)}>افزودن</button>
                   </footer>
                 </article>
               ))}

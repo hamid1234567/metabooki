@@ -67,6 +67,7 @@ export interface AiImageUsage {
 export interface AiImageEstimateResult {
   provider: string
   model: string
+  warning?: string
   prompt: string
   usage: AiImageUsage
 }
@@ -182,6 +183,9 @@ export async function generateAiImageThroughGateway(request: { prompt: string; b
     body: { operation: 'generate_image', prompt: request.prompt, bookId: request.bookId, pageIndex: request.pageIndex },
   })
   if (error) throw await gatewayError(error, 'تولید تصویر ناموفق بود.')
-  if (!(data as AiImageGenerationResult)?.imageUrl) throw new Error('هوش مصنوعی تصویری برنگرداند.')
+  if (!(data as AiImageGenerationResult)?.imageUrl) {
+    const model = (data as AiImageGenerationResult)?.model || 'unknown'
+    throw new Error(`هوش مصنوعی تصویری برنگرداند. مدل گزارش‌شده: ${model}. برای تولید تصویر باید فیلد «مدل تولید تصویر» روی مدلی مثل gpt-image-1 باشد، نه مدل متنی مثل gpt-4o.`)
+  }
   return data as AiImageGenerationResult
 }
