@@ -1696,7 +1696,7 @@ export default function Edit() {
     }
     return [{ target: 'image', index: 0, prompt: basePrompt(payload.title || payload.question || sourceText || 'مفهوم آموزشی این بخش') }]
   }
-  const enrichInteractivePayloadWithImages = async (kind: string, payload: Record<string, unknown>, sourceText: string) => {
+  const enrichInteractivePayloadWithImages = async (kind: string, payload: Record<string, unknown>, sourceText: string, options: { skipApproval?: boolean } = {}) => {
     const nextPayload = JSON.parse(JSON.stringify(payload || {}))
     const prompts = imagePromptsForInteractive(kind, nextPayload, sourceText).slice(0, 6)
     if (!prompts.length) return nextPayload
@@ -1705,7 +1705,7 @@ export default function Edit() {
     try {
       const firstEstimate = await estimateAiImageGeneration({ prompt: prompts[0].prompt, bookId: id, pageIndex: activeSegmentIndex, user })
       const estimatedUsage = multiplyAiUsage(firstEstimate.usage, prompts.length)
-      const approved = await requestAiCostApproval(
+      const approved = options.skipApproval || await requestAiCostApproval(
         `تولید ${prompts.length.toLocaleString('fa-IR')} تصویر برای بخش تعاملی`,
         `برای هر آیتم تعاملی، متن همان آیتم به عنوان پرامپت تصویر استفاده می‌شود. ${firstEstimate.warning || ''}`.trim(),
         estimatedUsage,
@@ -1756,9 +1756,24 @@ export default function Edit() {
     if (item.kind === 'summary') insertCalloutWithText('key', item.title, item.text || '', item.sourceText)
   }
   const runEditorAi = async (mode: 'summary' | 'quiz' | 'callout' | 'interactive' | 'review') => {
-    const pageText = selectedOrCurrentText()
+    const context = aiTextContext()
+    const pageText = context.pageText
     if (!pageText) {
       setAiMessage('اول بخشی از متن را انتخاب کنید یا داخل بخش مورد نظر قرار بگیرید.')
+      return
+    }
+    const modeTitle = mode === 'summary' ? 'ساخت خلاصه' : mode === 'quiz' ? 'تولید سؤال' : mode === 'callout' ? 'ساخت کال‌اوت' : mode === 'interactive' ? 'ساخت بخش تعاملی' : 'بررسی و پیشنهاد ارتقا'
+    const roughInput = Math.ceil(pageText.length / 4)
+    const roughOutput = mode === 'quiz' ? 220 : mode === 'interactive' || mode === 'review' ? 520 : 320
+    const roughToman = roughInput + roughOutput * 2
+    const choice = await requestAiRunApproval(
+      modeTitle,
+      `${context.hasSelection ? 'فقط متن انتخاب‌شده بررسی می‌شود.' : 'چون متنی انتخاب نشده، کل همین بخش/صفحه بررسی می‌شود.'} برآورد تقریبی متن: ${roughToman.toLocaleString('fa-IR')} تومان. هزینه دقیق بعد از پاسخ gateway ثبت می‌شود.`,
+      mode === 'interactive',
+      pageText.slice(0, 520),
+    )
+    if (!choice) {
+      setAiMessage('درخواست هوش مصنوعی لغو شد و کردیتی کسر نشد.')
       return
     }
     setAiLoading(true)
@@ -1772,22 +1787,24 @@ export default function Edit() {
       recordAiUsage(result.usage)
       const text = compactAiContent(result.content) || result.text || ''
       if (mode === 'summary') {
-        setAiDraft({ type: 'summary', title: 'خلاصه هوشمند', text })
+        insertCalloutWithText('key', 'خلاصه هوشمند', text || pageText.slice(0, 420), context.sourceText, context.insertionPos)
+        setAiMessage('خلاصه هوشمند در محل انتخاب‌شده اضافه شد.')
       } else if (mode === 'quiz' && result.content?.type === 'quiz') {
-        setAiDraft({ type: 'quiz', title: 'سؤال تولیدشده', kind: 'quiz', payload: { question: result.content.question, options: result.content.options, correct: result.content.correctIndex, explanation: result.content.explanation } })
+        insertInteractivePayload('quiz', { question: result.content.question, options: result.content.options, correct: result.content.correctIndex, explanation: result.content.explanation }, context.sourceText, context.insertionPos)
+        setAiMessage('سؤال تعاملی در محل انتخاب‌شده اضافه شد.')
       } else if (mode === 'callout') {
         const base = text || pageText.slice(0, 420)
-        setAiCalloutSuggestions([
-          { variant: 'key', title: 'نکته کلیدی پیشنهادی', text: base.split('\n').filter(Boolean)[0] || base, sourceText: pageText, reason: 'خلاصه کوتاه از همین بخش' },
-          { variant: 'question', title: 'مکث و فکر کن', text: 'از این بخش چه نتیجه‌ای می‌توان گرفت؟', sourceText: pageText, reason: 'درگیر کردن خواننده' },
-          { variant: 'deep', title: 'عمیق‌تر بخوان', text: base, sourceText: pageText, reason: 'توضیح تکمیلی' },
-        ])
+        const calloutText = base.split('\n').filter(Boolean)[0] || base
+        insertCalloutWithText('key', 'نکته کلیدی پیشنهادی', calloutText, context.sourceText, context.insertionPos)
+        setAiMessage('کال‌اوت هوشمند در محل انتخاب‌شده اضافه شد.')
       } else if (mode === 'interactive') {
         const process = aiParagraphCandidates(pageText).find(isProcessCandidate) || aiParagraphCandidates(pageText)[0] || pageText
         const kind = isTimelineCandidate(process) ? 'timeline' : 'steps'
         const steps = result.content?.type === 'timeline' ? result.content.steps : toStepItems(process)
-        setAiDraft({ type: 'interactive', title: 'بخش تعاملی پیشنهادی', kind, payload: { title: kind === 'timeline' ? 'تایم‌لاین پیشنهادی' : 'مسیر مرحله‌ای پیشنهادی', ...(kind === 'timeline' ? { events: steps } : { steps }), imagePrompt: `تصویر آموزشی برای: ${process.slice(0, 180)}` } })
-        setAiMessage('ساختار تعاملی ساخته شد. اگر برای هر بخش تصویر لازم دارید، بعد از افزودن بلوک از آیکون هوش مصنوعی کنار همان جایگاه تصویر استفاده کنید.')
+        let payload: Record<string, unknown> = { title: kind === 'timeline' ? 'تایم‌لاین پیشنهادی' : 'مسیر مرحله‌ای پیشنهادی', ...(kind === 'timeline' ? { events: steps } : { steps }), imagePrompt: `تصویر آموزشی برای: ${process.slice(0, 180)}` }
+        if (choice === 'images') payload = await enrichInteractivePayloadWithImages(kind, payload, process, { skipApproval: true })
+        insertInteractivePayload(kind, payload, context.sourceText, context.insertionPos)
+        setAiMessage(choice === 'images' ? 'بخش تعاملی همراه تصویر در محل انتخاب‌شده اضافه شد.' : 'بخش تعاملی در محل انتخاب‌شده اضافه شد.')
       } else if (mode === 'review') {
         const suggestions = buildAiUpgradeSuggestions(pageText, text)
         setAiUpgradeSuggestions(suggestions)
