@@ -1330,9 +1330,12 @@ body {
   grid-template-columns: auto minmax(0, 1fr);
   align-items: start;
   gap: .55rem;
-  border: 1px solid hsl(var(--border) / .78);
+  border: 1px solid hsl(var(--primary) / .22);
   border-radius: .85rem;
-  background: hsl(var(--background) / .54);
+  background:
+    linear-gradient(135deg, hsl(var(--background) / .96), hsl(var(--muted) / .7)),
+    hsl(var(--background));
+  box-shadow: 0 14px 34px hsl(222 47% 11% / .1), inset 0 1px 0 hsl(0 0% 100% / .72);
   padding: .55rem;
   animation: inlineMediaEnter .22s ease both;
 }
@@ -1341,12 +1344,14 @@ body {
   position: relative;
   grid-column: 2;
   min-height: 6.5rem;
-  border: 1px dashed hsl(var(--primary) / .26);
+  border: 1px dashed hsl(var(--primary) / .42);
   border-radius: .75rem;
   display: grid;
   place-items: center;
   overflow: hidden;
-  background: hsl(var(--primary) / .04);
+  background:
+    radial-gradient(circle at 15% 12%, hsl(var(--primary) / .14), transparent 12rem),
+    hsl(var(--card) / .96);
 }
 
 .inline-media-preview img {
@@ -1394,7 +1399,7 @@ body {
   height: 1.7rem;
   border: 0;
   border-radius: 999px;
-  background: hsl(var(--background) / .82);
+  background: hsl(var(--background) / .98);
   color: hsl(var(--muted-foreground));
   cursor: pointer;
   transition: background .16s ease, color .16s ease, transform .16s ease;
@@ -1479,7 +1484,7 @@ body {
   border: 1px solid hsl(var(--primary) / .22);
   border-radius: 1.15rem;
   background:
-    linear-gradient(135deg, hsl(var(--background) / .98), hsl(var(--primary) / .08)),
+    linear-gradient(135deg, hsl(var(--background)), hsl(var(--primary) / .09)),
     hsl(var(--background));
   box-shadow: 0 30px 95px hsl(222 47% 11% / .34), inset 0 1px 0 hsl(0 0% 100% / .75);
   padding: 1rem;
@@ -1552,8 +1557,8 @@ body {
   gap: .55rem;
   border: 1px solid hsl(var(--border) / .74);
   border-radius: .75rem;
-  background: hsl(var(--background) / .92);
-  box-shadow: 0 8px 24px hsl(222 47% 11% / .06);
+  background: hsl(var(--card) / .98);
+  box-shadow: 0 10px 26px hsl(222 47% 11% / .1);
   padding: .38rem;
   text-align: right;
   transition: border-color .16s ease, background .16s ease, transform .16s ease;
@@ -1622,9 +1627,9 @@ body {
   border: 0;
   background:
     radial-gradient(circle at 20% 15%, hsl(var(--primary) / .2), transparent 32rem),
-    hsl(222 47% 11% / .36);
-  backdrop-filter: blur(14px) saturate(1.12);
-  -webkit-backdrop-filter: blur(14px) saturate(1.12);
+    hsl(222 47% 11% / .48);
+  backdrop-filter: blur(18px) saturate(1.18);
+  -webkit-backdrop-filter: blur(18px) saturate(1.18);
   animation: mediaBackdropIn .18s ease both;
 }
 
@@ -3539,4 +3544,154 @@ body {
   font-size: .61rem;
   color: hsl(var(--warning));
   line-height: 1.55;
+}
+
+.app-modal-primary {
+  border: 1px solid color-mix(in srgb, var(--primary) 52%, transparent);
+  background: linear-gradient(135deg, var(--primary), color-mix(in srgb, var(--primary) 76%, #0f172a));
+  color: var(--primary-foreground);
+  box-shadow: 0 14px 34px color-mix(in srgb, var(--primary) 24%, transparent);
+}
+
+.mb-ai-upgrades {
+  display: grid;
+  gap: .55rem;
+}
+
+.mb-ai-upgrades h3 {
+  font-size: .8rem;
+  font-weight: 950;
+  color: var(--foreground);
+}
+
+.mb-ai-upgrades article {
+  display: grid;
+  gap: .45rem;
+  border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--border));
+  border-radius: .85rem;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--background) 96%, transparent), color-mix(in srgb, var(--primary) 7%, var(--background))),
+    var(--background);
+  padding: .7rem;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, .08);
+  transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease;
+}
+
+.mb-ai-upgrades article.is-active {
+  border-color: color-mix(in srgb, var(--primary) 55%, var(--border));
+  box-shadow: 0 16px 36px color-mix(in srgb, var(--primary) 16%, transparent);
+  transform: translateY(-1px);
+}
+
+.mb-ai-upgrades strong {
+  display: block;
+  font-size: .76rem;
+  font-weight: 950;
+}
+
+.mb-ai-upgrades small {
+  display: block;
+  margin-top: .12rem;
+  color: var(--primary);
+  font-size: .62rem;
+  font-weight: 850;
+}
+
+.mb-ai-upgrades p {
+  margin: .32rem 0 0;
+  color: var(--muted-foreground);
+  font-size: .66rem;
+  line-height: 1.8;
+}
+
+.mb-ai-upgrades footer {
+  display: flex;
+  gap: .4rem;
+  justify-content: flex-start;
+}
+
+.mb-ai-upgrades footer button {
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--background) 92%, transparent);
+  color: var(--foreground);
+  padding: .36rem .65rem;
+  font-size: .62rem;
+  font-weight: 900;
+}
+
+.mb-ai-upgrades footer button:last-child {
+  background: color-mix(in srgb, var(--primary) 12%, var(--background));
+  color: var(--primary);
+}
+
+.ai-credit-backdrop {
+  z-index: 1200;
+  background:
+    radial-gradient(circle at 32% 18%, color-mix(in srgb, var(--primary) 18%, transparent), transparent 30rem),
+    rgba(15, 23, 42, .38);
+  backdrop-filter: blur(18px) saturate(1.1);
+  -webkit-backdrop-filter: blur(18px) saturate(1.1);
+}
+
+.ai-credit-modal {
+  width: min(100%, 31rem);
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--background) 90%, transparent), color-mix(in srgb, var(--primary) 8%, var(--background))),
+    var(--background);
+}
+
+.ai-credit-modal small {
+  display: block;
+  color: var(--muted-foreground);
+  font-size: .68rem;
+  margin-top: .35rem;
+}
+
+.ai-credit-flow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .45rem;
+  margin-top: .75rem;
+}
+
+.ai-credit-flow span {
+  display: grid;
+  gap: .15rem;
+  border: 1px solid color-mix(in srgb, var(--primary) 16%, var(--border));
+  border-radius: .85rem;
+  background: color-mix(in srgb, var(--background) 72%, transparent);
+  padding: .62rem;
+  text-align: center;
+}
+
+.ai-credit-flow b {
+  color: var(--foreground);
+  font-size: .95rem;
+  font-weight: 950;
+}
+
+.ai-credit-flow small {
+  margin: 0;
+  font-size: .58rem;
+}
+
+.ai-credit-flow.is-charged span:last-child {
+  animation: creditPulse .65s ease both;
+}
+
+.ai-credit-money {
+  margin-top: .65rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary) 10%, var(--background));
+  color: var(--primary) !important;
+  padding: .42rem .65rem;
+  text-align: center;
+  font-weight: 900;
+}
+
+@keyframes creditPulse {
+  0% { transform: scale(.96); box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 28%, transparent); }
+  70% { transform: scale(1.03); box-shadow: 0 0 0 .55rem color-mix(in srgb, var(--primary) 0%, transparent); }
+  100% { transform: scale(1); }
 }

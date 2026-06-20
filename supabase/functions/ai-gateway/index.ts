@@ -26,9 +26,22 @@ function estimateTokens(text: string) {
 }
 
 function imageModelForProvider(provider: AiProviderConfig) {
-  const configured = String(provider.image_model || '')
-  if (configured) return configured
-  return Deno.env.get('AI_IMAGE_MODEL') || 'gpt-image-1'
+  const configured = String(provider.image_model || '').trim()
+  const envModel = String(Deno.env.get('AI_IMAGE_MODEL') || '').trim()
+  const candidate = configured || envModel || 'gpt-image-1'
+  if (/^(gpt-image-|dall-e)/i.test(candidate)) return candidate
+  return envModel && /^(gpt-image-|dall-e)/i.test(envModel) ? envModel : 'gpt-image-1'
+}
+
+function imageModelWarning(provider: AiProviderConfig) {
+  const configured = String(provider.image_model || '').trim()
+  if (configured && !/^(gpt-image-|dall-e)/i.test(configured)) {
+    return `Configured image model "${configured}" is not an Image API model; using "${imageModelForProvider(provider)}" instead.`
+  }
+  if (!configured && provider.model && !/^(gpt-image-|dall-e)/i.test(provider.model)) {
+    return `Text model "${provider.model}" is not used for Image API generation; using "${imageModelForProvider(provider)}" instead.`
+  }
+  return ''
 }
 
 function imageUsage(provider: AiProviderConfig, prompt: string, usdToToman: number, chargeMultiplier: number, creditsPerToman: number) {
@@ -57,7 +70,7 @@ async function callImageProvider(provider: AiProviderConfig, prompt: string) {
   if (!res.ok) throw new Error(json.error?.message || json.message || `Image generation failed (${res.status})`)
   const item = json.data?.[0] || {}
   const imageUrl = item.b64_json ? `data:image/png;base64,${item.b64_json}` : item.url
-  if (!imageUrl) throw new Error('Image provider did not return an image')
+  if (!imageUrl) throw new Error(`Image provider did not return an image for model ${model}`)
   return { imageUrl, model }
 }
 
@@ -242,6 +255,7 @@ serve(async (req) => {
         return new Response(JSON.stringify({
           provider: provider.label || provider.provider,
           model,
+          warning: imageModelWarning(provider),
           prompt,
           usage,
         }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
@@ -279,6 +293,7 @@ serve(async (req) => {
       return new Response(JSON.stringify({
         provider: provider.label || provider.provider,
         model: generated.model,
+        warning: imageModelWarning(provider),
         prompt,
         imageUrl: generated.imageUrl,
         usage,

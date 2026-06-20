@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import type { AppUser } from '@/hooks/useAuth'
+import { creditsBus } from '@/lib/credits-bus'
 
 export function useCredits(user: AppUser | null) {
   const [balance, setBalance] = useState<number>(0)
@@ -39,6 +40,13 @@ export function useCredits(user: AppUser | null) {
 
     fetchBalance()
   }, [user])
+
+  useEffect(() => {
+    const unsubscribe = creditsBus.subscribe(setBalance)
+    return () => {
+      unsubscribe()
+    }
+  }, [])
 
   return { balance, loading }
 }

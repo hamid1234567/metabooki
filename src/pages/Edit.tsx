@@ -22,6 +22,8 @@ import { supabase } from '@/integrations/supabase/client'
 import { useAuthContext } from '@/lib/auth-context'
 import { bookTextDirection, calloutPreset as sharedCalloutPreset, CALLOUT_PRESETS as SHARED_CALLOUT_PRESETS, inlineToHtml as sharedInlineToHtml, interactiveLabel as sharedInteractiveLabel, interactivePreview as sharedInteractivePreview, interactiveTemplate as sharedInteractiveTemplate, INTERACTIVE_TYPES as SHARED_INTERACTIVE_TYPES, normalizeBookText, pageBreakHtml } from '@/lib/book-content'
 import { estimateAiImageGeneration, generateAiImageThroughGateway, runAiThroughGateway, type AiStructuredContent, type RunAiResult } from '@/lib/ai-gateway'
+import { useCredits } from '@/hooks/useCredits'
+import { creditsBus } from '@/lib/credits-bus'
 
 const escape = (value = '') => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 const encodePayload = (value: unknown) => encodeURIComponent(JSON.stringify(value))
@@ -32,6 +34,31 @@ const openBookPreview = (id: string) => window.open(appPath(`/read/${id}`), '_bl
 type EditorPanelMode = 'toc' | 'upgrade' | 'media' | 'interactive' | 'ai'
 type MediaPanelView = 'home' | 'library'
 type InteractiveMediaView = 'home' | 'library' | 'ai'
+type AiUpgradeSuggestion = {
+  id: string
+  kind: 'callout' | 'interactive' | 'quiz' | 'summary'
+  title: string
+  text?: string
+  variant?: string
+  interactiveKind?: string
+  payload?: Record<string, unknown>
+  sourceText: string
+  reason: string
+}
+type AiCreditNotice = {
+  title: string
+  before: number
+  cost: number
+  after: number
+  usage: RunAiResult['usage']
+}
+type AiCostDialog = {
+  title: string
+  description: string
+  usage: RunAiResult['usage']
+  model?: string
+  resolve: (approved: boolean) => void
+}
 type EditorMediaContextValue = {
   bookImages: any[]
   uploadImage: (file: File) => Promise<string>
@@ -183,10 +210,7 @@ function InlineMediaPicker({ label, value, onChange, stopEditorSelection }: { la
     setBusy(true)
     setNotice('در حال بررسی هزینه و تولید تصویر...')
     try {
-      const generatedUrl = await Promise.race([
-        media.generateImage(cleanPrompt),
-        new Promise<string>((_, reject) => window.setTimeout(() => reject(new Error('پاسخ تولید تصویر طولانی شد. اتصال هوش مصنوعی یا Edge Function را در پنل ادمین بررسی کنید.')), 60000)),
-      ])
+      const generatedUrl = await media.generateImage(cleanPrompt)
       if (!generatedUrl) throw new Error('هوش مصنوعی تصویری برنگرداند.')
       onChange(generatedUrl)
       setPrompt('')
@@ -985,9 +1009,92 @@ function editorJsonToPages(json: any) {
   return pages.filter(page => page.blocks.length)
 }
 
+const cleanAiSourceText = (value = '') => normalizeBookText(String(value)).replace(/\s+/g, ' ').trim()
+const aiParagraphCandidates = (text: string) => text
+  .split(/\n{1,}|\r{1,}/)
+  .map(cleanAiSourceText)
+  .filter(item => item.length > 36)
+  .slice(0, 18)
+
+const isProcessCandidate = (text: string) => /(مرحله|گام|فرایند|فرآیند|روند|ابتدا|سپس|بعد از|در نهایت|اول|دوم|سوم|چهارم|تصمیم|شاخه|اگر|آنگاه)/.test(text)
+const isTimelineCandidate = (text: string) => /(تاریخچه|سال|دوره|قرن|دهه|۱۳\d{2}|۱۴\d{2}|19\d{2}|20\d{2})/.test(text)
+const isDataCandidate = (text: string) => /(\d|٪|درصد|آمار|منبع|مطالعه|پژوهش|مقاله|جدول|نمودار)/.test(text)
+
+const toStepItems = (text: string) => {
+  const parts = text
+    .split(/(?:؛|\.|،\s*(?=سپس|بعد|در نهایت|اول|دوم|سوم|چهارم)|\n+)/)
+    .map(cleanAiSourceText)
+    .filter(item => item.length > 18)
+    .slice(0, 6)
+  return (parts.length >= 2 ? parts : [text]).map((item, index) => ({
+    title: `گام ${(index + 1).toLocaleString('fa-IR')}`,
+    description: item,
+  }))
+}
+
+const buildAiUpgradeSuggestions = (pageText: string, aiText = ''): AiUpgradeSuggestion[] => {
+  const paragraphs = aiParagraphCandidates(pageText)
+  const suggestions: AiUpgradeSuggestion[] = []
+  const first = paragraphs[0] || cleanAiSourceText(pageText).slice(0, 420)
+  const data = paragraphs.find(isDataCandidate)
+  const process = paragraphs.find(isProcessCandidate)
+  const timeline = paragraphs.find(isTimelineCandidate)
+  const question = paragraphs.find(item => item.includes('؟') || /(چرا|چگونه|چه چیزی|کدام)/.test(item))
+  const aiFirstLine = cleanAiSourceText(aiText).split(/[.!؟]/).find(Boolean) || ''
+
+  if (first) suggestions.push({
+    id: `callout-key-${Date.now()}`,
+    kind: 'callout',
+    variant: 'key',
+    title: 'نکته کلیدی',
+    text: (aiFirstLine || first).slice(0, 280),
+    sourceText: first,
+    reason: 'برای برجسته کردن پیام اصلی این بخش مناسب است.',
+  })
+  if (question || first) suggestions.push({
+    id: `callout-question-${Date.now() + 1}`,
+    kind: 'callout',
+    variant: 'question',
+    title: 'مکث و فکر کن',
+    text: question ? `از این بخش چه نتیجه‌ای می‌گیرید؟ ${question.slice(0, 180)}` : 'خواننده بعد از این بخش چه تصمیم یا برداشتی باید داشته باشد؟',
+    sourceText: question || first,
+    reason: 'یک توقف کوتاه برای درگیر کردن خواننده ایجاد می‌کند.',
+  })
+  if (data) suggestions.push({
+    id: `callout-data-${Date.now() + 2}`,
+    kind: 'callout',
+    variant: 'data',
+    title: 'داده و منبع',
+    text: data.slice(0, 260),
+    sourceText: data,
+    reason: 'این جمله عدد، منبع یا داده دارد و بهتر است جدا دیده شود.',
+  })
+  if (process) suggestions.push({
+    id: `interactive-steps-${Date.now() + 3}`,
+    kind: 'interactive',
+    interactiveKind: 'steps',
+    title: 'تبدیل به مراحل تعاملی',
+    payload: { title: 'مراحل پیشنهادی', steps: toStepItems(process), imagePrompt: `تصویر آموزشی مرحله‌ای برای: ${process.slice(0, 180)}` },
+    sourceText: process,
+    reason: 'متن نشانه‌های روند یا چند مرحله دارد.',
+  })
+  if (timeline && timeline !== process) suggestions.push({
+    id: `interactive-timeline-${Date.now() + 4}`,
+    kind: 'interactive',
+    interactiveKind: 'timeline',
+    title: 'تبدیل به تایم‌لاین',
+    payload: { title: 'تایم‌لاین پیشنهادی', events: toStepItems(timeline).map((item, index) => ({ title: item.title, description: item.description, year: String(index + 1) })) },
+    sourceText: timeline,
+    reason: 'متن حالت تاریخی، زمانی یا دوره‌ای دارد.',
+  })
+
+  return suggestions.slice(0, 6)
+}
+
 export default function Edit() {
   const { id = '' } = useParams<{ id: string }>()
   const { user } = useAuthContext()
+  const { balance: creditBalance } = useCredits(user)
   const localInitial = useMemo(() => findPublisherBook(id) || findBookById(id), [id])
   const [book, setBook] = useState<any>(localInitial)
   const [title, setTitle] = useState(localInitial?.title || '')
@@ -1017,7 +1124,12 @@ export default function Edit() {
   const [aiMessage, setAiMessage] = useState('')
   const [aiUsage, setAiUsage] = useState<RunAiResult['usage'] | null>(null)
   const [aiDraft, setAiDraft] = useState<{ type: 'summary' | 'quiz' | 'interactive'; title: string; text?: string; payload?: Record<string, unknown>; kind?: string } | null>(null)
-  const [aiCalloutSuggestions, setAiCalloutSuggestions] = useState<Array<{ variant: string; title: string; text: string }>>([])
+  const [aiCalloutSuggestions, setAiCalloutSuggestions] = useState<Array<{ variant: string; title: string; text: string; sourceText?: string; reason?: string }>>([])
+  const [aiUpgradeSuggestions, setAiUpgradeSuggestions] = useState<AiUpgradeSuggestion[]>([])
+  const [activeAiSuggestionId, setActiveAiSuggestionId] = useState<string | null>(null)
+  const [aiCreditNotice, setAiCreditNotice] = useState<AiCreditNotice | null>(null)
+  const [aiCostDialog, setAiCostDialog] = useState<AiCostDialog | null>(null)
+  const [animatedCreditBalance, setAnimatedCreditBalance] = useState(creditBalance)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const documentStageRef = useRef<HTMLElement>(null)
   const switchingSegmentRef = useRef(false)
@@ -1064,6 +1176,10 @@ export default function Edit() {
     if (!q) return bookImages
     return bookImages.filter((image: any) => `${image.caption || ''} ${image.originalName || ''} ${image.name || ''} ${image.printPage || ''} ${image.issue || ''}`.toLowerCase().includes(q))
   }, [bookImages, mediaSearch])
+
+  useEffect(() => {
+    setAnimatedCreditBalance(creditBalance)
+  }, [creditBalance])
 
   const editor = useEditor({
     extensions: [
@@ -1392,13 +1508,7 @@ export default function Edit() {
     try {
       const prompt = `یک تصویر آموزشی، تمیز، مدرن و مناسب کتاب وب تولید کن. متن یا درخواست کاربر: ${visualPrompt.slice(0, 1400)}`
       const estimate = await estimateAiImageGeneration({ prompt, bookId: id, pageIndex: activeSegmentIndex, user })
-      const approved = window.confirm(
-        `هزینه تولید تصویر:\n` +
-        `${estimate.usage.chargedCredits.toLocaleString('fa-IR')} کردیت\n` +
-        `${estimate.usage.chargedToman.toLocaleString('fa-IR')} تومان\n` +
-        `$${estimate.usage.chargedUsd.toFixed(6)}\n\n` +
-        `مدل: ${estimate.model}\nآیا تولید تصویر انجام شود؟`
-      )
+      const approved = await requestAiCostApproval('تولید تصویر با هوش مصنوعی', 'پس از تایید، تصویر تولید می‌شود و هزینه از کردیت کاربر کسر خواهد شد.', estimate.usage, estimate.model)
       if (!approved) {
         setAiMessage('تولید تصویر لغو شد و کردیتی کسر نشد.')
         return
@@ -1422,13 +1532,7 @@ export default function Edit() {
     setAiMessage('در حال برآورد هزینه تولید تصویر...')
     try {
       const estimate = await estimateAiImageGeneration({ prompt, bookId: id, pageIndex: activeSegmentIndex, user })
-      const approved = window.confirm(
-        `هزینه تولید تصویر:\n` +
-        `${estimate.usage.chargedCredits.toLocaleString('fa-IR')} کردیت\n` +
-        `${estimate.usage.chargedToman.toLocaleString('fa-IR')} تومان\n` +
-        `$${estimate.usage.chargedUsd.toFixed(6)}\n\n` +
-        `مدل: ${estimate.model}\nآیا تولید تصویر انجام شود؟`
-      )
+      const approved = await requestAiCostApproval('تولید تصویر داخل بلوک', 'این تصویر داخل همان جایگاه تصویر بلوک تعاملی قرار می‌گیرد.', estimate.usage, estimate.model)
       if (!approved) throw new Error('تولید تصویر لغو شد و کردیتی کسر نشد.')
       setAiMessage('در حال تولید تصویر با هوش مصنوعی...')
       const result = await generateAiImageThroughGateway({ prompt, bookId: id, pageIndex: activeSegmentIndex, user })
@@ -1458,23 +1562,87 @@ export default function Edit() {
     const selected = empty ? '' : activeEditor.state.doc.textBetween(from, to, '\n').trim()
     return selected || activeEditor.state.doc.textContent.trim()
   }
-  const insertCalloutWithText = (variant: string, heading: string, text: string) => {
+  const findTextRange = (sourceText = ''): { from: number; to: number } | null => {
+    const activeEditor = getEditor()
+    const clean = cleanAiSourceText(sourceText)
+    if (!activeEditor || !clean) return null
+    const probes = [
+      clean.slice(0, 110),
+      clean.split(/[.؟!؛]/).find(part => part.trim().length > 20)?.trim() || '',
+      clean.split(/\s+/).slice(0, 10).join(' '),
+    ].filter(Boolean) as string[]
+    let found: { from: number; to: number } | null = null
+    activeEditor.state.doc.descendants((node, pos) => {
+      if (found || !node.isText) return !found
+      const nodeTextValue = cleanAiSourceText(node.text || '')
+      for (const probe of probes) {
+        const index = nodeTextValue.indexOf(probe)
+        if (index >= 0) {
+          found = { from: pos + index, to: pos + index + probe.length }
+          return false
+        }
+      }
+      return true
+    })
+    return found
+  }
+  const focusTextSource = (sourceText = '') => {
+    const activeEditor = getEditor()
+    const range = findTextRange(sourceText)
+    if (!activeEditor || !range) return false
+    activeEditor.commands.setTextSelection(range)
+    const domAtPos = activeEditor.view.domAtPos(range.from).node as globalThis.Node
+    const element = domAtPos instanceof HTMLElement ? domAtPos : domAtPos.parentElement
+    element?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    return true
+  }
+  const insertContentAfterSource = (sourceText: string | undefined, content: any) => {
+    command(activeEditor => {
+      const range = sourceText ? findTextRange(sourceText) : null
+      const position = range?.to ?? activeEditor.state.selection.to
+      activeEditor.chain().focus().setTextSelection(position).insertContent(content).run()
+    })
+    clearNativeSelectionSoon()
+  }
+  const requestAiCostApproval = (title: string, description: string, usage: RunAiResult['usage'], model?: string) => new Promise<boolean>(resolve => {
+    setAiCostDialog({ title, description, usage, model, resolve })
+  })
+  const closeAiCostDialog = (approved: boolean) => {
+    aiCostDialog?.resolve(approved)
+    setAiCostDialog(null)
+  }
+  const insertCalloutWithText = (variant: string, heading: string, text: string, sourceText?: string) => {
     const preset = calloutPreset(variant)
-    command(activeEditor => activeEditor.chain().focus().insertContent({
+    insertContentAfterSource(sourceText, {
       type: 'calloutBlock',
       attrs: { variant: preset.value, title: heading || preset.label, icon: preset.emoji },
       content: [{ type: 'paragraph', content: [{ type: 'text', text: text || heading || preset.label }] }],
-    }).run())
+    })
   }
-  const insertInteractivePayload = (kind: string, payload: Record<string, unknown>) => {
-    command(activeEditor => activeEditor.chain().focus().insertContent({ type: 'interactiveBlock', attrs: { kind, payload: encodePayload({ ...interactiveTemplate(kind), ...payload, type: kind }) } }).run())
-    clearNativeSelectionSoon()
+  const insertInteractivePayload = (kind: string, payload: Record<string, unknown>, sourceText?: string) => {
+    insertContentAfterSource(sourceText, { type: 'interactiveBlock', attrs: { kind, payload: encodePayload({ ...interactiveTemplate(kind), ...payload, type: kind }) } })
   }
   const recordAiUsage = (usage: RunAiResult['usage']) => {
     setAiUsage(usage)
+    const before = Math.max(Number(animatedCreditBalance || 0), Number(usage.chargedCredits || 0))
+    const after = Math.max(0, before - Number(usage.chargedCredits || 0))
+    setAnimatedCreditBalance(after)
+    creditsBus.emit(after)
+    setAiCreditNotice({ title: 'کردیت هوش مصنوعی مصرف شد', before, cost: usage.chargedCredits, after, usage })
     setAiMessage(`${usage.chargedCredits.toLocaleString('fa-IR')} کردیت کسر شد · ${usage.chargedToman.toLocaleString('fa-IR')} تومان · $${usage.chargedUsd.toFixed(6)}`)
   }
-  const runEditorAi = async (mode: 'summary' | 'quiz' | 'callout' | 'interactive') => {
+  const previewAiSuggestion = (item: AiUpgradeSuggestion) => {
+    setActiveAiSuggestionId(item.id)
+    if (!focusTextSource(item.sourceText)) setAiMessage('محل دقیق متن پیدا نشد، اما پیشنهاد آماده افزودن است.')
+  }
+  const applyAiUpgradeSuggestion = (item: AiUpgradeSuggestion) => {
+    previewAiSuggestion(item)
+    if (item.kind === 'callout') insertCalloutWithText(item.variant || 'key', item.title, item.text || '', item.sourceText)
+    if (item.kind === 'interactive') insertInteractivePayload(item.interactiveKind || 'steps', item.payload || {}, item.sourceText)
+    if (item.kind === 'quiz' && item.payload) insertInteractivePayload('quiz', item.payload, item.sourceText)
+    if (item.kind === 'summary') insertCalloutWithText('key', item.title, item.text || '', item.sourceText)
+  }
+  const runEditorAi = async (mode: 'summary' | 'quiz' | 'callout' | 'interactive' | 'review') => {
     const pageText = selectedOrCurrentText()
     if (!pageText) {
       setAiMessage('اول بخشی از متن را انتخاب کنید یا داخل بخش مورد نظر قرار بگیرید.')
@@ -1483,6 +1651,7 @@ export default function Edit() {
     setAiLoading(true)
     setAiDraft(null)
     setAiCalloutSuggestions([])
+    setAiUpgradeSuggestions([])
     setAiMessage('در حال تولید خروجی هوشمند...')
     try {
       const action = mode === 'quiz' ? 'quiz' : mode === 'interactive' ? 'learning_path' : mode === 'summary' ? 'summary' : 'explain'
@@ -1496,14 +1665,20 @@ export default function Edit() {
       } else if (mode === 'callout') {
         const base = text || pageText.slice(0, 420)
         setAiCalloutSuggestions([
-          { variant: 'key', title: 'نکته کلیدی پیشنهادی', text: base.split('\n').filter(Boolean)[0] || base },
-          { variant: 'question', title: 'مکث و فکر کن', text: 'از این بخش چه نتیجه‌ای می‌توان گرفت؟' },
-          { variant: 'deep', title: 'عمیق‌تر بخوان', text: base },
+          { variant: 'key', title: 'نکته کلیدی پیشنهادی', text: base.split('\n').filter(Boolean)[0] || base, sourceText: pageText, reason: 'خلاصه کوتاه از همین بخش' },
+          { variant: 'question', title: 'مکث و فکر کن', text: 'از این بخش چه نتیجه‌ای می‌توان گرفت؟', sourceText: pageText, reason: 'درگیر کردن خواننده' },
+          { variant: 'deep', title: 'عمیق‌تر بخوان', text: base, sourceText: pageText, reason: 'توضیح تکمیلی' },
         ])
       } else if (mode === 'interactive') {
-        const steps = result.content?.type === 'timeline' ? result.content.steps : [{ title: 'مفهوم اصلی', description: text || pageText.slice(0, 240) }]
-        setAiDraft({ type: 'interactive', title: 'بخش تعاملی پیشنهادی', kind: 'algorithm', payload: { title: 'مسیر یادگیری تعاملی', steps, imagePrompt: `تصویر آموزشی برای: ${pageText.slice(0, 180)}` } })
+        const process = aiParagraphCandidates(pageText).find(isProcessCandidate) || aiParagraphCandidates(pageText)[0] || pageText
+        const kind = isTimelineCandidate(process) ? 'timeline' : 'steps'
+        const steps = result.content?.type === 'timeline' ? result.content.steps : toStepItems(process)
+        setAiDraft({ type: 'interactive', title: 'بخش تعاملی پیشنهادی', kind, payload: { title: kind === 'timeline' ? 'تایم‌لاین پیشنهادی' : 'مسیر مرحله‌ای پیشنهادی', ...(kind === 'timeline' ? { events: steps } : { steps }), imagePrompt: `تصویر آموزشی برای: ${process.slice(0, 180)}` } })
         setAiMessage('ساختار تعاملی ساخته شد. اگر برای هر بخش تصویر لازم دارید، بعد از افزودن بلوک از آیکون هوش مصنوعی کنار همان جایگاه تصویر استفاده کنید.')
+      } else if (mode === 'review') {
+        const suggestions = buildAiUpgradeSuggestions(pageText, text)
+        setAiUpgradeSuggestions(suggestions)
+        setAiMessage(suggestions.length ? 'پیشنهادها آماده‌اند. اول محل هر مورد را ببینید، سپس اگر مناسب بود آن را اضافه کنید.' : 'برای این بخش پیشنهاد روشنی پیدا نشد؛ متن انتخابی را دقیق‌تر کنید.')
       }
     } catch (error) {
       setAiMessage(error instanceof Error ? error.message : 'اجرای هوش مصنوعی ناموفق بود.')
@@ -1772,6 +1947,7 @@ export default function Edit() {
               <button disabled={aiLoading} onClick={() => void runEditorAi('quiz')}><Sparkles />تولید سؤال</button>
               <button disabled={aiLoading} onClick={() => void runEditorAi('callout')}><Lightbulb />پیشنهاد Callout</button>
               <button disabled={aiLoading} onClick={() => void runEditorAi('interactive')}><LayoutTemplate />پیشنهاد تعاملی</button>
+              <button disabled={aiLoading} onClick={() => void runEditorAi('review')}><Sparkles />بررسی کل بخش</button>
             </div>
             {aiLoading && <p className="book-editor-empty-state">در حال تولید خروجی هوشمند...</p>}
             {aiMessage && <p className="mb-ai-cost">{aiMessage}</p>}
@@ -1779,13 +1955,29 @@ export default function Edit() {
             {aiDraft && <section className="mb-ai-draft">
               <h3>{aiDraft.title}</h3>
               {aiDraft.text && <p>{aiDraft.text}</p>}
-              {aiDraft.type === 'summary' && <button onClick={() => aiDraft.text && insertCalloutWithText('key', aiDraft.title, aiDraft.text)}>افزودن خلاصه به کال‌اوت</button>}
-              {aiDraft.type === 'quiz' && aiDraft.payload && <button onClick={() => insertInteractivePayload('quiz', aiDraft.payload!)}>افزودن سؤال به کتاب</button>}
-              {aiDraft.type === 'interactive' && aiDraft.payload && <button onClick={() => insertInteractivePayload(aiDraft.kind || 'algorithm', aiDraft.payload!)}>افزودن بخش تعاملی</button>}
+              {aiDraft.type === 'summary' && <button onClick={() => aiDraft.text && insertCalloutWithText('key', aiDraft.title, aiDraft.text, selectedOrCurrentText())}>افزودن خلاصه به کال‌اوت</button>}
+              {aiDraft.type === 'quiz' && aiDraft.payload && <button onClick={() => insertInteractivePayload('quiz', aiDraft.payload!, selectedOrCurrentText())}>افزودن سؤال به کتاب</button>}
+              {aiDraft.type === 'interactive' && aiDraft.payload && <button onClick={() => insertInteractivePayload(aiDraft.kind || 'algorithm', aiDraft.payload!, selectedOrCurrentText())}>افزودن بخش تعاملی</button>}
             </section>}
             {aiCalloutSuggestions.length > 0 && <section className="mb-ai-suggestions">
               <h3>پیشنهادهای Callout</h3>
-              {aiCalloutSuggestions.map((item, index) => <button key={`${item.variant}-${index}`} onClick={() => insertCalloutWithText(item.variant, item.title, item.text)}><Lightbulb /><span>{item.title}<small>{item.text}</small></span></button>)}
+              {aiCalloutSuggestions.map((item, index) => <button key={`${item.variant}-${index}`} onClick={() => insertCalloutWithText(item.variant, item.title, item.text, item.sourceText)}><Lightbulb /><span>{item.title}<small>{item.reason || item.text}</small></span></button>)}
+            </section>}
+            {aiUpgradeSuggestions.length > 0 && <section className="mb-ai-upgrades">
+              <h3>پیشنهادهای ارتقای همین بخش</h3>
+              {aiUpgradeSuggestions.map(item => (
+                <article key={item.id} className={activeAiSuggestionId === item.id ? 'is-active' : ''}>
+                  <div>
+                    <strong>{item.title}</strong>
+                    <small>{item.reason}</small>
+                    <p>{item.sourceText.slice(0, 170)}{item.sourceText.length > 170 ? '...' : ''}</p>
+                  </div>
+                  <footer>
+                    <button type="button" onClick={() => previewAiSuggestion(item)}>نمایش محل</button>
+                    <button type="button" onClick={() => applyAiUpgradeSuggestion(item)}>افزودن</button>
+                  </footer>
+                </article>
+              ))}
             </section>}
           </div> : <>
           <div className="book-editor-side-card">
@@ -1848,6 +2040,44 @@ export default function Edit() {
           <footer>
             <button className="app-modal-secondary" onClick={() => setConfirmTocDelete(null)}>Ø§Ù†ØµØ±Ø§Ù</button>
             <button className="app-modal-danger" onClick={() => removeTocEntry(confirmTocDelete)}>Ø­Ø°Ù Ø§Ø² ÙÙ‡Ø±Ø³Øª</button>
+          </footer>
+        </section>
+      </div>}
+      {aiCostDialog && <div className="app-modal-backdrop ai-credit-backdrop" role="dialog" aria-modal="true">
+        <section className="app-message-modal ai-credit-modal menu-glass-70">
+          <div className="app-message-art"><Sparkles /></div>
+          <div>
+            <h3>{aiCostDialog.title}</h3>
+            <p>{aiCostDialog.description}</p>
+            {aiCostDialog.model && <small>مدل: {aiCostDialog.model}</small>}
+            <div className="ai-credit-flow">
+              <span><b>{animatedCreditBalance.toLocaleString('fa-IR')}</b><small>کردیت فعلی</small></span>
+              <span><b>{aiCostDialog.usage.chargedCredits.toLocaleString('fa-IR')}</b><small>هزینه</small></span>
+              <span><b>{Math.max(0, animatedCreditBalance - aiCostDialog.usage.chargedCredits).toLocaleString('fa-IR')}</b><small>پس از تایید</small></span>
+            </div>
+            <p className="ai-credit-money">{aiCostDialog.usage.chargedToman.toLocaleString('fa-IR')} تومان · ${aiCostDialog.usage.chargedUsd.toFixed(6)}</p>
+          </div>
+          <footer>
+            <button className="app-modal-secondary" onClick={() => closeAiCostDialog(false)}>انصراف</button>
+            <button className="app-modal-primary" onClick={() => closeAiCostDialog(true)}>تایید و ادامه</button>
+          </footer>
+        </section>
+      </div>}
+      {aiCreditNotice && <div className="app-modal-backdrop ai-credit-backdrop" role="dialog" aria-modal="true">
+        <section className="app-message-modal ai-credit-modal menu-glass-70">
+          <div className="app-message-art"><Sparkles /></div>
+          <div>
+            <h3>{aiCreditNotice.title}</h3>
+            <p>هزینه همین عملیات از کردیت کاربر کم شد و موجودی جدید ثبت شد.</p>
+            <div className="ai-credit-flow is-charged">
+              <span><b>{aiCreditNotice.before.toLocaleString('fa-IR')}</b><small>قبل</small></span>
+              <span><b>{aiCreditNotice.cost.toLocaleString('fa-IR')}</b><small>کسر شده</small></span>
+              <span><b>{aiCreditNotice.after.toLocaleString('fa-IR')}</b><small>مانده</small></span>
+            </div>
+            <small>{aiCreditNotice.usage.inputTokens.toLocaleString('fa-IR')} توکن ورودی · {aiCreditNotice.usage.outputTokens.toLocaleString('fa-IR')} توکن خروجی</small>
+          </div>
+          <footer>
+            <button className="app-modal-primary" onClick={() => setAiCreditNotice(null)}>متوجه شدم</button>
           </footer>
         </section>
       </div>}
