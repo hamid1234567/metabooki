@@ -150,6 +150,86 @@ function StepTimelineBlock({
   )
 }
 
+function MultiStepInteractiveBlock({
+  block,
+  blockKey,
+  stepMap = {},
+  setStepMap,
+}: {
+  block: any
+  blockKey: string
+  stepMap?: StateMap<number>
+  setStepMap?: Dispatch<SetStateAction<StateMap<number>>>
+}) {
+  const rawItems = block.steps || block.items || block.events || []
+  const items = Array.isArray(rawItems) ? rawItems.filter(Boolean) : []
+  const [localActive, setLocalActive] = useState(0)
+  const active = Math.min(Math.max(0, stepMap[blockKey] ?? localActive), Math.max(0, items.length - 1))
+  const item = items[active] || {}
+  const setActive = (next: number) => {
+    if (!items.length) return
+    const clamped = (next + items.length) % items.length
+    if (setStepMap) setStepMap(current => ({ ...current, [blockKey]: clamped }))
+    else setLocalActive(clamped)
+  }
+  useEffect(() => {
+    if (active > items.length - 1 && items.length) setActive(items.length - 1)
+  }, [active, items.length])
+  if (!items.length) return null
+
+  const title = textOf(block.title, block.caption, interactiveLabel(block.type === 'scrollytelling' ? 'scrollytelling' : 'steps'))
+  const titleCandidate = textOf(item.title, item.label, item.year)
+  const description = textOf(item.description, item.body, item.caption, item.text)
+  const displayTitle = titleCandidate || textOf(`مرحله ${active + 1}`)
+  const media = item.media
+  const firstImage = Array.isArray(item.images) ? item.images.find((imageItem: any) => imageItem?.url || typeof imageItem === 'string') : null
+  const image = item.image || item.imageUrl || item.cover || (typeof media === 'string' ? media : media?.url || media?.src) || (typeof firstImage === 'string' ? firstImage : firstImage?.url)
+
+  return (
+    <div className="reader-interactive reader-multistep menu-glass-70 rounded-2xl p-4 mb-8" data-no-swipe="true" dir="rtl">
+      <header className="reader-multistep-head">
+        <h3>{title}</h3>
+      </header>
+      <div className="reader-multistep-layout">
+        <nav className="reader-multistep-rail" aria-label="مراحل">
+          {items.map((step: any, index: number) => (
+            <button
+              key={`${textOf(step.title, step.label, step.text, index)}-${index}`}
+              type="button"
+              className={index === active ? 'is-active' : ''}
+              onClick={() => setActive(index)}
+              title={textOf(step.title, step.label, step.text, `مرحله ${index + 1}`)}
+            >
+              <span>{(index + 1).toLocaleString('fa-IR')}</span>
+              <strong>{textOf(step.title, step.label, step.text, `مرحله ${index + 1}`)}</strong>
+            </button>
+          ))}
+        </nav>
+        <section className="reader-multistep-stage" aria-live="polite">
+          <div className="reader-multistep-media">
+            <span className="reader-multistep-counter">{(active + 1).toLocaleString('fa-IR')} / {items.length.toLocaleString('fa-IR')}</span>
+            {image ? <img src={image} alt={displayTitle} loading="lazy" /> : <div className="reader-multistep-empty">{displayTitle}</div>}
+            {items.length > 1 && <>
+              <button className="reader-multistep-side prev" type="button" onClick={() => setActive(active - 1)} aria-label="مرحله قبلی"><ChevronRight /></button>
+              <button className="reader-multistep-side next" type="button" onClick={() => setActive(active + 1)} aria-label="مرحله بعدی"><ChevronLeft /></button>
+            </>}
+          </div>
+          <div className="reader-multistep-copy">
+            <span>{(active + 1).toLocaleString('fa-IR')}</span>
+            <h4>{displayTitle}</h4>
+            {description && <p>{description}</p>}
+          </div>
+          {items.length > 1 && <footer className="reader-multistep-footer">
+            <button type="button" onClick={() => setActive(active + 1)}><ChevronLeft /> بعدی</button>
+            <div>{items.map((_: any, index: number) => <span key={index} className={index === active ? 'is-active' : ''} />)}</div>
+            <button type="button" onClick={() => setActive(active - 1)}>قبلی <ChevronRight /></button>
+          </footer>}
+        </section>
+      </div>
+    </div>
+  )
+}
+
 function AuthorStrip({ block }: { block: any }) {
   const authors = block.authors || block.items || [{ name: block.name || block.title, role: block.role, bio: block.bio || block.description, image: block.image }]
   const [openIndex, setOpenIndex] = useState<number | null>(null)
@@ -344,7 +424,7 @@ export function BookContentBlock({
 
   if (block.type === 'algorithm') return <AlgorithmBlock block={block} blockKey={blockKey} />
 
-  if (block.type === 'steps') return <StepTimelineBlock block={block} blockKey={blockKey} timelineStep={timelineStep} setTimelineStep={setTimelineStep} />
+  if (block.type === 'steps') return <MultiStepInteractiveBlock block={block} blockKey={blockKey} stepMap={timelineStep} setStepMap={setTimelineStep} />
 
   if (block.type === 'accordion') return <div className="reader-interactive menu-glass-70 rounded-2xl p-5 mb-8"><h3 className="font-semibold mb-4">{textOf(block.title, interactiveLabel('accordion'))}</h3><div className="space-y-3">{(block.items || block.steps || []).map((item: any, itemIndex: number) => <details key={itemIndex} className="rounded-xl border bg-background/55 p-4"><summary className="font-bold cursor-pointer">{textOf(item.title, item.label, `بخش ${itemIndex + 1}`)}</summary>{renderInteractiveImage(item.image, item.title, 'mt-3 max-h-44 rounded-lg object-contain bg-background/50')}<p className="mt-3 text-sm text-muted-foreground leading-relaxed">{textOf(item.description, item.text, item.body)}</p></details>)}</div></div>
 
@@ -399,12 +479,7 @@ export function BookContentBlock({
     return <StepTimelineBlock block={block} blockKey={blockKey} timelineStep={timelineStep} setTimelineStep={setTimelineStep} />
   }
 
-  if (block.type === 'scrollytelling') {
-    const steps = block.steps || block.items || []
-    const active = storyStep[blockKey] ?? 0
-    const step = steps[active] || steps[0] || {}
-    return <div className="reader-interactive reader-story menu-glass-70 rounded-2xl p-4 mb-8" data-no-swipe="true"><div className="grid md:grid-cols-[1.2fr_0.8fr] gap-4 items-stretch"><div className="relative rounded-2xl overflow-hidden min-h-72">{step.image ? <img src={step.image} alt={textOf(step.title, step.text)} className="absolute inset-0 w-full h-full object-cover transition-all duration-500" loading="lazy" /> : <div className="absolute inset-0 bg-primary/10" />}<div className="absolute inset-0 bg-gradient-to-l from-black/55 via-black/10 to-transparent" /><div className="absolute top-4 right-4 rounded-full bg-white/20 backdrop-blur px-3 py-1 text-xs text-white">استوری {active + 1}</div></div><div className="rounded-2xl bg-background/65 p-5 flex flex-col justify-between"><div><p className="text-xs text-primary font-bold mb-2">{textOf(block.title, 'روایت تصویری')}</p>{step.title && <h4 className="font-bold mb-2">{textOf(step.title)}</h4>}<p className="leading-relaxed text-sm">{textOf(step.text, step.description, step.body)}</p></div><div className="mt-5 flex gap-2">{steps.map((_: any, stepIndex: number) => <button key={stepIndex} onClick={() => setStoryStep?.(current => ({ ...current, [blockKey]: stepIndex }))} className={`flex-1 rounded-xl py-2 text-xs transition-all ${active === stepIndex ? 'bg-primary text-primary-foreground' : 'bg-muted/60 hover:bg-muted'}`} title={`استوری ${stepIndex + 1}`}>{stepIndex + 1}</button>)}</div></div></div></div>
-  }
+  if (block.type === 'scrollytelling') return <MultiStepInteractiveBlock block={block} blockKey={blockKey} stepMap={storyStep} setStepMap={setStoryStep} />
 
   if (block.type === 'hotspot') {
     const points = block.points || []
