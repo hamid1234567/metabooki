@@ -2358,7 +2358,7 @@ export default function Edit() {
             </div>}
             {aiRunDialog.usage && <small>{aiRunDialog.usage.inputTokens.toLocaleString('fa-IR')} توکن ورودی تخمینی · سقف {aiRunDialog.usage.outputTokens.toLocaleString('fa-IR')} توکن خروجی</small>}
             {aiRunDialog.imageModel && <small>مدل تصویر: {aiRunDialog.imageModel}</small>}
-            {aiRunDialog.imageWarning && <small className="text-warning">{aiRunDialog.imageWarning}</small>}
+            {aiRunDialog.imageWarning && <small className="ai-credit-warning">{aiRunDialog.imageWarning}</small>}
             <small>{aiRunDialog.textPreview}</small>
           </div>
           <footer>
