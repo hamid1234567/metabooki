@@ -1498,6 +1498,18 @@ export default function Edit() {
     const src = await prepareEditorImage(file)
     applyImageToInteractive(src)
   }
+  const activeInteractivePrompt = () => {
+    const activeEditor = getEditor()
+    if (!activeEditor?.isActive('interactiveBlock')) return ''
+    const attrs = activeEditor.getAttributes('interactiveBlock') as { kind: string; payload: string }
+    const payload = decodePayload(attrs.payload)
+    const chunks: string[] = [payload.title, payload.caption, payload.question, payload.statement, payload.explanation].filter(Boolean)
+    ;['steps', 'events', 'nodes', 'items', 'tabs', 'cards', 'images', 'authors'].forEach(key => {
+      const listValue = Array.isArray(payload[key]) ? payload[key] : []
+      listValue.forEach((item: any) => chunks.push(item.title, item.text, item.description, item.front, item.back, item.caption, item.name, item.role, item.bio, item.year))
+    })
+    return cleanAiSourceText(chunks.filter(Boolean).join(' ')).slice(0, 1200)
+  }
   const generateImageForInteractive = async () => {
     const activeEditor = getEditor()
     if (!activeEditor?.isActive('interactiveBlock')) {
@@ -1507,9 +1519,9 @@ export default function Edit() {
     const { from, to, empty } = activeEditor.state.selection
     const selectedText = empty ? '' : activeEditor.state.doc.textBetween(from, to, '\n').trim()
     const manualPrompt = interactiveImagePrompt.trim()
-    const visualPrompt = manualPrompt || selectedText
+    const visualPrompt = manualPrompt || selectedText || activeInteractivePrompt()
     if (!visualPrompt) {
-      setAiMessage('برای تولید تصویر، بخشی از متن را انتخاب کنید یا پرامپت را دستی وارد کنید.')
+      setAiMessage('برای تولید تصویر، بخشی از متن را انتخاب کنید، پرامپت را دستی وارد کنید یا اول متن همین بلوک تعاملی را کامل کنید.')
       return
     }
     setAiLoading(true)
@@ -2178,6 +2190,23 @@ export default function Edit() {
           <footer>
             <button className="app-modal-secondary" onClick={() => setConfirmTocDelete(null)}>Ø§Ù†ØµØ±Ø§Ù</button>
             <button className="app-modal-danger" onClick={() => removeTocEntry(confirmTocDelete)}>Ø­Ø°Ù Ø§Ø² ÙÙ‡Ø±Ø³Øª</button>
+          </footer>
+        </section>
+      </div>}
+      {aiRunDialog && <div className="app-modal-backdrop ai-credit-backdrop" role="dialog" aria-modal="true">
+        <section className="app-message-modal ai-credit-modal menu-glass-70">
+          <div className="app-message-art"><Sparkles /></div>
+          <div>
+            <h3>{aiRunDialog.title}</h3>
+            <p>{aiRunDialog.description}</p>
+            <small>{aiRunDialog.textPreview}</small>
+          </div>
+          <footer>
+            <button className="app-modal-secondary" onClick={() => closeAiRunDialog(null)}>انصراف</button>
+            {aiRunDialog.supportsImage ? <>
+              <button className="app-modal-secondary" onClick={() => closeAiRunDialog('plain')}>بدون تصویر</button>
+              <button className="app-modal-primary" onClick={() => closeAiRunDialog('images')}>با تصویر</button>
+            </> : <button className="app-modal-primary" onClick={() => closeAiRunDialog('plain')}>تایید و تولید</button>}
           </footer>
         </section>
       </div>}
