@@ -1136,6 +1136,7 @@ export default function Edit() {
   const [activeAiSuggestionId, setActiveAiSuggestionId] = useState<string | null>(null)
   const [aiCreditNotice, setAiCreditNotice] = useState<AiCreditNotice | null>(null)
   const [aiCostDialog, setAiCostDialog] = useState<AiCostDialog | null>(null)
+  const [aiRunDialog, setAiRunDialog] = useState<AiRunApprovalDialog | null>(null)
   const [interactiveImageChoice, setInteractiveImageChoice] = useState<AiUpgradeSuggestion | null>(null)
   const [animatedCreditBalance, setAnimatedCreditBalance] = useState(creditBalance)
   const imageInputRef = useRef<HTMLInputElement>(null)
@@ -1570,6 +1571,18 @@ export default function Edit() {
     const selected = empty ? '' : activeEditor.state.doc.textBetween(from, to, '\n').trim()
     return selected || activeEditor.state.doc.textContent.trim()
   }
+  const aiTextContext = () => {
+    const activeEditor = getEditor()
+    if (!activeEditor) return { pageText: '', sourceText: undefined as string | undefined, insertionPos: undefined as number | undefined, hasSelection: false }
+    const { from, to, empty } = activeEditor.state.selection
+    const selected = empty ? '' : activeEditor.state.doc.textBetween(from, to, '\n').trim()
+    return {
+      pageText: selected || activeEditor.state.doc.textContent.trim(),
+      sourceText: selected || undefined,
+      insertionPos: to,
+      hasSelection: Boolean(selected),
+    }
+  }
   const findTextRange = (sourceText = ''): { from: number; to: number } | null => {
     const activeEditor = getEditor()
     const clean = cleanAiSourceText(sourceText)
@@ -1604,10 +1617,10 @@ export default function Edit() {
     element?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     return true
   }
-  const insertContentAfterSource = (sourceText: string | undefined, content: any) => {
+  const insertContentAfterSource = (sourceText: string | undefined, content: any, insertionPos?: number) => {
     command(activeEditor => {
       const range = sourceText ? findTextRange(sourceText) : null
-      const position = range?.to ?? activeEditor.state.selection.to
+      const position = range?.to ?? insertionPos ?? activeEditor.state.selection.to
       activeEditor.chain().focus().setTextSelection(position).insertContent(content).run()
     })
     clearNativeSelectionSoon()
@@ -1619,16 +1632,23 @@ export default function Edit() {
     aiCostDialog?.resolve(approved)
     setAiCostDialog(null)
   }
-  const insertCalloutWithText = (variant: string, heading: string, text: string, sourceText?: string) => {
+  const requestAiRunApproval = (title: string, description: string, supportsImage: boolean, textPreview: string) => new Promise<'plain' | 'images' | null>(resolve => {
+    setAiRunDialog({ title, description, supportsImage, textPreview, resolve })
+  })
+  const closeAiRunDialog = (choice: 'plain' | 'images' | null) => {
+    aiRunDialog?.resolve(choice)
+    setAiRunDialog(null)
+  }
+  const insertCalloutWithText = (variant: string, heading: string, text: string, sourceText?: string, insertionPos?: number) => {
     const preset = calloutPreset(variant)
     insertContentAfterSource(sourceText, {
       type: 'calloutBlock',
       attrs: { variant: preset.value, title: heading || preset.label, icon: preset.emoji },
       content: [{ type: 'paragraph', content: [{ type: 'text', text: text || heading || preset.label }] }],
-    })
+    }, insertionPos)
   }
-  const insertInteractivePayload = (kind: string, payload: Record<string, unknown>, sourceText?: string) => {
-    insertContentAfterSource(sourceText, { type: 'interactiveBlock', attrs: { kind, payload: encodePayload({ ...interactiveTemplate(kind), ...payload, type: kind }) } })
+  const insertInteractivePayload = (kind: string, payload: Record<string, unknown>, sourceText?: string, insertionPos?: number) => {
+    insertContentAfterSource(sourceText, { type: 'interactiveBlock', attrs: { kind, payload: encodePayload({ ...interactiveTemplate(kind), ...payload, type: kind }) } }, insertionPos)
   }
   const combineAiUsage = (items: Array<RunAiResult['usage']>): RunAiResult['usage'] => items.reduce((acc, usage) => ({
     inputTokens: acc.inputTokens + usage.inputTokens,
