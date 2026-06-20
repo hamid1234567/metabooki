@@ -729,6 +729,7 @@ export default function Reader() {
     if (content.type === 'quiz') return `${content.question}\n${content.options.join('\n')}\n${content.explanation}`
     if (content.type === 'timeline') return `${content.title}\n${content.steps.map(step => `${step.title}: ${step.description}`).join('\n')}`
     if (content.type === 'mindmap') return `${content.title}\n${content.branches.map(branch => `${branch.title}: ${branch.items.join('، ')}`).join('\n')}`
+    if (content.type === 'callout_suggestions') return content.suggestions.map(item => `${item.title}\n${item.text}\n${item.reason || ''}`).join('\n\n')
     return `${content.title}\n${content.lead || ''}\n${content.sections.map(section => `${section.heading}\n${section.paragraphs.join('\n')}\n${section.bullets?.join('\n') || ''}`).join('\n')}`
   }
 
@@ -766,6 +767,15 @@ export default function Reader() {
         <div className="ai-mindmap-center">{content.title}</div>
         <div className="ai-mindmap-branches">{content.branches.map((item, index) => <button key={item.title} onClick={() => setAiMindmapBranch(index)} className={index === aiMindmapBranch ? 'is-active' : ''}><span>{index + 1}</span>{item.title}</button>)}</div>
         <div className="ai-mindmap-items">{branch?.items.map((item, index) => <button key={`${item}-${index}`} className="ai-mindmap-leaf"><span>{index + 1}</span><p>{item}</p></button>)}</div>
+      </div>
+    }
+    if (content.type === 'callout_suggestions') {
+      return <div className="space-y-3">
+        {content.suggestions.map((item, index) => <section key={`${item.title}-${index}`} className="rounded-xl border bg-background/70 p-3">
+          <div className="flex items-center justify-between gap-3"><h4 className="font-bold text-primary">{item.title}</h4><span className="text-xs rounded-full bg-primary/10 px-2 py-1">{index + 1}</span></div>
+          <p className="mt-2 text-sm leading-7">{item.text}</p>
+          {item.reason && <small className="mt-2 block text-muted-foreground">{item.reason}</small>}
+        </section>)}
       </div>
     }
     return <article><header className="mb-4 border-b pb-3"><h4 className="text-xl font-bold">{content.title}</h4>{content.lead && <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{content.lead}</p>}</header><div className="space-y-5">{content.sections.map(section => <section key={section.heading}><h5 className="font-bold text-primary mb-2">{section.heading}</h5>{section.paragraphs.map(paragraph => <p key={paragraph} className="text-sm leading-8 text-foreground/85 mb-2">{paragraph}</p>)}{section.bullets?.length ? <ul className="space-y-2">{section.bullets.map(item => <li key={item} className="rounded-lg bg-primary/5 border-r-2 border-primary px-3 py-2 text-sm">{item}</li>)}</ul> : null}</section>)}</div></article>

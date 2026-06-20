@@ -11,6 +11,38 @@ import { useCredits } from '@/hooks/useCredits'
 import { useRoles } from '@/hooks/useRoles'
 import { APP_VERSION } from '@/lib/version'
 
+function playCoinTick() {
+  try {
+    const AudioContextCtor = window.AudioContext || (window as any).webkitAudioContext
+    if (!AudioContextCtor) return
+    const context = new AudioContextCtor()
+    const now = context.currentTime
+    const gain = context.createGain()
+    gain.gain.setValueAtTime(0.0001, now)
+    gain.gain.exponentialRampToValueAtTime(0.08, now + 0.015)
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.32)
+    gain.connect(context.destination)
+
+    const first = context.createOscillator()
+    first.type = 'triangle'
+    first.frequency.setValueAtTime(880, now)
+    first.frequency.exponentialRampToValueAtTime(1320, now + 0.08)
+    first.connect(gain)
+    first.start(now)
+    first.stop(now + 0.12)
+
+    const second = context.createOscillator()
+    second.type = 'sine'
+    second.frequency.setValueAtTime(1760, now + 0.09)
+    second.connect(gain)
+    second.start(now + 0.09)
+    second.stop(now + 0.24)
+    window.setTimeout(() => void context.close().catch(() => {}), 420)
+  } catch {
+    // Audio is best-effort; browser policies may block it.
+  }
+}
+
 export function Navbar() {
   const { user, signOut } = useAuthContext()
   const { t, lang, setLang } = useI18n()
@@ -30,7 +62,8 @@ export function Navbar() {
     const unsubscribe = creditsBus.subscribe(newBalance => {
       setEventBalance(newBalance)
       setCreditFlash(true)
-      setTimeout(() => setCreditFlash(false), 1500)
+      playCoinTick()
+      setTimeout(() => setCreditFlash(false), 1900)
     })
     return () => { unsubscribe() }
   }, [])

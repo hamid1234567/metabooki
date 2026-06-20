@@ -45,13 +45,6 @@ type AiUpgradeSuggestion = {
   sourceText: string
   reason: string
 }
-type AiCreditNotice = {
-  title: string
-  before: number
-  cost: number
-  after: number
-  usage: RunAiResult['usage']
-}
 type AiCostDialog = {
   title: string
   description: string
@@ -599,10 +592,23 @@ const calloutPreset = (variant = 'key') => {
 function interactiveLabel(kind: string) { return sharedInteractiveLabel(kind) }
 function compactAiContent(content?: AiStructuredContent | null) {
   if (!content) return ''
-  if (content.type === 'quiz') return `${content.question}\n${content.options.map((item: string, index: number) => `${index + 1}. ${item}`).join('\n')}\n${content.explanation}`
-  if (content.type === 'timeline') return [content.title, ...content.steps.map((step: { title: string; description: string }, index: number) => `${index + 1}. ${step.title}: ${step.description}`)].join('\n')
-  if (content.type === 'mindmap') return [content.title, ...content.branches.flatMap((branch: { title: string; items: string[] }) => [branch.title, ...branch.items.map((item: string) => `- ${item}`)])].join('\n')
-  return [content.title, content.lead, ...content.sections.flatMap((section: { heading: string; paragraphs: string[]; bullets?: string[] }) => [section.heading, ...section.paragraphs, ...(section.bullets || []).map((item: string) => `- ${item}`)])].filter(Boolean).join('\n')
+  if (content.type === 'quiz') return [content.question, ...(content.options || []).map((item: string, index: number) => `${index + 1}. ${item}`), content.explanation].filter(Boolean).join('\n')
+  if (content.type === 'timeline') return [content.title, ...(content.steps || []).map((step: { title: string; description: string }, index: number) => `${index + 1}. ${step.title}: ${step.description}`)].filter(Boolean).join('\n')
+  if (content.type === 'mindmap') return [content.title, ...(content.branches || []).flatMap((branch: { title: string; items?: string[] }) => [branch.title, ...(branch.items || []).map((item: string) => `- ${item}`)])].filter(Boolean).join('\n')
+  if (content.type === 'callout_suggestions') return (content.suggestions || [])
+    .map((item, index) => `${index + 1}. ${item.title || 'پیشنهاد کال‌اوت'}\n${item.text || item.sourceQuote || ''}`)
+    .filter(Boolean)
+    .join('\n\n')
+  const article = content as Extract<AiStructuredContent, { type: 'article' }>
+  return [
+    article.title,
+    article.lead,
+    ...(article.sections || []).flatMap((section: { heading: string; paragraphs?: string[]; bullets?: string[] }) => [
+      section.heading,
+      ...(section.paragraphs || []),
+      ...(section.bullets || []).map((item: string) => `- ${item}`),
+    ]),
+  ].filter(Boolean).join('\n')
 }
 function generatedInteractiveImageDataUrl(prompt: string, label = 'تصویر آموزشی') {
   const cleanPrompt = normalizeBookText(prompt || label).replace(/\s+/g, ' ').trim().slice(0, 160)
@@ -1155,7 +1161,6 @@ export default function Edit() {
   const [aiCalloutSuggestions, setAiCalloutSuggestions] = useState<Array<{ variant: string; title: string; text: string; sourceText?: string; reason?: string }>>([])
   const [aiUpgradeSuggestions, setAiUpgradeSuggestions] = useState<AiUpgradeSuggestion[]>([])
   const [activeAiSuggestionId, setActiveAiSuggestionId] = useState<string | null>(null)
-  const [aiCreditNotice, setAiCreditNotice] = useState<AiCreditNotice | null>(null)
   const [aiCostDialog, setAiCostDialog] = useState<AiCostDialog | null>(null)
   const [aiRunDialog, setAiRunDialog] = useState<AiRunApprovalDialog | null>(null)
   const [interactiveImageChoice, setInteractiveImageChoice] = useState<AiUpgradeSuggestion | null>(null)
@@ -1784,7 +1789,6 @@ export default function Edit() {
     const after = Math.max(0, before - Number(usage.chargedCredits || 0))
     setAnimatedCreditBalance(after)
     creditsBus.emit(after)
-    setAiCreditNotice({ title: 'کردیت هوش مصنوعی مصرف شد', before, cost: usage.chargedCredits, after, usage })
     setAiMessage(`${usage.chargedCredits.toLocaleString('fa-IR')} کردیت کسر شد · ${usage.chargedToman.toLocaleString('fa-IR')} تومان · $${usage.chargedUsd.toFixed(6)}`)
   }
   const previewAiSuggestion = (item: AiUpgradeSuggestion) => {
@@ -2284,24 +2288,6 @@ export default function Edit() {
             <button className="app-modal-secondary" onClick={() => { const item = interactiveImageChoice; setInteractiveImageChoice(null); void applyAiUpgradeSuggestion(item, false) }}>بدون تصویر</button>
             <button className="app-modal-primary" onClick={() => { const item = interactiveImageChoice; setInteractiveImageChoice(null); void applyAiUpgradeSuggestion(item, true) }}>با تصویر</button>
             <button className="app-modal-secondary" onClick={() => setInteractiveImageChoice(null)}>انصراف</button>
-          </footer>
-        </section>
-      </div>}
-      {aiCreditNotice && <div className="app-modal-backdrop ai-credit-backdrop" role="dialog" aria-modal="true">
-        <section className="app-message-modal ai-credit-modal menu-glass-70">
-          <div className="app-message-art"><Sparkles /></div>
-          <div>
-            <h3>{aiCreditNotice.title}</h3>
-            <p>هزینه همین عملیات از کردیت کاربر کم شد و موجودی جدید ثبت شد.</p>
-            <div className="ai-credit-flow is-charged">
-              <span><b>{aiCreditNotice.before.toLocaleString('fa-IR')}</b><small>قبل</small></span>
-              <span><b>{aiCreditNotice.cost.toLocaleString('fa-IR')}</b><small>کسر شده</small></span>
-              <span><b>{aiCreditNotice.after.toLocaleString('fa-IR')}</b><small>مانده</small></span>
-            </div>
-            <small>{aiCreditNotice.usage.inputTokens.toLocaleString('fa-IR')} توکن ورودی · {aiCreditNotice.usage.outputTokens.toLocaleString('fa-IR')} توکن خروجی</small>
-          </div>
-          <footer>
-            <button className="app-modal-primary" onClick={() => setAiCreditNotice(null)}>متوجه شدم</button>
           </footer>
         </section>
       </div>}

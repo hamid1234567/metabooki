@@ -7,6 +7,7 @@ export type AiStructuredContent =
   | { type: 'quiz'; question: string; options: string[]; correctIndex: number; explanation: string }
   | { type: 'timeline'; title: string; steps: Array<{ title: string; description: string }> }
   | { type: 'mindmap'; title: string; branches: Array<{ title: string; items: string[] }> }
+  | { type: 'callout_suggestions'; suggestions: Array<{ variant: string; title: string; text: string; sourceQuote: string; reason?: string }> }
   | { type: 'article'; title: string; lead?: string; sections: Array<{ heading: string; paragraphs: string[]; bullets?: string[] }> }
 
 export interface AiProviderConfig {
