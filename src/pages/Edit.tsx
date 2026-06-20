@@ -1681,8 +1681,29 @@ export default function Edit() {
     aiCostDialog?.resolve(approved)
     setAiCostDialog(null)
   }
-  const requestAiRunApproval = (title: string, description: string, supportsImage: boolean, textPreview: string, usage?: RunAiResult['usage'], model?: string) => new Promise<'plain' | 'images' | null>(resolve => {
-    setAiRunDialog({ title, description, supportsImage, textPreview, usage, model, resolve })
+  const requestAiRunApproval = (
+    title: string,
+    description: string,
+    supportsImage: boolean,
+    textPreview: string,
+    usage?: RunAiResult['usage'],
+    model?: string,
+    imageEstimate?: { usage: RunAiResult['usage']; total: RunAiResult['usage']; count: number; model?: string; warning?: string },
+  ) => new Promise<'plain' | 'images' | null>(resolve => {
+    setAiRunDialog({
+      title,
+      description,
+      supportsImage: supportsImage && Boolean(imageEstimate?.count),
+      textPreview,
+      usage,
+      imageUsage: imageEstimate?.usage,
+      totalWithImages: imageEstimate?.total,
+      imageCount: imageEstimate?.count,
+      model,
+      imageModel: imageEstimate?.model,
+      imageWarning: imageEstimate?.warning,
+      resolve,
+    })
   })
   const closeAiRunDialog = (choice: 'plain' | 'images' | null) => {
     aiRunDialog?.resolve(choice)
@@ -1731,6 +1752,10 @@ export default function Edit() {
     chargedToman: usage.chargedToman * count,
     chargedCredits: usage.chargedCredits * count,
   })
+  const progressAi = (label: string, percent: number, detail?: string) => {
+    setAiProgress({ label, percent: Math.max(0, Math.min(100, percent)), detail })
+    setAiMessage(detail || label)
+  }
   const imagePromptsForInteractive = (kind: string, payload: Record<string, any>, sourceText: string) => {
     const basePrompt = (text: string) => `تصویر آموزشی، تمیز و مناسب کتاب وب بساز. تصویر باید مفهوم همین آیتم را نشان دهد و متن داخل تصویر نداشته باشد. آیتم: ${text.slice(0, 900)}`
     if (kind === 'steps' || kind === 'scrollytelling') {
@@ -1759,12 +1784,23 @@ export default function Edit() {
     }
     return [{ target: 'image', index: 0, prompt: basePrompt(payload.title || payload.question || sourceText || 'مفهوم آموزشی این بخش') }]
   }
-  const enrichInteractivePayloadWithImages = async (kind: string, payload: Record<string, unknown>, sourceText: string, options: { skipApproval?: boolean } = {}) => {
+  const likelyInteractiveImagePlan = (pageText: string) => {
+    const process = aiParagraphCandidates(pageText).find(isProcessCandidate) || aiParagraphCandidates(pageText)[0] || pageText
+    const kind = isTimelineCandidate(process) ? 'timeline' : 'steps'
+    const steps = toStepItems(process)
+    const payload: Record<string, unknown> = {
+      title: kind === 'timeline' ? 'تایم‌لاین پیشنهادی' : 'مسیر مرحله‌ای پیشنهادی',
+      ...(kind === 'timeline' ? { events: steps.map((item, index) => ({ ...item, year: String(index + 1) })) } : { steps }),
+    }
+    const prompts = imagePromptsForInteractive(kind, payload, process).slice(0, 6)
+    return { kind, process, prompts, imageCount: Math.max(1, prompts.length || 1) }
+  }
+  const enrichInteractivePayloadWithImages = async (kind: string, payload: Record<string, unknown>, sourceText: string, options: { skipApproval?: boolean; maxImages?: number } = {}) => {
     const nextPayload = JSON.parse(JSON.stringify(payload || {}))
-    const prompts = imagePromptsForInteractive(kind, nextPayload, sourceText).slice(0, 6)
+    const prompts = imagePromptsForInteractive(kind, nextPayload, sourceText).slice(0, options.maxImages ?? 6)
     if (!prompts.length) return nextPayload
     setAiLoading(true)
-    setAiMessage(`در حال برآورد هزینه ${prompts.length.toLocaleString('fa-IR')} تصویر...`)
+    progressAi('برآورد هزینه تصویر', 18, `در حال برآورد هزینه ${prompts.length.toLocaleString('fa-IR')} تصویر...`)
     try {
       const firstEstimate = await estimateAiImageGeneration({ prompt: prompts[0].prompt, bookId: id, pageIndex: activeSegmentIndex, user })
       const estimatedUsage = multiplyAiUsage(firstEstimate.usage, prompts.length)
@@ -1780,7 +1816,8 @@ export default function Edit() {
       }
       const usages: Array<RunAiResult['usage']> = []
       for (const item of prompts) {
-        setAiMessage(`در حال تولید تصویر ${(item.index + 1).toLocaleString('fa-IR')} از ${prompts.length.toLocaleString('fa-IR')}...`)
+        const currentIndex = prompts.indexOf(item) + 1
+        progressAi('تولید تصویر', 48 + Math.round((currentIndex / prompts.length) * 38), `در حال تولید تصویر ${currentIndex.toLocaleString('fa-IR')} از ${prompts.length.toLocaleString('fa-IR')}...`)
         const result = await generateAiImageThroughGateway({ prompt: item.prompt, bookId: id, pageIndex: activeSegmentIndex, user })
         usages.push(result.usage)
         if (item.target === 'steps' && Array.isArray(nextPayload.steps)) nextPayload.steps[item.index] = { ...nextPayload.steps[item.index], image: result.imageUrl }
@@ -1825,54 +1862,87 @@ export default function Edit() {
       return
     }
     const action = mode === 'quiz' ? 'quiz' : mode === 'interactive' ? 'learning_path' : mode === 'summary' ? 'summary' : mode === 'callout' ? 'callout_suggestions' : 'explain'
-    const estimate = await estimateAiTextUsage({ action, bookTitle: title || book?.title || 'کتاب', pageTitle: activeSegment?.label, pageText, bookId: id, pageIndex: activeSegmentIndex, user })
-    const modeTitle = mode === 'summary' ? 'ساخت خلاصه' : mode === 'quiz' ? 'تولید سؤال' : mode === 'callout' ? 'پیشنهاد کال‌اوت‌های درک مطلب' : mode === 'interactive' ? 'ساخت بخش تعاملی' : 'بررسی و پیشنهاد ارتقا'
-    const choice = await requestAiRunApproval(
-      modeTitle,
-      `${context.hasSelection ? 'فقط متن انتخاب‌شده بررسی می‌شود.' : 'چون متنی انتخاب نشده، کل همین بخش/صفحه بررسی می‌شود.'} این برآورد دست‌بالاست و قبل از مصرف واقعی از کاربر تایید گرفته می‌شود.`,
-      mode === 'interactive',
-      pageText.slice(0, 520),
-      estimate.usage,
-      estimate.model,
-    )
-    if (!choice) {
-      setAiMessage('درخواست هوش مصنوعی لغو شد و کردیتی کسر نشد.')
-      return
-    }
     setAiLoading(true)
     setAiDraft(null)
     setAiCalloutSuggestions([])
     setAiUpgradeSuggestions([])
-    setAiMessage('در حال تولید خروجی هوشمند...')
+    progressAi('برآورد هزینه', 8, 'در حال محاسبه سقف هزینه متن...')
     try {
+      const estimate = await estimateAiTextUsage({ action, bookTitle: title || book?.title || 'کتاب', pageTitle: activeSegment?.label, pageText, bookId: id, pageIndex: activeSegmentIndex, user })
+      let approvedImageCount = 0
+      let imageEstimate: { usage: RunAiResult['usage']; total: RunAiResult['usage']; count: number; model?: string; warning?: string } | undefined
+      if (mode === 'interactive') {
+        const plan = likelyInteractiveImagePlan(pageText)
+        approvedImageCount = plan.imageCount
+        progressAi('برآورد هزینه تصویر', 18, `در حال محاسبه هزینه ${approvedImageCount.toLocaleString('fa-IR')} تصویر احتمالی...`)
+        try {
+          const firstImageEstimate = await estimateAiImageGeneration({ prompt: plan.prompts[0]?.prompt || `تصویر آموزشی برای: ${plan.process.slice(0, 900)}`, bookId: id, pageIndex: activeSegmentIndex, user })
+          const imageUsage = multiplyAiUsage(firstImageEstimate.usage, approvedImageCount)
+          imageEstimate = {
+            usage: imageUsage,
+            total: combineAiUsage([estimate.usage, imageUsage]),
+            count: approvedImageCount,
+            model: firstImageEstimate.model,
+            warning: firstImageEstimate.warning,
+          }
+        } catch (error) {
+          approvedImageCount = 0
+          setAiMessage(error instanceof Error ? `برآورد تصویر ناموفق بود: ${error.message}` : 'برآورد تصویر ناموفق بود.')
+        }
+      }
+      setAiLoading(false)
+      progressAi('در انتظار تایید', 28, 'برآورد آماده است؛ تایید یا لغو کنید.')
+      const modeTitle = mode === 'summary' ? 'ساخت خلاصه' : mode === 'quiz' ? 'تولید سؤال' : mode === 'callout' ? 'پیشنهاد کال‌اوت‌های درک مطلب' : mode === 'interactive' ? 'ساخت بخش تعاملی' : 'بررسی و پیشنهاد ارتقا'
+      const choice = await requestAiRunApproval(
+        modeTitle,
+        `${context.hasSelection ? 'فقط متن انتخاب‌شده بررسی می‌شود.' : 'چون متنی انتخاب نشده، کل همین بخش/صفحه بررسی می‌شود.'} این برآورد دست‌بالاست و قبل از مصرف واقعی از کاربر تایید گرفته می‌شود.`,
+        mode === 'interactive',
+        pageText.slice(0, 520),
+        estimate.usage,
+        estimate.model,
+        imageEstimate,
+      )
+      if (!choice) {
+        setAiMessage('درخواست هوش مصنوعی لغو شد و کردیتی کسر نشد.')
+        setAiProgress(null)
+        return
+      }
+      setAiLoading(true)
+      progressAi('تولید متن', 35, 'در حال تولید خروجی هوشمند...')
       const result = await runAiThroughGateway({ action, bookTitle: title || book?.title || 'کتاب', pageTitle: activeSegment?.label, pageText, bookId: id, pageIndex: activeSegmentIndex, user })
       recordAiUsage(result.usage)
       const text = compactAiContent(result.content) || result.text || ''
       if (mode === 'summary') {
         insertCalloutWithText('key', 'خلاصه هوشمند', text || pageText.slice(0, 420), context.sourceText, context.insertionPos)
         setAiMessage('خلاصه هوشمند در محل انتخاب‌شده اضافه شد.')
+        progressAi('تکمیل شد', 100, 'خلاصه هوشمند اضافه شد.')
       } else if (mode === 'quiz' && result.content?.type === 'quiz') {
         insertInteractivePayload('quiz', { question: result.content.question, options: result.content.options, correct: result.content.correctIndex, explanation: result.content.explanation }, context.sourceText, context.insertionPos)
         setAiMessage('سؤال تعاملی در محل انتخاب‌شده اضافه شد.')
+        progressAi('تکمیل شد', 100, 'سؤال تعاملی اضافه شد.')
       } else if (mode === 'callout') {
         const suggestions = aiCalloutSuggestionsFromContent(result.content, pageText, text)
         setAiUpgradeSuggestions(suggestions)
         setAiMessage(suggestions.length ? 'پیشنهادهای کال‌اوت آماده‌اند. روی «نمایش محل» بزنید، پیش‌نمایش را بررسی کنید و بعد متن همان بخش را به کال‌اوت تبدیل کنید.' : 'پیشنهاد کال‌اوت مناسبی برای این بخش پیدا نشد.')
+        progressAi('پیشنهادها آماده‌اند', 100, suggestions.length ? `${suggestions.length.toLocaleString('fa-IR')} پیشنهاد آماده شد.` : 'پیشنهاد مناسبی پیدا نشد.')
       } else if (mode === 'interactive') {
         const process = aiParagraphCandidates(pageText).find(isProcessCandidate) || aiParagraphCandidates(pageText)[0] || pageText
         const kind = isTimelineCandidate(process) ? 'timeline' : 'steps'
         const steps = result.content?.type === 'timeline' ? result.content.steps : toStepItems(process)
         let payload: Record<string, unknown> = { title: kind === 'timeline' ? 'تایم‌لاین پیشنهادی' : 'مسیر مرحله‌ای پیشنهادی', ...(kind === 'timeline' ? { events: steps } : { steps }), imagePrompt: `تصویر آموزشی برای: ${process.slice(0, 180)}` }
-        if (choice === 'images') payload = await enrichInteractivePayloadWithImages(kind, payload, process, { skipApproval: true })
+        if (choice === 'images') payload = await enrichInteractivePayloadWithImages(kind, payload, process, { skipApproval: true, maxImages: approvedImageCount || 6 })
         insertInteractivePayload(kind, payload, context.sourceText, context.insertionPos)
         setAiMessage(choice === 'images' ? 'بخش تعاملی همراه تصویر در محل انتخاب‌شده اضافه شد.' : 'بخش تعاملی در محل انتخاب‌شده اضافه شد.')
+        progressAi('تکمیل شد', 100, choice === 'images' ? 'بخش تعاملی همراه تصویر اضافه شد.' : 'بخش تعاملی اضافه شد.')
       } else if (mode === 'review') {
         const suggestions = buildAiUpgradeSuggestions(pageText, text)
         setAiUpgradeSuggestions(suggestions)
         setAiMessage(suggestions.length ? 'پیشنهادها آماده‌اند. اول محل هر مورد را ببینید، سپس اگر مناسب بود آن را اضافه کنید.' : 'برای این بخش پیشنهاد روشنی پیدا نشد؛ متن انتخابی را دقیق‌تر کنید.')
+        progressAi('پیشنهادها آماده‌اند', 100, suggestions.length ? `${suggestions.length.toLocaleString('fa-IR')} پیشنهاد آماده شد.` : 'پیشنهاد روشنی پیدا نشد.')
       }
     } catch (error) {
       setAiMessage(error instanceof Error ? error.message : 'اجرای هوش مصنوعی ناموفق بود.')
+      setAiProgress({ label: 'خطا در اجرای هوش مصنوعی', detail: error instanceof Error ? error.message : 'اجرای هوش مصنوعی ناموفق بود.', percent: 100 })
     } finally {
       setAiLoading(false)
     }
