@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
-import { Check, ChevronLeft, ChevronRight, X as XIcon } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, Clock3, X as XIcon } from 'lucide-react'
 import { calloutPreset, INTERACTIVE_KIND_SET, interactiveLabel, normalizeBookText } from '@/lib/book-content'
 
 type StateMap<T> = Record<string, T>
@@ -73,6 +73,79 @@ function GallerySlideshow({ block }: { block: any }) {
         ))}
       </div>}
       {(current.caption || block.caption) && <p className="book-gallery-caption">{textOf(current.caption, block.caption)}</p>}
+    </div>
+  )
+}
+
+function StepTimelineBlock({
+  block,
+  blockKey,
+  timelineStep = {},
+  setTimelineStep,
+}: {
+  block: any
+  blockKey: string
+  timelineStep?: StateMap<number>
+  setTimelineStep?: Dispatch<SetStateAction<StateMap<number>>>
+}) {
+  const rawItems = block.type === 'timeline'
+    ? (block.events || block.steps || block.items || [])
+    : (block.steps || block.items || block.events || [])
+  const items = Array.isArray(rawItems) ? rawItems.filter(Boolean) : []
+  const [localActive, setLocalActive] = useState(0)
+  const active = Math.min(Math.max(0, timelineStep[blockKey] ?? localActive), Math.max(0, items.length - 1))
+  const item = items[active] || {}
+  const setActive = (next: number) => {
+    const clamped = (next + items.length) % items.length
+    if (setTimelineStep) setTimelineStep(current => ({ ...current, [blockKey]: clamped }))
+    else setLocalActive(clamped)
+  }
+  useEffect(() => {
+    if (active > items.length - 1 && items.length) setActive(items.length - 1)
+  }, [active, items.length])
+  if (!items.length) return null
+  const title = textOf(block.title, block.type === 'timeline' ? interactiveLabel('timeline') : interactiveLabel('steps'))
+  const displayTitle = textOf(item.title, item.label, item.year, `مرحله ${active + 1}`)
+  const description = textOf(item.description, item.text, item.body, item.caption)
+  return (
+    <div className="reader-interactive reader-step-slider menu-glass-70 rounded-2xl p-4 mb-8" data-no-swipe="true" dir="rtl">
+      <header className="reader-step-head">
+        <h3>{title}</h3>
+        <Clock3 />
+      </header>
+      <div className="reader-step-track" aria-label="مسیر مراحل">
+        <div className="reader-step-line" />
+        {items.map((step: any, index: number) => (
+          <button
+            key={`${textOf(step.title, step.label, step.year, index)}-${index}`}
+            type="button"
+            className={index === active ? 'is-active' : index < active ? 'is-seen' : ''}
+            onClick={() => setActive(index)}
+            title={textOf(step.title, step.label, `مرحله ${index + 1}`)}
+          >
+            <span>{(index + 1).toLocaleString('fa-IR')}</span>
+            <small>{textOf(step.year, step.shortTitle, String(index + 1))}</small>
+          </button>
+        ))}
+      </div>
+      <div className="reader-step-progress"><span style={{ width: `${((active + 1) / items.length) * 100}%` }} /></div>
+      <section className="reader-step-card">
+        {items.length > 1 && <>
+          <button className="reader-step-side prev" type="button" onClick={() => setActive(active - 1)} aria-label="مرحله قبلی"><ChevronRight /></button>
+          <button className="reader-step-side next" type="button" onClick={() => setActive(active + 1)} aria-label="مرحله بعدی"><ChevronLeft /></button>
+        </>}
+        {item.image && <div className="reader-step-image"><img src={item.image} alt={displayTitle} loading="lazy" /></div>}
+        <div className="reader-step-body">
+          <span>{(active + 1).toLocaleString('fa-IR')}</span>
+          <h4>{displayTitle}</h4>
+          {description && <p>{description}</p>}
+        </div>
+      </section>
+      {items.length > 1 && <footer className="reader-step-footer">
+        <button type="button" onClick={() => setActive(active - 1)} aria-label="مرحله قبلی"><ChevronRight /></button>
+        <b>{(active + 1).toLocaleString('fa-IR')} / {items.length.toLocaleString('fa-IR')}</b>
+        <button type="button" onClick={() => setActive(active + 1)} aria-label="مرحله بعدی"><ChevronLeft /></button>
+      </footer>}
     </div>
   )
 }
@@ -271,10 +344,7 @@ export function BookContentBlock({
 
   if (block.type === 'algorithm') return <AlgorithmBlock block={block} blockKey={blockKey} />
 
-  if (block.type === 'steps' || block.type === 'algorithm') {
-    const steps = block.steps || block.items || block.events || []
-    return <div className="reader-interactive menu-glass-70 rounded-2xl p-5 mb-8"><h3 className="font-semibold mb-4">{textOf(block.title, interactiveLabel(block.type))}</h3><div className="grid gap-3">{steps.map((step: any, stepIndex: number) => <div key={stepIndex} className="grid grid-cols-[2.5rem_1fr] gap-3 items-start rounded-xl bg-background/55 p-3"><span className="w-10 h-10 rounded-full bg-primary text-primary-foreground grid place-items-center font-bold">{stepIndex + 1}</span><div>{renderInteractiveImage(step.image, step.title, 'max-h-44 rounded-lg mb-2 object-contain bg-background/50')}<h4 className="font-bold">{textOf(step.title, step.label, `مرحله ${stepIndex + 1}`)}</h4><p className="text-sm text-muted-foreground leading-relaxed">{textOf(step.description, step.text, step.body)}</p></div></div>)}</div></div>
-  }
+  if (block.type === 'steps') return <StepTimelineBlock block={block} blockKey={blockKey} timelineStep={timelineStep} setTimelineStep={setTimelineStep} />
 
   if (block.type === 'accordion') return <div className="reader-interactive menu-glass-70 rounded-2xl p-5 mb-8"><h3 className="font-semibold mb-4">{textOf(block.title, interactiveLabel('accordion'))}</h3><div className="space-y-3">{(block.items || block.steps || []).map((item: any, itemIndex: number) => <details key={itemIndex} className="rounded-xl border bg-background/55 p-4"><summary className="font-bold cursor-pointer">{textOf(item.title, item.label, `بخش ${itemIndex + 1}`)}</summary>{renderInteractiveImage(item.image, item.title, 'mt-3 max-h-44 rounded-lg object-contain bg-background/50')}<p className="mt-3 text-sm text-muted-foreground leading-relaxed">{textOf(item.description, item.text, item.body)}</p></details>)}</div></div>
 
@@ -326,10 +396,7 @@ export function BookContentBlock({
   if (block.type === 'gallery') return <div className="reader-interactive menu-glass-70 rounded-2xl p-4 mb-8"><h3 className="font-semibold mb-4">{textOf(block.title, '')}</h3><div className="grid sm:grid-cols-2 gap-3">{(block.images || []).map((image: any, imageIndex: number) => <figure key={imageIndex} className="rounded-xl overflow-hidden bg-background/55">{image.url && <img src={image.url} alt={image.caption || ''} className="w-full h-auto" loading="lazy" />}<figcaption className="p-3 text-sm text-muted-foreground">{textOf(image.caption)}</figcaption></figure>)}</div></div>
 
   if (block.type === 'timeline') {
-    const events = block.events || block.steps || []
-    const active = timelineStep[blockKey] ?? 0
-    const event = events[active] || events[0] || {}
-    return <div className="reader-interactive menu-glass-70 rounded-2xl p-5 mb-8"><h3 className="font-semibold mb-5 text-lg">{textOf(block.title, interactiveLabel('timeline'))}</h3><div className="relative overflow-x-auto pb-4" data-no-swipe="true"><div className="absolute top-5 right-8 left-8 h-0.5 bg-primary/25" /><div className="relative flex gap-4 min-w-max px-2">{events.map((item: any, eventIndex: number) => <button key={eventIndex} onClick={() => setTimelineStep?.(current => ({ ...current, [blockKey]: eventIndex }))} className="w-44 text-center" title={item.title}><span className={`mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all ${active === eventIndex ? 'bg-primary text-primary-foreground border-primary shadow-glow' : 'bg-background border-primary/40 text-primary'}`}>{eventIndex + 1}</span><span className={`block rounded-xl px-3 py-2 text-xs transition-all ${active === eventIndex ? 'bg-primary/10 text-primary font-bold' : 'bg-muted/40 text-muted-foreground'}`}>{textOf(item.year, item.title, `مرحله ${eventIndex + 1}`)}</span></button>)}</div></div><div className="rounded-2xl bg-background/55 border p-5 animate-fade-in">{renderInteractiveImage(event.image, event.title)}<p className="text-xs text-primary font-bold mb-1">{textOf(event.year)}</p><h4 className="font-bold text-lg mb-2">{textOf(event.title, event.label)}</h4><p className="text-sm text-muted-foreground leading-relaxed">{textOf(event.description, event.text, event.body)}</p></div></div>
+    return <StepTimelineBlock block={block} blockKey={blockKey} timelineStep={timelineStep} setTimelineStep={setTimelineStep} />
   }
 
   if (block.type === 'scrollytelling') {
