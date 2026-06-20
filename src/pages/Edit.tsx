@@ -2157,6 +2157,21 @@ export default function Edit() {
           </footer>
         </section>
       </div>}
+      {interactiveImageChoice && <div className="app-modal-backdrop ai-credit-backdrop" role="dialog" aria-modal="true">
+        <section className="app-message-modal ai-credit-modal menu-glass-70">
+          <div className="app-message-art"><LayoutTemplate /></div>
+          <div>
+            <h3>افزودن بخش تعاملی</h3>
+            <p>می‌خواهید این آیتم تعاملی با تصویر ساخته شود؟ اگر تصویر را انتخاب کنید، برای هر مرحله یا آیتم از متن همان آیتم پرامپت تصویر ساخته می‌شود و قبل از کسر کردیت هزینه را می‌بینید.</p>
+            <small>{interactiveImageChoice.title}</small>
+          </div>
+          <footer>
+            <button className="app-modal-secondary" onClick={() => { const item = interactiveImageChoice; setInteractiveImageChoice(null); void applyAiUpgradeSuggestion(item, false) }}>بدون تصویر</button>
+            <button className="app-modal-primary" onClick={() => { const item = interactiveImageChoice; setInteractiveImageChoice(null); void applyAiUpgradeSuggestion(item, true) }}>با تصویر</button>
+            <button className="app-modal-secondary" onClick={() => setInteractiveImageChoice(null)}>انصراف</button>
+          </footer>
+        </section>
+      </div>}
       {aiCreditNotice && <div className="app-modal-backdrop ai-credit-backdrop" role="dialog" aria-modal="true">
         <section className="app-message-modal ai-credit-modal menu-glass-70">
           <div className="app-message-art"><Sparkles /></div>
