@@ -86,8 +86,15 @@ function actionPrompt(action: string, bookTitle: string, pageTitle: string | und
 }
 
 function parseStructuredContent(text: string) {
-  const cleaned = text.trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim()
-  return JSON.parse(cleaned)
+  const cleaned = String(text || '').trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim()
+  const start = cleaned.indexOf('{')
+  const end = cleaned.lastIndexOf('}')
+  const candidate = start >= 0 && end > start ? cleaned.slice(start, end + 1) : cleaned
+  try {
+    return JSON.parse(candidate)
+  } catch {
+    throw new Error(`AI response was not valid JSON. Preview: ${cleaned.slice(0, 180)}`)
+  }
 }
 
 async function callProvider(provider: AiProviderConfig, prompt: string, maxTokens = 512) {

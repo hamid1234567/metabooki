@@ -59,6 +59,13 @@ type AiCostDialog = {
   model?: string
   resolve: (approved: boolean) => void
 }
+type AiRunApprovalDialog = {
+  title: string
+  description: string
+  supportsImage: boolean
+  textPreview: string
+  resolve: (choice: 'plain' | 'images' | null) => void
+}
 type EditorMediaContextValue = {
   bookImages: any[]
   uploadImage: (file: File) => Promise<string>
@@ -172,7 +179,7 @@ function readLocalMedia(file: File | undefined, onReady: (url: string) => void) 
   reader.readAsDataURL(file)
 }
 
-function InlineMediaPicker({ label, value, onChange, stopEditorSelection }: { label: string; value: string; onChange: (url: string) => void; stopEditorSelection: (event: any) => void }) {
+function InlineMediaPicker({ label, value, defaultPrompt = '', onChange, stopEditorSelection }: { label: string; value: string; defaultPrompt?: string; onChange: (url: string) => void; stopEditorSelection: (event: any) => void }) {
   const media = useContext(EditorMediaContext)
   const [mode, setMode] = useState<'closed' | 'library' | 'ai'>('closed')
   const [prompt, setPrompt] = useState('')
@@ -202,9 +209,9 @@ function InlineMediaPicker({ label, value, onChange, stopEditorSelection }: { la
     }
   }
   const generate = async () => {
-    const cleanPrompt = prompt.trim()
+    const cleanPrompt = (prompt.trim() || defaultPrompt.trim())
     if (!cleanPrompt) {
-      setNotice('برای تولید تصویر، پرامپت تصویر را داخل همین بلوک بنویسید.')
+      setNotice('برای تولید تصویر، پرامپت تصویر را بنویسید یا ابتدا متن همین آیتم را کامل کنید.')
       return
     }
     setBusy(true)
@@ -263,7 +270,7 @@ function InlineMediaPicker({ label, value, onChange, stopEditorSelection }: { la
         </div>
       </div>}
       {mode === 'ai' && <div className="inline-media-ai">
-        <textarea value={prompt} onChange={event => setPrompt(event.target.value)} placeholder="پرامپت تصویر را بنویسید..." />
+        <textarea value={prompt} onChange={event => setPrompt(event.target.value)} placeholder={defaultPrompt ? `پیش‌فرض: ${defaultPrompt.slice(0, 90)}...` : 'پرامپت تصویر را بنویسید...'} />
         <button type="button" disabled={busy} onClick={() => void generate()}>{busy ? 'در حال تولید...' : 'برآورد هزینه و تولید'}</button>
       </div>}
       {notice && <p className={`inline-media-notice ${notice.includes('ناموفق') || notice.includes('بررسی کنید') || notice.includes('طولانی') ? 'is-error' : ''}`}>{notice}</p>}
@@ -300,8 +307,8 @@ function InteractiveNodeView({ node, updateAttributes, editor, getPos }: any) {
       <textarea value={value || ''} placeholder={placeholder} onChange={event => onChange(event.target.value)} />
     </label>
   )
-  const mediaSlot = (label: string, value: string, onChange: (value: string) => void) => (
-    <InlineMediaPicker label={label} value={value || ''} onChange={onChange} stopEditorSelection={stopEditorSelection} />
+  const mediaSlot = (label: string, value: string, onChange: (value: string) => void, defaultPrompt = '') => (
+    <InlineMediaPicker label={label} value={value || ''} defaultPrompt={defaultPrompt} onChange={onChange} stopEditorSelection={stopEditorSelection} />
   )
   const itemCard = (title: string, index: number, onDelete: () => void, children: any, media?: any) => (
     <section className="interactive-item-card">
@@ -373,21 +380,21 @@ function InteractiveNodeView({ node, updateAttributes, editor, getPos }: any) {
         {cards.map((card: any, index: number) => itemCard('کارت', index, () => removeItem('cards', index, cards), <>
           {textarea('روی کارت', card.front || '', value => updateItem('cards', index, { front: value }, cards), 'متن روی کارت')}
           {textarea('پشت کارت', card.back || '', value => updateItem('cards', index, { back: value }, cards), 'متن پشت کارت')}
-        </>, mediaSlot('تصویر', card.image || '', value => updateItem('cards', index, { image: value }, cards))))}
+        </>, mediaSlot('تصویر', card.image || '', value => updateItem('cards', index, { image: value }, cards), `${card.front || ''} ${card.back || ''}`)))}
         {addButton('افزودن کارت', () => addItem('cards', { front: '', back: '', image: '' }, cards))}
       </>}
       {kind === 'accordion' && <>
         {items.map((item: any, index: number) => itemCard('بخش', index, () => removeItem('items', index, items), <>
           {field('عنوان', item.title || '', value => updateItem('items', index, { title: value }, items), 'عنوان بازشونده', true)}
           {textarea('توضیح', item.description || '', value => updateItem('items', index, { description: value }, items), 'متن بازشونده')}
-        </>, mediaSlot('تصویر', item.image || '', value => updateItem('items', index, { image: value }, items))))}
+        </>, mediaSlot('تصویر', item.image || '', value => updateItem('items', index, { image: value }, items), `${item.title || ''} ${item.description || ''}`)))}
         {addButton('افزودن بخش', () => addItem('items', { title: '', description: '', image: '' }, items))}
       </>}
       {kind === 'tabs' && <>
         {tabs.map((tab: any, index: number) => itemCard('تب', index, () => removeItem('tabs', index, tabs), <>
           {field('عنوان تب', tab.title || '', value => updateItem('tabs', index, { title: value }, tabs), 'عنوان تب', true)}
           {textarea('محتوا', tab.description || '', value => updateItem('tabs', index, { description: value }, tabs), 'محتوای تب')}
-        </>, mediaSlot('تصویر', tab.image || '', value => updateItem('tabs', index, { image: value }, tabs))))}
+        </>, mediaSlot('تصویر', tab.image || '', value => updateItem('tabs', index, { image: value }, tabs), `${tab.title || ''} ${tab.description || ''}`)))}
         {addButton('افزودن تب', () => addItem('tabs', { title: '', description: '', image: '' }, tabs))}
       </>}
       {kind === 'timeline' && <>
@@ -395,7 +402,7 @@ function InteractiveNodeView({ node, updateAttributes, editor, getPos }: any) {
           {field('زمان', eventItem.year || '', value => updateItem('events', index, { year: value }, events), 'سال یا مرحله')}
           {field('عنوان', eventItem.title || '', value => updateItem('events', index, { title: value }, events), 'عنوان رویداد')}
           {textarea('توضیح', eventItem.description || '', value => updateItem('events', index, { description: value }, events), 'توضیح رویداد')}
-        </>, mediaSlot('تصویر', eventItem.image || '', value => updateItem('events', index, { image: value }, events))))}
+        </>, mediaSlot('تصویر', eventItem.image || '', value => updateItem('events', index, { image: value }, events), `${eventItem.year || ''} ${eventItem.title || ''} ${eventItem.description || ''}`)))}
         {addButton('افزودن رویداد', () => addItem('events', { year: '', title: '', description: '', image: '' }, events))}
       </>}
       {kind === 'algorithm' && <>
@@ -420,14 +427,14 @@ function InteractiveNodeView({ node, updateAttributes, editor, getPos }: any) {
             ))}
             <button type="button" className="interactive-add-button" onClick={() => updateItem('nodes', index, { options: [...(node.options || []), { label: '', targetId: '' }] }, algorithmNodes)}><Plus />افزودن شاخه</button>
           </div>
-        </>, mediaSlot('تصویر', node.image || '', value => updateItem('nodes', index, { image: value }, algorithmNodes))))}
+        </>, mediaSlot('تصویر', node.image || '', value => updateItem('nodes', index, { image: value }, algorithmNodes), `${node.title || ''} ${node.description || ''}`)))}
         {addButton('افزودن گره الگوریتم', () => addItem('nodes', { id: `node-${algorithmNodes.length + 1}`, kind: 'action', title: '', description: '', image: '', options: [] }, algorithmNodes))}
       </>}
       {(kind === 'steps' || kind === 'scrollytelling') && <>
         {steps.map((step: any, index: number) => itemCard('گام', index, () => removeItem('steps', index, steps), <>
           {field('عنوان', step.title || step.text || '', value => updateItem('steps', index, { title: value, text: value }, steps), 'عنوان گام', true)}
           {textarea('توضیح', step.description || '', value => updateItem('steps', index, { description: value }, steps), 'توضیح گام')}
-        </>, mediaSlot('تصویر', step.image || '', value => updateItem('steps', index, { image: value }, steps))))}
+        </>, mediaSlot('تصویر', step.image || '', value => updateItem('steps', index, { image: value }, steps), `${step.title || step.text || ''} ${step.description || ''}`)))}
         {addButton('افزودن گام', () => addItem('steps', { title: '', description: '', image: '' }, steps))}
       </>}
       {kind === 'gallery' && <>
@@ -436,7 +443,7 @@ function InteractiveNodeView({ node, updateAttributes, editor, getPos }: any) {
           {images.map((image: any, index: number) => (
             <section key={index} className="interactive-gallery-item">
               <button type="button" onClick={() => removeItem('images', index, images)}>×</button>
-              {mediaSlot('افزودن', image.url || '', value => updateItem('images', index, { url: value }, images))}
+              {mediaSlot('افزودن', image.url || '', value => updateItem('images', index, { url: value }, images), image.caption || data.title || '')}
               {field('کپشن', image.caption || '', value => updateItem('images', index, { caption: value }, images), 'کپشن تصویر', true)}
             </section>
           ))}
@@ -444,7 +451,7 @@ function InteractiveNodeView({ node, updateAttributes, editor, getPos }: any) {
         {addButton('افزودن تصویر', () => addItem('images', { url: '', caption: '' }, images))}
       </>}
       {kind === 'hotspot' && <>
-        {mediaSlot('تصویر اصلی', data.image || '', value => updatePayload({ image: value }))}
+        {mediaSlot('تصویر اصلی', data.image || '', value => updatePayload({ image: value }), `${data.title || data.caption || ''} ${points.map((point: any) => `${point.title || ''} ${point.text || ''}`).join(' ')}`)}
         <div className={`interactive-hotspot-builder ${data.image ? 'has-image' : ''}`}>
           <p>روی تصویر کلیک کنید تا نقطه جدید ساخته شود. سپس همان‌جا عنوان و توضیح نقطه را بنویسید.</p>
           {data.image ? (
@@ -475,7 +482,7 @@ function InteractiveNodeView({ node, updateAttributes, editor, getPos }: any) {
           {field('نام نویسنده', author.name || '', value => updateItem('authors', index, { name: value }, authors), 'نام نویسنده')}
           {field('سمت / تخصص', author.role || '', value => updateItem('authors', index, { role: value }, authors), 'اختیاری')}
           {textarea('معرفی کوتاه', author.bio || '', value => updateItem('authors', index, { bio: value }, authors), 'معرفی کوتاه اختیاری')}
-        </>, mediaSlot('تصویر', author.image || '', value => updateItem('authors', index, { image: value }, authors))))}
+        </>, mediaSlot('تصویر', author.image || '', value => updateItem('authors', index, { image: value }, authors), `${author.name || ''} ${author.role || ''} ${author.bio || ''}`)))}
         {addButton('افزودن نویسنده', () => addItem('authors', { name: '', role: '', bio: '', image: '' }, authors))}
       </>}
     </NodeViewWrapper>
