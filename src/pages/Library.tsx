@@ -5,17 +5,18 @@ import { BookCover } from '@/components/BookCover'
 import { useAuthContext } from '@/lib/auth-context'
 import { useI18n } from '@/lib/i18n'
 import { getAllReadingProgress, getMockLibraryEntries } from '@/lib/mock-library'
-import { mockBooks, type MockBook } from '@/lib/mock-data'
+import type { MockBook } from '@/lib/mock-data'
 import { BOOK_LIST_PAGE_SIZE, filterByValue, normalizeBookType, pageNumbers, paginate, searchBooks, sortBooks, uniqueBookValues, type BookSortKey } from '@/lib/book-listing'
 import { emptyFilterSettings, loadBookFilterSettings, mergeFilterOptions, type BookFilterSettings } from '@/lib/filter-settings'
 import { ArrowLeft, BookOpen, CheckCircle, ChevronLeft, ChevronRight, Clock, PlayCircle, Search, ShoppingCart, Sparkles } from 'lucide-react'
-import { getUserLibrary } from '@/lib/book-repository'
+import { getPublishedBooks, getUserLibrary } from '@/lib/book-repository'
 
 type ProgressMap = Record<string, { currentPage: number; totalPages: number; lastReadAt: string }>
 type ShelfItem = { book: MockBook; isPurchased: boolean }
 
 function ShelfBookCard({ book, isPurchased, progress, index }: { book: MockBook; isPurchased: boolean; progress?: ProgressMap[string]; index: number }) {
-  const percent = progress ? Math.round(((progress.currentPage + 1) / book.pages.length) * 100) : 0
+  const totalPages = book.page_count || book.pages.length || progress?.totalPages || 1
+  const percent = progress ? Math.round(((progress.currentPage + 1) / totalPages) * 100) : 0
   const isFinished = percent >= 100
   const lastRead = progress?.lastReadAt ? new Date(progress.lastReadAt).toLocaleDateString('fa-IR') : null
   const actionText = isPurchased ? progress ? 'ادامه خواندن' : 'شروع خواندن' : 'افزودن به قفسه'
@@ -49,7 +50,7 @@ function ShelfBookCard({ book, isPurchased, progress, index }: { book: MockBook;
               <div className={`h-full rounded-full transition-all duration-500 ${isFinished ? 'bg-success' : 'bg-primary'}`} style={{ width: `${Math.min(percent, 100)}%` }} />
             </div>
             <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
-              <span>صفحه {progress ? (progress.currentPage + 1).toLocaleString('fa-IR') : '۱'} از {book.pages.length.toLocaleString('fa-IR')}</span>
+              <span>صفحه {progress ? (progress.currentPage + 1).toLocaleString('fa-IR') : '۱'} از {totalPages.toLocaleString('fa-IR')}</span>
               {lastRead && <span className="inline-flex items-center gap-1"><Clock className="w-3 h-3" />{lastRead}</span>}
             </div>
           </div>
@@ -70,6 +71,7 @@ export default function Library() {
   const { user } = useAuthContext()
   const { t } = useI18n()
   const [libraryBooks, setLibraryBooks] = useState<MockBook[]>([])
+  const [freeBooks, setFreeBooks] = useState<MockBook[]>([])
   const [progress, setProgress] = useState<ProgressMap>({})
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -84,11 +86,17 @@ export default function Library() {
   useEffect(() => {
     setLoading(true)
     if (user?.mockData) {
-      const entries = getMockLibraryEntries(user.mockData.id)
-      const books = entries.map(entry => mockBooks.find(book => book.id === entry.bookId)).filter(Boolean) as MockBook[]
-      setLibraryBooks(books)
-      setProgress(getAllReadingProgress(user.mockData.id))
-      setLoading(false)
+      let cancelled = false
+      ;(async () => {
+        const { mockBooks } = await import('@/lib/mock-data')
+        if (cancelled) return
+        const entries = getMockLibraryEntries(user.mockData!.id)
+        const books = entries.map(entry => mockBooks.find(book => book.id === entry.bookId)).filter(Boolean) as MockBook[]
+        setLibraryBooks(books)
+        setProgress(getAllReadingProgress(user.mockData!.id))
+        setLoading(false)
+      })()
+      return () => { cancelled = true }
     } else if (user) {
       getUserLibrary(user.id).then(result => {
         setLibraryBooks(result.books)
@@ -104,14 +112,17 @@ export default function Library() {
   useEffect(() => {
     loadBookFilterSettings().then(setFilterSettings)
   }, [])
+  useEffect(() => {
+    getPublishedBooks().then(books => setFreeBooks(books.filter(book => book.price === 0))).catch(() => setFreeBooks([]))
+  }, [])
 
-  const freeBooks = mockBooks.filter(book => book.price === 0 && !libraryBooks.find(item => item.id === book.id))
+  const availableFreeBooks = freeBooks.filter(book => !libraryBooks.find(item => item.id === book.id))
   const shelfItems: ShelfItem[] = [
     ...libraryBooks.map(book => ({ book, isPurchased: true })),
-    ...freeBooks.map(book => ({ book, isPurchased: false })),
+    ...availableFreeBooks.map(book => ({ book, isPurchased: false })),
   ]
   const totalBooks = shelfItems.length
-  const activeBooks = libraryBooks.filter(book => progress[book.id] && progress[book.id].currentPage + 1 < book.pages.length).length
+  const activeBooks = libraryBooks.filter(book => progress[book.id] && progress[book.id].currentPage + 1 < (book.page_count || book.pages.length || progress[book.id].totalPages || 1)).length
   const categories = mergeFilterOptions(uniqueBookValues(shelfItems.map(item => item.book), book => book.category), filterSettings.categories)
   const bookTypes = mergeFilterOptions(uniqueBookValues(shelfItems.map(item => item.book), book => normalizeBookType(book.book_type)), filterSettings.bookTypes)
   const tags = mergeFilterOptions(uniqueBookValues(shelfItems.map(item => item.book), book => book.tags?.join('|')).flatMap(value => value.split('|')).filter(Boolean), filterSettings.tags)
