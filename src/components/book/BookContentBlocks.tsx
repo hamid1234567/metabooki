@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import { Check, ChevronLeft, ChevronRight, Clock3, X as XIcon } from 'lucide-react'
-import { calloutPreset, INTERACTIVE_KIND_SET, interactiveLabel, normalizeBookText } from '@/lib/book-content'
+import { calloutPreset, decodeBookContentPayload, INTERACTIVE_KIND_SET, interactiveLabel, normalizeBookText } from '@/lib/book-content'
 
 type StateMap<T> = Record<string, T>
 
@@ -22,6 +22,22 @@ export type BookContentBlockRendererProps = {
 
 export function isSharedBookContentBlock(type?: string) {
   return type === 'callout' || INTERACTIVE_KIND_SET.has(String(type || ''))
+}
+
+export function resolveSharedBookContentBlock(block: any) {
+  if (!block || typeof block !== 'object') return null
+  if (isSharedBookContentBlock(block.type)) return block
+
+  const rawPayload = block.payload ?? block.attrs?.payload ?? block.attributes?.payload
+  const payload = typeof rawPayload === 'string'
+    ? decodeBookContentPayload(rawPayload)
+    : rawPayload && typeof rawPayload === 'object'
+      ? rawPayload
+      : {}
+  const rawKind = block.kind || block.interactiveKind || block.attrs?.kind || block.attributes?.kind || block.dataInteractiveKind || block['data-interactive-kind'] || payload.type || payload.kind
+  const kind = String(rawKind || '')
+  if (!INTERACTIVE_KIND_SET.has(kind)) return null
+  return { ...payload, ...block, type: kind }
 }
 
 function textOf(...values: unknown[]) {
