@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { BookCover } from '@/components/BookCover'
 import { useAuthContext } from '@/lib/auth-context'
-import { CREDIT_VALUE_TOMAN, type MockBook } from '@/lib/mock-data'
+import type { MockBook } from '@/lib/mock-data'
 import { getBook } from '@/lib/book-repository'
 import { addToMockLibrary, isInMockLibrary } from '@/lib/mock-library'
 import { creditsBus } from '@/lib/credits-bus'
@@ -40,6 +40,8 @@ const featureLabels: Record<string, string> = {
   audio: 'صوت',
   hotspot: 'هات‌اسپات',
 }
+
+const CREDIT_VALUE_TOMAN = 1000
 
 function collectFeatures(book: MockBook) {
   const types = new Set<string>()

@@ -7,7 +7,6 @@ import { toast } from 'sonner'
 import { BookOpen, Lock, LogIn, Mail, User as UserIcon } from 'lucide-react'
 import { useAuthContext } from '@/lib/auth-context'
 import { useI18n } from '@/lib/i18n'
-import { mockUsers } from '@/lib/mock-data'
 import { Button } from '@/components/ui/button'
 
 const authSchema = z.object({
@@ -19,9 +18,9 @@ type AuthForm = z.infer<typeof authSchema>
 type AuthMode = 'login' | 'register'
 
 const quickLoginUsers = [
-  { ...mockUsers[4], icon: BookOpen, color: 'text-green-600', label: 'ناشر' },
-  { ...mockUsers[1], icon: UserIcon, color: 'text-purple-600', label: 'کاربر' },
-  { ...mockUsers[2], icon: UserIcon, color: 'text-blue-600', label: 'کاربر' },
+  { id: 'quick-publisher', email: 'publisher@metabooki.local', password: 'test1234', display_name: 'ناشر نمونه', icon: BookOpen, color: 'text-green-600', label: 'ناشر' },
+  { id: 'quick-reader-1', email: 'reader1@metabooki.local', password: 'test1234', display_name: 'کاربر نمونه ۱', icon: UserIcon, color: 'text-purple-600', label: 'کاربر' },
+  { id: 'quick-reader-2', email: 'reader2@metabooki.local', password: 'test1234', display_name: 'کاربر نمونه ۲', icon: UserIcon, color: 'text-blue-600', label: 'کاربر' },
 ]
 
 export default function Auth() {
@@ -58,27 +57,25 @@ export default function Auth() {
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-lg space-y-6">
-        {(
-          <div className="glass rounded-2xl p-6">
-            <div className="mb-4 flex items-center gap-2">
-              <LogIn className="h-5 w-5 text-primary" />
-              <h2 className="text-lg font-semibold">ورود سریع حساب‌های آزمایشی</h2>
-            </div>
-            <div className="grid gap-2">
-              {quickLoginUsers.map(user => (
-                <button key={user.id} type="button" onClick={() => quickLogin(user.email, user.password)}
-                  className="flex w-full items-center gap-3 rounded-xl border bg-background/70 p-3 text-right transition hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md">
-                  <user.icon className={`h-5 w-5 ${user.color}`} />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium">{user.display_name}</p>
-                    <p className="truncate text-xs text-muted-foreground">{user.email}</p>
-                  </div>
-                  <span className="text-xs text-muted-foreground">{user.label}</span>
-                </button>
-              ))}
-            </div>
+        <div className="glass rounded-2xl p-6">
+          <div className="mb-4 flex items-center gap-2">
+            <LogIn className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-semibold">ورود سریع حساب‌های آزمایشی</h2>
           </div>
-        )}
+          <div className="grid gap-2">
+            {quickLoginUsers.map(user => (
+              <button key={user.id} type="button" onClick={() => quickLogin(user.email, user.password)}
+                className="flex w-full items-center gap-3 rounded-xl border bg-background/70 p-3 text-right transition hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md">
+                <user.icon className={`h-5 w-5 ${user.color}`} />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium">{user.display_name}</p>
+                  <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+                </div>
+                <span className="text-xs text-muted-foreground">{user.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
 
         <div className="glass rounded-2xl p-6">
           <div className="mx-auto mb-6 grid max-w-xs grid-cols-2 rounded-xl bg-muted/70 p-1">
