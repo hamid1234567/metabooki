@@ -17,10 +17,7 @@ const queryClient = new QueryClient({
   },
 })
 
-const isLatestVersion = await ensureLatestOnlineVersion()
-if (isLatestVersion) await refreshVersionedCaches()
-
-if (isLatestVersion) createRoot(document.getElementById('root')!).render(
+createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <HashRouter>
       <QueryClientProvider client={queryClient}>
@@ -36,6 +33,15 @@ if (isLatestVersion) createRoot(document.getElementById('root')!).render(
     </HashRouter>
   </StrictMode>,
 )
+
+if (import.meta.env.PROD) {
+  window.setTimeout(() => {
+    void (async () => {
+      const isLatestVersion = await ensureLatestOnlineVersion()
+      if (isLatestVersion) await refreshVersionedCaches()
+    })()
+  }, 0)
+}
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {

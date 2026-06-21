@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { Suspense, lazy, useEffect } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { Navbar } from '@/components/navbar/Navbar'
 import { OfflineBanner } from '@/components/offline/OfflineBanner'
@@ -6,27 +6,37 @@ import { RoleGuard } from '@/components/ui/role-guard'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
 import { ScrollToTop } from '@/components/navigation/ScrollToTop'
 
-// Direct imports (no lazy loading for stability)
-import Landing from '@/pages/Landing'
-import Auth from '@/pages/Auth'
-import Store from '@/pages/Store'
-import Library from '@/pages/Library'
-import Reader from '@/pages/Reader'
-import BookLanding from '@/pages/BookLanding'
-import Upload from '@/pages/Upload'
-import Edit from '@/pages/Edit'
-import Publish from '@/pages/Publish'
-import Publisher from '@/pages/Publisher'
-import PublisherSettings from '@/pages/PublisherSettings'
-import Admin from '@/pages/Admin'
-import Credits from '@/pages/Credits'
-import EditorRequests from '@/pages/EditorRequests'
-import Profile from '@/pages/Profile'
-import Install from '@/pages/Install'
-import WordAddin from '@/pages/WordAddin'
-import AudioStudioPage from '@/pages/AudioStudioPage'
-import AudioReader from '@/pages/AudioReader'
-import NotFound from '@/pages/NotFound'
+const Landing = lazy(() => import('@/pages/Landing'))
+const Auth = lazy(() => import('@/pages/Auth'))
+const Store = lazy(() => import('@/pages/Store'))
+const Library = lazy(() => import('@/pages/Library'))
+const Reader = lazy(() => import('@/pages/Reader'))
+const BookLanding = lazy(() => import('@/pages/BookLanding'))
+const Upload = lazy(() => import('@/pages/Upload'))
+const Edit = lazy(() => import('@/pages/Edit'))
+const Publish = lazy(() => import('@/pages/Publish'))
+const Publisher = lazy(() => import('@/pages/Publisher'))
+const PublisherSettings = lazy(() => import('@/pages/PublisherSettings'))
+const Admin = lazy(() => import('@/pages/Admin'))
+const Credits = lazy(() => import('@/pages/Credits'))
+const EditorRequests = lazy(() => import('@/pages/EditorRequests'))
+const Profile = lazy(() => import('@/pages/Profile'))
+const Install = lazy(() => import('@/pages/Install'))
+const WordAddin = lazy(() => import('@/pages/WordAddin'))
+const AudioStudioPage = lazy(() => import('@/pages/AudioStudioPage'))
+const AudioReader = lazy(() => import('@/pages/AudioReader'))
+const NotFound = lazy(() => import('@/pages/NotFound'))
+
+function RouteLoading() {
+  return (
+    <div className="min-h-[55vh] grid place-items-center px-6">
+      <div className="menu-glass-70 rounded-2xl border px-6 py-5 text-center shadow-soft">
+        <div className="mx-auto mb-3 h-9 w-9 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
+        <p className="text-sm font-semibold text-foreground">در حال آماده‌سازی صفحه...</p>
+      </div>
+    </div>
+  )
+}
 
 function App() {
   useEffect(() => {
@@ -90,80 +100,82 @@ function App() {
         <OfflineBanner />
         <Navbar />
         <main className="relative">
-          <Routes>
-            <Route path="/" element={<Landing />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/store" element={<Store />} />
-            <Route path="/library" element={
-              <RoleGuard roles={['user', 'editor', 'publisher', 'admin', 'super_admin']}>
-                <Library />
-              </RoleGuard>
-            } />
-            <Route path="/read/:id" element={<Reader />} />
-            <Route path="/b/:id" element={<BookLanding />} />
-            <Route path="/upload" element={
-              <RoleGuard roles={['publisher', 'editor', 'admin', 'super_admin']}>
-                <Upload />
-              </RoleGuard>
-            } />
-            <Route path="/edit/:id" element={
-              <RoleGuard roles={['publisher', 'editor', 'admin', 'super_admin']}>
-                <Edit />
-              </RoleGuard>
-            } />
-            <Route path="/publish/:id" element={
-              <RoleGuard roles={['publisher', 'admin', 'super_admin']}>
-                <Publish />
-              </RoleGuard>
-            } />
-            <Route path="/publisher/:id" element={
-              <RoleGuard roles={['publisher', 'admin', 'super_admin']}>
-                <Publisher />
-              </RoleGuard>
-            } />
-            <Route path="/publisher/:id/settings" element={
-              <RoleGuard roles={['publisher', 'admin', 'super_admin']}>
-                <PublisherSettings />
-              </RoleGuard>
-            } />
-            <Route path="/admin" element={
-              <RoleGuard roles={['admin', 'super_admin']}>
-                <Admin />
-              </RoleGuard>
-            } />
-            <Route path="/credits" element={
-              <RoleGuard roles={['user', 'editor', 'publisher', 'admin', 'super_admin']}>
-                <Credits />
-              </RoleGuard>
-            } />
-            <Route path="/editor-requests" element={
-              <RoleGuard roles={['editor', 'publisher', 'admin', 'super_admin']}>
-                <EditorRequests />
-              </RoleGuard>
-            } />
-            <Route path="/profile" element={
-              <RoleGuard roles={['user', 'editor', 'publisher', 'admin', 'super_admin']}>
-                <Profile />
-              </RoleGuard>
-            } />
-            <Route path="/install" element={<Install />} />
-            <Route path="/word-addin" element={
-              <RoleGuard roles={['publisher', 'editor', 'admin', 'super_admin']}>
-                <WordAddin />
-              </RoleGuard>
-            } />
-            <Route path="/audio-studio/:id" element={
-              <RoleGuard roles={['publisher', 'editor', 'admin', 'super_admin']}>
-                <AudioStudioPage />
-              </RoleGuard>
-            } />
-            <Route path="/audio/:editionId" element={
-              <RoleGuard roles={['user', 'editor', 'publisher', 'admin', 'super_admin']}>
-                <AudioReader />
-              </RoleGuard>
-            } />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <Suspense fallback={<RouteLoading />}>
+            <Routes>
+              <Route path="/" element={<Landing />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/store" element={<Store />} />
+              <Route path="/library" element={
+                <RoleGuard roles={['user', 'editor', 'publisher', 'admin', 'super_admin']}>
+                  <Library />
+                </RoleGuard>
+              } />
+              <Route path="/read/:id" element={<Reader />} />
+              <Route path="/b/:id" element={<BookLanding />} />
+              <Route path="/upload" element={
+                <RoleGuard roles={['publisher', 'editor', 'admin', 'super_admin']}>
+                  <Upload />
+                </RoleGuard>
+              } />
+              <Route path="/edit/:id" element={
+                <RoleGuard roles={['publisher', 'editor', 'admin', 'super_admin']}>
+                  <Edit />
+                </RoleGuard>
+              } />
+              <Route path="/publish/:id" element={
+                <RoleGuard roles={['publisher', 'admin', 'super_admin']}>
+                  <Publish />
+                </RoleGuard>
+              } />
+              <Route path="/publisher/:id" element={
+                <RoleGuard roles={['publisher', 'admin', 'super_admin']}>
+                  <Publisher />
+                </RoleGuard>
+              } />
+              <Route path="/publisher/:id/settings" element={
+                <RoleGuard roles={['publisher', 'admin', 'super_admin']}>
+                  <PublisherSettings />
+                </RoleGuard>
+              } />
+              <Route path="/admin" element={
+                <RoleGuard roles={['admin', 'super_admin']}>
+                  <Admin />
+                </RoleGuard>
+              } />
+              <Route path="/credits" element={
+                <RoleGuard roles={['user', 'editor', 'publisher', 'admin', 'super_admin']}>
+                  <Credits />
+                </RoleGuard>
+              } />
+              <Route path="/editor-requests" element={
+                <RoleGuard roles={['editor', 'publisher', 'admin', 'super_admin']}>
+                  <EditorRequests />
+                </RoleGuard>
+              } />
+              <Route path="/profile" element={
+                <RoleGuard roles={['user', 'editor', 'publisher', 'admin', 'super_admin']}>
+                  <Profile />
+                </RoleGuard>
+              } />
+              <Route path="/install" element={<Install />} />
+              <Route path="/word-addin" element={
+                <RoleGuard roles={['publisher', 'editor', 'admin', 'super_admin']}>
+                  <WordAddin />
+                </RoleGuard>
+              } />
+              <Route path="/audio-studio/:id" element={
+                <RoleGuard roles={['publisher', 'editor', 'admin', 'super_admin']}>
+                  <AudioStudioPage />
+                </RoleGuard>
+              } />
+              <Route path="/audio/:editionId" element={
+                <RoleGuard roles={['user', 'editor', 'publisher', 'admin', 'super_admin']}>
+                  <AudioReader />
+                </RoleGuard>
+              } />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
         </main>
       </div>
     </ErrorBoundary>
