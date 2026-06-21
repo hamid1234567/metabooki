@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/integrations/supabase/client'
-import { mockUsers, findUserByEmail, type MockUser } from '@/lib/mock-data'
-import { getStoredCredits, saveCredits } from '@/lib/mock-user-store'
+import type { MockUser } from '@/lib/mock-data'
+import { getStoredCredits } from '@/lib/mock-user-store'
 import type { Session, User } from '@supabase/supabase-js'
 
 export type AppUser = User & { mockData?: MockUser }
@@ -18,6 +18,10 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
+
+async function mockAuthData() {
+  return import('@/lib/mock-data')
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null)
@@ -43,17 +47,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
       return () => subscription.unsubscribe()
     } else {
-      const savedEmail = localStorage.getItem('metabooki_mock_user')
-      if (savedEmail) {
-        const mockUser = findUserByEmail(savedEmail)
-        if (mockUser) {
-          const storedCredits = getStoredCredits(mockUser.id, mockUser.credits)
-          const userWithCredits = { ...mockUser, credits: storedCredits }
-          setUser({ id: mockUser.id, email: mockUser.email, mockData: userWithCredits } as unknown as AppUser)
+      let cancelled = false
+      ;(async () => {
+        const savedEmail = localStorage.getItem('metabooki_mock_user')
+        if (savedEmail) {
+          const { findUserByEmail } = await mockAuthData()
+          if (cancelled) return
+          const mockUser = findUserByEmail(savedEmail)
+          if (mockUser) {
+            const storedCredits = getStoredCredits(mockUser.id, mockUser.credits)
+            const userWithCredits = { ...mockUser, credits: storedCredits }
+            setUser({ id: mockUser.id, email: mockUser.email, mockData: userWithCredits } as unknown as AppUser)
+          }
         }
-      }
-      setLoading(false)
-      setIsMock(true)
+        if (!cancelled) {
+          setLoading(false)
+          setIsMock(true)
+        }
+      })()
+      return () => { cancelled = true }
     }
   }, [hasSupabase])
 
@@ -62,6 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       return { error }
     }
+    const { findUserByEmail } = await mockAuthData()
     const mockUser = findUserByEmail(email)
     if (!mockUser) return { error: new Error('کاربر یافت نشد') }
     if (mockUser.password !== password) return { error: new Error('رمز عبور اشتباه است') }

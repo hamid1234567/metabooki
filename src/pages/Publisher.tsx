@@ -21,6 +21,7 @@ const stageMeta = {
 
 const appPath = (path: string) => `${window.location.origin}${import.meta.env.BASE_URL}#/${path.replace(/^\//, '')}`
 const openBookPreview = (id: string) => window.open(appPath(`/read/${id}`), '_blank', 'noopener,noreferrer')
+const PUBLISHER_BOOK_LIST_COLUMNS = 'id,title,subtitle,description,cover_url,back_cover_url,preview_pages,price,status,review_status,publisher_id,language,tags,metadata,series_id,series_order,created_at'
 
 export default function Publisher() {
   const navigate = useNavigate()
@@ -86,7 +87,7 @@ export default function Publisher() {
         const ownPublisher = await (supabase as any).from('publisher_profiles').select('id').eq('user_id', user.id).maybeSingle()
         const roles = await (supabase as any).from('user_roles').select('role').eq('user_id', user.id)
         const isAdmin = roles.data?.some((item: { role: string }) => item.role === 'admin' || item.role === 'super_admin')
-        let query = (supabase as any).from('books').select('*').order('created_at', { ascending: false })
+        let query = (supabase as any).from('books').select(PUBLISHER_BOOK_LIST_COLUMNS).order('created_at', { ascending: false })
         if (ownPublisher.data?.id) query = query.eq('publisher_id', ownPublisher.data.id)
         else if (!isAdmin) return
         const result = await query
@@ -99,7 +100,7 @@ export default function Publisher() {
           publisher_name: row.metadata?.publisher_name || 'ناشر متابوکی',
           book_type: row.metadata?.book_type || 'تألیف',
           author: row.metadata?.author || 'نویسنده نامشخص',
-          page_count: row.pages?.length || 0,
+          page_count: Number(row.metadata?.page_count || row.metadata?.print_page_count || row.metadata?.total_pages || 0),
           stage: row.status === 'published' && row.review_status === 'approved' ? 'published' : 'editing',
           readers: 0, sales: 0, revenue: 0,
           importStatus: row.metadata?.import_project_id ? 'word-imported' : 'manual',
