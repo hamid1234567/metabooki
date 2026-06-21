@@ -100,7 +100,7 @@ export default function Publisher() {
           publisher_name: row.metadata?.publisher_name || 'ناشر متابوکی',
           book_type: row.metadata?.book_type || 'تألیف',
           author: row.metadata?.author || 'نویسنده نامشخص',
-          page_count: Number(row.metadata?.page_count || row.metadata?.print_page_count || row.metadata?.total_pages || 0),
+          page_count: Number(row.metadata?.page_count || row.metadata?.print_page_count || row.metadata?.total_pages || row.metadata?.total_source_pages || 0),
           stage: row.status === 'published' && row.review_status === 'approved' ? 'published' : 'editing',
           readers: 0, sales: 0, revenue: 0,
           importStatus: row.metadata?.import_project_id ? 'word-imported' : 'manual',

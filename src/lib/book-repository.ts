@@ -38,7 +38,7 @@ function metadataString(metadata: Record<string, unknown>, key: string, fallback
 function toBook(row: Record<string, unknown>): MockBook {
   const metadata = (row.metadata || {}) as Record<string, unknown>
   const pages = Array.isArray(row.pages) ? row.pages : []
-  const metadataPageCount = Number(metadata.page_count || metadata.print_page_count || metadata.total_pages || 0)
+  const metadataPageCount = Number(metadata.page_count || metadata.print_page_count || metadata.total_pages || metadata.total_source_pages || 0)
   const pageCount = pages.length || metadataPageCount || Number(row.page_count || 0) || 0
 
   return {
