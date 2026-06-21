@@ -1,10 +1,14 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/integrations/supabase/client'
-import { mockUsers, findUserByEmail, type MockUser } from '@/lib/mock-data'
+import type { MockUser } from '@/lib/mock-data'
 import type { Session, User } from '@supabase/supabase-js'
 
 // Unified user type that works with both Supabase and mock
 export type AppUser = User & { mockData?: MockUser }
+
+async function mockAuthData() {
+  return import('@/lib/mock-data')
+}
 
 export function useAuth() {
   const [user, setUser] = useState<AppUser | null>(null)
@@ -44,19 +48,27 @@ export function useAuth() {
       }
     } else {
       // Use mock auth
-      const savedEmail = localStorage.getItem('metabooki_mock_user')
-      if (savedEmail) {
-        const mockUser = findUserByEmail(savedEmail)
-        if (mockUser) {
-          setUser({
-            id: mockUser.id,
-            email: mockUser.email,
-            mockData: mockUser,
-          } as unknown as AppUser)
+      let cancelled = false
+      ;(async () => {
+        const savedEmail = localStorage.getItem('metabooki_mock_user')
+        if (savedEmail) {
+          const { findUserByEmail } = await mockAuthData()
+          if (cancelled) return
+          const mockUser = findUserByEmail(savedEmail)
+          if (mockUser) {
+            setUser({
+              id: mockUser.id,
+              email: mockUser.email,
+              mockData: mockUser,
+            } as unknown as AppUser)
+          }
         }
-      }
-      setLoading(false)
-      setIsMock(true)
+        if (!cancelled) {
+          setLoading(false)
+          setIsMock(true)
+        }
+      })()
+      return () => { cancelled = true }
     }
   }, [hasSupabase])
 
@@ -65,6 +77,7 @@ export function useAuth() {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       return { error }
     } else {
+      const { findUserByEmail } = await mockAuthData()
       const mockUser = findUserByEmail(email)
       if (!mockUser) {
         return { error: new Error('کاربر یافت نشد') }
