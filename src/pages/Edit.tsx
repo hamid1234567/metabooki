@@ -1343,7 +1343,7 @@ export default function Edit() {
 
   useEffect(() => {
     if (!editorRevision) return
-    const timer = window.setTimeout(() => save(true), 1400)
+    const timer = window.setTimeout(() => save(true), 3200)
     return () => window.clearTimeout(timer)
   }, [editorRevision])
 
