@@ -432,7 +432,7 @@ export function BookContentBlock({
     const tabs = block.tabs || block.items || block.steps || []
     const active = Math.min(tabStep[blockKey] ?? 0, Math.max(0, tabs.length - 1))
     const tab = tabs[active] || {}
-    return <div className="reader-interactive menu-glass-70 rounded-2xl p-5 mb-8" data-no-swipe="true"><h3 className="font-semibold mb-4">{textOf(block.title, interactiveLabel('tabs'))}</h3><div className="flex gap-2 overflow-x-auto pb-2">{tabs.map((item: any, tabIndex: number) => <button key={tabIndex} onClick={() => setTabStep?.(current => ({ ...current, [blockKey]: tabIndex }))} className={`shrink-0 rounded-xl px-4 py-2 text-sm ${active === tabIndex ? 'bg-primary text-primary-foreground' : 'bg-background/60 hover:bg-muted'}`}>{textOf(item.title, item.label, `تب ${tabIndex + 1}`)}</button>)}</div><div className="mt-3 rounded-xl bg-background/55 p-4">{renderInteractiveImage(tab.image, tab.title)}<p className="text-sm text-muted-foreground leading-relaxed">{textOf(tab.description, tab.text, tab.body)}</p></div></div>
+    return <div className="reader-interactive reader-tabs menu-glass-70 rounded-2xl p-5 mb-8" data-no-swipe="true"><h3 className="font-semibold mb-4">{textOf(block.title, interactiveLabel('tabs'))}</h3><div className="reader-tabs-list">{tabs.map((item: any, tabIndex: number) => <button key={tabIndex} onClick={() => setTabStep?.(current => ({ ...current, [blockKey]: tabIndex }))} className={`reader-tabs-tab ${active === tabIndex ? 'is-active' : ''}`}>{textOf(item.title, item.label, `تب ${tabIndex + 1}`)}</button>)}</div><div className="reader-tabs-panel">{renderInteractiveImage(tab.image, tab.title)}<p>{textOf(tab.description, tab.text, tab.body)}</p></div></div>
   }
 
   if (block.type === 'author') {
