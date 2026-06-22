@@ -1173,6 +1173,7 @@ body {
 .reader-step-slider {
   position: relative;
   overflow: hidden;
+  direction: inherit;
   background:
     radial-gradient(circle at 8% 34%, hsl(var(--primary) / .12), transparent 13rem),
     radial-gradient(circle at 90% 10%, hsl(220 95% 70% / .12), transparent 13rem),
@@ -1182,9 +1183,10 @@ body {
 .reader-step-head {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: .55rem;
-  margin-bottom: 1.05rem;
+  max-width: 56rem;
+  margin: 0 auto 1.25rem;
   color: hsl(var(--foreground));
 }
 
@@ -1205,22 +1207,23 @@ body {
 .reader-step-track {
   position: relative;
   display: flex;
-  flex-direction: row-reverse;
+  flex-direction: row;
+  direction: inherit;
   align-items: start;
   justify-content: space-between;
   gap: .5rem;
-  max-width: 34rem;
-  margin: 0 auto .55rem;
-  padding: 0 .35rem;
+  max-width: 56rem;
+  margin: 0 auto 2rem;
+  padding: .1rem 1.65rem 0;
 }
 
 .reader-step-line {
   position: absolute;
   z-index: 0;
-  inset-inline: 1.7rem;
+  inset-inline: 2.65rem;
   top: 1.2rem;
   height: 2px;
-  background: linear-gradient(90deg, hsl(var(--primary) / .48), hsl(var(--border)), hsl(var(--primary) / .48));
+  background: linear-gradient(90deg, hsl(var(--primary) / .18), hsl(var(--primary) / .42), hsl(var(--primary) / .18));
 }
 
 .reader-step-track button {
@@ -1236,13 +1239,13 @@ body {
 }
 
 .reader-step-track button span {
-  width: 2.55rem;
-  height: 2.55rem;
+  width: 2.35rem;
+  height: 2.35rem;
   display: grid;
   place-items: center;
   border: 1px solid hsl(var(--border) / .85);
   border-radius: 999px;
-  background: hsl(var(--background) / .76);
+  background: hsl(var(--background) / .82);
   color: hsl(var(--muted-foreground));
   box-shadow: 0 9px 24px rgb(15 23 42 / .08);
   transition: .22s ease;
@@ -1266,16 +1269,14 @@ body {
 }
 
 .reader-step-track button.is-active span {
-  border: 2px solid hsl(var(--primary-foreground) / .9);
-  outline: 3px solid hsl(var(--primary) / .28);
-  background:
-    radial-gradient(circle at 30% 22%, hsl(var(--primary-foreground) / .28), transparent 1.1rem),
-    hsl(var(--primary));
+  border: 2px solid hsl(var(--primary));
+  outline: 7px solid hsl(var(--primary) / .12);
+  background: hsl(var(--primary));
   color: hsl(var(--primary-foreground));
   transform: scale(1.13);
   box-shadow:
-    0 16px 36px hsl(var(--primary) / .34),
-    0 0 0 7px hsl(var(--primary) / .11);
+    0 14px 30px hsl(var(--primary) / .32),
+    0 0 0 1px hsl(var(--primary-foreground) / .68) inset;
 }
 
 .reader-step-track button.is-active small {
@@ -1284,6 +1285,7 @@ body {
 }
 
 .reader-step-progress {
+  display: none;
   height: .38rem;
   max-width: 34rem;
   overflow: hidden;
@@ -1303,26 +1305,35 @@ body {
 .reader-step-card {
   position: relative;
   display: grid;
-  gap: 1rem;
-  place-items: center;
-  max-width: 33rem;
+  direction: ltr;
+  grid-template-columns: minmax(0, 1fr) minmax(13rem, 20rem);
+  grid-template-areas: "body image";
+  align-items: center;
+  gap: clamp(1rem, 4vw, 2rem);
+  max-width: 56rem;
+  min-height: clamp(11rem, 22vw, 14rem);
   margin: 0 auto;
   border: 1px solid hsl(var(--border) / .58);
   border-radius: 1.35rem;
   background:
     linear-gradient(180deg, hsl(var(--background) / .9), hsl(var(--background) / .72)),
     hsl(var(--background) / .72);
-  padding: clamp(1rem, 4vw, 1.45rem);
+  padding: clamp(1.1rem, 3.5vw, 1.8rem);
   box-shadow: 0 22px 54px rgb(15 23 42 / .12);
   animation: fade-in .24s ease;
 }
 
+.reader-step-slider[data-dir="ltr"] .reader-step-card {
+  grid-template-areas: "image body";
+}
+
 .reader-step-image {
+  grid-area: image;
   display: grid;
   place-items: center;
   width: 100%;
-  min-height: clamp(12rem, 42vw, 20rem);
-  border-radius: 1.15rem;
+  min-height: clamp(8rem, 20vw, 11rem);
+  border-radius: 1rem;
   background:
     radial-gradient(circle at 30% 18%, hsl(44 94% 70% / .18), transparent 12rem),
     hsl(var(--muted) / .22);
@@ -1330,13 +1341,15 @@ body {
 
 .reader-step-image img {
   max-width: 100%;
-  max-height: min(44vh, 19rem);
+  max-height: min(32vh, 11rem);
   object-fit: contain;
   filter: drop-shadow(0 12px 20px rgb(15 23 42 / .1));
 }
 
 .reader-step-body {
-  text-align: center;
+  grid-area: body;
+  text-align: start;
+  align-self: center;
 }
 
 .reader-step-body > span {
@@ -1360,7 +1373,7 @@ body {
 }
 
 .reader-step-body p {
-  margin: .45rem auto 0;
+  margin: .45rem 0 0;
   max-width: 28rem;
   color: hsl(var(--muted-foreground));
   line-height: 2.05;
@@ -1396,18 +1409,31 @@ body {
 }
 
 .reader-step-side.prev {
-  inset-inline-start: -1.25rem;
+  left: -1.25rem;
 }
 
 .reader-step-side.next {
-  inset-inline-end: -1.25rem;
+  right: -1.25rem;
   background: hsl(var(--primary));
   color: hsl(var(--primary-foreground));
 }
 
+.reader-step-slider[data-dir="rtl"] .reader-step-side.prev {
+  right: -1.25rem;
+  left: auto;
+}
+
+.reader-step-slider[data-dir="rtl"] .reader-step-side.next {
+  left: -1.25rem;
+  right: auto;
+}
+
+.reader-step-slider[data-dir="ltr"] .reader-step-side svg {
+  transform: rotate(180deg);
+}
+
 .reader-step-footer {
-  display: grid;
-  grid-template-columns: 2.65rem minmax(5rem, auto) 2.65rem;
+  display: flex;
   align-items: center;
   justify-content: center;
   gap: 1rem;
@@ -1416,9 +1442,9 @@ body {
 }
 
 .reader-step-footer button {
+  display: none;
   width: 2.65rem;
   height: 2.65rem;
-  display: grid;
   place-items: center;
   border-radius: 999px;
   background: hsl(var(--background) / .6);
@@ -1442,7 +1468,8 @@ body {
   .reader-step-track {
     overflow-x: auto;
     justify-content: start;
-    padding-bottom: .25rem;
+    padding: .1rem 1.4rem .25rem;
+    margin-bottom: 1.35rem;
   }
 
   .reader-step-track button {
@@ -1454,11 +1481,29 @@ body {
   }
 
   .reader-step-side.prev {
-    inset-inline-start: -.55rem;
+    left: -.55rem;
   }
 
   .reader-step-side.next {
-    inset-inline-end: -.55rem;
+    right: -.55rem;
+  }
+
+  .reader-step-slider[data-dir="rtl"] .reader-step-side.prev {
+    right: -.55rem;
+    left: auto;
+  }
+
+  .reader-step-slider[data-dir="rtl"] .reader-step-side.next {
+    left: -.55rem;
+    right: auto;
+  }
+
+  .reader-step-card,
+  .reader-step-slider[data-dir="ltr"] .reader-step-card {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "image"
+      "body";
   }
 }
 
