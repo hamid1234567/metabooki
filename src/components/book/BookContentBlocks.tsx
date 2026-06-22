@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import { Check, ChevronLeft, ChevronRight, Clock3, X as XIcon } from 'lucide-react'
-import { calloutPreset, decodeBookContentPayload, INTERACTIVE_KIND_SET, interactiveLabel, normalizeBookText } from '@/lib/book-content'
+import { bookTextDirection, calloutPreset, decodeBookContentPayload, INTERACTIVE_KIND_SET, interactiveLabel, normalizeBookText } from '@/lib/book-content'
 
 type StateMap<T> = Record<string, T>
 
@@ -121,10 +121,13 @@ function StepTimelineBlock({
   }, [active, items.length])
   if (!items.length) return null
   const title = textOf(block.title, block.type === 'timeline' ? interactiveLabel('timeline') : interactiveLabel('steps'))
+  const firstText = textOf(items[0]?.title, items[0]?.label, items[0]?.description, items[0]?.text, block.title)
+  const direction = bookTextDirection(firstText)
+  const locale = direction === 'rtl' ? 'fa-IR' : 'en-US'
   const displayTitle = textOf(item.title, item.label, item.year, `مرحله ${active + 1}`)
   const description = textOf(item.description, item.text, item.body, item.caption)
   return (
-    <div className="reader-interactive reader-step-slider menu-glass-70 rounded-2xl p-4 mb-8" data-no-swipe="true" dir="rtl">
+    <div className="reader-interactive reader-step-slider menu-glass-70 rounded-2xl p-4 mb-8" data-no-swipe="true" data-dir={direction} dir={direction}>
       <header className="reader-step-head">
         <h3>{title}</h3>
         <Clock3 />
@@ -139,8 +142,8 @@ function StepTimelineBlock({
             onClick={() => setActive(index)}
             title={textOf(step.title, step.label, `مرحله ${index + 1}`)}
           >
-            <span>{(index + 1).toLocaleString('fa-IR')}</span>
-            <small>{textOf(step.year, step.shortTitle, String(index + 1))}</small>
+            <span>{(index + 1).toLocaleString(locale)}</span>
+            <small>{(index + 1).toLocaleString(locale)}</small>
           </button>
         ))}
       </div>
@@ -151,15 +154,15 @@ function StepTimelineBlock({
           <button className="reader-step-side next" type="button" onClick={() => setActive(active + 1)} aria-label="مرحله بعدی"><ChevronLeft /></button>
         </>}
         {item.image && <div className="reader-step-image"><img src={item.image} alt={displayTitle} loading="lazy" /></div>}
-        <div className="reader-step-body">
-          <span>{(active + 1).toLocaleString('fa-IR')}</span>
+        <div className="reader-step-body" dir={direction}>
+          <span>{(active + 1).toLocaleString(locale)}</span>
           <h4>{displayTitle}</h4>
           {description && <p>{description}</p>}
         </div>
       </section>
       {items.length > 1 && <footer className="reader-step-footer">
         <button type="button" onClick={() => setActive(active - 1)} aria-label="مرحله قبلی"><ChevronRight /></button>
-        <b>{(active + 1).toLocaleString('fa-IR')} / {items.length.toLocaleString('fa-IR')}</b>
+        <b>{(active + 1).toLocaleString(locale)} / {items.length.toLocaleString(locale)}</b>
         <button type="button" onClick={() => setActive(active + 1)} aria-label="مرحله بعدی"><ChevronLeft /></button>
       </footer>}
     </div>
