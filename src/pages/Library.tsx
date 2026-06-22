@@ -8,6 +8,7 @@ import { getAllReadingProgress, getMockLibraryEntries } from '@/lib/mock-library
 import type { MockBook } from '@/lib/mock-data'
 import { BOOK_LIST_PAGE_SIZE, filterByValue, normalizeBookType, pageNumbers, paginate, searchBooks, sortBooks, uniqueBookValues, type BookSortKey } from '@/lib/book-listing'
 import { emptyFilterSettings, loadBookFilterSettings, mergeFilterOptions, type BookFilterSettings } from '@/lib/filter-settings'
+import { resolveBookCoverArt } from '@/lib/ai-image-prompts'
 import { ArrowLeft, BookOpen, CheckCircle, ChevronLeft, ChevronRight, Clock, PlayCircle, Search, ShoppingCart, Sparkles } from 'lucide-react'
 import { getPublishedBooks, getUserLibrary } from '@/lib/book-repository'
 
@@ -91,7 +92,10 @@ export default function Library() {
         const { mockBooks } = await import('@/lib/mock-data')
         if (cancelled) return
         const entries = getMockLibraryEntries(user.mockData!.id)
-        const books = entries.map(entry => mockBooks.find(book => book.id === entry.bookId)).filter(Boolean) as MockBook[]
+        const books = entries
+          .map(entry => mockBooks.find(book => book.id === entry.bookId))
+          .filter((book): book is MockBook => Boolean(book))
+          .map((book: MockBook) => ({ ...book, cover_url: resolveBookCoverArt({ coverUrl: book.cover_url, title: book.title, category: book.category, description: book.description }) })) as MockBook[]
         setLibraryBooks(books)
         setProgress(getAllReadingProgress(user.mockData!.id))
         setLoading(false)

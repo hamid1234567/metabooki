@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client'
 import { useAuthContext } from '@/lib/auth-context'
 import { BOOK_LIST_PAGE_SIZE, filterByValue, normalizeBookType, pageNumbers, paginate, searchBooks, sortBooks, uniqueBookValues, type BookSortKey } from '@/lib/book-listing'
 import { emptyFilterSettings, loadBookFilterSettings, mergeFilterOptions, type BookFilterSettings } from '@/lib/filter-settings'
+import { resolveBookCoverArt } from '@/lib/ai-image-prompts'
 
 const stageMeta = {
   editing: { label: 'در حال ویرایش', className: 'bg-blue-500 text-white', icon: FileText },
@@ -94,7 +95,13 @@ export default function Publisher() {
         if (result.error) throw result.error
         const remote: PublisherBook[] = (result.data || []).map((row: any) => ({
           ...row,
-          cover_url: row.cover_url || `https://picsum.photos/seed/${row.id}/400/560`,
+          cover_url: resolveBookCoverArt({
+            coverUrl: row.cover_url || `https://picsum.photos/seed/${row.id}/400/560`,
+            title: row.title,
+            category: row.metadata?.category || row.tags?.[0] || 'عمومی',
+            description: row.description || '',
+            sample: row.metadata?.opening_sample || row.metadata?.sample || '',
+          }),
           back_cover_url: row.back_cover_url || null,
           category: row.metadata?.category || row.tags?.[0] || 'عمومی',
           publisher_name: row.metadata?.publisher_name || 'ناشر متابوکی',
