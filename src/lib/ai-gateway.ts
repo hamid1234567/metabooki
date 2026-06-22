@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client'
+import { buildAiImagePrompt, imageSizeForPurpose, type AiImagePurpose, type AiImageSize, type BookCoverPromptContext } from '@/lib/ai-image-prompts'
 import type { AppUser } from '@/lib/auth-context'
 
 export type AiProvider = 'openai' | 'gemini' | 'anthropic' | 'custom'
@@ -79,11 +80,23 @@ export interface AiImageEstimateResult {
   model: string
   warning?: string
   prompt: string
+  purpose?: AiImagePurpose
+  size?: AiImageSize
   usage: AiImageUsage
 }
 
 export interface AiImageGenerationResult extends AiImageEstimateResult {
   imageUrl: string
+}
+
+export interface AiImageRequest {
+  prompt: string
+  purpose?: AiImagePurpose
+  size?: AiImageSize
+  cover?: BookCoverPromptContext
+  bookId?: string
+  pageIndex?: number
+  user: AppUser | null
 }
 
 export interface AiProviderTestResult {
