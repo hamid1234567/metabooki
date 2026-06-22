@@ -12,6 +12,7 @@ import { useAuthContext } from '@/lib/auth-context'
 import { BOOK_LIST_PAGE_SIZE, filterByValue, normalizeBookType, pageNumbers, paginate, searchBooks, sortBooks, uniqueBookValues, type BookSortKey } from '@/lib/book-listing'
 import { emptyFilterSettings, loadBookFilterSettings, mergeFilterOptions, type BookFilterSettings } from '@/lib/filter-settings'
 import { resolveBookCoverArt } from '@/lib/ai-image-prompts'
+import { openReaderPreview } from '@/lib/app-routes'
 
 const stageMeta = {
   editing: { label: 'در حال ویرایش', className: 'bg-blue-500 text-white', icon: FileText },
@@ -20,8 +21,7 @@ const stageMeta = {
   published: { label: 'انتشار نهایی', className: 'bg-primary text-primary-foreground', icon: CheckCircle },
 }
 
-const appPath = (path: string) => `${window.location.origin}${import.meta.env.BASE_URL}#/${path.replace(/^\//, '')}`
-const openBookPreview = (id: string) => window.open(appPath(`/read/${id}`), '_blank', 'noopener,noreferrer')
+const openBookPreview = (id: string) => openReaderPreview(id, '/publisher/me')
 const PUBLISHER_BOOK_LIST_COLUMNS = 'id,title,subtitle,description,cover_url,back_cover_url,preview_pages,price,status,review_status,publisher_id,language,tags,metadata,series_id,series_order,created_at'
 
 export default function Publisher() {

@@ -25,12 +25,12 @@ import { estimateAiImageGeneration, estimateAiTextUsage, generateAiImageThroughG
 import type { AiImagePurpose } from '@/lib/ai-image-prompts'
 import { useCredits } from '@/hooks/useCredits'
 import { creditsBus } from '@/lib/credits-bus'
+import { openReaderPreview, readerUrl } from '@/lib/app-routes'
 
 const escape = (value = '') => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 const encodePayload = (value: unknown) => encodeURIComponent(JSON.stringify(value))
 const decodePayload = (value = '') => { try { return JSON.parse(decodeURIComponent(value)) } catch { return {} } }
-const appPath = (path: string) => `${window.location.origin}${import.meta.env.BASE_URL}#/${path.replace(/^\//, '')}`
-const openBookPreview = (id: string) => window.open(appPath(`/read/${id}?returnTo=${encodeURIComponent(`/edit/${id}`)}`), '_blank', 'noopener,noreferrer')
+const openBookPreview = (id: string) => openReaderPreview(id, `/edit/${id}`)
 
 type EditorPanelMode = 'toc' | 'upgrade' | 'media' | 'interactive' | 'ai'
 type MediaPanelView = 'home' | 'library'
@@ -1309,12 +1309,13 @@ export default function Edit() {
   }
 
   const previewCurrentBook = async () => {
-    const previewUrl = appPath(`/read/${id}?returnTo=${encodeURIComponent(`/edit/${id}`)}`)
+    if (!id) return
     const previewWindow = window.open('about:blank', '_blank')
     await save(true)
+    const previewUrl = readerUrl(id, `/edit/${id}`)
     if (previewWindow) {
       previewWindow.opener = null
-      previewWindow.location.href = previewUrl
+      previewWindow.location.replace(previewUrl)
       return
     }
     openBookPreview(id)
