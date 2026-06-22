@@ -301,7 +301,7 @@ export default function Reader() {
   }
 
   if (!book) {
-    return <div className="max-w-4xl mx-auto px-4 py-20 text-center"><BookOpen className="w-20 h-20 text-muted-foreground mx-auto mb-4" /><h1 className="text-2xl font-bold">کتاب یافت نشد</h1><Link to="/store"><Button variant="outline" className="mt-4">بازگشت</Button></Link></div>
+    return <div className="max-w-4xl mx-auto px-4 py-20 text-center"><BookOpen className="w-20 h-20 text-muted-foreground mx-auto mb-4" /><h1 className="text-2xl font-bold">کتاب یافت نشد</h1><Button variant="outline" className="mt-4" onClick={goReaderBack}>بازگشت</Button></div>
   }
 
   const isFree = book.price === 0
@@ -320,20 +320,18 @@ export default function Reader() {
     : printPageLabel(currentPrintNumber)
   const findTocPosition = (item: { id?: string; title?: string; page?: number }) => {
     if (item.id) {
-      for (let pageIndex = 0; pageIndex < book.pages.length; pageIndex += 1) {
-        const blockIndex = (book.pages[pageIndex].blocks || []).findIndex((block: any) => block.id === item.id || block.anchor === item.id || block.anchors?.includes?.(item.id))
-        if (blockIndex >= 0) return { pageIndex, blockIndex }
-      }
+      const byId = tocLookup?.byId.get(String(item.id))
+      if (byId) return byId
     }
-    const title = String(item.title || '').trim()
+    const title = normalizeBookText(String(item.title || '')).trim()
     if (title) {
-      for (let pageIndex = 0; pageIndex < book.pages.length; pageIndex += 1) {
-        const blockIndex = (book.pages[pageIndex].blocks || []).findIndex((block: any) => block.type === 'heading' && String(block.content || block.text || '').trim() === title)
-        if (blockIndex >= 0) return { pageIndex, blockIndex }
-      }
+      const byTitle = tocLookup?.byTitle.get(title)
+      if (byTitle) return byTitle
     }
-    const byPrintNumber = book.pages.findIndex((candidatePage: any, index: number) => Number(candidatePage.printNumber || candidatePage.number || index + 1) === Number(item.page || 1))
-    return { pageIndex: Math.max(0, Math.min(book.pages.length - 1, byPrintNumber >= 0 ? byPrintNumber : Number(item.page || 1) - 1)), blockIndex: 0 }
+    const targetPrint = Number(item.page || 1)
+    const byPrint = tocLookup?.byPrint.get(targetPrint)
+    if (byPrint) return byPrint
+    return { pageIndex: Math.max(0, Math.min(book.pages.length - 1, targetPrint - 1)), blockIndex: 0 }
   }
   const findTocPageIndex = (item: { id?: string; title?: string; page?: number }) => {
     return findTocPosition(item).pageIndex

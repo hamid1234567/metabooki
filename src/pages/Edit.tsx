@@ -30,7 +30,7 @@ const escape = (value = '') => String(value).replace(/&/g, '&amp;').replace(/</g
 const encodePayload = (value: unknown) => encodeURIComponent(JSON.stringify(value))
 const decodePayload = (value = '') => { try { return JSON.parse(decodeURIComponent(value)) } catch { return {} } }
 const appPath = (path: string) => `${window.location.origin}${import.meta.env.BASE_URL}#/${path.replace(/^\//, '')}`
-const openBookPreview = (id: string) => window.open(appPath(`/read/${id}`), '_blank', 'noopener,noreferrer')
+const openBookPreview = (id: string) => window.open(appPath(`/read/${id}?returnTo=${encodeURIComponent(`/edit/${id}`)}`), '_blank', 'noopener,noreferrer')
 
 type EditorPanelMode = 'toc' | 'upgrade' | 'media' | 'interactive' | 'ai'
 type MediaPanelView = 'home' | 'library'
@@ -1309,7 +1309,7 @@ export default function Edit() {
   }
 
   const previewCurrentBook = async () => {
-    const previewUrl = appPath(`/read/${id}`)
+    const previewUrl = appPath(`/read/${id}?returnTo=${encodeURIComponent(`/edit/${id}`)}`)
     const previewWindow = window.open('about:blank', '_blank')
     await save(true)
     if (previewWindow) {
