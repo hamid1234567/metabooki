@@ -219,23 +219,32 @@ export async function estimateAiTextUsage(request: RunAiRequest): Promise<AiText
   return data as AiTextEstimateResult
 }
 
-export async function estimateAiImageGeneration(request: { prompt: string; bookId?: string; pageIndex?: number; user: AppUser | null }): Promise<AiImageEstimateResult> {
+function prepareImageRequest(request: AiImageRequest) {
+  const purpose = request.purpose || 'direct'
+  const prompt = buildAiImagePrompt({ purpose, prompt: request.prompt, cover: request.cover })
+  const size = request.size || imageSizeForPurpose(purpose)
+  return { ...request, purpose, prompt, size }
+}
+
+export async function estimateAiImageGeneration(request: AiImageRequest): Promise<AiImageEstimateResult> {
+  const prepared = prepareImageRequest(request)
   if (!request.user) throw new Error('برای تولید تصویر ابتدا وارد حساب شوید.')
   if (!request.prompt.trim()) throw new Error('برای تولید تصویر، متن انتخاب‌شده یا پرامپت لازم است.')
   if (!hasSupabaseConnection()) throw new Error('اتصال Supabase و Edge Function برای تولید تصویر فعال نیست.')
   const { data, error } = await supabase.functions.invoke('ai-gateway', {
-    body: { operation: 'estimate_image', prompt: request.prompt, bookId: request.bookId, pageIndex: request.pageIndex },
+    body: { operation: 'estimate_image', prompt: prepared.prompt, purpose: prepared.purpose, size: prepared.size, bookId: request.bookId, pageIndex: request.pageIndex },
   })
   if (error) throw await gatewayError(error, 'برآورد هزینه تولید تصویر ناموفق بود.')
   return data as AiImageEstimateResult
 }
 
-export async function generateAiImageThroughGateway(request: { prompt: string; bookId?: string; pageIndex?: number; user: AppUser | null }): Promise<AiImageGenerationResult> {
+export async function generateAiImageThroughGateway(request: AiImageRequest): Promise<AiImageGenerationResult> {
+  const prepared = prepareImageRequest(request)
   if (!request.user) throw new Error('برای تولید تصویر ابتدا وارد حساب شوید.')
   if (!request.prompt.trim()) throw new Error('برای تولید تصویر، متن انتخاب‌شده یا پرامپت لازم است.')
   if (!hasSupabaseConnection()) throw new Error('اتصال Supabase و Edge Function برای تولید تصویر فعال نیست.')
   const { data, error } = await supabase.functions.invoke('ai-gateway', {
-    body: { operation: 'generate_image', prompt: request.prompt, bookId: request.bookId, pageIndex: request.pageIndex },
+    body: { operation: 'generate_image', prompt: prepared.prompt, purpose: prepared.purpose, size: prepared.size, bookId: request.bookId, pageIndex: request.pageIndex },
   })
   if (error) throw await gatewayError(error, 'تولید تصویر ناموفق بود.')
   if (!(data as AiImageGenerationResult)?.imageUrl) {

@@ -21,6 +21,8 @@ type AiProviderConfig = {
   output_cost_per_1k_usd: number
 }
 
+type AiImageSize = '1024x1024' | '1024x1536' | '1536x1024'
+
 function estimateTokens(text: string) {
   return Math.max(1, Math.ceil((text || '').trim().length / 4))
 }
