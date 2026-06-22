@@ -53,7 +53,10 @@ export function EditorHeader({ title, subtitle, saving, savedAt, onTitleChange, 
       <div className="mb-editor-header-actions">
         <Button variant="outline" onClick={onMetadata}>مشخصات</Button>
         <Button variant="outline" onClick={onPreview}>پیش‌نمایش</Button>
-        <Button onClick={onSave}>انتشار</Button>
+        <Button onClick={onSave} disabled={saving} title="ذخیره دستی تغییرات">
+          <Save className="h-4 w-4" />
+          {saving ? 'در حال ذخیره' : 'ذخیره دستی'}
+        </Button>
         <button className="mb-icon-btn" title="حالت شب"><Moon /></button>
         <button className="mb-icon-btn" title="بیشتر"><Menu /></button>
       </div>

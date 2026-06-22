@@ -2,6 +2,9 @@ import type { MockBook } from '@/lib/mock-data'
 import { buildBookCoverImagePrompt, resolveBookCoverArt } from '@/lib/ai-image-prompts'
 
 const KEY = 'metabooki_publisher_books'
+const LAST_UPDATE_KEY = 'metabooki_publisher_books_last_update'
+const BOOK_UPDATE_CHANNEL = 'metabooki-book-updates'
+export const PUBLISHER_BOOK_UPDATED_EVENT = 'metabooki:publisher-book-updated'
 
 export type PublisherBookStage = 'editing' | 'pricing' | 'store' | 'published'
 
@@ -13,6 +16,68 @@ export interface PublisherBook extends MockBook {
   author: string
   importStatus?: 'manual' | 'word-imported' | 'needs-review'
   metadata?: Record<string, unknown>
+}
+
+export type PublisherBookUpdateDetail = {
+  bookId: string
+  action: 'created' | 'updated' | 'deleted'
+  updatedAt: number
+}
+
+let updateChannel: BroadcastChannel | null = null
+
+function getUpdateChannel() {
+  if (typeof window === 'undefined' || !('BroadcastChannel' in window)) return null
+  if (!updateChannel) updateChannel = new BroadcastChannel(BOOK_UPDATE_CHANNEL)
+  return updateChannel
+}
+
+export function notifyPublisherBookChanged(bookId: string, action: PublisherBookUpdateDetail['action'] = 'updated') {
+  if (typeof window === 'undefined') return
+  const detail: PublisherBookUpdateDetail = { bookId, action, updatedAt: Date.now() }
+  window.dispatchEvent(new CustomEvent(PUBLISHER_BOOK_UPDATED_EVENT, { detail }))
+  try {
+    localStorage.setItem(LAST_UPDATE_KEY, JSON.stringify(detail))
+  } catch {
+    // Storage is a best-effort cross-tab fallback.
+  }
+  try {
+    getUpdateChannel()?.postMessage(detail)
+  } catch {
+    // BroadcastChannel is optional; storage/custom events still cover the app.
+  }
+}
+
+export function subscribePublisherBookUpdates(bookId: string | undefined, onUpdate: (detail: PublisherBookUpdateDetail) => void) {
+  if (typeof window === 'undefined') return () => {}
+  const matches = (detail: PublisherBookUpdateDetail | null | undefined) => {
+    if (!detail?.bookId) return false
+    return !bookId || detail.bookId === bookId
+  }
+  const emit = (detail: PublisherBookUpdateDetail | null | undefined) => {
+    if (matches(detail)) onUpdate(detail!)
+  }
+
+  const handleCustom = ((event: CustomEvent<PublisherBookUpdateDetail>) => emit(event.detail)) as EventListener
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key === LAST_UPDATE_KEY && event.newValue) {
+      try { emit(JSON.parse(event.newValue) as PublisherBookUpdateDetail) } catch {}
+      return
+    }
+    if (event.key === KEY && bookId) emit({ bookId, action: 'updated', updatedAt: Date.now() })
+  }
+  const channel = getUpdateChannel()
+  const handleMessage = (event: MessageEvent<PublisherBookUpdateDetail>) => emit(event.data)
+
+  window.addEventListener(PUBLISHER_BOOK_UPDATED_EVENT, handleCustom)
+  window.addEventListener('storage', handleStorage)
+  channel?.addEventListener('message', handleMessage)
+
+  return () => {
+    window.removeEventListener(PUBLISHER_BOOK_UPDATED_EVENT, handleCustom)
+    window.removeEventListener('storage', handleStorage)
+    channel?.removeEventListener('message', handleMessage)
+  }
 }
 
 function read(): PublisherBook[] {
@@ -128,6 +193,7 @@ export function createPublisherBook(input: { title: string; subtitle?: string; a
   const items = read()
   items.unshift(book)
   write(items)
+  notifyPublisherBookChanged(book.id, 'created')
   return book
 }
 
@@ -144,8 +210,10 @@ export function updatePublisherBook(id: string, patch: Partial<PublisherBook>) {
     if (existing) items.unshift({ ...existing, ...patch })
   }
   write(items)
+  notifyPublisherBookChanged(id, 'updated')
 }
 
 export function deletePublisherBook(id: string) {
   write(read().filter(b => b.id !== id))
+  notifyPublisherBookChanged(id, 'deleted')
 }

@@ -1,5 +1,5 @@
 import { useLocation, useNavigate, useParams, Link } from 'react-router-dom'
-import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback, type ReactNode } from 'react'
 import { useAuthContext } from '@/lib/auth-context'
 import { type MockBook } from '@/lib/mock-data'
 import { getBook } from '@/lib/book-repository'
@@ -11,6 +11,7 @@ import { runAiThroughGateway, type AiStructuredContent, type ReaderAiAction, typ
 import { supabase } from '@/integrations/supabase/client'
 import { bookTextDirection, normalizeBookText, printPageLabel } from '@/lib/book-content'
 import { BookContentBlock, resolveSharedBookContentBlock } from '@/components/book/BookContentBlocks'
+import { subscribePublisherBookUpdates } from '@/lib/publisher-books'
 
 type HighlightColor = 'yellow' | 'green' | 'red'
 type HighlightEntry = {
@@ -134,6 +135,35 @@ export default function Reader() {
   const highlightArmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const highlightReadyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const highlightReadyUntilRef = useRef(0)
+  const liveBookRefreshTimerRef = useRef<number | null>(null)
+  const pendingLiveBookRefreshRef = useRef(false)
+
+  const refreshBook = useCallback(async (options: { showLoading?: boolean } = {}) => {
+    if (!id || authLoading) return null
+    if (options.showLoading) setLoadingBook(true)
+    try {
+      const latest = await getBook(id)
+      setBook(latest)
+      if (latest?.pages?.length) {
+        setCurrentPage(page => Math.max(0, Math.min(page, latest.pages.length - 1)))
+      }
+      return latest
+    } catch {
+      if (options.showLoading) setBook(null)
+      return null
+    } finally {
+      if (options.showLoading) setLoadingBook(false)
+    }
+  }, [authLoading, id])
+
+  const scheduleLiveBookRefresh = useCallback((delay = 180) => {
+    pendingLiveBookRefreshRef.current = true
+    if (liveBookRefreshTimerRef.current) window.clearTimeout(liveBookRefreshTimerRef.current)
+    liveBookRefreshTimerRef.current = window.setTimeout(() => {
+      pendingLiveBookRefreshRef.current = false
+      void refreshBook()
+    }, delay)
+  }, [refreshBook])
 
   useEffect(() => {
     if (authLoading) {
@@ -141,12 +171,26 @@ export default function Reader() {
       return
     }
     if (id) {
-      setLoadingBook(true)
-      getBook(id).then(setBook).catch(() => setBook(null)).finally(() => setLoadingBook(false))
+      void refreshBook({ showLoading: true })
       const savedBg = localStorage.getItem(`metabooki_reader_bg_${id}`) as ReaderBackground | null
       if (savedBg === 'abstract' || savedBg === 'image') setReaderBackground(savedBg)
     }
-  }, [authLoading, id, user?.id])
+  }, [authLoading, id, refreshBook, user?.id])
+
+  useEffect(() => {
+    if (!id || authLoading) return
+    const unsubscribe = subscribePublisherBookUpdates(id, detail => {
+      if (detail.action === 'deleted') {
+        setBook(null)
+        return
+      }
+      scheduleLiveBookRefresh()
+    })
+    return () => {
+      unsubscribe()
+      if (liveBookRefreshTimerRef.current) window.clearTimeout(liveBookRefreshTimerRef.current)
+    }
+  }, [authLoading, id, scheduleLiveBookRefresh])
 
   useEffect(() => {
     if (!book) return
@@ -407,6 +451,11 @@ export default function Reader() {
   }
 
   const goPage = (pg: number, target?: TocTarget) => {
+    if (pendingLiveBookRefreshRef.current) {
+      pendingLiveBookRefreshRef.current = false
+      if (liveBookRefreshTimerRef.current) window.clearTimeout(liveBookRefreshTimerRef.current)
+      void refreshBook()
+    }
     const next = Math.max(0, Math.min(book.pages.length - 1, pg))
     if (canReadFull || book.preview_pages.includes(next)) {
       if (target) setTocTarget({ ...target, page: next })
