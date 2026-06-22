@@ -74,7 +74,13 @@ function maxOutputTokensForAction(action: string) {
   return 620
 }
 
-async function callImageProvider(provider: AiProviderConfig, prompt: string) {
+function normalizeImageSize(value: unknown): AiImageSize {
+  const size = String(value || '').trim()
+  if (size === '1024x1024' || size === '1024x1536' || size === '1536x1024') return size
+  return '1536x1024'
+}
+
+async function callImageProvider(provider: AiProviderConfig, prompt: string, size: AiImageSize) {
   if (!['openai', 'custom'].includes(provider.provider)) {
     throw new Error('Image generation is currently available only for OpenAI-compatible providers')
   }
@@ -83,7 +89,7 @@ async function callImageProvider(provider: AiProviderConfig, prompt: string) {
   const res = await fetch(`${baseUrl}/images/generations`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${provider.api_key}` },
-    body: JSON.stringify({ model, prompt, size: '1024x1024', n: 1 }),
+    body: JSON.stringify({ model, prompt, size, n: 1 }),
   })
   const json = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(json.error?.message || json.message || `Image generation failed (${res.status})`)
@@ -282,6 +288,7 @@ serve(async (req) => {
     if (body.operation === 'estimate_image' || body.operation === 'generate_image') {
       const prompt = String(body.prompt || '').trim()
       if (!prompt) throw new Error('Image prompt is empty')
+      const size = normalizeImageSize(body.size)
       const model = imageModelForProvider(provider)
       const usage = imageUsage(provider, prompt, usdToToman, chargeMultiplier, creditsPerToman)
 
@@ -291,11 +298,13 @@ serve(async (req) => {
           model,
           warning: imageModelWarning(provider),
           prompt,
+          purpose: body.purpose || 'direct',
+          size,
           usage,
         }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
       }
 
-      const generated = await callImageProvider(provider, prompt)
+      const generated = await callImageProvider(provider, prompt, size)
       const { error: txError } = await userClient.rpc('charge_user_credits', {
         target_user_id: user.id,
         charge_amount: usage.chargedCredits,
@@ -321,7 +330,7 @@ serve(async (req) => {
         book_id: body.bookId || null,
         page_index: body.pageIndex ?? null,
         action: 'image_generation',
-        content: { type: 'image', prompt, imageUrl: generated.imageUrl },
+        content: { type: 'image', prompt, size, purpose: body.purpose || 'direct', imageUrl: generated.imageUrl },
       })
 
       return new Response(JSON.stringify({
@@ -329,6 +338,8 @@ serve(async (req) => {
         model: generated.model,
         warning: imageModelWarning(provider),
         prompt,
+        purpose: body.purpose || 'direct',
+        size,
         imageUrl: generated.imageUrl,
         usage,
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })

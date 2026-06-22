@@ -22,6 +22,7 @@ import { supabase } from '@/integrations/supabase/client'
 import { useAuthContext } from '@/lib/auth-context'
 import { bookTextDirection, calloutPreset as sharedCalloutPreset, CALLOUT_PRESETS as SHARED_CALLOUT_PRESETS, inlineToHtml as sharedInlineToHtml, interactiveLabel as sharedInteractiveLabel, interactivePreview as sharedInteractivePreview, interactiveTemplate as sharedInteractiveTemplate, INTERACTIVE_TYPES as SHARED_INTERACTIVE_TYPES, normalizeBookText, pageBreakHtml } from '@/lib/book-content'
 import { estimateAiImageGeneration, estimateAiTextUsage, generateAiImageThroughGateway, runAiThroughGateway, type AiStructuredContent, type RunAiResult } from '@/lib/ai-gateway'
+import type { AiImagePurpose } from '@/lib/ai-image-prompts'
 import { useCredits } from '@/hooks/useCredits'
 import { creditsBus } from '@/lib/credits-bus'
 
@@ -74,7 +75,7 @@ type AiProgressState = {
 type EditorMediaContextValue = {
   bookImages: any[]
   uploadImage: (file: File) => Promise<string>
-  generateImage: (prompt: string) => Promise<string>
+  generateImage: (prompt: string, purpose?: AiImagePurpose) => Promise<string>
 }
 
 const EditorMediaContext = createContext<EditorMediaContextValue>({
@@ -214,7 +215,8 @@ function InlineMediaPicker({ label, value, defaultPrompt = '', onChange, stopEdi
     }
   }
   const generate = async () => {
-    const cleanPrompt = (prompt.trim() || defaultPrompt.trim())
+    const manualPrompt = prompt.trim()
+    const cleanPrompt = manualPrompt || defaultPrompt.trim()
     if (!cleanPrompt) {
       setNotice('برای تولید تصویر، پرامپت تصویر را بنویسید یا ابتدا متن همین آیتم را کامل کنید.')
       return
@@ -222,7 +224,7 @@ function InlineMediaPicker({ label, value, defaultPrompt = '', onChange, stopEdi
     setBusy(true)
     setNotice('در حال بررسی هزینه و تولید تصویر...')
     try {
-      const generatedUrl = await media.generateImage(cleanPrompt)
+      const generatedUrl = await media.generateImage(cleanPrompt, manualPrompt ? 'direct' : 'interactive')
       if (!generatedUrl) throw new Error('هوش مصنوعی تصویری برنگرداند.')
       onChange(generatedUrl)
       setPrompt('')
@@ -1564,8 +1566,9 @@ export default function Edit() {
     setAiLoading(true)
     progressAi('برآورد هزینه تصویر', 12, 'در حال برآورد هزینه تولید تصویر...')
     try {
-      const prompt = `یک تصویر آموزشی، تمیز، مدرن و مناسب کتاب وب تولید کن. متن یا درخواست کاربر: ${visualPrompt.slice(0, 1400)}`
-      const estimate = await estimateAiImageGeneration({ prompt, bookId: id, pageIndex: activeSegmentIndex, user })
+      const prompt = visualPrompt.slice(0, 1400)
+      const purpose: AiImagePurpose = manualPrompt ? 'direct' : 'interactive'
+      const estimate = await estimateAiImageGeneration({ prompt, purpose, bookId: id, pageIndex: activeSegmentIndex, user })
       progressAi('در انتظار تایید', 28, 'برآورد تصویر آماده است؛ تایید یا لغو کنید.')
       const approved = await requestAiCostApproval('تولید تصویر با هوش مصنوعی', 'پس از تایید، تصویر تولید می‌شود و هزینه از کردیت کاربر کسر خواهد شد.', estimate.usage, estimate.model)
       if (!approved) {
@@ -1574,7 +1577,7 @@ export default function Edit() {
         return
       }
       progressAi('تولید تصویر', 54, 'در حال تولید تصویر با هوش مصنوعی...')
-      const result = await generateAiImageThroughGateway({ prompt, bookId: id, pageIndex: activeSegmentIndex, user })
+      const result = await generateAiImageThroughGateway({ prompt, purpose, bookId: id, pageIndex: activeSegmentIndex, user })
       applyImageToInteractive(result.imageUrl)
       recordAiUsage(result.usage)
       setInteractiveImagePrompt('')
@@ -1586,19 +1589,19 @@ export default function Edit() {
       setAiLoading(false)
     }
   }
-  const generateInlineBlockImage = async (rawPrompt: string) => {
+  const generateInlineBlockImage = async (rawPrompt: string, purpose: AiImagePurpose = 'interactive') => {
     const cleanPrompt = rawPrompt.trim()
     if (!cleanPrompt) throw new Error('پرامپت تصویر خالی است.')
-    const prompt = `یک تصویر آموزشی، تمیز، مدرن و مناسب کتاب وب تولید کن. متن یا درخواست کاربر: ${cleanPrompt.slice(0, 1400)}`
+    const prompt = cleanPrompt.slice(0, 1400)
     setAiLoading(true)
     progressAi('برآورد هزینه تصویر', 12, 'در حال برآورد هزینه تولید تصویر...')
     try {
-      const estimate = await estimateAiImageGeneration({ prompt, bookId: id, pageIndex: activeSegmentIndex, user })
+      const estimate = await estimateAiImageGeneration({ prompt, purpose, bookId: id, pageIndex: activeSegmentIndex, user })
       progressAi('در انتظار تایید', 28, 'برآورد تصویر آماده است؛ تایید یا لغو کنید.')
       const approved = await requestAiCostApproval('تولید تصویر داخل بلوک', 'این تصویر داخل همان جایگاه تصویر بلوک تعاملی قرار می‌گیرد.', estimate.usage, estimate.model)
       if (!approved) throw new Error('تولید تصویر لغو شد و کردیتی کسر نشد.')
       progressAi('تولید تصویر', 54, 'در حال تولید تصویر با هوش مصنوعی...')
-      const result = await generateAiImageThroughGateway({ prompt, bookId: id, pageIndex: activeSegmentIndex, user })
+      const result = await generateAiImageThroughGateway({ prompt, purpose, bookId: id, pageIndex: activeSegmentIndex, user })
       recordAiUsage(result.usage)
       progressAi('تکمیل شد', 100, 'تصویر تولید و در بلوک قرار گرفت.')
       return result.imageUrl
@@ -1764,7 +1767,7 @@ export default function Edit() {
     setAiMessage(detail || label)
   }
   const imagePromptsForInteractive = (kind: string, payload: Record<string, any>, sourceText: string) => {
-    const basePrompt = (text: string) => `تصویر آموزشی، تمیز و مناسب کتاب وب بساز. تصویر باید مفهوم همین آیتم را نشان دهد و متن داخل تصویر نداشته باشد. آیتم: ${text.slice(0, 900)}`
+    const basePrompt = (text: string) => `Educational illustration for this learning concept: ${cleanAiSourceText(text).slice(0, 900)}`
     if (kind === 'steps' || kind === 'scrollytelling') {
       const steps = Array.isArray(payload.steps) ? payload.steps : []
       return steps.map((step: any, index: number) => ({
@@ -1809,7 +1812,7 @@ export default function Edit() {
     setAiLoading(true)
     progressAi('برآورد هزینه تصویر', 18, `در حال برآورد هزینه ${prompts.length.toLocaleString('fa-IR')} تصویر...`)
     try {
-      const firstEstimate = await estimateAiImageGeneration({ prompt: prompts[0].prompt, bookId: id, pageIndex: activeSegmentIndex, user })
+      const firstEstimate = await estimateAiImageGeneration({ prompt: prompts[0].prompt, purpose: 'interactive', bookId: id, pageIndex: activeSegmentIndex, user })
       const estimatedUsage = multiplyAiUsage(firstEstimate.usage, prompts.length)
       const approved = options.skipApproval || await requestAiCostApproval(
         `تولید ${prompts.length.toLocaleString('fa-IR')} تصویر برای بخش تعاملی`,
@@ -1825,7 +1828,7 @@ export default function Edit() {
       for (const item of prompts) {
         const currentIndex = prompts.indexOf(item) + 1
         progressAi('تولید تصویر', 48 + Math.round((currentIndex / prompts.length) * 38), `در حال تولید تصویر ${currentIndex.toLocaleString('fa-IR')} از ${prompts.length.toLocaleString('fa-IR')}...`)
-        const result = await generateAiImageThroughGateway({ prompt: item.prompt, bookId: id, pageIndex: activeSegmentIndex, user })
+        const result = await generateAiImageThroughGateway({ prompt: item.prompt, purpose: 'interactive', bookId: id, pageIndex: activeSegmentIndex, user })
         usages.push(result.usage)
         if (item.target === 'steps' && Array.isArray(nextPayload.steps)) nextPayload.steps[item.index] = { ...nextPayload.steps[item.index], image: result.imageUrl }
         else if (item.target === 'events' && Array.isArray(nextPayload.events)) nextPayload.events[item.index] = { ...nextPayload.events[item.index], image: result.imageUrl }
