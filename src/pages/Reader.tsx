@@ -1,5 +1,5 @@
-import { useParams, Link } from 'react-router-dom'
-import { useState, useEffect, useRef, type ReactNode } from 'react'
+import { useLocation, useNavigate, useParams, Link } from 'react-router-dom'
+import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { useAuthContext } from '@/lib/auth-context'
 import { type MockBook } from '@/lib/mock-data'
 import { getBook } from '@/lib/book-repository'
@@ -26,6 +26,7 @@ type ReaderBackground = 'abstract' | 'image'
 type SearchResult = { page: number; text: string; blockKey: string; offset: number; thumbnail?: string }
 type SearchTarget = { page: number; blockKey: string; query: string; offset: number }
 type TocTarget = { page: number; targetId?: string; title?: string }
+type TocPosition = { pageIndex: number; blockIndex: number }
 type HighlightDraft = { blockKey: string; startOffset: number; endOffset: number; color: HighlightColor }
 type HighlightIndicator = { x: number; y: number; pointerType: string }
 type ReaderTocItem = { key: string; title: string; level: number; pageIndex: number; targetId?: string }
@@ -75,6 +76,8 @@ function buildReaderTocTreeRows(items: ReaderTocItem[], collapsedKeys: Set<strin
 
 export default function Reader() {
   const { id } = useParams<{ id: string }>()
+  const location = useLocation()
+  const navigate = useNavigate()
   const { user } = useAuthContext()
   const [book, setBook] = useState<MockBook | null>(null)
   const [loadingBook, setLoadingBook] = useState(true)
@@ -215,6 +218,42 @@ export default function Reader() {
     })
     return () => cancelAnimationFrame(frame)
   }, [currentPage, book?.id])
+
+  const readerReturnTo = useMemo(() => {
+    const raw = new URLSearchParams(location.search).get('returnTo') || ''
+    return raw.startsWith('/') && !raw.startsWith('//') ? raw : ''
+  }, [location.search])
+
+  const goReaderBack = () => {
+    if (readerReturnTo) {
+      navigate(readerReturnTo)
+      return
+    }
+    if (window.history.length > 1) navigate(-1)
+    else navigate('/store')
+  }
+
+  const tocLookup = useMemo(() => {
+    if (!book) return null
+    const byId = new Map<string, TocPosition>()
+    const byTitle = new Map<string, TocPosition>()
+    const byPrint = new Map<number, TocPosition>()
+    book.pages.forEach((candidatePage: any, pageIndex: number) => {
+      const printValue = Number(candidatePage.printNumber || candidatePage.number || pageIndex + 1)
+      if (Number.isFinite(printValue) && !byPrint.has(printValue)) byPrint.set(printValue, { pageIndex, blockIndex: 0 })
+      ;(candidatePage.blocks || []).forEach((block: any, blockIndex: number) => {
+        const position = { pageIndex, blockIndex }
+        ;[block.id, block.anchor, ...(Array.isArray(block.anchors) ? block.anchors : [])].filter(Boolean).forEach((key: string) => {
+          if (!byId.has(String(key))) byId.set(String(key), position)
+        })
+        if (block.type === 'heading') {
+          const title = normalizeBookText(String(block.content || block.text || '')).trim()
+          if (title && !byTitle.has(title)) byTitle.set(title, position)
+        }
+      })
+    })
+    return { byId, byTitle, byPrint }
+  }, [book])
 
   useEffect(() => {
     if (!searchTarget || searchTarget.page !== currentPage) return

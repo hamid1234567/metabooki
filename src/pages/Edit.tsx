@@ -1290,18 +1290,22 @@ export default function Edit() {
     const activeEditor = getEditor()
     if (!activeEditor || !id) return
     setSaving(true)
-    const mergedPages = mergeCurrentSegment()
-    const synced = syncPagesAndTocFromHeadings(mergedPages, tocEntries)
-    const pages = synced.pages
-    const safeToc = resolveTocAfterHeadingSync(pages, synced.toc, tocEntries, activeSegment)
-    const metadata = { ...(book?.metadata || {}), confirmed_toc: safeToc, page_background_url: backgroundUrl, page_background_alpha: backgroundAlpha, prelude_title: preludeTitle }
-    const patch = { title, subtitle, description, pages, metadata, page_count: pages.length, content_updated_at: new Date().toISOString() }
-    updatePublisherBook(id, patch as any)
-    if (import.meta.env.VITE_SUPABASE_URL?.startsWith('http') && /^[0-9a-f-]{36}$/i.test(id)) {
-      await (supabase as any).from('books').update({ title, subtitle, description, pages, metadata, content_updated_at: patch.content_updated_at }).eq('id', id)
+    try {
+      const mergedPages = mergeCurrentSegment()
+      const synced = syncPagesAndTocFromHeadings(mergedPages, tocEntries)
+      const pages = synced.pages
+      const safeToc = resolveTocAfterHeadingSync(pages, synced.toc, tocEntries, activeSegment)
+      const metadata = { ...(book?.metadata || {}), confirmed_toc: safeToc, page_background_url: backgroundUrl, page_background_alpha: backgroundAlpha, prelude_title: preludeTitle }
+      const patch = { title, subtitle, description, pages, metadata, page_count: pages.length, content_updated_at: new Date().toISOString() }
+      updatePublisherBook(id, patch as any)
+      setAllPages(pages); setBook((current: any) => ({ ...current, ...patch })); setSavedAt(new Date())
+      if (!quiet && import.meta.env.VITE_SUPABASE_URL?.startsWith('http') && /^[0-9a-f-]{36}$/i.test(id)) {
+        await (supabase as any).from('books').update({ title, subtitle, description, pages, metadata, content_updated_at: patch.content_updated_at }).eq('id', id)
+      }
+      if (!quiet) activeEditor.commands.focus()
+    } finally {
+      setSaving(false)
     }
-    setAllPages(pages); setBook((current: any) => ({ ...current, ...patch })); setSavedAt(new Date()); setSaving(false)
-    if (!quiet) activeEditor.commands.focus()
   }
 
   const previewCurrentBook = async () => {
@@ -1334,7 +1338,7 @@ export default function Edit() {
       if (switchingSegmentRef.current) return
       setEditorRevision(revision => revision + 1)
       if (liveTocTimerRef.current) window.clearTimeout(liveTocTimerRef.current)
-      liveTocTimerRef.current = window.setTimeout(refreshLiveTocFromEditor, 650)
+      liveTocTimerRef.current = window.setTimeout(refreshLiveTocFromEditor, 1800)
     }
     activeEditor.on('update', onUpdate)
     return () => {
@@ -1345,7 +1349,7 @@ export default function Edit() {
 
   useEffect(() => {
     if (!editorRevision) return
-    const timer = window.setTimeout(() => save(true), 3200)
+    const timer = window.setTimeout(() => save(true), 8000)
     return () => window.clearTimeout(timer)
   }, [editorRevision])
 

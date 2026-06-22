@@ -48,7 +48,7 @@ export function buildAiImagePrompt(input: { purpose: AiImagePurpose; prompt?: st
 
 export function isPlaceholderCoverUrl(url?: string | null) {
   const value = String(url || '').trim()
-  return !value || /picsum\.photos|placehold|placeholder|seed-publisher/i.test(value)
+  return !value || /placehold|placeholder/i.test(value)
 }
 
 export function buildFallbackBookCoverDataUrl(context: BookCoverPromptContext) {

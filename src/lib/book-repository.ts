@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client'
 import { buildBookCoverImagePrompt, resolveBookCoverArt } from '@/lib/ai-image-prompts'
+import { findPublisherBook } from '@/lib/publisher-books'
 import type { MockBook } from '@/lib/mock-data'
 
 const hasSupabase = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_URL.startsWith('http'))
@@ -131,6 +132,9 @@ export async function getPopularBookIds(): Promise<string[]> {
 }
 
 export async function getBook(bookId: string): Promise<MockBook | null> {
+  const localPublisherBook = findPublisherBook(bookId)
+  if (localPublisherBook) return withResolvedCover(localPublisherBook)
+
   if (!hasSupabase) {
     const { findBookById } = await mockCatalog()
     const book = findBookById(bookId) || null
