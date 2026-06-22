@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client'
+import { buildBookCoverImagePrompt, resolveBookCoverArt } from '@/lib/ai-image-prompts'
 import type { MockBook } from '@/lib/mock-data'
 
 const hasSupabase = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_URL.startsWith('http'))
@@ -35,18 +36,36 @@ function metadataString(metadata: Record<string, unknown>, key: string, fallback
   return stringValue(metadata[key], fallback)
 }
 
+function textSampleFromPages(pages: unknown[]) {
+  return pages
+    .flatMap((page: any) => Array.isArray(page?.blocks) ? page.blocks : [])
+    .map((block: any) => stringValue(block?.text || block?.content || block?.caption))
+    .filter(Boolean)
+    .join(' ')
+    .slice(0, 1200)
+}
+
 function toBook(row: Record<string, unknown>): MockBook {
   const metadata = (row.metadata || {}) as Record<string, unknown>
   const pages = Array.isArray(row.pages) ? row.pages : []
   const metadataPageCount = Number(metadata.page_count || metadata.print_page_count || metadata.total_pages || metadata.total_source_pages || 0)
   const pageCount = pages.length || metadataPageCount || Number(row.page_count || 0) || 0
+  const title = stringValue(row.title)
+  const description = stringValue(row.description)
+  const category = metadataString(metadata, 'category', 'Ø¹Ù…ÙˆÙ…ÛŒ')
+  const sample = stringValue(metadata.opening_sample || metadata.sample || metadata.first_page_text || textSampleFromPages(pages))
+  const coverContext = { title, category, description, sample }
+  const metadataWithCoverPrompt = {
+    ...metadata,
+    auto_cover_prompt: metadata.auto_cover_prompt || buildBookCoverImagePrompt(coverContext),
+  }
 
   return {
     id: stringValue(row.id),
-    title: stringValue(row.title),
+    title,
     subtitle: row.subtitle ? stringValue(row.subtitle) : null,
-    description: stringValue(row.description),
-    cover_url: stringValue(row.cover_url),
+    description,
+    cover_url: resolveBookCoverArt({ ...coverContext, coverUrl: stringValue(row.cover_url) }),
     back_cover_url: row.back_cover_url ? stringValue(row.back_cover_url) : null,
     pages: pages as MockBook['pages'],
     preview_pages: Array.isArray(row.preview_pages) ? row.preview_pages as number[] : [],
@@ -56,7 +75,7 @@ function toBook(row: Record<string, unknown>): MockBook {
     publisher_id: stringValue(row.publisher_id),
     language: stringValue(row.language, 'fa'),
     tags: Array.isArray(row.tags) ? row.tags as string[] : [],
-    category: metadataString(metadata, 'category', 'عمومی'),
+    category,
     series_id: row.series_id ? stringValue(row.series_id) : null,
     series_order: row.series_order === null || row.series_order === undefined ? null : Number(row.series_order),
     publisher_name: metadataString(metadata, 'publisher_name', 'ناشر متابوکی'),
@@ -64,7 +83,22 @@ function toBook(row: Record<string, unknown>): MockBook {
     book_type: metadataString(metadata, 'book_type', 'تألیف'),
     page_count: pageCount,
     created_at: stringValue(row.created_at),
-    metadata,
+    metadata: metadataWithCoverPrompt,
+  }
+}
+
+function withResolvedCover(book: MockBook): MockBook {
+  const metadata = (book.metadata || {}) as Record<string, unknown>
+  const context = {
+    title: book.title,
+    category: book.category || metadataString(metadata, 'category', 'عمومی'),
+    description: book.description || '',
+    sample: stringValue(metadata.opening_sample || metadata.sample || textSampleFromPages(book.pages || [])),
+  }
+  return {
+    ...book,
+    cover_url: resolveBookCoverArt({ ...context, coverUrl: book.cover_url }),
+    metadata: { ...metadata, auto_cover_prompt: metadata.auto_cover_prompt || buildBookCoverImagePrompt(context) },
   }
 }
 

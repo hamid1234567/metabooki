@@ -1886,7 +1886,7 @@ export default function Edit() {
         approvedImageCount = plan.imageCount
         progressAi('برآورد هزینه تصویر', 18, `در حال محاسبه هزینه ${approvedImageCount.toLocaleString('fa-IR')} تصویر احتمالی...`)
         try {
-          const firstImageEstimate = await estimateAiImageGeneration({ prompt: plan.prompts[0]?.prompt || `تصویر آموزشی برای: ${plan.process.slice(0, 900)}`, bookId: id, pageIndex: activeSegmentIndex, user })
+          const firstImageEstimate = await estimateAiImageGeneration({ prompt: plan.prompts[0]?.prompt || `Educational illustration for this learning concept: ${plan.process.slice(0, 900)}`, purpose: 'interactive', bookId: id, pageIndex: activeSegmentIndex, user })
           const imageUsage = multiplyAiUsage(firstImageEstimate.usage, approvedImageCount)
           imageEstimate = {
             usage: imageUsage,
