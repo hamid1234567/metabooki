@@ -2,6 +2,7 @@
 import { supabase } from '@/integrations/supabase/client'
 import { createPublisherBook } from '@/lib/publisher-books'
 import { analysisToReaderPages } from '@/lib/import-document'
+import { buildBookCoverImagePrompt, resolveBookCoverArt } from '@/lib/ai-image-prompts'
 import type { ImportBookMetadata, LocalImportProject } from '@/lib/word-import-types'
 
 const CHUNK_SIZE = 5 * 1024 * 1024
@@ -93,7 +94,21 @@ async function uploadPreparedImages(userId: string, projectId: string, project: 
   return { paths, urls }
 }
 
+function readerPageSample(readerPages: unknown[]) {
+  return readerPages
+    .flatMap((page: any) => Array.isArray(page?.blocks) ? page.blocks : [])
+    .map((block: any) => String(block?.content || block?.text || block?.caption || ''))
+    .filter(Boolean)
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 1200)
+}
+
 function bookRecord(project: LocalImportProject, metadata: ImportBookMetadata, publisherId: string, readerPages: unknown[], importProjectId?: string) {
+  const title = metadata.title || project.sourceFile.name.replace(/\.docx$/i, '')
+  const description = metadata.description || ''
+  const coverContext = { title, category: metadata.category, description, sample: readerPageSample(readerPages) }
   const confirmedToc = project.analysis.toc
     .filter(item => item.included)
     .map(item => ({ id: item.id, title: item.title, level: item.level, page: item.page, styleId: item.styleId }))
@@ -110,9 +125,10 @@ function bookRecord(project: LocalImportProject, metadata: ImportBookMetadata, p
     isReferenced: image.isReferenced,
   }))
   return {
-    title: metadata.title || project.sourceFile.name.replace(/\.docx$/i, ''),
+    title,
     subtitle: metadata.subtitle || `واردشده از ${project.sourceFile.name}`,
-    description: metadata.description,
+    description,
+    cover_url: resolveBookCoverArt({ ...coverContext, coverUrl: '' }),
     pages: readerPages,
     preview_pages: readerPages.slice(0, 3).map((_, index) => index),
     publisher_id: publisherId,
@@ -135,6 +151,7 @@ function bookRecord(project: LocalImportProject, metadata: ImportBookMetadata, p
       total_source_pages: project.analysis.totalPages,
       confirmed_toc: confirmedToc,
       import_images: importImages,
+      auto_cover_prompt: buildBookCoverImagePrompt(coverContext),
     },
     publish_complexity_factor: Math.max(1, project.analysis.complexity.score / 20),
   }

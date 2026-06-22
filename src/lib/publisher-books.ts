@@ -1,4 +1,5 @@
 import type { MockBook } from '@/lib/mock-data'
+import { buildBookCoverImagePrompt, resolveBookCoverArt } from '@/lib/ai-image-prompts'
 
 const KEY = 'metabooki_publisher_books'
 
@@ -20,6 +21,17 @@ function read(): PublisherBook[] {
 
 function write(items: PublisherBook[]) { localStorage.setItem(KEY, JSON.stringify(items)) }
 
+function pageSample(pages: MockBook['pages']) {
+  return (pages || [])
+    .flatMap((page: any) => Array.isArray(page?.blocks) ? page.blocks : [])
+    .map((block: any) => String(block?.content || block?.text || block?.caption || ''))
+    .filter(Boolean)
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 1200)
+}
+
 function seededPublisherBooks(): PublisherBook[] {
   return [0, 1, 2, 3].map(index => {
     const id = `seed-publisher-${index + 1}`
@@ -28,7 +40,12 @@ function seededPublisherBooks(): PublisherBook[] {
       title: ['کتاب نمونه ناشر', 'راهنمای طراحی کتاب', 'آموزش تعاملی', 'نمونه فروشگاهی'][index],
       subtitle: null,
       description: 'نمونه محلی سبک برای نمایش وضعیت انتشارات.',
-      cover_url: `https://picsum.photos/seed/${id}/360/500`,
+      cover_url: resolveBookCoverArt({
+        coverUrl: `https://picsum.photos/seed/${id}/360/500`,
+        title: ['Ú©ØªØ§Ø¨ Ù†Ù…ÙˆÙ†Ù‡ Ù†Ø§Ø´Ø±', 'Ø±Ø§Ù‡Ù†Ù…Ø§ÛŒ Ø·Ø±Ø§Ø­ÛŒ Ú©ØªØ§Ø¨', 'Ø¢Ù…ÙˆØ²Ø´ ØªØ¹Ø§Ù…Ù„ÛŒ', 'Ù†Ù…ÙˆÙ†Ù‡ ÙØ±ÙˆØ´Ú¯Ø§Ù‡ÛŒ'][index],
+        category: 'Ø¹Ù…ÙˆÙ…ÛŒ',
+        description: 'Ù†Ù…ÙˆÙ†Ù‡ Ù…Ø­Ù„ÛŒ Ø³Ø¨Ú© Ø¨Ø±Ø§ÛŒ Ù†Ù…Ø§ÛŒØ´ ÙˆØ¶Ø¹ÛŒØª Ø§Ù†ØªØ´Ø§Ø±Ø§Øª.',
+      }),
       back_cover_url: null,
       pages: [],
       preview_pages: [],
@@ -72,12 +89,18 @@ export function createPublisherBook(input: { title: string; subtitle?: string; a
       { type: 'quiz', question: 'آیا این فصل آماده ویرایش است؟', options: ['بله', 'خیر'], correct: 0 },
     ] },
   ]
+  const coverContext = {
+    title: input.title || 'Ú©ØªØ§Ø¨ Ø¨Ø¯ÙˆÙ† Ø¹Ù†ÙˆØ§Ù†',
+    category: input.category,
+    description: input.description || '',
+    sample: pageSample(pages),
+  }
   const book: PublisherBook = {
     id,
     title: input.title || 'کتاب بدون عنوان',
     subtitle: input.subtitle || (input.fileName ? `ایجاد شده از فایل ${input.fileName}` : 'کتاب جدید'),
     description: input.description || 'کتاب جدید آماده ویرایش و تکمیل محتوا است.',
-    cover_url: `https://picsum.photos/seed/${id}/400/560`,
+    cover_url: resolveBookCoverArt({ ...coverContext, coverUrl: `https://picsum.photos/seed/${id}/400/560` }),
     back_cover_url: null,
     pages,
     preview_pages: [0],
@@ -100,7 +123,7 @@ export function createPublisherBook(input: { title: string; subtitle?: string; a
     revenue: 0,
     author: input.author || 'نویسنده نامشخص',
     importStatus: input.fileName ? 'word-imported' : 'manual',
-    metadata: input.metadata ? { ...input.metadata, import_project_id: input.importProjectId } : input.importProjectId ? { import_project_id: input.importProjectId } : undefined,
+    metadata: { ...(input.metadata || {}), ...(input.importProjectId ? { import_project_id: input.importProjectId } : {}), auto_cover_prompt: buildBookCoverImagePrompt(coverContext) },
   }
   const items = read()
   items.unshift(book)

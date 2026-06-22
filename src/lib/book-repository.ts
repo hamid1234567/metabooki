@@ -105,7 +105,7 @@ function withResolvedCover(book: MockBook): MockBook {
 export async function getPublishedBooks(): Promise<MockBook[]> {
   if (!hasSupabase) {
     const { getAllPublishedBooks } = await mockCatalog()
-    return getAllPublishedBooks()
+    return getAllPublishedBooks().map(withResolvedCover)
   }
 
   const { data, error } = await supabase
@@ -133,7 +133,8 @@ export async function getPopularBookIds(): Promise<string[]> {
 export async function getBook(bookId: string): Promise<MockBook | null> {
   if (!hasSupabase) {
     const { findBookById } = await mockCatalog()
-    return findBookById(bookId) || null
+    const book = findBookById(bookId) || null
+    return book ? withResolvedCover(book) : null
   }
 
   const { data, error } = await supabase.from('books').select('*').eq('id', bookId).maybeSingle()
@@ -144,7 +145,7 @@ export async function getBook(bookId: string): Promise<MockBook | null> {
 export async function getUserLibrary(userId: string): Promise<{ books: MockBook[]; progress: Record<string, { currentPage: number; totalPages: number; lastReadAt: string }> }> {
   if (!hasSupabase) {
     const { mockBooks } = await mockCatalog()
-    return { books: mockBooks, progress: {} }
+    return { books: mockBooks.map(withResolvedCover), progress: {} }
   }
 
   const [{ data: owned, error }, { data: states }] = await Promise.all([
