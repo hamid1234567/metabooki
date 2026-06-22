@@ -2,7 +2,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { AlertTriangle, BarChart3, BookOpen, CheckCircle, Eye, FileText, Loader2, MessageSquare, Plus, RefreshCcw, Rocket, Settings, Share2, Store, Trash2, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { getPublisherBooks, type PublisherBook } from '@/lib/publisher-books'
+import { getPublisherBooks, updatePublisherBook, type PublisherBook } from '@/lib/publisher-books'
 import { canDeletePublisherBook, deletePublisherBookCompletely } from '@/lib/publisher-delete'
 import { getAllComments } from '@/lib/mock-comments'
 import metabookiMark from '@/assets/metabooki-mark.png'
@@ -12,7 +12,7 @@ import { useAuthContext } from '@/lib/auth-context'
 import { BOOK_LIST_PAGE_SIZE, filterByValue, normalizeBookType, pageNumbers, paginate, searchBooks, sortBooks, uniqueBookValues, type BookSortKey } from '@/lib/book-listing'
 import { emptyFilterSettings, loadBookFilterSettings, mergeFilterOptions, type BookFilterSettings } from '@/lib/filter-settings'
 import { resolveBookCoverArt } from '@/lib/ai-image-prompts'
-import { openReaderPreview } from '@/lib/app-routes'
+import { openReaderPreview, readerUrl } from '@/lib/app-routes'
 
 const stageMeta = {
   editing: { label: 'در حال ویرایش', className: 'bg-blue-500 text-white', icon: FileText },
@@ -21,7 +21,7 @@ const stageMeta = {
   published: { label: 'انتشار نهایی', className: 'bg-primary text-primary-foreground', icon: CheckCircle },
 }
 
-const openBookPreview = (id: string) => openReaderPreview(id, '/publisher/me')
+const UUID_RE = /^[0-9a-f-]{36}$/i
 const PUBLISHER_BOOK_LIST_COLUMNS = 'id,title,subtitle,description,cover_url,back_cover_url,preview_pages,price,status,review_status,publisher_id,language,tags,metadata,series_id,series_order,created_at'
 
 export default function Publisher() {
@@ -139,6 +139,65 @@ export default function Publisher() {
     if (reset.error) return
     await (supabase as any).from('book_import_projects').update({ status: 'queued', error_message: null }).eq('id', importId)
     setBooks(current => current.map(item => item.id === book.id ? { ...item, importStatus: 'needs-review' } : item))
+  }
+
+  const previewPublisherBook = async (book: PublisherBook) => {
+    const previewWindow = window.open('about:blank', '_blank')
+    try {
+      if (UUID_RE.test(book.id) && import.meta.env.VITE_SUPABASE_URL?.startsWith('http')) {
+        const { data, error } = await (supabase as any).from('books').select('*').eq('id', book.id).maybeSingle()
+        if (error) throw error
+        if (data) {
+          const metadata = data.metadata || book.metadata || {}
+          const fullBook: PublisherBook = {
+            ...book,
+            id: data.id || book.id,
+            title: data.title || book.title,
+            subtitle: data.subtitle ?? book.subtitle,
+            description: data.description || book.description,
+            cover_url: resolveBookCoverArt({
+              coverUrl: data.cover_url || book.cover_url,
+              title: data.title || book.title,
+              category: metadata.category || data.tags?.[0] || book.category || 'عمومی',
+              description: data.description || book.description || '',
+              sample: metadata.opening_sample || metadata.sample || '',
+            }),
+            back_cover_url: data.back_cover_url ?? book.back_cover_url,
+            pages: Array.isArray(data.pages) ? data.pages : book.pages,
+            preview_pages: Array.isArray(data.preview_pages) ? data.preview_pages : book.preview_pages,
+            price: Number(data.price ?? book.price ?? 0),
+            status: data.status || book.status,
+            review_status: data.review_status || book.review_status,
+            publisher_id: data.publisher_id || book.publisher_id,
+            language: data.language || book.language,
+            tags: Array.isArray(data.tags) ? data.tags : book.tags,
+            category: metadata.category || data.tags?.[0] || book.category || 'عمومی',
+            series_id: data.series_id ?? book.series_id,
+            series_order: data.series_order ?? book.series_order,
+            created_at: data.created_at || book.created_at,
+            publisher_name: metadata.publisher_name || book.publisher_name || 'ناشر متابوکی',
+            book_type: metadata.book_type || book.book_type || 'تألیف',
+            author: metadata.author || book.author || 'نویسنده نامشخص',
+            page_count: Number(metadata.page_count || metadata.print_page_count || metadata.total_pages || metadata.total_source_pages || data.page_count || data.pages?.length || book.page_count || 0),
+            stage: data.status === 'published' && data.review_status === 'approved' ? 'published' : book.stage || 'editing',
+            importStatus: metadata.import_project_id ? 'word-imported' : book.importStatus,
+            metadata,
+          }
+          updatePublisherBook(book.id, fullBook)
+          setBooks(current => current.map(item => item.id === book.id ? fullBook : item))
+        }
+      }
+    } catch (error) {
+      console.error('Could not hydrate draft before preview:', error)
+    } finally {
+      const url = readerUrl(book.id, '/publisher/me')
+      if (previewWindow) {
+        previewWindow.opener = null
+        previewWindow.location.replace(url)
+      } else {
+        openReaderPreview(book.id, '/publisher/me')
+      }
+    }
   }
 
   const removeBook = async (book: PublisherBook) => {
@@ -272,7 +331,7 @@ export default function Publisher() {
                   <div className="flex flex-wrap gap-2 mt-auto">
                     <Button onClick={() => navigate(`/edit/${book.id}`)} className="gap-2 flex-1 sm:min-w-56"><FileText className="w-4 h-4" />ویرایش متن و محتوا</Button>
                     <Button onClick={() => navigate(`/publish/${book.id}`)} className="gap-2 bg-amber-500 hover:bg-amber-600 flex-1 sm:min-w-56"><Rocket className="w-4 h-4" />قیمت، سهام و انتشار</Button>
-                    <Button variant="outline" onClick={() => openBookPreview(book.id)} className="gap-2"><Eye className="w-4 h-4" />پیش‌نمایش</Button>
+                    <Button variant="outline" onClick={() => void previewPublisherBook(book)} className="gap-2"><Eye className="w-4 h-4" />پیش‌نمایش</Button>
                     <Button variant="outline" className="gap-2"><MessageSquare className="w-4 h-4" />نظرات</Button>
                     <Button variant="outline" disabled={!book.metadata?.import_project_id} onClick={() => reconvert(book)} className="gap-2"><RefreshCcw className="w-4 h-4" />تبدیل مجدد از فایل سرور</Button>
                     {canDelete && <Button variant="ghost" disabled={deletingBookId === book.id} onClick={() => removeBook(book)} className="text-destructive"><Trash2 className="w-4 h-4" />{deletingBookId === book.id ? 'در حال حذف...' : ''}</Button>}

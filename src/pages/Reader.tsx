@@ -78,7 +78,7 @@ export default function Reader() {
   const { id } = useParams<{ id: string }>()
   const location = useLocation()
   const navigate = useNavigate()
-  const { user } = useAuthContext()
+  const { user, loading: authLoading } = useAuthContext()
   const [book, setBook] = useState<MockBook | null>(null)
   const [loadingBook, setLoadingBook] = useState(true)
   const [realOwner, setRealOwner] = useState(false)
@@ -136,13 +136,17 @@ export default function Reader() {
   const highlightReadyUntilRef = useRef(0)
 
   useEffect(() => {
+    if (authLoading) {
+      setLoadingBook(true)
+      return
+    }
     if (id) {
       setLoadingBook(true)
       getBook(id).then(setBook).catch(() => setBook(null)).finally(() => setLoadingBook(false))
       const savedBg = localStorage.getItem(`metabooki_reader_bg_${id}`) as ReaderBackground | null
       if (savedBg === 'abstract' || savedBg === 'image') setReaderBackground(savedBg)
     }
-  }, [id])
+  }, [authLoading, id, user?.id])
 
   useEffect(() => {
     if (!book) return

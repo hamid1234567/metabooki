@@ -1139,7 +1139,7 @@ const aiCalloutSuggestionsFromContent = (content: AiStructuredContent | undefine
 
 export default function Edit() {
   const { id = '' } = useParams<{ id: string }>()
-  const { user } = useAuthContext()
+  const { user, loading: authLoading } = useAuthContext()
   const { balance: creditBalance } = useCredits(user)
   const localInitial = useMemo(() => findPublisherBook(id) || findBookById(id), [id])
   const [book, setBook] = useState<any>(localInitial)
@@ -1270,7 +1270,7 @@ export default function Edit() {
   }
 
   useEffect(() => {
-    if (localInitial || !import.meta.env.VITE_SUPABASE_URL?.startsWith('http')) return
+    if (authLoading || localInitial || !import.meta.env.VITE_SUPABASE_URL?.startsWith('http')) return
     ;(supabase as any).from('books').select('*').eq('id', id).maybeSingle().then(({ data }: { data: any }) => {
       if (!data) return
       setBook(data); setTitle(data.title); setSubtitle(data.subtitle || ''); setDescription(data.description || ''); setPreludeTitle(data.metadata?.prelude_title || 'ابتدای کتاب')
@@ -1279,7 +1279,7 @@ export default function Edit() {
       setActiveSegmentIndex(0)
       loadSegment(buildConfirmedTocSegments(data.pages || [], confirmedTocFromBook(data), data.metadata?.prelude_title || 'ابتدای کتاب')[0], data.pages || [])
     })
-  }, [editor, id, localInitial])
+  }, [authLoading, editor, id, localInitial, user?.id])
 
   useEffect(() => {
     if (!editor) return
