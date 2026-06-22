@@ -48,7 +48,7 @@ export function buildAiImagePrompt(input: { purpose: AiImagePurpose; prompt?: st
 
 export function isPlaceholderCoverUrl(url?: string | null) {
   const value = String(url || '').trim()
-  return !value || /placehold|placeholder/i.test(value)
+  return Boolean(value) && /placehold|placeholder/i.test(value)
 }
 
 export function buildFallbackBookCoverDataUrl(context: BookCoverPromptContext) {
@@ -97,6 +97,7 @@ export function buildFallbackBookCoverDataUrl(context: BookCoverPromptContext) {
 }
 
 export function resolveBookCoverArt(context: BookCoverPromptContext & { coverUrl?: string | null }) {
+  if (!String(context.coverUrl || '').trim()) return ''
   if (!isPlaceholderCoverUrl(context.coverUrl)) return context.coverUrl || ''
   return buildFallbackBookCoverDataUrl(context)
 }
