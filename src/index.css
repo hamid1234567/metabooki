@@ -4675,3 +4675,100 @@ body {
   25% { transform: translateY(-.15rem) scale(1.15) rotate(8deg); opacity: 1; }
   100% { transform: translateY(-.65rem) scale(.8) rotate(28deg); opacity: 0; }
 }
+
+/* Reader interactive active states.
+   Keep this at the end so timeline/step/tab active states stay visible in every reader surface. */
+.reader-step-slider,
+.reader-multistep,
+.reader-tabs {
+  --reader-active-blue: #315bea;
+  --reader-active-blue-strong: #244ad6;
+  --reader-active-blue-soft: rgb(49 91 234 / .16);
+  --reader-active-blue-glow: rgb(49 91 234 / .34);
+}
+
+.reader-step-slider .reader-step-line {
+  background: linear-gradient(
+    90deg,
+    rgb(49 91 234 / .1),
+    rgb(49 91 234 / .42),
+    rgb(49 91 234 / .1)
+  ) !important;
+}
+
+.reader-step-slider .reader-step-track > button.is-active {
+  color: var(--reader-active-blue) !important;
+  transform: translateY(-.2rem) !important;
+}
+
+.reader-step-slider .reader-step-track > button.is-active span {
+  border: 2px solid var(--reader-active-blue) !important;
+  outline: .45rem solid var(--reader-active-blue-soft) !important;
+  background: var(--reader-active-blue) !important;
+  color: #fff !important;
+  transform: scale(1.18) !important;
+  box-shadow:
+    0 16px 34px var(--reader-active-blue-glow),
+    0 0 0 1px rgb(255 255 255 / .8) inset !important;
+}
+
+.reader-step-slider .reader-step-track > button.is-active small {
+  color: var(--reader-active-blue-strong) !important;
+  font-weight: 950 !important;
+}
+
+.reader-step-slider .reader-step-track > button.is-seen span {
+  border-color: rgb(49 91 234 / .36) !important;
+  color: var(--reader-active-blue) !important;
+}
+
+.reader-multistep .reader-multistep-rail > button.is-active {
+  border-color: rgb(49 91 234 / .76) !important;
+  background:
+    linear-gradient(90deg, rgb(49 91 234 / .13), rgb(255 255 255 / .72)),
+    rgb(255 255 255 / .82) !important;
+  color: #172033 !important;
+  box-shadow:
+    0 18px 42px rgb(49 91 234 / .18),
+    0 0 0 1px rgb(49 91 234 / .1),
+    inset -4px 0 0 var(--reader-active-blue) !important;
+}
+
+.reader-multistep .reader-multistep-rail > button.is-active span {
+  border: 2px solid #fff !important;
+  outline: .38rem solid var(--reader-active-blue-soft) !important;
+  background:
+    radial-gradient(circle at 32% 24%, rgb(255 255 255 / .32), transparent 1rem),
+    var(--reader-active-blue) !important;
+  color: #fff !important;
+  box-shadow:
+    0 12px 30px var(--reader-active-blue-glow),
+    0 0 0 1px rgb(49 91 234 / .5) !important;
+}
+
+.reader-multistep .reader-multistep-rail > button.is-active strong {
+  color: var(--reader-active-blue-strong) !important;
+}
+
+.reader-multistep .reader-step-dots span.is-active,
+.reader-multistep .reader-step-dots span.active {
+  background: var(--reader-active-blue) !important;
+  box-shadow: 0 0 0 .32rem var(--reader-active-blue-soft) !important;
+}
+
+.reader-tabs .reader-tabs-tab.is-active {
+  border-color: rgb(49 91 234 / .86) !important;
+  outline: .22rem solid var(--reader-active-blue-soft) !important;
+  background:
+    linear-gradient(180deg, rgb(49 91 234 / .14), rgb(255 255 255 / .9)),
+    rgb(255 255 255 / .88) !important;
+  color: var(--reader-active-blue-strong) !important;
+  box-shadow:
+    0 16px 36px rgb(49 91 234 / .2),
+    inset 0 -3px 0 var(--reader-active-blue) !important;
+}
+
+.reader-tabs .reader-tabs-tab.is-active::after {
+  background: var(--reader-active-blue) !important;
+  box-shadow: 0 0 16px var(--reader-active-blue-glow) !important;
+}
