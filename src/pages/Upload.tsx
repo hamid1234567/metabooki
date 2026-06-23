@@ -401,7 +401,7 @@ export default function Upload() {
               <article className="word-web-preview">
                 {analysis.previewPages.map((page, pageIndex) => {
                   return <section key={page.number} id={`preview-page-${page.number}`} className="word-preview-page-section">
-                  {pageIndex > 0 && page.printNumber !== undefined && <div dangerouslySetInnerHTML={{ __html: pageDividerHtml(page) }} />}
+                  {pageIndex > 0 && <div dangerouslySetInnerHTML={{ __html: pageDividerHtml(page) }} />}
                   {page.blocks.map(block => {
                     if (block.type === 'heading') {
                       const Tag = `h${Math.min(6, block.level || 2)}` as keyof React.JSX.IntrinsicElements

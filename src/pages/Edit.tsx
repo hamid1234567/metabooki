@@ -830,35 +830,7 @@ function tocEntryInsideSegment(pages: any[] = [], item: ConfirmedTocEntry, segme
 }
 
 function resolveTocAfterHeadingSync(pages: any[] = [], generatedToc: ConfirmedTocEntry[] = [], currentToc: ConfirmedTocEntry[] = [], segment?: EditorSegment) {
-  if (!currentToc.length) return generatedToc
-  if (!generatedToc.length) return currentToc
-  const mergeWithoutDroppingCurrent = (base: ConfirmedTocEntry[], generated: ConfirmedTocEntry[]) => {
-    const known = new Set(base.map(item => item.id || `${item.level}:${normalizeBookText(item.title).trim()}`))
-    return [...base, ...generated.filter(item => {
-      const key = item.id || `${item.level}:${normalizeBookText(item.title).trim()}`
-      if (known.has(key)) return false
-      known.add(key)
-      return true
-    })].sort((a, b) => {
-      const pa = findTocPosition(pages, a)
-      const pb = findTocPosition(pages, b)
-      return pa.pageIndex - pb.pageIndex || pa.blockIndex - pb.blockIndex
-    })
-  }
-  if (!segment) {
-    if (generatedToc.length < Math.ceil(currentToc.length * 0.7)) return mergeWithoutDroppingCurrent(currentToc, generatedToc)
-    return generatedToc
-  }
-  const outsideCurrent = currentToc.filter(item => !tocEntryInsideSegment(pages, item, segment))
-  const insideCurrent = currentToc.filter(item => tocEntryInsideSegment(pages, item, segment))
-  const insideGenerated = generatedToc.filter(item => tocEntryInsideSegment(pages, item, segment))
-  const lostTooMuchToc = currentToc.length >= 3 && generatedToc.length > 0 && generatedToc.length < Math.ceil(currentToc.length * 0.35)
-  if (lostTooMuchToc) return currentToc
-  const lostTooMuchInsideSegment = insideCurrent.length >= 2 && insideGenerated.length < Math.ceil(insideCurrent.length * 0.7)
-  if (lostTooMuchInsideSegment) return mergeWithoutDroppingCurrent(currentToc, insideGenerated)
-  if (!insideGenerated.length && insideCurrent.length > 1) return currentToc
-  if (!insideGenerated.length && generatedToc.length === 0 && outsideCurrent.length === 0) return currentToc
-  return [...outsideCurrent, ...insideGenerated].sort((a, b) => {
+  return generatedToc.slice().sort((a, b) => {
     const pa = findTocPosition(pages, a)
     const pb = findTocPosition(pages, b)
     return pa.pageIndex - pb.pageIndex || pa.blockIndex - pb.blockIndex
@@ -1181,6 +1153,7 @@ export default function Edit() {
   const imageInputRef = useRef<HTMLInputElement>(null)
   const documentStageRef = useRef<HTMLElement>(null)
   const switchingSegmentRef = useRef(false)
+  const loadedSegmentRef = useRef<EditorSegment | undefined>(undefined)
   const liveTocTimerRef = useRef<number | null>(null)
   const tocEntries = useMemo(() => confirmedTocFromBook(book), [book])
   const segments = useMemo(() => buildConfirmedTocSegments(allPages, tocEntries, preludeTitle), [allPages, tocEntries, preludeTitle])
@@ -1242,15 +1215,17 @@ export default function Edit() {
 
   const mergeCurrentSegment = (sourcePages = allPages) => {
     const activeEditor = getEditor()
-    if (!activeEditor || !activeSegment) return sourcePages
+    const loadedSegment = loadedSegmentRef.current || activeSegment
+    if (!activeEditor || !loadedSegment) return sourcePages
     const editedPages = editorJsonToPages(activeEditor.getJSON())
-    return mergeSegmentPages(sourcePages, activeSegment, editedPages)
+    return mergeSegmentPages(sourcePages, loadedSegment, editedPages)
   }
 
   const loadSegment = (segment: EditorSegment | undefined, pages = allPages) => {
     const activeEditor = getEditor()
     if (!activeEditor || !segment) return
     switchingSegmentRef.current = true
+    loadedSegmentRef.current = segment
     ;(window as any).__metabookiAllowPageBreakChange = true
     activeEditor.commands.setContent(pagesToHtml(extractSegmentPages(pages, segment)))
     window.setTimeout(() => {
@@ -1324,12 +1299,8 @@ export default function Edit() {
   const refreshLiveTocFromEditor = () => {
     const activeEditor = getEditor()
     if (!activeEditor || switchingSegmentRef.current) return
-    const mergedPages = mergeCurrentSegment()
-    const synced = syncPagesAndTocFromHeadings(mergedPages, tocEntries)
-    const safeToc = resolveTocAfterHeadingSync(synced.pages, synced.toc, tocEntries, activeSegment)
-    const metadata = { ...(book?.metadata || {}), confirmed_toc: safeToc }
-    setAllPages(synced.pages)
-    setBook((current: any) => ({ ...current, metadata }))
+    // Keep the loaded editor segment stable while typing. TOC/page sync runs on save,
+    // otherwise a heading edit can move the active segment under the open document.
   }
 
   useEffect(() => {
