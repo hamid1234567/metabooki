@@ -1,4 +1,4 @@
-const APP_VERSION = '1.0.329'
+const APP_VERSION = '1.0.330'
 const CACHE_NAME = `metabooki-${APP_VERSION}`
 
 const PRECACHE_URLS = [

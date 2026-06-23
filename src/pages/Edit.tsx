@@ -820,16 +820,7 @@ function syncPagesAndTocFromHeadings(pages: any[] = [], currentToc: ConfirmedToc
   return { pages: pages.map((page, pageIndex) => ({ ...page, blocks: syncBlocks(page.blocks || [], page, pageIndex) })), toc }
 }
 
-function tocEntryInsideSegment(pages: any[] = [], item: ConfirmedTocEntry, segment?: EditorSegment) {
-  if (!segment) return true
-  const position = findTocPosition(pages, item)
-  if (position.pageIndex < segment.start || position.pageIndex >= segment.end) return false
-  if (position.pageIndex === segment.start && position.blockIndex < (segment.startBlock ?? 0)) return false
-  if (position.pageIndex === segment.end - 1 && position.blockIndex >= (segment.endBlock ?? (pages[position.pageIndex]?.blocks?.length || 0))) return false
-  return true
-}
-
-function resolveTocAfterHeadingSync(pages: any[] = [], generatedToc: ConfirmedTocEntry[] = [], currentToc: ConfirmedTocEntry[] = [], segment?: EditorSegment) {
+function resolveTocAfterHeadingSync(pages: any[] = [], generatedToc: ConfirmedTocEntry[] = []) {
   return generatedToc.slice().sort((a, b) => {
     const pa = findTocPosition(pages, a)
     const pb = findTocPosition(pages, b)
@@ -1269,7 +1260,7 @@ export default function Edit() {
       const mergedPages = mergeCurrentSegment()
       const synced = syncPagesAndTocFromHeadings(mergedPages, tocEntries)
       const pages = synced.pages
-      const safeToc = resolveTocAfterHeadingSync(pages, synced.toc, tocEntries, activeSegment)
+      const safeToc = resolveTocAfterHeadingSync(pages, synced.toc)
       const metadata = { ...(book?.metadata || {}), confirmed_toc: safeToc, page_background_url: backgroundUrl, page_background_alpha: backgroundAlpha, prelude_title: preludeTitle }
       const patch = { title, subtitle, description, pages, metadata, page_count: pages.length, content_updated_at: new Date().toISOString() }
       updatePublisherBook(id, patch as any)
