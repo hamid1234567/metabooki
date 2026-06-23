@@ -1,31 +1,67 @@
 import React, { Suspense, lazy, useEffect } from 'react'
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, useLocation } from 'react-router-dom'
 import { Navbar } from '@/components/navbar/Navbar'
 import { OfflineBanner } from '@/components/offline/OfflineBanner'
 import { RoleGuard } from '@/components/ui/role-guard'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
 import { ScrollToTop } from '@/components/navigation/ScrollToTop'
 
-const Landing = lazy(() => import('@/pages/Landing'))
-const Auth = lazy(() => import('@/pages/Auth'))
-const Store = lazy(() => import('@/pages/Store'))
-const Library = lazy(() => import('@/pages/Library'))
-const Reader = lazy(() => import('@/pages/Reader'))
-const BookLanding = lazy(() => import('@/pages/BookLanding'))
-const Upload = lazy(() => import('@/pages/Upload'))
-const Edit = lazy(() => import('@/pages/Edit'))
-const Publish = lazy(() => import('@/pages/Publish'))
-const Publisher = lazy(() => import('@/pages/Publisher'))
-const PublisherSettings = lazy(() => import('@/pages/PublisherSettings'))
-const Admin = lazy(() => import('@/pages/Admin'))
-const Credits = lazy(() => import('@/pages/Credits'))
-const EditorRequests = lazy(() => import('@/pages/EditorRequests'))
-const Profile = lazy(() => import('@/pages/Profile'))
-const Install = lazy(() => import('@/pages/Install'))
-const WordAddin = lazy(() => import('@/pages/WordAddin'))
-const AudioStudioPage = lazy(() => import('@/pages/AudioStudioPage'))
-const AudioReader = lazy(() => import('@/pages/AudioReader'))
-const NotFound = lazy(() => import('@/pages/NotFound'))
+const loadLanding = () => import('@/pages/Landing')
+const loadAuth = () => import('@/pages/Auth')
+const loadStore = () => import('@/pages/Store')
+const loadLibrary = () => import('@/pages/Library')
+const loadReader = () => import('@/pages/Reader')
+const loadBookLanding = () => import('@/pages/BookLanding')
+const loadUpload = () => import('@/pages/Upload')
+const loadEdit = () => import('@/pages/Edit')
+const loadPublish = () => import('@/pages/Publish')
+const loadPublisher = () => import('@/pages/Publisher')
+const loadPublisherSettings = () => import('@/pages/PublisherSettings')
+const loadAdmin = () => import('@/pages/Admin')
+const loadCredits = () => import('@/pages/Credits')
+const loadEditorRequests = () => import('@/pages/EditorRequests')
+const loadProfile = () => import('@/pages/Profile')
+const loadInstall = () => import('@/pages/Install')
+const loadWordAddin = () => import('@/pages/WordAddin')
+const loadAudioStudioPage = () => import('@/pages/AudioStudioPage')
+const loadAudioReader = () => import('@/pages/AudioReader')
+const loadNotFound = () => import('@/pages/NotFound')
+
+const Landing = lazy(loadLanding)
+const Auth = lazy(loadAuth)
+const Store = lazy(loadStore)
+const Library = lazy(loadLibrary)
+const Reader = lazy(loadReader)
+const BookLanding = lazy(loadBookLanding)
+const Upload = lazy(loadUpload)
+const Edit = lazy(loadEdit)
+const Publish = lazy(loadPublish)
+const Publisher = lazy(loadPublisher)
+const PublisherSettings = lazy(loadPublisherSettings)
+const Admin = lazy(loadAdmin)
+const Credits = lazy(loadCredits)
+const EditorRequests = lazy(loadEditorRequests)
+const Profile = lazy(loadProfile)
+const Install = lazy(loadInstall)
+const WordAddin = lazy(loadWordAddin)
+const AudioStudioPage = lazy(loadAudioStudioPage)
+const AudioReader = lazy(loadAudioReader)
+const NotFound = lazy(loadNotFound)
+
+function preloadRoutesWhenIdle(loaders: Array<() => Promise<unknown>>) {
+  if (typeof window === 'undefined' || !loaders.length) return () => {}
+  const idleWindow = window as Window & {
+    requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number
+    cancelIdleCallback?: (handle: number) => void
+  }
+  const run = () => loaders.forEach(loader => void loader())
+  if (idleWindow.requestIdleCallback) {
+    const handle = idleWindow.requestIdleCallback(run, { timeout: 2400 })
+    return () => idleWindow.cancelIdleCallback?.(handle)
+  }
+  const handle = window.setTimeout(run, 900)
+  return () => window.clearTimeout(handle)
+}
 
 function RouteLoading() {
   return (
@@ -39,6 +75,16 @@ function RouteLoading() {
 }
 
 function App() {
+  const location = useLocation()
+
+  useEffect(() => {
+    const pathname = location.pathname
+    if (pathname.startsWith('/publisher/')) return preloadRoutesWhenIdle([loadEdit, loadReader, loadUpload])
+    if (pathname.startsWith('/b/') || pathname === '/library' || pathname === '/store') return preloadRoutesWhenIdle([loadReader])
+    if (pathname.startsWith('/edit/')) return preloadRoutesWhenIdle([loadReader])
+    return undefined
+  }, [location.pathname])
+
   useEffect(() => {
     let activeReference: HTMLElement | null = null
     const positionTooltip = (reference: HTMLElement | null) => {
