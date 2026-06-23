@@ -48,12 +48,46 @@ function renderInteractiveImage(url?: string, alt?: string, className = 'max-h-5
   return url ? <img src={url} alt={alt || ''} className={className} loading="lazy" /> : null
 }
 
+function normalizeGalleryImage(item: any, fallbackCaption = '') {
+  if (!item) return null
+  if (typeof item === 'string') return item.trim() ? { url: item.trim(), caption: fallbackCaption } : null
+  const url = item.url || item.src || item.image || item.href || item.path || item.signedUrl || item.dataUrl
+  if (!url || typeof url !== 'string') return null
+  return {
+    ...item,
+    url,
+    caption: textOf(item.caption, item.title, item.alt, item.description, fallbackCaption),
+  }
+}
+
+function galleryImagesFromBlock(block: any) {
+  const sources = [
+    ...(Array.isArray(block.images) ? block.images : []),
+    ...(Array.isArray(block.slides) ? block.slides : []),
+    ...(Array.isArray(block.items) ? block.items : []),
+    ...(Array.isArray(block.media) ? block.media : []),
+    ...(Array.isArray(block.steps) ? block.steps : []),
+    ...(block.image ? [block.image] : []),
+  ]
+  const seen = new Set<string>()
+  return sources
+    .map((item, index) => normalizeGalleryImage(item, index === 0 ? block.caption || block.title : ''))
+    .filter((image): image is Record<string, any> => {
+      if (!image?.url || seen.has(image.url)) return false
+      seen.add(image.url)
+      return true
+    })
+}
+
 function GallerySlideshow({ block }: { block: any }) {
-  const images = Array.isArray(block.images) ? block.images.filter((image: any) => image?.url) : []
+  const images = galleryImagesFromBlock(block)
   const [active, setActive] = useState(0)
   const activeThumbRef = useRef<HTMLButtonElement | null>(null)
   const current = images[Math.min(active, Math.max(0, images.length - 1))]
-  const go = (delta: number) => setActive(index => (index + delta + images.length) % images.length)
+  const go = (delta: number) => {
+    if (images.length < 2) return
+    setActive(index => (index + delta + images.length) % images.length)
+  }
   useEffect(() => {
     if (active > images.length - 1) setActive(Math.max(0, images.length - 1))
   }, [active, images.length])

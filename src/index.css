@@ -1020,12 +1020,18 @@ body {
 }
 
 .book-gallery-slider {
+  --book-gallery-primary: var(--color-primary, #315bea);
+  --book-gallery-primary-foreground: var(--color-primary-foreground, #fff);
+  --book-gallery-bg: var(--color-background, #f7fafd);
+  --book-gallery-fg: var(--color-foreground, #172033);
+  --book-gallery-border: var(--color-border, #d8e4ef);
+  --book-gallery-muted: var(--color-muted, #eef4fb);
   position: relative;
   overflow: hidden;
   background:
-    radial-gradient(circle at 8% 35%, hsl(var(--primary) / .13), transparent 12rem),
-    radial-gradient(circle at 92% 12%, hsl(44 92% 64% / .14), transparent 13rem),
-    hsl(var(--background) / .52);
+    radial-gradient(circle at 8% 35%, color-mix(in srgb, var(--book-gallery-primary) 13%, transparent), transparent 12rem),
+    radial-gradient(circle at 92% 12%, rgb(250 204 21 / .14), transparent 13rem),
+    color-mix(in srgb, var(--book-gallery-bg) 72%, transparent);
 }
 
 .book-gallery-title {
@@ -1045,12 +1051,12 @@ body {
   display: grid;
   place-items: center;
   min-height: clamp(16rem, 52vw, 28rem);
-  border: 1px solid hsl(var(--border) / .62);
+  border: 1px solid color-mix(in srgb, var(--book-gallery-border) 72%, transparent);
   border-radius: 1.1rem;
   background:
-    linear-gradient(145deg, hsl(var(--background) / .88), hsl(var(--muted) / .34)),
-    hsl(var(--background) / .72);
-  box-shadow: inset 0 0 0 1px hsl(var(--background) / .38), 0 18px 50px rgb(15 23 42 / .12);
+    linear-gradient(145deg, color-mix(in srgb, var(--book-gallery-bg) 88%, transparent), color-mix(in srgb, var(--book-gallery-muted) 42%, transparent)),
+    color-mix(in srgb, var(--book-gallery-bg) 78%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--book-gallery-bg) 55%, transparent), 0 18px 50px rgb(15 23 42 / .12);
 }
 
 .book-gallery-stage img {
@@ -1068,10 +1074,10 @@ body {
   z-index: 3;
   inset-block-start: .85rem;
   inset-inline-start: .85rem;
-  border: 1px solid hsl(var(--border) / .55);
+  border: 1px solid color-mix(in srgb, var(--book-gallery-border) 65%, transparent);
   border-radius: 999px;
-  background: hsl(var(--background) / .72);
-  color: hsl(var(--foreground));
+  background: color-mix(in srgb, var(--book-gallery-bg) 76%, transparent);
+  color: var(--book-gallery-fg);
   padding: .35rem .7rem;
   font-size: .78rem;
   font-weight: 900;
@@ -1091,9 +1097,9 @@ body {
   border-radius: 999px;
   display: grid;
   place-items: center;
-  background: hsl(var(--background) / .68);
-  color: hsl(var(--foreground));
-  border: 1px solid hsl(var(--border) / .62);
+  background: color-mix(in srgb, var(--book-gallery-bg) 74%, transparent);
+  color: var(--book-gallery-fg);
+  border: 1px solid color-mix(in srgb, var(--book-gallery-border) 72%, transparent);
   backdrop-filter: blur(14px) saturate(1.22);
   -webkit-backdrop-filter: blur(14px) saturate(1.22);
   box-shadow: 0 14px 34px rgb(15 23 42 / .14);
@@ -1102,8 +1108,8 @@ body {
 
 .book-gallery-nav:hover {
   transform: translateY(-50%) scale(1.04);
-  background: hsl(var(--primary) / .92);
-  color: hsl(var(--primary-foreground));
+  background: color-mix(in srgb, var(--book-gallery-primary) 92%, transparent);
+  color: var(--book-gallery-primary-foreground);
 }
 
 .book-gallery-nav svg {
@@ -1117,8 +1123,8 @@ body {
 
 .book-gallery-nav.next {
   inset-inline-end: .85rem;
-  background: hsl(var(--primary) / .92);
-  color: hsl(var(--primary-foreground));
+  background: color-mix(in srgb, var(--book-gallery-primary) 92%, transparent);
+  color: var(--book-gallery-primary-foreground);
 }
 
 .book-gallery-thumbs {
@@ -1129,7 +1135,7 @@ body {
   overflow-x: auto;
   padding: .18rem .22rem .55rem;
   scrollbar-width: thin;
-  scrollbar-color: hsl(var(--primary) / .45) transparent;
+  scrollbar-color: color-mix(in srgb, var(--book-gallery-primary) 45%, transparent) transparent;
 }
 
 .book-gallery-thumbs button {
@@ -1137,9 +1143,9 @@ body {
   flex: 0 0 clamp(4.3rem, 17vw, 6.25rem);
   height: clamp(3.25rem, 12vw, 4.55rem);
   overflow: hidden;
-  border: 1px solid hsl(var(--border) / .6);
+  border: 1px solid color-mix(in srgb, var(--book-gallery-border) 72%, transparent);
   border-radius: .85rem;
-  background: hsl(var(--background) / .52);
+  background: color-mix(in srgb, var(--book-gallery-bg) 72%, transparent);
   opacity: .72;
   box-shadow: 0 8px 22px rgb(15 23 42 / .08);
   transition: opacity .2s ease, border-color .2s ease, transform .2s ease, box-shadow .2s ease;
@@ -1152,8 +1158,8 @@ body {
 }
 
 .book-gallery-thumbs button.is-active {
-  border-color: hsl(var(--primary));
-  box-shadow: 0 0 0 2px hsl(var(--primary) / .18), 0 12px 28px hsl(var(--primary) / .14);
+  border-color: var(--book-gallery-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--book-gallery-primary) 18%, transparent), 0 12px 28px color-mix(in srgb, var(--book-gallery-primary) 14%, transparent);
 }
 
 .book-gallery-thumbs img {
@@ -1164,7 +1170,7 @@ body {
 
 .book-gallery-caption {
   margin: .75rem 0 0;
-  color: hsl(var(--foreground) / .74);
+  color: color-mix(in srgb, var(--book-gallery-fg) 74%, transparent);
   font-size: .92rem;
   line-height: 2.05;
   text-align: center;
