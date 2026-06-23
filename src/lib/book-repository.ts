@@ -2,6 +2,7 @@ import { supabase } from '@/integrations/supabase/client'
 import { buildBookCoverImagePrompt, resolveBookCoverArt } from '@/lib/ai-image-prompts'
 import { findPublisherBook } from '@/lib/publisher-books'
 import type { MockBook } from '@/lib/mock-data'
+import { documentV2ToLegacyPages, type BookDocumentV2 } from '@/lib/book-document-v2'
 
 const hasSupabase = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_URL.startsWith('http'))
 
@@ -48,7 +49,10 @@ function textSampleFromPages(pages: unknown[]) {
 
 function toBook(row: Record<string, unknown>): MockBook {
   const metadata = (row.metadata || {}) as Record<string, unknown>
-  const pages = Array.isArray(row.pages) ? row.pages : []
+  const storedV2 = metadata.editor_v2_document as BookDocumentV2 | undefined
+  const pages = storedV2?.schemaVersion === '2.0' && Array.isArray(storedV2.pages)
+    ? documentV2ToLegacyPages(storedV2)
+    : Array.isArray(row.pages) ? row.pages : []
   const metadataPageCount = Number(metadata.page_count || metadata.print_page_count || metadata.total_pages || metadata.total_source_pages || 0)
   const pageCount = pages.length || metadataPageCount || Number(row.page_count || 0) || 0
   const title = stringValue(row.title)
@@ -90,14 +94,20 @@ function toBook(row: Record<string, unknown>): MockBook {
 
 function withResolvedCover(book: MockBook): MockBook {
   const metadata = (book.metadata || {}) as Record<string, unknown>
+  const storedV2 = metadata.editor_v2_document as BookDocumentV2 | undefined
+  const pages = storedV2?.schemaVersion === '2.0' && Array.isArray(storedV2.pages)
+    ? documentV2ToLegacyPages(storedV2)
+    : book.pages
   const context = {
     title: book.title,
     category: book.category || metadataString(metadata, 'category', 'عمومی'),
     description: book.description || '',
-    sample: stringValue(metadata.opening_sample || metadata.sample || textSampleFromPages(book.pages || [])),
+    sample: stringValue(metadata.opening_sample || metadata.sample || textSampleFromPages(pages || [])),
   }
   return {
     ...book,
+    pages,
+    page_count: pages?.length || book.page_count,
     cover_url: resolveBookCoverArt({ ...context, coverUrl: book.cover_url }),
     metadata: { ...metadata, auto_cover_prompt: metadata.auto_cover_prompt || buildBookCoverImagePrompt(context) },
   }

@@ -1,0 +1,5 @@
+export * from '@/components/book-content-v2/BookRendererV2'
+export * from '@/components/book-content-v2/InlineTextV2'
+export * from '@/components/book-content-v2/PageBreakV2'
+export * from '@/components/book-content-v2/CalloutBlockV2'
+export * from '@/components/book-content-v2/InteractiveBlockV2'

@@ -345,6 +345,7 @@ export default function Publisher() {
                   </div>
                   <div className="flex flex-wrap gap-2 mt-auto">
                     <Button onClick={() => navigate(`/edit/${book.id}`)} className="gap-2 flex-1 sm:min-w-56"><FileText className="w-4 h-4" />ویرایش متن و محتوا</Button>
+                    <Button variant="outline" onClick={() => navigate(`/edit-v2/${book.id}`)} className="gap-2 flex-1 sm:min-w-56"><BookOpen className="w-4 h-4" />ادیتور جدید آزمایشی</Button>
                     <Button onClick={() => navigate(`/publish/${book.id}`)} className="gap-2 bg-amber-500 hover:bg-amber-600 flex-1 sm:min-w-56"><Rocket className="w-4 h-4" />قیمت، سهام و انتشار</Button>
                     <Button variant="outline" onClick={() => void previewPublisherBook(book)} className="gap-2"><Eye className="w-4 h-4" />پیش‌نمایش</Button>
                     <Button variant="outline" disabled={coverGeneratingBookId === book.id} onClick={() => void generateCover(book)} className="gap-2"><Sparkles className={`w-4 h-4 ${coverGeneratingBookId === book.id ? 'animate-spin' : ''}`} />{coverGeneratingBookId === book.id ? 'طراحی جلد...' : 'طراحی جلد AI'}</Button>
