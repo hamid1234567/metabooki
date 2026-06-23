@@ -1,6 +1,6 @@
 ﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Link, useNavigate } from 'react-router-dom'
-import { AlertTriangle, BarChart3, BookOpen, CheckCircle, Eye, FileText, Loader2, MessageSquare, Plus, RefreshCcw, Rocket, Settings, Share2, Store, Trash2, Users } from 'lucide-react'
+import { AlertTriangle, BarChart3, BookOpen, CheckCircle, Eye, FileText, Loader2, MessageSquare, Plus, RefreshCcw, Rocket, Settings, Share2, Sparkles, Store, Trash2, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { getPublisherBooks, updatePublisherBook, type PublisherBook } from '@/lib/publisher-books'
 import { canDeletePublisherBook, deletePublisherBookCompletely } from '@/lib/publisher-delete'
@@ -13,6 +13,7 @@ import { BOOK_LIST_PAGE_SIZE, filterByValue, normalizeBookType, pageNumbers, pag
 import { emptyFilterSettings, loadBookFilterSettings, mergeFilterOptions, type BookFilterSettings } from '@/lib/filter-settings'
 import { resolveBookCoverArt } from '@/lib/ai-image-prompts'
 import { openReaderPreview, readerUrl } from '@/lib/app-routes'
+import { generateAndAttachBookCover } from '@/lib/book-cover-ai'
 
 const stageMeta = {
   editing: { label: 'در حال ویرایش', className: 'bg-blue-500 text-white', icon: FileText },
@@ -32,6 +33,7 @@ export default function Publisher() {
   const [remoteLoaded, setRemoteLoaded] = useState(false)
   const [remoteError, setRemoteError] = useState('')
   const [deletingBookId, setDeletingBookId] = useState<string | null>(null)
+  const [coverGeneratingBookId, setCoverGeneratingBookId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [stageFilter, setStageFilter] = useState('all')
   const [categoryFilter, setCategoryFilter] = useState('all')
@@ -96,7 +98,7 @@ export default function Publisher() {
         const remote: PublisherBook[] = (result.data || []).map((row: any) => ({
           ...row,
           cover_url: resolveBookCoverArt({
-            coverUrl: row.cover_url || `https://picsum.photos/seed/${row.id}/400/560`,
+            coverUrl: row.cover_url || '',
             title: row.title,
             category: row.metadata?.category || row.tags?.[0] || 'عمومی',
             description: row.description || '',
@@ -141,6 +143,19 @@ export default function Publisher() {
     setBooks(current => current.map(item => item.id === book.id ? { ...item, importStatus: 'needs-review' } : item))
   }
 
+  const generateCover = async (book: PublisherBook) => {
+    setRemoteError('')
+    setCoverGeneratingBookId(book.id)
+    try {
+      const updated = await generateAndAttachBookCover({ book, user })
+      setBooks(current => current.map(item => item.id === book.id ? { ...item, ...updated } : item))
+    } catch (error) {
+      setRemoteError(error instanceof Error ? error.message : 'طراحی جلد هوشمند ناموفق بود.')
+    } finally {
+      setCoverGeneratingBookId(null)
+    }
+  }
+
   const previewPublisherBook = async (book: PublisherBook) => {
     const previewWindow = window.open('about:blank', '_blank')
     try {
@@ -156,7 +171,7 @@ export default function Publisher() {
             subtitle: data.subtitle ?? book.subtitle,
             description: data.description || book.description,
             cover_url: resolveBookCoverArt({
-              coverUrl: data.cover_url || book.cover_url,
+              coverUrl: data.cover_url || book.cover_url || '',
               title: data.title || book.title,
               category: metadata.category || data.tags?.[0] || book.category || 'عمومی',
               description: data.description || book.description || '',
@@ -332,6 +347,7 @@ export default function Publisher() {
                     <Button onClick={() => navigate(`/edit/${book.id}`)} className="gap-2 flex-1 sm:min-w-56"><FileText className="w-4 h-4" />ویرایش متن و محتوا</Button>
                     <Button onClick={() => navigate(`/publish/${book.id}`)} className="gap-2 bg-amber-500 hover:bg-amber-600 flex-1 sm:min-w-56"><Rocket className="w-4 h-4" />قیمت، سهام و انتشار</Button>
                     <Button variant="outline" onClick={() => void previewPublisherBook(book)} className="gap-2"><Eye className="w-4 h-4" />پیش‌نمایش</Button>
+                    <Button variant="outline" disabled={coverGeneratingBookId === book.id} onClick={() => void generateCover(book)} className="gap-2"><Sparkles className={`w-4 h-4 ${coverGeneratingBookId === book.id ? 'animate-spin' : ''}`} />{coverGeneratingBookId === book.id ? 'طراحی جلد...' : 'طراحی جلد AI'}</Button>
                     <Button variant="outline" className="gap-2"><MessageSquare className="w-4 h-4" />نظرات</Button>
                     <Button variant="outline" disabled={!book.metadata?.import_project_id} onClick={() => reconvert(book)} className="gap-2"><RefreshCcw className="w-4 h-4" />تبدیل مجدد از فایل سرور</Button>
                     {canDelete && <Button variant="ghost" disabled={deletingBookId === book.id} onClick={() => removeBook(book)} className="text-destructive"><Trash2 className="w-4 h-4" />{deletingBookId === book.id ? 'در حال حذف...' : ''}</Button>}

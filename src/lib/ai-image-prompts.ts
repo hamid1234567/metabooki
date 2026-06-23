@@ -97,7 +97,7 @@ export function buildFallbackBookCoverDataUrl(context: BookCoverPromptContext) {
 }
 
 export function resolveBookCoverArt(context: BookCoverPromptContext & { coverUrl?: string | null }) {
-  if (!String(context.coverUrl || '').trim()) return ''
+  if (!String(context.coverUrl || '').trim()) return buildFallbackBookCoverDataUrl(context)
   if (!isPlaceholderCoverUrl(context.coverUrl)) return context.coverUrl || ''
   return buildFallbackBookCoverDataUrl(context)
 }

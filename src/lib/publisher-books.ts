@@ -165,7 +165,7 @@ export function createPublisherBook(input: { title: string; subtitle?: string; a
     title: input.title || 'کتاب بدون عنوان',
     subtitle: input.subtitle || (input.fileName ? `ایجاد شده از فایل ${input.fileName}` : 'کتاب جدید'),
     description: input.description || 'کتاب جدید آماده ویرایش و تکمیل محتوا است.',
-    cover_url: resolveBookCoverArt({ ...coverContext, coverUrl: `https://picsum.photos/seed/${id}/400/560` }),
+    cover_url: resolveBookCoverArt({ ...coverContext, coverUrl: '' }),
     back_cover_url: null,
     pages,
     preview_pages: [0],

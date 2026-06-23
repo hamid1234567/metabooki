@@ -7,6 +7,7 @@ import { confirmAndUploadImport, uploadErrorMessage, type UploadProgress } from 
 import { clearExpiredLocalImports, deleteLocalImport, saveLocalImport, updateLocalAnalysis } from '@/lib/local-import-store'
 import { applyWordStyleMapping } from '@/lib/word-style-mapping'
 import { bookTextDirection, normalizeBookText, pageDividerHtml, printPageLabel } from '@/lib/book-content'
+import { generateAndAttachBookCover } from '@/lib/book-cover-ai'
 import type { ImportBookMetadata, LocalImportProject, WordImportAnalysis, ImportWorkerMessage } from '@/lib/word-import-types'
 
 type Stage = 'choose' | 'analyzing' | 'review' | 'uploading' | 'complete'
@@ -241,6 +242,16 @@ export default function Upload() {
         const latest = metadataRef.current || metadata
         return { ...latest, title: latest.title || file.name.replace(/\.docx$/i, '') }
       })
+      try {
+        await generateAndAttachBookCover({
+          book,
+          user,
+          onProgress: label => setUploadProgress({ uploaded: file.size, total: file.size, percent: 98, label }),
+        })
+      } catch (coverError) {
+        console.warn('AI cover generation failed', coverError)
+        setUploadProgress({ uploaded: file.size, total: file.size, percent: 99, label: 'کتاب آماده شد؛ جلد هوشمند بعداً از پنل انتشارات قابل تولید است.' })
+      }
       setStage('complete')
       await deleteLocalImport(project.id)
       navigate(`/edit/${book.id}`, { replace: true })

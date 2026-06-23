@@ -152,6 +152,7 @@ function bookRecord(project: LocalImportProject, metadata: ImportBookMetadata, p
       confirmed_toc: confirmedToc,
       import_images: importImages,
       auto_cover_prompt: buildBookCoverImagePrompt(coverContext),
+      auto_cover_status: 'pending',
     },
     publish_complexity_factor: Math.max(1, project.analysis.complexity.score / 20),
   }
