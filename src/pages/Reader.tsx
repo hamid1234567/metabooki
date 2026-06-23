@@ -12,6 +12,8 @@ import { supabase } from '@/integrations/supabase/client'
 import { bookTextDirection, normalizeBookText, printPageLabel } from '@/lib/book-content'
 import { BookContentBlock, resolveSharedBookContentBlock } from '@/components/book/BookContentBlocks'
 import { subscribePublisherBookUpdates } from '@/lib/publisher-books'
+import { BookRendererV2 } from '@/components/book-content-v2'
+import type { BookDocumentV2 } from '@/lib/book-document-v2'
 
 type HighlightColor = 'yellow' | 'green' | 'red'
 type HighlightEntry = {
@@ -357,6 +359,10 @@ export default function Reader() {
   const canReadFull = isFree || isOwner
   const isPreview = book.preview_pages.includes(currentPage)
   const page = book.pages[currentPage] || { title: '', blocks: [] }
+  const editorV2Document = book.metadata?.editor_v2_document && (book.metadata.editor_v2_document as BookDocumentV2).schemaVersion === '2.0'
+    ? book.metadata.editor_v2_document as BookDocumentV2
+    : null
+  const editorV2Page = editorV2Document?.pages?.[currentPage]
   const dir = book.language === 'fa' ? 'rtl' : 'ltr'
   const pageBackgroundUrl = page.background_url || book.metadata?.page_background_url
   const pageBackgroundAlpha = Number(page.background_alpha ?? book.metadata?.page_background_alpha ?? 0)
@@ -1222,14 +1228,14 @@ export default function Reader() {
             onPointerCancel={cancelHighlightStroke}
             onContextMenu={e => e.preventDefault()}
           >
-            {page.blocks.map((block:any,i:number)=>renderBlock(block,i))}
+            {editorV2Page ? <BookRendererV2 pages={[editorV2Page]} compact /> : page.blocks.map((block:any,i:number)=>renderBlock(block,i))}
           </div>
 
           {/* Page Nav */}
           <div className="flex items-center justify-between">
             <Button variant="outline" onClick={()=>goPage(currentPage-1)} disabled={currentPage===0}><ChevronRight className="w-4 h-4"/>قبلی</Button>
-            <span className="text-sm text-muted-foreground">صفحه چاپی {currentPrintLabel} <span className="text-xs opacity-70">({currentPage + 1} از {book.pages.length})</span></span>
-            <Button variant="outline" onClick={()=>goPage(currentPage+1)} disabled={currentPage>=book.pages.length-1||!canReadFull}>بعدی<ChevronLeft className="w-4 h-4"/></Button>
+            <span className="text-sm text-muted-foreground">صفحه چاپی {currentPrintLabel} <span className="text-xs opacity-70">({currentPage + 1} از {editorV2Document?.pages.length || book.pages.length})</span></span>
+            <Button variant="outline" onClick={()=>goPage(currentPage+1)} disabled={currentPage>=(editorV2Document?.pages.length || book.pages.length)-1||!canReadFull}>بعدی<ChevronLeft className="w-4 h-4"/></Button>
           </div>
         </div>
       </div>

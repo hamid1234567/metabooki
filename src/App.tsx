@@ -166,9 +166,14 @@ function App() {
                   <Upload />
                 </RoleGuard>
               } />
-              <Route path="/edit/:id" element={
+              <Route path="/edit-legacy/:id" element={
                 <RoleGuard roles={['publisher', 'editor', 'admin', 'super_admin']}>
                   <Edit />
+                </RoleGuard>
+              } />
+              <Route path="/edit/:id" element={
+                <RoleGuard roles={['publisher', 'editor', 'admin', 'super_admin']}>
+                  <EditV2 />
                 </RoleGuard>
               } />
               <Route path="/edit-v2/:id" element={
