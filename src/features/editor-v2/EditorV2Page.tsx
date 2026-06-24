@@ -192,7 +192,7 @@ function blockToEditorHtmlV2(block: BookBlockV2): string {
   }
   if (block.type === 'callout') {
     const body = block.blocks.map(blockToEditorHtmlV2).join('')
-    return `<section class="book-callout editor-v2-callout has-rendered-title callout-${escapeHtmlV2(block.variant)}" data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="callout" data-variant="${escapeHtmlV2(block.variant)}" data-callout-variant="${escapeHtmlV2(block.variant)}" data-callout-title="${escapeHtmlV2(block.title)}" data-callout-icon="${escapeHtmlV2(block.icon || '')}"><div class="book-callout-head"><span class="book-callout-icon" contenteditable="false">${escapeHtmlV2(block.icon || '')}</span><strong class="book-callout-title" contenteditable="true" data-callout-title-editor="true">${escapeHtmlV2(block.title)}</strong></div><div class="book-callout-content">${body}</div></section>`
+    return `<section class="book-callout editor-v2-callout has-rendered-title callout-${escapeHtmlV2(block.variant)}" data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="callout" data-variant="${escapeHtmlV2(block.variant)}" data-callout-variant="${escapeHtmlV2(block.variant)}" data-callout-title="${escapeHtmlV2(block.title)}" data-callout-icon="${escapeHtmlV2(block.icon || '')}"><button type="button" class="book-callout-unwrap editor-v2-callout-unwrap" contenteditable="false" data-callout-unwrap="true" title="برگرداندن به متن عادی">×</button><div class="book-callout-head"><span class="book-callout-icon" contenteditable="false">${escapeHtmlV2(block.icon || '')}</span><strong class="book-callout-title" contenteditable="true" data-callout-title-editor="true">${escapeHtmlV2(block.title)}</strong></div><div class="book-callout-bg-icon" contenteditable="false">${escapeHtmlV2(block.icon || '')}</div><div class="book-callout-content">${body}</div></section>`
   }
   if (block.type === 'interactive') {
     return `<section contenteditable="false" class="book-interactive-v2" data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="interactive" data-kind="${escapeHtmlV2(block.kind)}"><strong>${escapeHtmlV2(block.title || String(block.payload.title || 'بخش تعاملی'))}</strong></section>`
@@ -1183,6 +1183,7 @@ export default function EditorV2Page() {
     if (!editorSurfaceRef.current) return
     editorSurfaceRef.current.innerHTML = html
     markEditorDirty()
+    skipNextSurfaceSyncRef.current = true
     scheduleRefreshDocumentFromEditor()
   }, [markEditorDirty, scheduleRefreshDocumentFromEditor])
 
@@ -1490,6 +1491,20 @@ export default function EditorV2Page() {
     window.setTimeout(() => { calloutActionLockRef.current = false }, 180)
   }, [markEditorDirty, pushEditorHistory, retagEditorBlockElement, scheduleToolbarDocumentRefresh, selectedBlockIdFromEditorTarget])
 
+  const unwrapCalloutElement = useCallback((callout: HTMLElement) => {
+    pushEditorHistory()
+    const content = callout.querySelector<HTMLElement>('.book-callout-content')
+    const children = Array.from(content?.childNodes || [])
+    if (!children.length) {
+      callout.remove()
+    } else {
+      callout.replaceWith(...children)
+    }
+    markEditorDirty()
+    scheduleToolbarDocumentRefresh()
+    setSelectedBlockId(undefined)
+  }, [markEditorDirty, pushEditorHistory, scheduleToolbarDocumentRefresh])
+
   const unwrapSelectedCallout = useCallback(() => {
     if (calloutActionLockRef.current) return
     calloutActionLockRef.current = true
@@ -1503,19 +1518,9 @@ export default function EditorV2Page() {
       calloutActionLockRef.current = false
       return
     }
-    pushEditorHistory()
-    const content = callout.querySelector<HTMLElement>('.book-callout-content')
-    const children = Array.from(content?.childNodes || [])
-    if (!children.length) {
-      callout.remove()
-    } else {
-      callout.replaceWith(...children)
-    }
-    markEditorDirty()
-    scheduleToolbarDocumentRefresh()
-    setSelectedBlockId(undefined)
+    unwrapCalloutElement(callout)
     window.setTimeout(() => { calloutActionLockRef.current = false }, 180)
-  }, [markEditorDirty, pushEditorHistory, scheduleToolbarDocumentRefresh, selectedBlockIdFromEditorTarget])
+  }, [selectedBlockIdFromEditorTarget, unwrapCalloutElement])
 
   const insertImageFromAsset = useCallback((assetId: string) => {
     const asset = document?.assets.find(item => item.id === assetId)
@@ -1706,6 +1711,13 @@ export default function EditorV2Page() {
           ref={canvasRef}
           onClick={event => {
             const target = event.target as HTMLElement
+            const unwrapButton = target.closest<HTMLElement>('[data-callout-unwrap="true"]')
+            if (unwrapButton) {
+              event.preventDefault()
+              const callout = unwrapButton.closest<HTMLElement>('section.editor-v2-callout[data-v2-type="callout"]')
+              if (callout) unwrapCalloutElement(callout)
+              return
+            }
             if (target.closest('.editor-v2-paper, .editor-v2-toolbar, [data-block-id]')) return
             setSelectedBlockId(undefined)
           }}
