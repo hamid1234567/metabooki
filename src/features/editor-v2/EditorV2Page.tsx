@@ -1468,6 +1468,23 @@ export default function EditorV2Page() {
       const titleElement = existingCallout.querySelector<HTMLElement>('[data-callout-title-editor], .book-callout-head strong')
       if (iconElement) iconElement.textContent = meta.icon
       if (bgIconElement) bgIconElement.textContent = meta.icon
+      if (!bgIconElement) {
+        const bgIcon = window.document.createElement('div')
+        bgIcon.className = 'book-callout-bg-icon'
+        bgIcon.contentEditable = 'false'
+        bgIcon.textContent = meta.icon
+        existingCallout.insertBefore(bgIcon, existingCallout.querySelector('.book-callout-content'))
+      }
+      if (!existingCallout.querySelector('[data-callout-unwrap]')) {
+        const unwrapButton = window.document.createElement('button')
+        unwrapButton.type = 'button'
+        unwrapButton.className = 'book-callout-unwrap editor-v2-callout-unwrap'
+        unwrapButton.contentEditable = 'false'
+        unwrapButton.dataset.calloutUnwrap = 'true'
+        unwrapButton.setAttribute('aria-label', 'Unwrap callout')
+        unwrapButton.textContent = '×'
+        existingCallout.prepend(unwrapButton)
+      }
       if (titleElement && !titleElement.textContent?.trim()) titleElement.textContent = meta.title
       setSelectedBlockId(existingCallout.dataset.blockId)
     } else {
