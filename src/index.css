@@ -4359,8 +4359,8 @@ body {
   width: fit-content;
   max-width: calc(100% - 4rem);
   inset-block-start: 0;
-  inset-inline-start: auto;
-  inset-inline-end: 1.15rem;
+  inset-inline-start: 1.15rem;
+  inset-inline-end: auto;
   margin: 0 !important;
   transform: translateY(-50%);
   padding: .36rem .72rem .36rem .86rem !important;
@@ -4378,8 +4378,8 @@ body {
   inset-inline-end: auto;
 }
 .book-callout[dir="rtl"] .book-callout-head {
-  inset-inline-start: auto;
-  inset-inline-end: 1.15rem;
+  inset-inline-start: 1.15rem;
+  inset-inline-end: auto;
 }
 .book-callout .book-callout-icon {
   display: grid;
