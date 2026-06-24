@@ -607,6 +607,113 @@ function SaveIndicator({ state, floating = false }: { state: SaveVisualStateV2; 
   )
 }
 
+type TextToolbarV2Props = {
+  toolbarState: TextToolbarStateV2
+  rememberEditorSelection: () => void
+  execTextCommand: (command: string, value?: string) => void
+  formatCurrentBlock: (tag: string) => void
+  applyInlineStyleToSelection: (style: Partial<CSSStyleDeclaration>) => boolean
+  applyRegularToSelection: () => void
+  applyBlockAlignment: (alignment: 'left' | 'right' | 'center' | 'justify') => void
+  setCurrentBlockDirection: (direction: 'rtl' | 'ltr') => void
+  createLinkForSelection: () => void
+  insertSimpleTable: () => void
+}
+
+function TextToolbarV2({
+  toolbarState,
+  rememberEditorSelection,
+  execTextCommand,
+  formatCurrentBlock,
+  applyInlineStyleToSelection,
+  applyRegularToSelection,
+  applyBlockAlignment,
+  setCurrentBlockDirection,
+  createLinkForSelection,
+  insertSimpleTable,
+}: TextToolbarV2Props) {
+  return (
+    <section
+      className="editor-v2-toolbar menu-glass-70"
+      onClick={event => event.stopPropagation()}
+      onPointerDownCapture={rememberEditorSelection}
+      onMouseDownCapture={rememberEditorSelection}
+      onMouseDown={event => {
+        if ((event.target as HTMLElement).closest('button')) event.preventDefault()
+      }}
+    >
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('undo')} title="بازگشت"><Undo2 size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('redo')} title="انجام دوباره"><Redo2 size={17} /></Button>
+      <span className="editor-v2-toolbar-divider" />
+      <Button variant="outline" size="icon" onClick={() => formatCurrentBlock('p')} title="متن عادی"><Type size={17} /></Button>
+      <select defaultValue="" onChange={event => { if (event.target.value) formatCurrentBlock(event.target.value); event.target.value = '' }} title="سطح عنوان">
+        <option value="" disabled>H</option>
+        <option value="p">متن عادی</option>
+        <option value="h1">H1</option>
+        <option value="h2">H2</option>
+        <option value="h3">H3</option>
+        <option value="h4">H4</option>
+        <option value="h5">H5</option>
+        <option value="h6">H6</option>
+      </select>
+      <select defaultValue="" onChange={event => { if (event.target.value) applyInlineStyleToSelection({ fontFamily: event.target.value }); event.target.value = '' }} title="فونت">
+        <option value="" disabled>فونت</option>
+        <option value="Vazirmatn">Vazirmatn</option>
+        <option value="Tahoma">Tahoma</option>
+        <option value="Arial">Arial</option>
+        <option value="Georgia">Georgia</option>
+        <option value="Times New Roman">Times</option>
+      </select>
+      <select defaultValue="" onChange={event => { if (event.target.value) applyInlineStyleToSelection({ fontSize: FONT_SIZE_MAP_V2[event.target.value] || event.target.value }); event.target.value = '' }} title="اندازه متن">
+        <option value="" disabled>اندازه</option>
+        <option value="1">خیلی ریز</option>
+        <option value="2">ریز</option>
+        <option value="3">عادی</option>
+        <option value="4">درشت</option>
+        <option value="5">خیلی درشت</option>
+      </select>
+      <div className="editor-v2-color-swatches" role="group" aria-label="رنگ متن">
+        {TEXT_COLOR_SWATCHES_V2.map(color => (
+          <button
+            key={color.value}
+            type="button"
+            className="editor-v2-color-swatch"
+            style={{ '--swatch-color': color.value } as CSSProperties}
+            title={`رنگ متن: ${color.label}`}
+            aria-label={`رنگ متن: ${color.label}`}
+            onMouseDown={event => {
+              event.preventDefault()
+              rememberEditorSelection()
+            }}
+            onClick={() => applyInlineStyleToSelection({ color: color.value })}
+          />
+        ))}
+      </div>
+      <span className="editor-v2-toolbar-divider" />
+      <Button variant="outline" size="icon" onClick={applyRegularToSelection} title="Regular" aria-pressed={toolbarState.hasSelection && !toolbarState.bold && !toolbarState.italic} className={toolbarState.hasSelection && !toolbarState.bold && !toolbarState.italic ? 'is-active' : undefined}><span className="editor-v2-regular-mark">R</span></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('bold')} title="پررنگ" aria-pressed={toolbarState.bold} className={toolbarState.bold ? 'is-active' : undefined}><Bold size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('italic')} title="مورب" aria-pressed={toolbarState.italic} className={toolbarState.italic ? 'is-active' : undefined}><Italic size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('underline')} title="زیرخط" aria-pressed={toolbarState.underline} className={toolbarState.underline ? 'is-active' : undefined}><UnderlineIcon size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('strikeThrough')} title="خط‌خورده" aria-pressed={toolbarState.strike} className={toolbarState.strike ? 'is-active' : undefined}><Strikethrough size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('superscript')} title="بالانویس" aria-pressed={toolbarState.superscript} className={toolbarState.superscript ? 'is-active' : undefined}><Superscript size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('subscript')} title="زیرنویس" aria-pressed={toolbarState.subscript} className={toolbarState.subscript ? 'is-active' : undefined}><Subscript size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={createLinkForSelection} title="لینک"><Link2 size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('removeFormat')} title="پاک کردن فرمت"><Eraser size={17} /></Button>
+      <span className="editor-v2-toolbar-divider" />
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('insertUnorderedList')} title="فهرست نقطه‌ای"><List size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('insertOrderedList')} title="فهرست شماره‌ای"><ListOrdered size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => applyBlockAlignment('right')} title="راست‌چین" aria-pressed={toolbarState.alignment === 'right'} className={toolbarState.alignment === 'right' ? 'is-active' : undefined}><AlignRight size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => applyBlockAlignment('center')} title="وسط‌چین" aria-pressed={toolbarState.alignment === 'center'} className={toolbarState.alignment === 'center' ? 'is-active' : undefined}><AlignCenter size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => applyBlockAlignment('left')} title="چپ‌چین" aria-pressed={toolbarState.alignment === 'left'} className={toolbarState.alignment === 'left' ? 'is-active' : undefined}><AlignLeft size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => applyBlockAlignment('justify')} title="تراز کامل" aria-pressed={toolbarState.alignment === 'justify'} className={toolbarState.alignment === 'justify' ? 'is-active' : undefined}><AlignJustify size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => setCurrentBlockDirection('rtl')} title="جهت راست به چپ"><ArrowRight size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => setCurrentBlockDirection('ltr')} title="جهت چپ به راست"><ArrowLeft size={17} /></Button>
+      <span className="editor-v2-toolbar-divider" />
+      <Button variant="outline" size="icon" onClick={insertSimpleTable} title="جدول ساده"><Table2 size={17} /></Button>
+    </section>
+  )
+}
+
 function TocTreeV2({
   items,
   activeId,
@@ -1510,84 +1617,18 @@ export default function EditorV2Page() {
             setSelectedBlockId(undefined)
           }}
         >
-          <section
-            className="editor-v2-toolbar menu-glass-70"
-            onClick={event => event.stopPropagation()}
-            onPointerDownCapture={rememberEditorSelection}
-            onMouseDownCapture={rememberEditorSelection}
-            onMouseDown={event => {
-              if ((event.target as HTMLElement).closest('button')) event.preventDefault()
-            }}
-          >
-            <Button variant="outline" size="icon" onClick={() => execTextCommand('undo')} title="بازگشت"><Undo2 size={17} /></Button>
-            <Button variant="outline" size="icon" onClick={() => execTextCommand('redo')} title="انجام دوباره"><Redo2 size={17} /></Button>
-            <span className="editor-v2-toolbar-divider" />
-            <Button variant="outline" size="icon" onClick={() => formatCurrentBlock('p')} title="متن عادی"><Type size={17} /></Button>
-            <select defaultValue="" onChange={event => { if (event.target.value) formatCurrentBlock(event.target.value); event.target.value = '' }} title="سطح عنوان">
-              <option value="" disabled>H</option>
-              <option value="p">متن عادی</option>
-              <option value="h1">H1</option>
-              <option value="h2">H2</option>
-              <option value="h3">H3</option>
-              <option value="h4">H4</option>
-              <option value="h5">H5</option>
-              <option value="h6">H6</option>
-            </select>
-            <select defaultValue="" onChange={event => { if (event.target.value) applyInlineStyleToSelection({ fontFamily: event.target.value }); event.target.value = '' }} title="فونت">
-              <option value="" disabled>فونت</option>
-              <option value="Vazirmatn">Vazirmatn</option>
-              <option value="Tahoma">Tahoma</option>
-              <option value="Arial">Arial</option>
-              <option value="Georgia">Georgia</option>
-              <option value="Times New Roman">Times</option>
-            </select>
-            <select defaultValue="" onChange={event => { if (event.target.value) applyInlineStyleToSelection({ fontSize: FONT_SIZE_MAP_V2[event.target.value] || event.target.value }); event.target.value = '' }} title="اندازه متن">
-              <option value="" disabled>اندازه</option>
-              <option value="1">خیلی ریز</option>
-              <option value="2">ریز</option>
-              <option value="3">عادی</option>
-              <option value="4">درشت</option>
-              <option value="5">خیلی درشت</option>
-            </select>
-            <div className="editor-v2-color-swatches" role="group" aria-label="رنگ متن">
-              {TEXT_COLOR_SWATCHES_V2.map(color => (
-                <button
-                  key={color.value}
-                  type="button"
-                  className="editor-v2-color-swatch"
-                  style={{ '--swatch-color': color.value } as CSSProperties}
-                  title={`رنگ متن: ${color.label}`}
-                  aria-label={`رنگ متن: ${color.label}`}
-                  onMouseDown={event => {
-                    event.preventDefault()
-                    rememberEditorSelection()
-                  }}
-                  onClick={() => applyInlineStyleToSelection({ color: color.value })}
-                />
-              ))}
-            </div>
-            <span className="editor-v2-toolbar-divider" />
-            <Button variant="outline" size="icon" onClick={applyRegularToSelection} title="Regular" aria-pressed={toolbarState.hasSelection && !toolbarState.bold && !toolbarState.italic} className={toolbarState.hasSelection && !toolbarState.bold && !toolbarState.italic ? 'is-active' : undefined}><span className="editor-v2-regular-mark">R</span></Button>
-            <Button variant="outline" size="icon" onClick={() => execTextCommand('bold')} title="پررنگ" aria-pressed={toolbarState.bold} className={toolbarState.bold ? 'is-active' : undefined}><Bold size={17} /></Button>
-            <Button variant="outline" size="icon" onClick={() => execTextCommand('italic')} title="مورب" aria-pressed={toolbarState.italic} className={toolbarState.italic ? 'is-active' : undefined}><Italic size={17} /></Button>
-            <Button variant="outline" size="icon" onClick={() => execTextCommand('underline')} title="زیرخط" aria-pressed={toolbarState.underline} className={toolbarState.underline ? 'is-active' : undefined}><UnderlineIcon size={17} /></Button>
-            <Button variant="outline" size="icon" onClick={() => execTextCommand('strikeThrough')} title="خط‌خورده" aria-pressed={toolbarState.strike} className={toolbarState.strike ? 'is-active' : undefined}><Strikethrough size={17} /></Button>
-            <Button variant="outline" size="icon" onClick={() => execTextCommand('superscript')} title="بالانویس" aria-pressed={toolbarState.superscript} className={toolbarState.superscript ? 'is-active' : undefined}><Superscript size={17} /></Button>
-            <Button variant="outline" size="icon" onClick={() => execTextCommand('subscript')} title="زیرنویس" aria-pressed={toolbarState.subscript} className={toolbarState.subscript ? 'is-active' : undefined}><Subscript size={17} /></Button>
-            <Button variant="outline" size="icon" onClick={createLinkForSelection} title="لینک"><Link2 size={17} /></Button>
-            <Button variant="outline" size="icon" onClick={() => execTextCommand('removeFormat')} title="پاک کردن فرمت"><Eraser size={17} /></Button>
-            <span className="editor-v2-toolbar-divider" />
-            <Button variant="outline" size="icon" onClick={() => execTextCommand('insertUnorderedList')} title="فهرست نقطه‌ای"><List size={17} /></Button>
-            <Button variant="outline" size="icon" onClick={() => execTextCommand('insertOrderedList')} title="فهرست شماره‌ای"><ListOrdered size={17} /></Button>
-            <Button variant="outline" size="icon" onClick={() => applyBlockAlignment('right')} title="راست‌چین" aria-pressed={toolbarState.alignment === 'right'} className={toolbarState.alignment === 'right' ? 'is-active' : undefined}><AlignRight size={17} /></Button>
-            <Button variant="outline" size="icon" onClick={() => applyBlockAlignment('center')} title="وسط‌چین" aria-pressed={toolbarState.alignment === 'center'} className={toolbarState.alignment === 'center' ? 'is-active' : undefined}><AlignCenter size={17} /></Button>
-            <Button variant="outline" size="icon" onClick={() => applyBlockAlignment('left')} title="چپ‌چین" aria-pressed={toolbarState.alignment === 'left'} className={toolbarState.alignment === 'left' ? 'is-active' : undefined}><AlignLeft size={17} /></Button>
-            <Button variant="outline" size="icon" onClick={() => applyBlockAlignment('justify')} title="تراز کامل" aria-pressed={toolbarState.alignment === 'justify'} className={toolbarState.alignment === 'justify' ? 'is-active' : undefined}><AlignJustify size={17} /></Button>
-            <Button variant="outline" size="icon" onClick={() => setCurrentBlockDirection('rtl')} title="جهت راست به چپ"><ArrowRight size={17} /></Button>
-            <Button variant="outline" size="icon" onClick={() => setCurrentBlockDirection('ltr')} title="جهت چپ به راست"><ArrowLeft size={17} /></Button>
-            <span className="editor-v2-toolbar-divider" />
-            <Button variant="outline" size="icon" onClick={insertSimpleTable} title="جدول ساده"><Table2 size={17} /></Button>
-          </section>
+          <TextToolbarV2
+            toolbarState={toolbarState}
+            rememberEditorSelection={rememberEditorSelection}
+            execTextCommand={execTextCommand}
+            formatCurrentBlock={formatCurrentBlock}
+            applyInlineStyleToSelection={applyInlineStyleToSelection}
+            applyRegularToSelection={applyRegularToSelection}
+            applyBlockAlignment={applyBlockAlignment}
+            setCurrentBlockDirection={setCurrentBlockDirection}
+            createLinkForSelection={createLinkForSelection}
+            insertSimpleTable={insertSimpleTable}
+          />
 
           <div className="editor-v2-paper">
             <div
