@@ -183,7 +183,7 @@ function blockToEditorHtmlV2(block: BookBlockV2): string {
   }
   if (block.type === 'image') {
     const width = block.widthPercent ? `${Math.max(12, Math.min(100, block.widthPercent))}%` : block.widthPx ? `${Math.max(80, block.widthPx)}px` : ''
-    return `<figure contenteditable="false" data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="image"${attrV2('data-image-id', block.imageId)}${attrV2('data-width-px', block.widthPx)}${attrV2('data-width-percent', block.widthPercent)}>${block.url ? `<img src="${escapeHtmlV2(block.url)}" alt="${escapeHtmlV2(block.caption || '')}"${width ? ` style="max-width:${escapeHtmlV2(width)}"` : ''}>` : '<div class="book-v2-missing-image">تص�ˆ�Œر در دسترس �†�Œست</div>'}${block.caption ? `<figcaption>${escapeHtmlV2(block.caption)}</figcaption>` : ''}</figure>`
+    return `<figure contenteditable="false" data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="image"${attrV2('data-image-id', block.imageId)}${attrV2('data-width-px', block.widthPx)}${attrV2('data-width-percent', block.widthPercent)}>${block.url ? `<img src="${escapeHtmlV2(block.url)}" alt="${escapeHtmlV2(block.caption || '')}"${width ? ` style="max-width:${escapeHtmlV2(width)}"` : ''}>` : '<div class="book-v2-missing-image">تصویر در دسترس نیست</div>'}${block.caption ? `<figcaption>${escapeHtmlV2(block.caption)}</figcaption>` : ''}</figure>`
   }
   if (block.type === 'table') {
     const headers = block.headers?.length ? `<thead><tr>${block.headers.map(cell => `<th>${escapeHtmlV2(cell)}</th>`).join('')}</tr></thead>` : ''
@@ -192,10 +192,10 @@ function blockToEditorHtmlV2(block: BookBlockV2): string {
   }
   if (block.type === 'callout') {
     const body = block.blocks.map(blockToEditorHtmlV2).join('')
-    return `<section class="book-callout editor-v2-callout has-rendered-title callout-${escapeHtmlV2(block.variant)}" data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="callout" data-variant="${escapeHtmlV2(block.variant)}" data-callout-variant="${escapeHtmlV2(block.variant)}" data-callout-title="${escapeHtmlV2(block.title)}" data-callout-icon="${escapeHtmlV2(block.icon || '')}"><button type="button" class="book-callout-unwrap editor-v2-callout-unwrap" contenteditable="false" data-callout-unwrap="true" aria-label="Unwrap callout">�</button><div class="book-callout-head"><span class="book-callout-icon" contenteditable="false">${escapeHtmlV2(block.icon || '')}</span><strong class="book-callout-title" contenteditable="true" data-callout-title-editor="true">${escapeHtmlV2(block.title)}</strong></div><div class="book-callout-bg-icon" contenteditable="false">${escapeHtmlV2(block.icon || '')}</div><div class="book-callout-content">${body}</div></section>`
+    return `<section class="book-callout editor-v2-callout has-rendered-title callout-${escapeHtmlV2(block.variant)}" data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="callout" data-variant="${escapeHtmlV2(block.variant)}" data-callout-variant="${escapeHtmlV2(block.variant)}" data-callout-title="${escapeHtmlV2(block.title)}" data-callout-icon="${escapeHtmlV2(block.icon || '')}"><button type="button" class="book-callout-unwrap editor-v2-callout-unwrap" contenteditable="false" data-callout-unwrap="true" aria-label="Unwrap callout">×</button><div class="book-callout-head"><span class="book-callout-icon" contenteditable="false">${escapeHtmlV2(block.icon || '')}</span><strong class="book-callout-title" contenteditable="true" data-callout-title-editor="true">${escapeHtmlV2(block.title)}</strong></div><div class="book-callout-bg-icon" contenteditable="false">${escapeHtmlV2(block.icon || '')}</div><div class="book-callout-content">${body}</div></section>`
   }
   if (block.type === 'interactive') {
-    return `<section contenteditable="false" class="book-interactive-v2" data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="interactive" data-kind="${escapeHtmlV2(block.kind)}"><strong>${escapeHtmlV2(block.title || String(block.payload.title || 'بخش تعا�…�„�Œ'))}</strong></section>`
+    return `<section contenteditable="false" class="book-interactive-v2" data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="interactive" data-kind="${escapeHtmlV2(block.kind)}"><strong>${escapeHtmlV2(block.title || String(block.payload.title || 'بخش تعاملی'))}</strong></section>`
   }
   if (block.type === 'math') {
     return `<p data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="math">${escapeHtmlV2(block.expression)}</p>`
@@ -577,13 +577,13 @@ function insertBlockAfterV2(document: BookDocumentV2, selectedBlockId: string | 
 function createInteractiveTemplateV2(kind: string, printNumber?: PrintPageValue): BookBlockV2 {
   const id = createV2Id('interactive', kind, Date.now())
   const common = { id, type: 'interactive' as const, kind: kind as any, anchor: id, printNumber }
-  if (kind === 'quiz') return { ...common, title: 'ک�ˆ�Œ�Œز �†�†دگز�Œ�†�‡�€Œا�Œ', payload: { question: 'سؤا�„ را ا�Œ�†جا ب�†�ˆ�Œس�Œد', options: ['گز�Œ�†�‡ ا�ˆ�„', 'گز�Œ�†�‡ د�ˆ�…', 'گز�Œ�†�‡ س�ˆ�…'], correct: 0, explanation: '' } }
-  if (kind === 'truefalse') return { ...common, title: 'صح�Œح �Œا غ�„ط', payload: { question: 'گزار�‡ را ا�Œ�†جا ب�†�ˆ�Œس�Œد', options: ['صح�Œح', 'غ�„ط'], correct: 0, explanation: '' } }
-  if (kind === 'flashcard') return { ...common, title: 'ف�„ش�€Œکارت', payload: { cards: [{ front: 'ر�ˆ�Œ کارت', back: 'پشت کارت', image: '' }] } }
-  if (kind === 'gallery') return { ...common, title: 'گا�„ر�Œ تص�ˆ�Œر', payload: { title: 'گا�„ر�Œ تص�ˆ�Œر', images: [{ url: '', caption: '' }] } }
-  if (kind === 'timeline') return { ...common, title: 'تا�Œ�…�€Œ�„ا�Œ�†', payload: { title: 'تا�Œ�…�€Œ�„ا�Œ�†', events: [{ title: '�…رح�„�‡ ا�ˆ�„', description: '', image: '' }, { title: '�…رح�„�‡ د�ˆ�…', description: '', image: '' }] } }
-  if (kind === 'author') return { ...common, title: '�…عرف�Œ �†�ˆ�Œس�†دگا�†', payload: { title: '�†�ˆ�Œس�†دگا�†', authors: [{ name: '', role: '', bio: '', image: '' }] } }
-  return { ...common, title: '�…راح�„ تعا�…�„�Œ', payload: { title: '�…راح�„ تعا�…�„�Œ', steps: [{ title: '�…رح�„�‡ ا�ˆ�„', description: '', image: '' }, { title: '�…رح�„�‡ د�ˆ�…', description: '', image: '' }] } }
+  if (kind === 'quiz') return { ...common, title: 'کوییز چندگزینه‌ای', payload: { question: 'سؤال را اینجا بنویسید', options: ['گزینه اول', 'گزینه دوم', 'گزینه سوم'], correct: 0, explanation: '' } }
+  if (kind === 'truefalse') return { ...common, title: 'صحیح یا غلط', payload: { question: 'گزاره را اینجا بنویسید', options: ['صحیح', 'غلط'], correct: 0, explanation: '' } }
+  if (kind === 'flashcard') return { ...common, title: 'فلش‌کارت', payload: { cards: [{ front: 'روی کارت', back: 'پشت کارت', image: '' }] } }
+  if (kind === 'gallery') return { ...common, title: 'گالری تصویر', payload: { title: 'گالری تصویر', images: [{ url: '', caption: '' }] } }
+  if (kind === 'timeline') return { ...common, title: 'تایم‌لاین', payload: { title: 'تایم‌لاین', events: [{ title: 'مرحله اول', description: '', image: '' }, { title: 'مرحله دوم', description: '', image: '' }] } }
+  if (kind === 'author') return { ...common, title: 'معرفی نویسندگان', payload: { title: 'نویسندگان', authors: [{ name: '', role: '', bio: '', image: '' }] } }
+  return { ...common, title: 'مراحل تعاملی', payload: { title: 'مراحل تعاملی', steps: [{ title: 'مرحله اول', description: '', image: '' }, { title: 'مرحله دوم', description: '', image: '' }] } }
 }
 
 function plainTextFromBlockV2(block: BookBlockV2): string {
@@ -603,14 +603,14 @@ function isUuid(value = '') {
 
 function SaveIndicator({ state, floating = false }: { state: SaveVisualStateV2; floating?: boolean }) {
   const label = state === 'saving'
-    ? 'در حا�„ ذخ�Œر�‡'
+    ? 'در حال ذخیره'
     : state === 'saved'
-      ? 'ذخ�Œر�‡ شد'
+      ? 'ذخیره شد'
       : state === 'error'
-        ? 'ذخ�Œر�‡ �†ا�…�ˆف�‚'
+        ? 'ذخیره ناموفق'
         : state === 'dirty'
-          ? 'ذخ�Œر�‡ �†شد�‡'
-        : '�…�†تشر شد�‡'
+          ? 'ذخیره نشده'
+        : 'منتشر شده'
   const isReady = state === 'saved'
   if (floating) {
     return (
@@ -669,12 +669,12 @@ function TextToolbarV2({
       }}
     >
       <Button variant="outline" size="icon" onClick={() => execTextCommand('undo')} title="بازگشت"><Undo2 size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => execTextCommand('redo')} title="ا�†جا�… د�ˆبار�‡"><Redo2 size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('redo')} title="انجام دوباره"><Redo2 size={17} /></Button>
       <span className="editor-v2-toolbar-divider" />
-      <Button variant="outline" size="icon" onClick={() => formatCurrentBlock('p')} title="�…ت�† عاد�Œ"><Type size={17} /></Button>
-      <select defaultValue="" onChange={event => { if (event.target.value) formatCurrentBlock(event.target.value); event.target.value = '' }} title="سطح ع�†�ˆا�†">
+      <Button variant="outline" size="icon" onClick={() => formatCurrentBlock('p')} title="متن عادی"><Type size={17} /></Button>
+      <select defaultValue="" onChange={event => { if (event.target.value) formatCurrentBlock(event.target.value); event.target.value = '' }} title="سطح عنوان">
         <option value="" disabled>H</option>
-        <option value="p">�…ت�† عاد�Œ</option>
+        <option value="p">متن عادی</option>
         <option value="h1">H1</option>
         <option value="h2">H2</option>
         <option value="h3">H3</option>
@@ -682,31 +682,31 @@ function TextToolbarV2({
         <option value="h5">H5</option>
         <option value="h6">H6</option>
       </select>
-      <select defaultValue="" onChange={event => { if (event.target.value) applyInlineStyleToSelection({ fontFamily: event.target.value }); event.target.value = '' }} title="ف�ˆ�†ت">
-        <option value="" disabled>ف�ˆ�†ت</option>
+      <select defaultValue="" onChange={event => { if (event.target.value) applyInlineStyleToSelection({ fontFamily: event.target.value }); event.target.value = '' }} title="فونت">
+        <option value="" disabled>فونت</option>
         <option value="Vazirmatn">Vazirmatn</option>
         <option value="Tahoma">Tahoma</option>
         <option value="Arial">Arial</option>
         <option value="Georgia">Georgia</option>
         <option value="Times New Roman">Times</option>
       </select>
-      <select defaultValue="" onChange={event => { if (event.target.value) applyInlineStyleToSelection({ fontSize: FONT_SIZE_MAP_V2[event.target.value] || event.target.value }); event.target.value = '' }} title="ا�†داز�‡ �…ت�†">
-        <option value="" disabled>ا�†داز�‡</option>
-        <option value="1">خ�Œ�„�Œ ر�Œز</option>
-        <option value="2">ر�Œز</option>
-        <option value="3">عاد�Œ</option>
+      <select defaultValue="" onChange={event => { if (event.target.value) applyInlineStyleToSelection({ fontSize: FONT_SIZE_MAP_V2[event.target.value] || event.target.value }); event.target.value = '' }} title="اندازه متن">
+        <option value="" disabled>اندازه</option>
+        <option value="1">خیلی ریز</option>
+        <option value="2">ریز</option>
+        <option value="3">عادی</option>
         <option value="4">درشت</option>
-        <option value="5">خ�Œ�„�Œ درشت</option>
+        <option value="5">خیلی درشت</option>
       </select>
-      <div className="editor-v2-color-swatches" role="group" aria-label="ر�†گ �…ت�†">
+      <div className="editor-v2-color-swatches" role="group" aria-label="رنگ متن">
         {TEXT_COLOR_SWATCHES_V2.map(color => (
           <button
             key={color.value}
             type="button"
             className="editor-v2-color-swatch"
             style={{ '--swatch-color': color.value } as CSSProperties}
-            title={`ر�†گ �…ت�†: ${color.label}`}
-            aria-label={`ر�†گ �…ت�†: ${color.label}`}
+            title={`رنگ متن: ${color.label}`}
+            aria-label={`رنگ متن: ${color.label}`}
             onMouseDown={event => {
               event.preventDefault()
               rememberEditorSelection()
@@ -717,25 +717,25 @@ function TextToolbarV2({
       </div>
       <span className="editor-v2-toolbar-divider" />
       <Button variant="outline" size="icon" onClick={applyRegularToSelection} title="Regular" aria-pressed={toolbarState.hasSelection && !toolbarState.bold && !toolbarState.italic} className={toolbarState.hasSelection && !toolbarState.bold && !toolbarState.italic ? 'is-active' : undefined}><span className="editor-v2-regular-mark">R</span></Button>
-      <Button variant="outline" size="icon" onClick={() => execTextCommand('bold')} title="پرر�†گ" aria-pressed={toolbarState.bold} className={toolbarState.bold ? 'is-active' : undefined}><Bold size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => execTextCommand('italic')} title="�…�ˆرب" aria-pressed={toolbarState.italic} className={toolbarState.italic ? 'is-active' : undefined}><Italic size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => execTextCommand('underline')} title="ز�Œرخط" aria-pressed={toolbarState.underline} className={toolbarState.underline ? 'is-active' : undefined}><UnderlineIcon size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => execTextCommand('strikeThrough')} title="خط�€Œخ�ˆرد�‡" aria-pressed={toolbarState.strike} className={toolbarState.strike ? 'is-active' : undefined}><Strikethrough size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => execTextCommand('superscript')} title="با�„ا�†�ˆ�Œس" aria-pressed={toolbarState.superscript} className={toolbarState.superscript ? 'is-active' : undefined}><Superscript size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => execTextCommand('subscript')} title="ز�Œر�†�ˆ�Œس" aria-pressed={toolbarState.subscript} className={toolbarState.subscript ? 'is-active' : undefined}><Subscript size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={createLinkForSelection} title="�„�Œ�†ک"><Link2 size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => execTextCommand('removeFormat')} title="پاک کرد�† فر�…ت"><Eraser size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('bold')} title="پررنگ" aria-pressed={toolbarState.bold} className={toolbarState.bold ? 'is-active' : undefined}><Bold size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('italic')} title="مورب" aria-pressed={toolbarState.italic} className={toolbarState.italic ? 'is-active' : undefined}><Italic size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('underline')} title="زیرخط" aria-pressed={toolbarState.underline} className={toolbarState.underline ? 'is-active' : undefined}><UnderlineIcon size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('strikeThrough')} title="خط‌خورده" aria-pressed={toolbarState.strike} className={toolbarState.strike ? 'is-active' : undefined}><Strikethrough size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('superscript')} title="بالانویس" aria-pressed={toolbarState.superscript} className={toolbarState.superscript ? 'is-active' : undefined}><Superscript size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('subscript')} title="زیرنویس" aria-pressed={toolbarState.subscript} className={toolbarState.subscript ? 'is-active' : undefined}><Subscript size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={createLinkForSelection} title="لینک"><Link2 size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('removeFormat')} title="پاک کردن فرمت"><Eraser size={17} /></Button>
       <span className="editor-v2-toolbar-divider" />
-      <Button variant="outline" size="icon" onClick={() => execTextCommand('insertUnorderedList')} title="ف�‡رست �†�‚ط�‡�€Œا�Œ"><List size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => execTextCommand('insertOrderedList')} title="ف�‡رست ش�…ار�‡�€Œا�Œ"><ListOrdered size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => applyBlockAlignment('right')} title="راست�€Œ�†�Œ�†" aria-pressed={toolbarState.alignment === 'right'} className={toolbarState.alignment === 'right' ? 'is-active' : undefined}><AlignRight size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => applyBlockAlignment('center')} title="�ˆسط�€Œ�†�Œ�†" aria-pressed={toolbarState.alignment === 'center'} className={toolbarState.alignment === 'center' ? 'is-active' : undefined}><AlignCenter size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => applyBlockAlignment('left')} title="�†پ�€Œ�†�Œ�†" aria-pressed={toolbarState.alignment === 'left'} className={toolbarState.alignment === 'left' ? 'is-active' : undefined}><AlignLeft size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => applyBlockAlignment('justify')} title="تراز کا�…�„" aria-pressed={toolbarState.alignment === 'justify'} className={toolbarState.alignment === 'justify' ? 'is-active' : undefined}><AlignJustify size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => setCurrentBlockDirection('rtl')} title="ج�‡ت راست ب�‡ �†پ"><ArrowRight size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => setCurrentBlockDirection('ltr')} title="ج�‡ت �†پ ب�‡ راست"><ArrowLeft size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('insertUnorderedList')} title="فهرست نقطه‌ای"><List size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('insertOrderedList')} title="فهرست شماره‌ای"><ListOrdered size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => applyBlockAlignment('right')} title="راست‌چین" aria-pressed={toolbarState.alignment === 'right'} className={toolbarState.alignment === 'right' ? 'is-active' : undefined}><AlignRight size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => applyBlockAlignment('center')} title="وسط‌چین" aria-pressed={toolbarState.alignment === 'center'} className={toolbarState.alignment === 'center' ? 'is-active' : undefined}><AlignCenter size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => applyBlockAlignment('left')} title="چپ‌چین" aria-pressed={toolbarState.alignment === 'left'} className={toolbarState.alignment === 'left' ? 'is-active' : undefined}><AlignLeft size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => applyBlockAlignment('justify')} title="تراز کامل" aria-pressed={toolbarState.alignment === 'justify'} className={toolbarState.alignment === 'justify' ? 'is-active' : undefined}><AlignJustify size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => setCurrentBlockDirection('rtl')} title="جهت راست به چپ"><ArrowRight size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => setCurrentBlockDirection('ltr')} title="جهت چپ به راست"><ArrowLeft size={17} /></Button>
       <span className="editor-v2-toolbar-divider" />
-      <Button variant="outline" size="icon" onClick={insertSimpleTable} title="جد�ˆ�„ ساد�‡"><Table2 size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={insertSimpleTable} title="جدول ساده"><Table2 size={17} /></Button>
     </section>
   )
 }
