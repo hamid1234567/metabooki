@@ -147,7 +147,9 @@ export function getPublisherBooks(options: { includeSeed?: boolean } = {}): Publ
 
 export function createPublisherBook(input: { title: string; subtitle?: string; author: string; category: string; description: string; publisherName?: string; fileName?: string; pages?: MockBook['pages']; importProjectId?: string; bookTypes?: string[]; metadata?: Record<string, unknown> }) {
   const now = new Date().toISOString()
-  const id = `pub-${Date.now()}`
+  const id = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `pub-${Date.now()}-${Math.random().toString(36).slice(2)}`
   const pages = input.pages || [
     { title: 'فصل ۱', blocks: [
       { type: 'heading', level: 2, content: 'فصل ۱' },

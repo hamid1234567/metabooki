@@ -245,7 +245,7 @@ export async function confirmAndUploadImport(
   const publisher = await resolvePublisher(client, userId, project.publisherName)
 
   onProgress({ uploaded: 0, total: project.sourceFile.size, percent: 4, label: 'ثبت پروژه ارسال' })
-  const { data: previousImport, error: previousImportError } = await client.from('book_import_projects').select('id,book_id').eq('owner_id', userId).eq('source_checksum', project.analysis.checksum).maybeSingle()
+  const { data: previousImport, error: previousImportError } = await client.from('book_import_projects').select('id,book_id').eq('owner_id', userId).eq('id', project.id).maybeSingle()
   if (previousImportError?.code === 'PGRST205') {
     const directProjectId = project.id
     await uploadChunked(userId, directProjectId, project.sourceFile, onProgress)
@@ -254,14 +254,6 @@ export async function confirmAndUploadImport(
     const metadata = getLatestMetadata?.() || project
     await uploadManifest(client, userId, directProjectId, project, metadata, uploadedImages.paths, readerPages)
     onProgress({ uploaded: project.sourceFile.size, total: project.sourceFile.size, percent: 96, label: 'ساخت پیش‌نویس در ادیتور وب' })
-    const existing = await client.from('books').select('id').eq('metadata->>source_checksum', project.analysis.checksum).maybeSingle()
-    if (existing.error) throw existing.error
-    if (existing.data) {
-      const updated = await client.from('books').update(bookRecord(project, metadata, publisher.id, readerPages)).eq('id', existing.data.id).select('*').single()
-      if (updated.error) throw updated.error
-      onProgress({ uploaded: project.sourceFile.size, total: project.sourceFile.size, percent: 100, label: 'پیش‌نویس آماده و در ادیتور باز می‌شود' })
-      return updated.data
-    }
     const created = await client.from('books').insert(bookRecord(project, metadata, publisher.id, readerPages)).select('*').single()
     if (created.error) throw created.error
     onProgress({ uploaded: project.sourceFile.size, total: project.sourceFile.size, percent: 100, label: 'پیش‌نویس آماده و در ادیتور باز می‌شود' })
@@ -288,7 +280,7 @@ export async function confirmAndUploadImport(
     complexity_score: project.analysis.complexity.score,
     complexity_grade: project.analysis.complexity.grade,
     estimated_credits: project.analysis.complexity.estimatedCredits,
-  }, { onConflict: 'owner_id,source_checksum' }).select('id,book_id').single()
+  }, { onConflict: 'id' }).select('id,book_id').single()
   if (importError) throw importError
 
   await uploadChunked(userId, importRow.id, project.sourceFile, onProgress)
