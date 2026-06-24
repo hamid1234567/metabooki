@@ -300,18 +300,25 @@ function tableBlockFromElementV2(element: Element, id: string, page: BookDocumen
 }
 
 function elementToBlockV2(element: Element, page: BookDocumentV2['pages'][number], index: number, existing: Map<string, BookBlockV2>): BookBlockV2 | null {
-  if ((element as HTMLElement).dataset.pageBreak) return null
-  const id = (element as HTMLElement).dataset.blockId || createV2Id('block', page.index, index, Date.now())
+  const html = element as HTMLElement
+  if (html.dataset.pageBreak) return null
+  const id = html.dataset.blockId || createV2Id('block', page.index, index, Date.now())
   const old = existing.get(id)
   const tag = element.tagName.toLowerCase()
-  const v2Type = (element as HTMLElement).dataset.v2Type
+  const v2Type = html.dataset.v2Type
   if (v2Type === 'callout' && old?.type === 'callout') return old
   if (v2Type === 'interactive' && old?.type === 'interactive') return old
   if (v2Type === 'table' && old?.type === 'table') return old
   if (v2Type === 'table' || tag === 'table' || element.querySelector(':scope > table')) return tableBlockFromElementV2(element, id, page, old)
   const nestedDirectList = element.querySelector<HTMLElement>(':scope > ol, :scope > ul')
   if (nestedDirectList && tag !== 'ol' && tag !== 'ul') {
-    nestedDirectList.dataset.blockId = id
+    nestedDirectList.dataset.blockId ||= id
+    if (html.style.textAlign && !nestedDirectList.style.textAlign) nestedDirectList.style.textAlign = html.style.textAlign
+    if (html.style.fontFamily && !nestedDirectList.style.fontFamily) nestedDirectList.style.fontFamily = html.style.fontFamily
+    if (html.style.fontSize && !nestedDirectList.style.fontSize) nestedDirectList.style.fontSize = html.style.fontSize
+    if (html.style.color && !nestedDirectList.style.color) nestedDirectList.style.color = html.style.color
+    const wrapperDirection = element.getAttribute('dir')
+    if (wrapperDirection && !nestedDirectList.getAttribute('dir')) nestedDirectList.setAttribute('dir', wrapperDirection)
     return elementToBlockV2(nestedDirectList, page, index, existing)
   }
   if (/^h[1-6]$/.test(tag)) {
