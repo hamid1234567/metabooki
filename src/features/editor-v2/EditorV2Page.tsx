@@ -288,6 +288,11 @@ function textFromElementV2(element: Element) {
   return inline?.map(span => span.text).join('') || normalizeBookTextV2((element as HTMLElement).innerText || element.textContent || '')
 }
 
+function inlineOnlyElementV2(element: Element) {
+  const tag = element.tagName.toLowerCase()
+  return ['span', 'font', 'strong', 'b', 'em', 'i', 'u', 's', 'strike', 'sub', 'sup', 'a', 'br'].includes(tag)
+}
+
 function existingBlocksV2(bookDocument: BookDocumentV2) {
   const map = new Map<string, BookBlockV2>()
   const visit = (blocks: BookBlockV2[]) => {
@@ -365,6 +370,21 @@ function elementToBlockV2(element: Element, page: BookDocumentV2['pages'][number
     if (!text) return null
     return { ...(old && old.type === 'paragraph' ? old : {}), id, type: 'paragraph', semantic: 'quote', text, inline: inlineFromElementV2(element), anchor: old?.anchor || id, printNumber: page.printNumber, direction: (element.getAttribute('dir') as any) || old?.direction, style: blockStyleFromElementV2(element, old) } as ParagraphBlockV2
   }
+  if (tag === 'li' || inlineOnlyElementV2(element)) {
+    const text = textFromElementV2(element)
+    if (!text) return null
+    return {
+      ...(old && old.type === 'paragraph' ? old : {}),
+      id,
+      type: 'paragraph',
+      text,
+      inline: inlineFromElementV2(element),
+      anchor: old?.anchor || id,
+      printNumber: page.printNumber,
+      direction: (element.getAttribute('dir') as any) || old?.direction,
+      style: blockStyleFromElementV2(element, old),
+    } as ParagraphBlockV2
+  }
   if (tag === 'ol' || tag === 'ul') {
     const items = Array.from(element.querySelectorAll(':scope > li')).map((li, itemIndex) => ({
       id: (li as HTMLElement).dataset.itemId || createV2Id('item', id, itemIndex),
@@ -393,14 +413,34 @@ function elementToBlockV2(element: Element, page: BookDocumentV2['pages'][number
   return null
 }
 
+function textNodeToParagraphV2(node: Text, page: BookDocumentV2['pages'][number], index: number): ParagraphBlockV2 | null {
+  const text = normalizeBookTextV2(node.textContent || '')
+  if (!text) return null
+  const id = createV2Id('paragraph', page.index, index, Date.now())
+  return {
+    id,
+    type: 'paragraph',
+    text,
+    inline: [{ text }],
+    anchor: id,
+    printNumber: page.printNumber,
+  }
+}
+
+function editorNodeToBlockV2(node: ChildNode, page: BookDocumentV2['pages'][number], index: number, existing: Map<string, BookBlockV2>): BookBlockV2 | null {
+  if (node.nodeType === Node.TEXT_NODE) return textNodeToParagraphV2(node as Text, page, index)
+  if (node instanceof Element) return elementToBlockV2(node, page, index, existing)
+  return null
+}
+
 function documentFromEditorDomV2(bookDocument: BookDocumentV2, root: HTMLElement | null): BookDocumentV2 {
   if (!root) return bookDocument
   const existing = existingBlocksV2(bookDocument)
   const pages = bookDocument.pages.map((page, pageIndex) => {
     const pageElement = root.querySelector<HTMLElement>(`.editor-v2-flow-page[data-page-index="${page.index}"]`) || root.querySelectorAll<HTMLElement>('.editor-v2-flow-page')[pageIndex]
     if (!pageElement) return page
-    const blocks = Array.from(pageElement.children)
-      .map((element, index) => elementToBlockV2(element, page, index, existing))
+    const blocks = Array.from(pageElement.childNodes)
+      .map((node, index) => editorNodeToBlockV2(node, page, index, existing))
       .filter((block): block is BookBlockV2 => Boolean(block))
     return { ...page, blocks }
   })

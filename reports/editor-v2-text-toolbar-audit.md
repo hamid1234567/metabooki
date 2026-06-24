@@ -23,6 +23,7 @@
 - fallback انتخاب متن برای selectهای فونت/اندازه/رنگ اضافه شد؛ اگر selection هنگام باز شدن منو از دست برود، تغییر روی بلاک انتخاب‌شده اعمال می‌شود.
 - دکمه Regular کنار حالت‌های تاکید اضافه شد و state فعال Bold/Italic/Underline/Strike/Sup/Sub و چینش‌ها در toolbar نمایش داده می‌شود.
 - parser دیگر style قدیمی بلاک را در صورت نبود style فعلی برنمی‌گرداند؛ بنابراین `removeFormat` و حذف alignment با save دوباره مقدار قبلی را زنده نمی‌کنند.
+- ذخیره ادیتور اکنون `childNodes` را می‌خواند و text node، `li` مستقیم، و inline elementهایی مثل `span/b/a` را به پاراگراف تبدیل می‌کند؛ بنابراین متن بعد از خروج از bullet/number و save حذف نمی‌شود.
 
 ## جدول وضعیت ابزارهای متن
 
@@ -44,8 +45,8 @@
 | Subscript | پاس کدی | پاس کدی | پاس کدی | `<sub>` و vertical-align sub تشخیص داده می‌شود. |
 | Link | پاس کدی | پاس کدی | پاس کدی | `href` در inline ذخیره و با `InlineTextV2` نمایش داده می‌شود. |
 | Remove format | پاس کدی | پاس کدی | پاس کدی | فرمت DOM پاک می‌شود و parser inlineهای باقی‌مانده را ذخیره می‌کند. |
-| Bullet list | پاس کدی | پاس کدی | پاس کدی | `<ul><li>` به block نوع `list` با `ordered=false` تبدیل می‌شود. |
-| Numbered list | پاس کدی | پاس کدی | پاس کدی | `<ol><li>` به block نوع `list` با `ordered=true` تبدیل می‌شود. |
+| Bullet list | پاس کدی | پاس کدی | پاس کدی | `<ul><li>` به block نوع `list` تبدیل می‌شود و خروج از list به پاراگراف حفظ‌شده تبدیل می‌شود. |
+| Numbered list | پاس کدی | پاس کدی | پاس کدی | `<ol><li>` به block نوع `list` تبدیل می‌شود و خروج از number به پاراگراف حفظ‌شده تبدیل می‌شود. |
 | Align right | پاس کدی | پاس کدی | پاس کدی | `text-align:right` مستقیم روی بلاک اعمال و ذخیره می‌شود. |
 | Align center | پاس کدی | پاس کدی | پاس کدی | `text-align:center` مستقیم روی بلاک اعمال و در `BookRendererV2` نمایش داده می‌شود. |
 | Align left | پاس کدی | پاس کدی | پاس کدی | `text-align:left` مستقیم روی بلاک اعمال و نمایش داده می‌شود. |
