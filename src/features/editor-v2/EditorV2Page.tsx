@@ -1,12 +1,12 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { AlignCenter, AlignJustify, AlignLeft, AlignRight, ArrowLeft, ArrowRight, Bold, BookOpen, Check, ChevronDown, ChevronLeft, ChevronRight, Eraser, Eye, FileText, Image as ImageIcon, Info, Italic, Link2, List, ListOrdered, ListTree, Loader2, PanelRight, Redo2, Save, Sparkles, Strikethrough, Subscript, Superscript, Table2, Type, Underline as UnderlineIcon, Undo2 } from 'lucide-react'
+import { AlignCenter, AlignJustify, AlignLeft, AlignRight, AlertTriangle, ArrowLeft, ArrowRight, Bold, BookOpen, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Eraser, Eye, FileText, Image as ImageIcon, Info, Italic, Link2, List, ListOrdered, ListTree, Loader2, PanelRight, Redo2, Save, Search, Sparkles, Strikethrough, Subscript, Superscript, Table2, Type, Underline as UnderlineIcon, Undo2, Upload, Wand2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { getBook } from '@/lib/book-repository'
 import { updatePublisherBook, type PublisherBook } from '@/lib/publisher-books'
 import { openReaderPreview } from '@/lib/app-routes'
 import { supabase } from '@/integrations/supabase/client'
-import { estimateAiTextUsage, runAiThroughGateway, type RunAiResult } from '@/lib/ai-gateway'
+import { estimateAiTextUsage, generateAiImageThroughGateway, runAiThroughGateway, type RunAiResult } from '@/lib/ai-gateway'
 import { useAuthContext } from '@/lib/auth-context'
 import { useCredits } from '@/hooks/useCredits'
 import { creditsBus } from '@/lib/credits-bus'
@@ -604,6 +604,86 @@ function plainTextFromBlockV2(block: BookBlockV2): string {
   return ''
 }
 
+type EditorMediaReferenceV2 = {
+  key: string
+  assetId?: string
+  blockId?: string
+  url: string
+  caption?: string
+  printNumber?: PrintPageValue
+  status?: Extract<BookBlockV2, { type: 'image' }>['status']
+  issue?: string
+  needsCheck: boolean
+  source: 'asset' | 'block'
+  distance: number
+}
+
+function printNumberDistanceV2(value: PrintPageValue | undefined, selected: PrintPageValue | undefined) {
+  const a = Number(String(value ?? '').replace(/[^\d.-]/g, ''))
+  const b = Number(String(selected ?? '').replace(/[^\d.-]/g, ''))
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return 9999
+  return Math.abs(a - b)
+}
+
+function collectMediaReferencesV2(document: BookDocumentV2, selectedPrintNumber?: PrintPageValue): EditorMediaReferenceV2[] {
+  const assetMap = new Map(document.assets.map(asset => [asset.id, asset]))
+  const refs: EditorMediaReferenceV2[] = []
+  const seenAssetIds = new Set<string>()
+  const pushImageBlock = (block: Extract<BookBlockV2, { type: 'image' }>) => {
+    const asset = block.imageId ? assetMap.get(block.imageId) : undefined
+    if (block.imageId) seenAssetIds.add(block.imageId)
+    const caption = block.caption || asset?.caption || ''
+    const status = block.status || asset?.status
+    const issue = block.issue || asset?.issue
+    refs.push({
+      key: `block-${block.id}`,
+      assetId: block.imageId,
+      blockId: block.id,
+      url: block.url || asset?.url || '',
+      caption,
+      printNumber: block.printNumber || asset?.printNumber,
+      status,
+      issue,
+      needsCheck: !caption.trim() || Boolean(issue) || ['missing', 'needs-conversion', 'error'].includes(String(status || '')),
+      source: 'block',
+      distance: printNumberDistanceV2(block.printNumber || asset?.printNumber, selectedPrintNumber),
+    })
+  }
+  const visit = (blocks: BookBlockV2[]) => {
+    blocks.forEach(block => {
+      if (block.type === 'image') pushImageBlock(block)
+      if (block.type === 'callout') visit(block.blocks)
+    })
+  }
+  document.pages.forEach(page => visit(page.blocks))
+  document.assets.forEach(asset => {
+    if (seenAssetIds.has(asset.id)) return
+    const caption = asset.caption || ''
+    refs.push({
+      key: `asset-${asset.id}`,
+      assetId: asset.id,
+      url: asset.url,
+      caption,
+      printNumber: asset.printNumber,
+      status: asset.status,
+      issue: asset.issue,
+      needsCheck: !caption.trim() || Boolean(asset.issue) || ['missing', 'needs-conversion', 'error'].includes(String(asset.status || '')),
+      source: 'asset',
+      distance: printNumberDistanceV2(asset.printNumber, selectedPrintNumber),
+    })
+  })
+  return refs.sort((a, b) => a.distance - b.distance || Number(b.needsCheck) - Number(a.needsCheck) || String(a.printNumber || '').localeCompare(String(b.printNumber || ''), 'fa'))
+}
+
+function fileToDataUrlV2(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.onerror = () => reject(reader.error || new Error('خواندن فایل ناموفق بود.'))
+    reader.readAsDataURL(file)
+  })
+}
+
 function isUuid(value = '') {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
 }
@@ -792,11 +872,17 @@ function TocTreeV2({
 
 function RightPanelV2({
   document,
+  selectedBlock,
   activePanel,
   setActivePanel,
   activeTocId,
   onJumpToToc,
   onInsertImage,
+  onUploadImage,
+  onGenerateImage,
+  onResizeImage,
+  onResolveMediaIssue,
+  onJumpToBlock,
   onInsertInteractive,
   onApplyCallout,
   onUnwrapCallout,
@@ -806,11 +892,17 @@ function RightPanelV2({
   aiMessage,
 }: {
   document: BookDocumentV2
+  selectedBlock?: BookBlockV2 | null
   activePanel: EditorPanelV2
   setActivePanel: (panel: EditorPanelV2) => void
   activeTocId?: string
   onJumpToToc: (item: BookTocItemV2) => void
   onInsertImage: (assetId: string) => void
+  onUploadImage: (file: File) => void
+  onGenerateImage: (prompt: string) => void
+  onResizeImage: (blockId: string, widthPercent: number) => void
+  onResolveMediaIssue: (ref: EditorMediaReferenceV2) => void
+  onJumpToBlock: (blockId: string) => void
   onInsertInteractive: (kind: string) => void
   onApplyCallout: (variant: (typeof CALLOUT_VARIANTS_V2)[number]) => void
   onUnwrapCallout: () => void
@@ -820,6 +912,20 @@ function RightPanelV2({
   aiMessage: string
 }) {
   const tree = useMemo(() => resolveTocTreeV2(document.toc), [document.toc])
+  const selectedPrintNumber = selectedBlock?.printNumber
+  const mediaRefs = useMemo(() => collectMediaReferencesV2(document, selectedPrintNumber), [document, selectedPrintNumber])
+  const mediaIssueCount = mediaRefs.filter(item => item.needsCheck).length
+  const [mediaQuery, setMediaQuery] = useState('')
+  const [libraryOpen, setLibraryOpen] = useState(false)
+  const [aiPrompt, setAiPrompt] = useState('')
+  const filteredMediaRefs = useMemo(() => {
+    const query = normalizeBookTextV2(mediaQuery).toLowerCase()
+    return mediaRefs.filter(item => {
+      if (!query) return true
+      return normalizeBookTextV2(`${item.caption || ''} ${item.issue || ''} ${item.printNumber || ''}`).toLowerCase().includes(query)
+    })
+  }, [mediaRefs, mediaQuery])
+  const selectedImageBlock = selectedBlock?.type === 'image' ? selectedBlock : null
   const [openIds, setOpenIds] = useState<Set<string>>(() => new Set(tree.map(item => item.id)))
   useEffect(() => {
     setOpenIds(new Set(tree.map(item => item.id)))
@@ -842,6 +948,7 @@ function RightPanelV2({
             <button key={panel} className={activePanel === panel ? 'is-active' : ''} type="button" onClick={() => setActivePanel(panel)}>
               <Icon size={14} />
               <span>{PANEL_LABELS[panel].title}</span>
+              {panel === 'media' && mediaIssueCount > 0 && <b className="editor-v2-tab-badge">{mediaIssueCount.toLocaleString('fa-IR')}</b>}
             </button>
           )
         })}
@@ -878,13 +985,91 @@ function RightPanelV2({
           </div>
         )}
         {activePanel === 'media' && (
-          <div className="editor-v2-media-list">
-            {document.assets.length ? document.assets.slice(0, 80).map(asset => (
-              <button key={asset.id} type="button" onClick={() => onInsertImage(asset.id)}>
-                <img src={asset.url} alt={asset.caption || ''} loading="lazy" />
-                <span>{asset.caption || `تصویر صفحه ${asset.printNumber || ''}`}</span>
-              </button>
-            )) : <p className="editor-v2-empty-panel">تصویری در سند شناسایی نشده است.</p>}
+          <div className="editor-v2-media-panel">
+            <div className="editor-v2-media-actions">
+              <label>
+                <Upload size={14} />
+                آپلود
+                <input type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" onChange={event => event.target.files?.[0] && onUploadImage(event.target.files[0])} />
+              </label>
+              <button type="button" onClick={() => setLibraryOpen(true)}><ImageIcon size={14} />انتخاب از کتاب</button>
+            </div>
+
+            <div className="editor-v2-media-ai">
+              <textarea value={aiPrompt} onChange={event => setAiPrompt(event.target.value)} placeholder="پرامپت تولید تصویر با هوش مصنوعی..." />
+              <button type="button" onClick={() => aiPrompt.trim() && onGenerateImage(aiPrompt.trim())}><Wand2 size={14} />تولید و درج</button>
+            </div>
+
+            {selectedImageBlock && (
+              <div className="editor-v2-media-resize">
+                <strong>اندازه تصویر انتخاب‌شده</strong>
+                <input
+                  type="range"
+                  min="20"
+                  max="100"
+                  step="5"
+                  value={selectedImageBlock.widthPercent || 100}
+                  onChange={event => onResizeImage(selectedImageBlock.id, Number(event.target.value))}
+                />
+                <span>{(selectedImageBlock.widthPercent || 100).toLocaleString('fa-IR')}٪</span>
+              </div>
+            )}
+
+            <div className="editor-v2-media-search">
+              <Search size={14} />
+              <input value={mediaQuery} onChange={event => setMediaQuery(event.target.value)} placeholder="جستجو در تصاویر، کپشن یا شماره صفحه..." />
+            </div>
+
+            {mediaIssueCount > 0 && (
+              <div className="editor-v2-media-issues">
+                <h4><AlertTriangle size={14} />نیازمند بررسی</h4>
+                {mediaRefs.filter(item => item.needsCheck).slice(0, 8).map(item => (
+                  <article key={item.key}>
+                    {item.url ? <img src={item.url} alt={item.caption || ''} loading="lazy" /> : <span className="editor-v2-missing-thumb"><AlertTriangle size={14} /></span>}
+                    <div>
+                      <b>{item.caption || 'بدون کپشن'}</b>
+                      <small>صفحه چاپی: {item.printNumber || 'نامشخص'}{item.issue ? ` · ${item.issue}` : ''}</small>
+                    </div>
+                    {item.blockId && <button type="button" onClick={() => onJumpToBlock(item.blockId!)}>محل</button>}
+                    <button type="button" onClick={() => onResolveMediaIssue(item)}><CheckCircle2 size={13} /></button>
+                  </article>
+                ))}
+              </div>
+            )}
+
+            <div className="editor-v2-media-list">
+              {filteredMediaRefs.length ? filteredMediaRefs.slice(0, 80).map(item => (
+                <button key={item.key} type="button" className={item.needsCheck ? 'has-issue' : ''} disabled={!item.assetId || !item.url} onClick={() => item.assetId && onInsertImage(item.assetId)}>
+                  {item.url ? <img src={item.url} alt={item.caption || ''} loading="lazy" /> : <span className="editor-v2-missing-thumb"><ImageIcon size={16} /></span>}
+                  <span>{item.caption || `تصویر صفحه ${item.printNumber || ''}`}</span>
+                  <small>صفحه {item.printNumber || 'نامشخص'}</small>
+                </button>
+              )) : <p className="editor-v2-empty-panel">تصویری برای نمایش پیدا نشد.</p>}
+            </div>
+
+            {libraryOpen && (
+              <div className="editor-v2-media-modal" role="dialog" aria-modal="true">
+                <div className="editor-v2-media-modal-card menu-glass-70">
+                  <header>
+                    <strong>انتخاب تصویر از کتاب</strong>
+                    <button type="button" onClick={() => setLibraryOpen(false)}>×</button>
+                  </header>
+                  <div className="editor-v2-media-search">
+                    <Search size={14} />
+                    <input value={mediaQuery} onChange={event => setMediaQuery(event.target.value)} placeholder="جستجو..." autoFocus />
+                  </div>
+                  <div className="editor-v2-media-library">
+                    {filteredMediaRefs.map(item => (
+                      <button key={item.key} type="button" className={item.needsCheck ? 'has-issue' : ''} disabled={!item.assetId || !item.url} onClick={() => { if (item.assetId) { onInsertImage(item.assetId); setLibraryOpen(false) } }}>
+                        {item.url ? <img src={item.url} alt={item.caption || ''} loading="lazy" /> : <span className="editor-v2-missing-thumb"><ImageIcon size={18} /></span>}
+                        <b>{item.caption || 'بدون کپشن'}</b>
+                        <small>صفحه چاپی: {item.printNumber || 'نامشخص'}</small>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
         {activePanel === 'interactive' && (
