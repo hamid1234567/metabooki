@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { AlignCenter, AlignJustify, AlignLeft, AlignRight, ArrowLeft, ArrowRight, Bold, BookOpen, ChevronDown, ChevronLeft, ChevronRight, Eraser, Eye, FileText, Image as ImageIcon, Info, Italic, Link2, List, ListOrdered, ListTree, Loader2, Palette, PanelRight, Redo2, Save, Sparkles, Strikethrough, Subscript, Superscript, Table2, Type, Underline as UnderlineIcon, Undo2 } from 'lucide-react'
+import { AlignCenter, AlignJustify, AlignLeft, AlignRight, ArrowLeft, ArrowRight, Bold, BookOpen, Check, ChevronDown, ChevronLeft, ChevronRight, Eraser, Eye, FileText, Image as ImageIcon, Info, Italic, Link2, List, ListOrdered, ListTree, Loader2, Palette, PanelRight, Redo2, Save, Sparkles, Strikethrough, Subscript, Superscript, Table2, Type, Underline as UnderlineIcon, Undo2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { getBook } from '@/lib/book-repository'
 import { updatePublisherBook, type PublisherBook } from '@/lib/publisher-books'
@@ -436,11 +436,24 @@ function isUuid(value = '') {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
 }
 
-function SaveIndicator({ state }: { state: SaveStateV2 }) {
-  if (state === 'saving') return <span className="editor-v2-save-state saving"><Loader2 size={15} />در حال ذخیره</span>
-  if (state === 'saved') return <span className="editor-v2-save-state saved">ذخیره شد</span>
-  if (state === 'error') return <span className="editor-v2-save-state error">ذخیره ناموفق</span>
-  return <span className="editor-v2-save-state">آماده</span>
+function SaveIndicator({ state, floating = false }: { state: SaveStateV2; floating?: boolean }) {
+  const label = state === 'saving'
+    ? 'در حال ذخیره'
+    : state === 'saved'
+      ? 'ذخیره شد'
+      : state === 'error'
+        ? 'ذخیره ناموفق'
+        : 'منتشر شده'
+  const isReady = state === 'idle' || state === 'saved'
+  return (
+    <span className={`editor-v2-save-state ${state} ${floating ? 'floating' : ''}`} title={label} aria-live="polite">
+      <span className="editor-v2-save-icon">
+        {state === 'saving' ? <Loader2 size={14} /> : <Save size={14} />}
+        {isReady && <Check size={10} className="editor-v2-save-check" />}
+      </span>
+      <span>{label}</span>
+    </span>
+  )
 }
 
 function TocTreeV2({
@@ -953,10 +966,15 @@ export default function EditorV2Page() {
           </div>
         </div>
         <div className="editor-v2-actions">
-          <SaveIndicator state={saveState} />
           <Button variant="outline" onClick={() => setMetadataOpen(value => !value)}><Info size={17} />مشخصات</Button>
           <Button variant="outline" onClick={() => openReaderPreview(book.id, `/edit-v2/${book.id}`)}><Eye size={17} />پیش‌نمایش</Button>
-          <Button onClick={() => void saveDocument()} disabled={saveState === 'saving'}><Save size={17} />ذخیره دستی</Button>
+          <Button className={`editor-v2-manual-save ${saveState === 'saving' ? 'is-saving' : ''} ${saveState === 'saved' || saveState === 'idle' ? 'is-saved' : ''}`} onClick={() => void saveDocument()} disabled={saveState === 'saving'}>
+            <span className="editor-v2-save-button-icon">
+              {saveState === 'saving' ? <Loader2 size={17} /> : <Save size={17} />}
+              {(saveState === 'saved' || saveState === 'idle') && <Check size={10} className="editor-v2-save-button-check" />}
+            </span>
+            ذخیره دستی
+          </Button>
         </div>
       </header>
 
@@ -974,10 +992,6 @@ export default function EditorV2Page() {
         <RightPanelV2 document={document} activePanel={activePanel} setActivePanel={setActivePanel} activeTocId={activeTocId} onJumpToToc={jumpToToc} onInsertImage={insertImageFromAsset} onInsertInteractive={insertInteractiveBlock} onApplyCallout={wrapSelectedCallout} onUnwrapCallout={unwrapSelectedCallout} canUnwrapCallout={selectedBlock?.type === 'callout'} onAiEnhance={requestAiEnhance} aiBusy={aiBusy} aiMessage={aiMessage} />
         <main className="editor-v2-canvas" ref={canvasRef} onClick={() => setSelectedBlockId(undefined)}>
           <section className="editor-v2-toolbar menu-glass-70" onClick={event => event.stopPropagation()}>
-            <span className="editor-v2-toolbar-save"><SaveIndicator state={saveState} /></span>
-            <Button variant="outline" size="icon" onClick={() => void saveDocument()} disabled={saveState === 'saving'} title="ذخیره دستی"><Save size={17} /></Button>
-            <Button variant="outline" size="icon" onClick={() => openReaderPreview(book.id, `/edit-v2/${book.id}`)} title="پیش‌نمایش"><Eye size={17} /></Button>
-            <span className="editor-v2-toolbar-divider" />
             <Button variant="outline" size="icon" onClick={() => execTextCommand('undo')} title="بازگشت"><Undo2 size={17} /></Button>
             <Button variant="outline" size="icon" onClick={() => execTextCommand('redo')} title="انجام دوباره"><Redo2 size={17} /></Button>
             <span className="editor-v2-toolbar-divider" />
@@ -1052,6 +1066,7 @@ export default function EditorV2Page() {
         <button type="button" onClick={scrollToTop} aria-label="برگشت به ابتدای ادیتور">↑</button>
         <button type="button" onClick={() => window.scrollBy({ left: 0, top: -window.innerHeight * 0.72, behavior: 'smooth' })} aria-label="بخش قبلی"><ChevronRight size={18} /></button>
         <button type="button" onClick={() => window.scrollBy({ left: 0, top: window.innerHeight * 0.72, behavior: 'smooth' })} aria-label="بخش بعدی"><ChevronLeft size={18} /></button>
+        <SaveIndicator state={saveState} floating />
       </div>
 
       {aiApproval && (
