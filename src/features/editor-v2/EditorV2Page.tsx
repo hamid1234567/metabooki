@@ -1407,6 +1407,21 @@ export default function EditorV2Page() {
     canvasRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [])
 
+  const scrollToPageBreak = useCallback((direction: 'previous' | 'next') => {
+    const pageBreaks = Array.from(editorSurfaceRef.current?.querySelectorAll<HTMLElement>('.editor-v2-flow-page-break') || [])
+    if (!pageBreaks.length) {
+      window.scrollBy({ left: 0, top: window.innerHeight * (direction === 'next' ? 0.72 : -0.72), behavior: 'smooth' })
+      return
+    }
+    const currentTop = window.scrollY + 120
+    const withTop = pageBreaks.map(element => ({ element, top: element.getBoundingClientRect().top + window.scrollY }))
+    const target = direction === 'next'
+      ? withTop.find(item => item.top > currentTop + 12)
+      : [...withTop].reverse().find(item => item.top < currentTop - 12)
+    const fallback = direction === 'next' ? withTop[withTop.length - 1] : withTop[0]
+    ;(target || fallback)?.element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [])
+
   if (loading) {
     return (
       <div className="editor-v2-loading">
@@ -1569,8 +1584,8 @@ export default function EditorV2Page() {
 
       <div className="editor-v2-floating">
         <button type="button" onClick={scrollToTop} aria-label="برگشت به ابتدای ادیتور">↑</button>
-        <button type="button" onClick={() => window.scrollBy({ left: 0, top: -window.innerHeight * 0.72, behavior: 'smooth' })} aria-label="بخش قبلی"><ChevronRight size={18} /></button>
-        <button type="button" onClick={() => window.scrollBy({ left: 0, top: window.innerHeight * 0.72, behavior: 'smooth' })} aria-label="بخش بعدی"><ChevronLeft size={18} /></button>
+        <button type="button" onClick={() => scrollToPageBreak('previous')} aria-label="صفحه قبلی"><ChevronRight size={18} /></button>
+        <button type="button" onClick={() => scrollToPageBreak('next')} aria-label="صفحه بعدی"><ChevronLeft size={18} /></button>
         <button
           type="button"
           className={`editor-v2-floating-save ${saveButtonClass}`}
