@@ -73,7 +73,8 @@ function normalizePublisherBook(book: Partial<PublisherBook> & { id?: string }, 
 export default function Publisher() {
   const navigate = useNavigate()
   const { user } = useAuthContext()
-  const [books, setBooks] = useState<PublisherBook[]>(() => getPublisherBooks().map(normalizePublisherBook))
+  const hasRemoteConfig = Boolean(import.meta.env.VITE_SUPABASE_URL?.startsWith('http'))
+  const [books, setBooks] = useState<PublisherBook[]>(() => getPublisherBooks({ includeSeed: !hasRemoteConfig }).map(normalizePublisherBook))
   const [remoteLoading, setRemoteLoading] = useState(false)
   const [remoteLoaded, setRemoteLoaded] = useState(false)
   const [remoteError, setRemoteError] = useState('')
@@ -92,7 +93,7 @@ export default function Publisher() {
   const inStore = books.filter(b => b.stage === 'store' || b.stage === 'published').length
   const ready = books.filter(b => b.stage === 'pricing').length
   const revenue = books.reduce((sum, b) => sum + b.revenue, 0)
-  const isRemoteConfigured = Boolean(user && import.meta.env.VITE_SUPABASE_URL?.startsWith('http'))
+  const isRemoteConfigured = Boolean(user && hasRemoteConfig)
   const listStatusLabel = remoteLoading
     ? 'در حال تکمیل فهرست از سرور'
     : remoteError
@@ -122,22 +123,31 @@ export default function Publisher() {
   }, [page, pagedBooks.pageCount])
 
   useEffect(() => {
-    if (!user || !import.meta.env.VITE_SUPABASE_URL?.startsWith('http')) {
+    if (!user || !hasRemoteConfig) {
+      setBooks(getPublisherBooks({ includeSeed: true }).map(normalizePublisherBook))
       setRemoteLoaded(true)
       return
     }
     let cancelled = false
+    setBooks(getPublisherBooks({ includeSeed: false }).map(normalizePublisherBook))
     setRemoteLoading(true)
     setRemoteLoaded(false)
     setRemoteError('')
     ;(async () => {
       try {
         const ownPublisher = await (supabase as any).from('publisher_profiles').select('id').eq('user_id', user.id).maybeSingle()
-        const roles = await (supabase as any).from('user_roles').select('role').eq('user_id', user.id)
-        const isAdmin = roles.data?.some((item: { role: string }) => item.role === 'admin' || item.role === 'super_admin')
+        if (ownPublisher.error) throw ownPublisher.error
         let query = (supabase as any).from('books').select(PUBLISHER_BOOK_LIST_COLUMNS).order('created_at', { ascending: false })
         if (ownPublisher.data?.id) query = query.eq('publisher_id', ownPublisher.data.id)
-        else if (!isAdmin) return
+        else {
+          const roles = await (supabase as any).from('user_roles').select('role').eq('user_id', user.id)
+          if (roles.error) throw roles.error
+          const isAdmin = roles.data?.some((item: { role: string }) => item.role === 'admin' || item.role === 'super_admin')
+          if (!isAdmin) {
+            if (!cancelled) setBooks([])
+            return
+          }
+        }
         const result = await query
         if (result.error) throw result.error
         const remote: PublisherBook[] = (result.data || []).map((row: any, index: number) => normalizePublisherBook({
@@ -174,7 +184,7 @@ export default function Publisher() {
       }
     })()
     return () => { cancelled = true }
-  }, [user])
+  }, [user, hasRemoteConfig])
   useEffect(() => {
     loadBookFilterSettings().then(setFilterSettings)
   }, [])

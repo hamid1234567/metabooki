@@ -137,8 +137,9 @@ function seededPublisherBooks(): PublisherBook[] {
   })
 }
 
-export function getPublisherBooks(): PublisherBook[] {
+export function getPublisherBooks(options: { includeSeed?: boolean } = {}): PublisherBook[] {
   const custom = read()
+  if (options.includeSeed === false) return custom
   const seeded = seededPublisherBooks()
   const ids = new Set(custom.map(b => b.id))
   return [...custom, ...seeded.filter(b => !ids.has(b.id))]

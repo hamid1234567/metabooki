@@ -82,11 +82,13 @@ function sortBooks(books) { return [...books].sort((a,b)=>String(b.created_at).l
   const user = auth.data.user
   await step('auth.getSession', () => client.auth.getSession(), v => v?.data?.session ? 1 : 0)
   const ownPublisher = await step('publisher_profiles.select(id)', () => client.from('publisher_profiles').select('id').eq('user_id', user.id).maybeSingle(), v => v?.data ? 1 : 0)
-  const roles = await step('user_roles.select(role)', () => client.from('user_roles').select('role').eq('user_id', user.id), v => v?.data?.length || 0)
-  const isAdmin = roles.data?.some(item => item.role === 'admin' || item.role === 'super_admin')
   let query = client.from('books').select(columns).order('created_at', { ascending: false })
   if (ownPublisher.data?.id) query = query.eq('publisher_id', ownPublisher.data.id)
-  else if (!isAdmin) throw new Error('No publisher profile and not admin')
+  else {
+    const roles = await step('user_roles.select(role)', () => client.from('user_roles').select('role').eq('user_id', user.id), v => v?.data?.length || 0)
+    const isAdmin = roles.data?.some(item => item.role === 'admin' || item.role === 'super_admin')
+    if (!isAdmin) throw new Error('No publisher profile and not admin')
+  }
   const remoteResult = await step('books.select(list columns)', () => query, v => v?.data?.length || 0)
   if (remoteResult.error) throw remoteResult.error
   const remote = await step('normalizePublisherBook(remote rows)', async () => remoteResult.data.map(normalize), v => v.length)
