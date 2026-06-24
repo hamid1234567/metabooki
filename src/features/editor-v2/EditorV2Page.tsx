@@ -192,7 +192,7 @@ function blockToEditorHtmlV2(block: BookBlockV2): string {
   }
   if (block.type === 'callout') {
     const body = block.blocks.map(blockToEditorHtmlV2).join('')
-    return `<section contenteditable="false" class="book-callout editor-v2-callout has-rendered-title callout-${escapeHtmlV2(block.variant)}" data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="callout" data-variant="${escapeHtmlV2(block.variant)}" data-callout-variant="${escapeHtmlV2(block.variant)}" data-callout-title="${escapeHtmlV2(block.title)}" data-callout-icon="${escapeHtmlV2(block.icon || '')}"><div class="book-callout-head"><span class="book-callout-icon">${escapeHtmlV2(block.icon || '')}</span><strong>${escapeHtmlV2(block.title)}</strong></div><div class="book-callout-content">${body}</div></section>`
+    return `<section class="book-callout editor-v2-callout has-rendered-title callout-${escapeHtmlV2(block.variant)}" data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="callout" data-variant="${escapeHtmlV2(block.variant)}" data-callout-variant="${escapeHtmlV2(block.variant)}" data-callout-title="${escapeHtmlV2(block.title)}" data-callout-icon="${escapeHtmlV2(block.icon || '')}"><div class="book-callout-head"><span class="book-callout-icon" contenteditable="false">${escapeHtmlV2(block.icon || '')}</span><strong class="book-callout-title" contenteditable="true" data-callout-title-editor="true">${escapeHtmlV2(block.title)}</strong></div><div class="book-callout-content">${body}</div></section>`
   }
   if (block.type === 'interactive') {
     return `<section contenteditable="false" class="book-interactive-v2" data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="interactive" data-kind="${escapeHtmlV2(block.kind)}"><strong>${escapeHtmlV2(block.title || String(block.payload.title || 'بخش تعاملی'))}</strong></section>`
@@ -343,7 +343,28 @@ function elementToBlockV2(element: Element, page: BookDocumentV2['pages'][number
   const old = existing.get(id)
   const tag = element.tagName.toLowerCase()
   const v2Type = html.dataset.v2Type
-  if (v2Type === 'callout' && old?.type === 'callout') return old
+  if (v2Type === 'callout') {
+    const variant = html.dataset.calloutVariant || html.dataset.variant || (old?.type === 'callout' ? old.variant : 'key')
+    const meta = CALLOUT_META_V2[(CALLOUT_VARIANTS_V2.includes(variant as any) ? variant : 'key') as (typeof CALLOUT_VARIANTS_V2)[number]]
+    const titleElement = element.querySelector<HTMLElement>(':scope > .book-callout-head [data-callout-title-editor], :scope > .book-callout-head strong')
+    const title = normalizeBookTextV2(titleElement?.innerText || html.dataset.calloutTitle || (old?.type === 'callout' ? old.title : meta.title))
+    const icon = html.dataset.calloutIcon || (old?.type === 'callout' ? old.icon : meta.icon)
+    const contentElement = element.querySelector<HTMLElement>(':scope > .book-callout-content')
+    const contentNodes = contentElement ? Array.from(contentElement.childNodes) : Array.from(element.childNodes).filter(node => !(node instanceof Element && node.classList.contains('book-callout-head')))
+    const blocks = editorNodesToBlocksV2(contentNodes, page, existing)
+    const fallbackBlocks = old?.type === 'callout' ? old.blocks : []
+    return {
+      ...(old?.type === 'callout' ? old : {}),
+      id,
+      type: 'callout',
+      variant: (CALLOUT_VARIANTS_V2.includes(variant as any) ? variant : 'key') as (typeof CALLOUT_VARIANTS_V2)[number],
+      title,
+      icon,
+      anchor: old?.anchor || id,
+      printNumber: page.printNumber,
+      blocks: blocks.length ? blocks : fallbackBlocks,
+    } as CalloutBlockV2
+  }
   if (v2Type === 'interactive' && old?.type === 'interactive') return old
   if (v2Type === 'table' && old?.type === 'table') return old
   if (v2Type === 'table' || tag === 'table' || element.querySelector(':scope > table')) return tableBlockFromElementV2(element, id, page, old)
@@ -1412,6 +1433,10 @@ export default function EditorV2Page() {
     if (calloutActionLockRef.current) return
     calloutActionLockRef.current = true
     const targetBlockId = selectedBlockIdFromEditorTarget()
+    const root = editorSurfaceRef.current
+    const target = targetBlockId && root
+      ? root.querySelector<HTMLElement>(`[data-block-id="${targetBlockId.replace(/"/g, '\\"')}"]`)
+      : null
     if (!targetBlockId) {
       calloutActionLockRef.current = false
       setAiMessage('برای ساخت کال‌اوت، نشانگر را داخل یک پاراگراف بگذارید یا بخشی از متن را انتخاب کنید.')
@@ -1419,48 +1444,78 @@ export default function EditorV2Page() {
       return
     }
     const meta = CALLOUT_META_V2[variant]
-    let nextSelectedBlockId = targetBlockId
-    commitDocument(current => updateBlockInDocumentV2(current, targetBlockId, block => {
-      if (block.type === 'callout') {
-        nextSelectedBlockId = block.id
-        return { ...block, variant, title: meta.title, icon: meta.icon }
+    if (!target || !root?.contains(target)) {
+      calloutActionLockRef.current = false
+      setAiMessage('متن انتخاب‌شده در بوم ادیتور پیدا نشد.')
+      return
+    }
+    const existingCallout = target.closest<HTMLElement>('section.editor-v2-callout[data-v2-type="callout"]')
+    pushEditorHistory()
+    if (existingCallout) {
+      existingCallout.className = `book-callout editor-v2-callout has-rendered-title callout-${variant}`
+      existingCallout.dataset.variant = variant
+      existingCallout.dataset.calloutVariant = variant
+      existingCallout.dataset.calloutTitle = meta.title
+      existingCallout.dataset.calloutIcon = meta.icon
+      const iconElement = existingCallout.querySelector<HTMLElement>('.book-callout-icon')
+      const titleElement = existingCallout.querySelector<HTMLElement>('[data-callout-title-editor], .book-callout-head strong')
+      if (iconElement) iconElement.textContent = meta.icon
+      if (titleElement && !titleElement.textContent?.trim()) titleElement.textContent = meta.title
+      setSelectedBlockId(existingCallout.dataset.blockId)
+    } else {
+      const editableTarget = /^h[1-6]$/i.test(target.tagName) ? retagEditorBlockElement(target, 'p') : target
+      if (!['p', 'div'].includes(editableTarget.tagName.toLowerCase())) {
+        calloutActionLockRef.current = false
+        setAiMessage('فقط پاراگراف یا عنوان انتخاب‌شده را می‌توان به کال‌اوت تبدیل کرد.')
+        return
       }
-      if (block.type !== 'paragraph' && block.type !== 'heading') {
-        return block
-      }
-      const paragraph: ParagraphBlockV2 = block.type === 'paragraph'
-        ? block
-        : { ...block, type: 'paragraph', text: block.text, inline: block.inline, semantic: undefined }
+      editableTarget.dataset.v2Type = 'paragraph'
       const calloutId = createV2Id('callout', targetBlockId, Date.now())
-      const callout: CalloutBlockV2 = {
-        id: calloutId,
-        type: 'callout',
-        variant,
-        title: meta.title,
-        icon: meta.icon,
-        anchor: createV2Id('callout-anchor', targetBlockId),
-        printNumber: block.printNumber,
-        blocks: [{ ...paragraph, id: createV2Id('callout-text', targetBlockId), anchor: createV2Id('callout-text-anchor', targetBlockId) }],
-      }
-      nextSelectedBlockId = calloutId
-      return callout
-    }), { recordHistory: true })
-    window.setTimeout(() => setSelectedBlockId(nextSelectedBlockId), 0)
+      const section = window.document.createElement('section')
+      section.className = `book-callout editor-v2-callout has-rendered-title callout-${variant}`
+      section.dataset.blockId = calloutId
+      section.dataset.v2Type = 'callout'
+      section.dataset.variant = variant
+      section.dataset.calloutVariant = variant
+      section.dataset.calloutTitle = meta.title
+      section.dataset.calloutIcon = meta.icon
+      section.innerHTML = `<div class="book-callout-head"><span class="book-callout-icon" contenteditable="false">${escapeHtmlV2(meta.icon)}</span><strong class="book-callout-title" contenteditable="true" data-callout-title-editor="true">${escapeHtmlV2(meta.title)}</strong></div><div class="book-callout-content"></div>`
+      const content = section.querySelector<HTMLElement>('.book-callout-content')
+      editableTarget.replaceWith(section)
+      content?.appendChild(editableTarget)
+      setSelectedBlockId(calloutId)
+    }
+    markEditorDirty()
+    scheduleToolbarDocumentRefresh()
     window.setTimeout(() => { calloutActionLockRef.current = false }, 180)
-  }, [commitDocument, selectedBlockIdFromEditorTarget])
+  }, [markEditorDirty, pushEditorHistory, retagEditorBlockElement, scheduleToolbarDocumentRefresh, selectedBlockIdFromEditorTarget])
 
   const unwrapSelectedCallout = useCallback(() => {
     if (calloutActionLockRef.current) return
     calloutActionLockRef.current = true
     const targetBlockId = selectedBlockIdFromEditorTarget()
-    if (!targetBlockId) {
+    const root = editorSurfaceRef.current
+    const target = targetBlockId && root
+      ? root.querySelector<HTMLElement>(`[data-block-id="${targetBlockId.replace(/"/g, '\\"')}"]`)
+      : null
+    const callout = target?.closest<HTMLElement>('section.editor-v2-callout[data-v2-type="callout"]')
+    if (!targetBlockId || !callout) {
       calloutActionLockRef.current = false
       return
     }
-    commitDocument(current => updateBlockInDocumentV2(current, targetBlockId, block => block.type === 'callout' ? block.blocks : block), { recordHistory: true })
+    pushEditorHistory()
+    const content = callout.querySelector<HTMLElement>('.book-callout-content')
+    const children = Array.from(content?.childNodes || [])
+    if (!children.length) {
+      callout.remove()
+    } else {
+      callout.replaceWith(...children)
+    }
+    markEditorDirty()
+    scheduleToolbarDocumentRefresh()
     setSelectedBlockId(undefined)
     window.setTimeout(() => { calloutActionLockRef.current = false }, 180)
-  }, [commitDocument, selectedBlockIdFromEditorTarget])
+  }, [markEditorDirty, pushEditorHistory, scheduleToolbarDocumentRefresh, selectedBlockIdFromEditorTarget])
 
   const insertImageFromAsset = useCallback((assetId: string) => {
     const asset = document?.assets.find(item => item.id === assetId)
