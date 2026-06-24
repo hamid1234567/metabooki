@@ -186,11 +186,27 @@ export default function Reader() {
         setBook(null)
         return
       }
-      scheduleLiveBookRefresh()
+      scheduleLiveBookRefresh(0)
     })
     return () => {
       unsubscribe()
       if (liveBookRefreshTimerRef.current) window.clearTimeout(liveBookRefreshTimerRef.current)
+    }
+  }, [authLoading, id, scheduleLiveBookRefresh])
+
+  useEffect(() => {
+    if (!id || authLoading) return
+    const channel = (supabase as any)
+      .channel(`metabooki-reader-live-${id}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'books', filter: `id=eq.${id}` }, () => {
+        scheduleLiveBookRefresh(0)
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'books', filter: `id=eq.${id}` }, () => {
+        setBook(null)
+      })
+      .subscribe()
+    return () => {
+      void (supabase as any).removeChannel(channel)
     }
   }, [authLoading, id, scheduleLiveBookRefresh])
 

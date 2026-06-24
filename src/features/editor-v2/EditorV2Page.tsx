@@ -682,7 +682,13 @@ export default function EditorV2Page() {
       editor_v2_saved_at: nextDocument.updatedAt,
     }
     try {
-      const patch = { metadata, pages, preview_pages: pages.slice(0, 3).map((_, index) => index), page_count: pages.length } as Partial<PublisherBook>
+      const patch = {
+        metadata,
+        pages,
+        preview_pages: pages.slice(0, 3).map((_, index) => index),
+        page_count: pages.length,
+        content_updated_at: nextDocument.updatedAt,
+      } as Partial<PublisherBook>
       updatePublisherBook(book.id, patch)
       if (isUuid(book.id)) await (supabase as any).from('books').update(patch).eq('id', book.id)
       skipNextSurfaceSyncRef.current = true
