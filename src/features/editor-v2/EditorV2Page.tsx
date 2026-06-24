@@ -198,17 +198,20 @@ function mergeInlineStyleFromElementV2(element: Element, inherited: BookInlineV2
 
 function blockStyleFromElementV2(element: Element, old?: BookBlockV2 | null) {
   const html = element as HTMLElement
+  const styledDescendant = element.querySelector<HTMLElement>('[style], [align]')
+  const styleSource = styledDescendant || html
   const style: Record<string, unknown> = {}
-  const alignment = normalizeAlignmentV2(html.style.textAlign || html.getAttribute('align'))
+  const alignment = normalizeAlignmentV2(html.style.textAlign || html.getAttribute('align') || styleSource.style.textAlign || styleSource.getAttribute('align'))
   if (alignment) style.alignment = alignment
   if (html.style.color) style.color = html.style.color
   if (html.style.fontFamily) style.fontFamily = html.style.fontFamily
   if (html.style.fontSize) style.fontSize = html.style.fontSize
-  const fontWeight = html.style.fontWeight
+  const fontWeight = html.style.fontWeight || styleSource.style.fontWeight
   if (fontWeight && (fontWeight === 'bold' || Number(fontWeight) >= 600)) style.bold = true
-  if (html.style.fontStyle === 'italic') style.italic = true
-  if (!Object.keys(style).length && old?.type !== 'paragraph' && old?.type !== 'heading' && old?.type !== 'list') return old?.style
-  return Object.keys(style).length ? style : undefined
+  if (html.style.fontStyle === 'italic' || styleSource.style.fontStyle === 'italic') style.italic = true
+  const oldStyle = old && ('style' in old) ? old.style : undefined
+  if (!Object.keys(style).length) return oldStyle
+  return { ...(oldStyle || {}), ...style }
 }
 
 function inlineFromDomV2(node: Node, marks: BookInlineV2['marks'] = [], href?: string, inheritedStyle: BookInlineV2['style'] = {}): BookInlineV2[] {
@@ -758,8 +761,11 @@ export default function EditorV2Page() {
       setDocument(nextDocument)
       setBook(nextBook)
       if (isUuid(book.id)) {
-        const { error } = await (supabase as any).from('books').update(patch).eq('id', book.id)
-        if (error) throw error
+        void (supabase as any).from('books').update(patch).eq('id', book.id).then(({ error }: { error?: unknown }) => {
+          if (error) console.warn('Editor V2 remote sync failed; local save is preserved.', error)
+        }).catch((reason: unknown) => {
+          console.warn('Editor V2 remote sync failed; local save is preserved.', reason)
+        })
       }
       const remainingAnimationMs = 520 - (performance.now() - startedAt)
       if (remainingAnimationMs > 0) {
@@ -778,7 +784,7 @@ export default function EditorV2Page() {
   }, [book, document])
 
   useEffect(() => {
-    if (!dirty || !book || !document || saveState === 'saving') return
+    if (!dirty || !book || !document || saveState === 'saving' || saveState === 'error') return
     const handle = window.setTimeout(() => void saveDocument(), 1800)
     return () => window.clearTimeout(handle)
   }, [book, dirty, document, saveDocument, saveState])
