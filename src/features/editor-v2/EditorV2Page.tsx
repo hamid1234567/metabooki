@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { AlignCenter, AlignJustify, AlignLeft, AlignRight, ArrowLeft, ArrowRight, Bold, BookOpen, Check, ChevronDown, ChevronLeft, ChevronRight, Eraser, Eye, FileText, Image as ImageIcon, Info, Italic, Link2, List, ListOrdered, ListTree, Loader2, Palette, PanelRight, Redo2, Save, Sparkles, Strikethrough, Subscript, Superscript, Table2, Type, Underline as UnderlineIcon, Undo2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -902,6 +902,25 @@ export default function EditorV2Page() {
     restoreEditorHtmlSnapshot(nextHtml)
   }, [restoreEditorHtmlSnapshot])
 
+  const handleEditorBeforeInput = useCallback(() => {
+    pushEditorHistory()
+  }, [pushEditorHistory])
+
+  const handleEditorKeyDown = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
+    const key = event.key.toLowerCase()
+    const isUndo = (event.ctrlKey || event.metaKey) && key === 'z' && !event.shiftKey
+    const isRedo = (event.ctrlKey || event.metaKey) && (key === 'y' || (key === 'z' && event.shiftKey))
+    if (isUndo) {
+      event.preventDefault()
+      undoEditorChange()
+      return
+    }
+    if (isRedo) {
+      event.preventDefault()
+      redoEditorChange()
+    }
+  }, [redoEditorChange, undoEditorChange])
+
   const applyInlineStyleToSelection = useCallback((style: Partial<CSSStyleDeclaration>) => {
     restoreEditorSelection()
     const selection = window.getSelection()
@@ -1273,6 +1292,8 @@ export default function EditorV2Page() {
               contentEditable
               suppressContentEditableWarning
               spellCheck={false}
+              onBeforeInput={handleEditorBeforeInput}
+              onKeyDown={handleEditorKeyDown}
               onInput={markEditorDirty}
               onMouseUp={updateSelectedBlockFromDom}
               onKeyUp={updateSelectedBlockFromDom}
