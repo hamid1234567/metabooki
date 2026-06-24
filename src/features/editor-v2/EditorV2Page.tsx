@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { AlignCenter, AlignJustify, AlignLeft, AlignRight, ArrowLeft, ArrowRight, Bold, BookOpen, Check, ChevronDown, ChevronLeft, ChevronRight, Eraser, Eye, FileText, Image as ImageIcon, Info, Italic, Link2, List, ListOrdered, ListTree, Loader2, Palette, PanelRight, Redo2, Save, Sparkles, Strikethrough, Subscript, Superscript, Table2, Type, Underline as UnderlineIcon, Undo2 } from 'lucide-react'
+import { AlignCenter, AlignJustify, AlignLeft, AlignRight, ArrowLeft, ArrowRight, Bold, BookOpen, Check, ChevronDown, ChevronLeft, ChevronRight, Eraser, Eye, FileText, Image as ImageIcon, Info, Italic, Link2, List, ListOrdered, ListTree, Loader2, PanelRight, Redo2, Save, Sparkles, Strikethrough, Subscript, Superscript, Table2, Type, Underline as UnderlineIcon, Undo2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { getBook } from '@/lib/book-repository'
 import { updatePublisherBook, type PublisherBook } from '@/lib/publisher-books'
@@ -44,6 +44,15 @@ const PANEL_LABELS: Record<EditorPanelV2, { title: string; icon: typeof ListTree
 }
 
 const CALLOUT_VARIANTS_V2 = ['key', 'question', 'warning', 'quote', 'deep', 'practice', 'glossary', 'data', 'margin'] as const
+
+const TEXT_COLOR_SWATCHES_V2 = [
+  { label: 'مشکی', value: '#111827' },
+  { label: 'آبی', value: '#2563EB' },
+  { label: 'سبز', value: '#16A34A' },
+  { label: 'نارنجی', value: '#EA580C' },
+  { label: 'قرمز', value: '#DC2626' },
+  { label: 'بنفش', value: '#7C3AED' },
+] as const
 
 const CALLOUT_META_V2: Record<(typeof CALLOUT_VARIANTS_V2)[number], { title: string; icon: string }> = {
   key: { title: 'نکته کلیدی', icon: '💡' },
@@ -1459,10 +1468,19 @@ export default function EditorV2Page() {
               <option value="4">درشت</option>
               <option value="5">خیلی درشت</option>
             </select>
-            <label className="editor-v2-color-tool" title="رنگ متن">
-              <Palette size={16} />
-              <input type="color" defaultValue="#172033" onChange={event => applyInlineStyleToSelection({ color: event.target.value })} />
-            </label>
+            <div className="editor-v2-color-swatches" role="group" aria-label="رنگ متن">
+              {TEXT_COLOR_SWATCHES_V2.map(color => (
+                <button
+                  key={color.value}
+                  type="button"
+                  className="editor-v2-color-swatch"
+                  style={{ '--swatch-color': color.value } as CSSProperties}
+                  title={`رنگ متن: ${color.label}`}
+                  aria-label={`رنگ متن: ${color.label}`}
+                  onClick={() => applyInlineStyleToSelection({ color: color.value })}
+                />
+              ))}
+            </div>
             <span className="editor-v2-toolbar-divider" />
             <Button variant="outline" size="icon" onClick={applyRegularToSelection} title="Regular" aria-pressed={toolbarState.hasSelection && !toolbarState.bold && !toolbarState.italic} className={toolbarState.hasSelection && !toolbarState.bold && !toolbarState.italic ? 'is-active' : undefined}><span className="editor-v2-regular-mark">R</span></Button>
             <Button variant="outline" size="icon" onClick={() => execTextCommand('bold')} title="پررنگ" aria-pressed={toolbarState.bold} className={toolbarState.bold ? 'is-active' : undefined}><Bold size={17} /></Button>
