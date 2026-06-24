@@ -768,7 +768,7 @@ function TocTreeV2({
                 <span>{item.title}</span>
               </button>
               {hasChildren && (
-                <button className="editor-v2-toc-toggle" type="button" onClick={() => onToggle(item.id)} aria-label={isOpen ? 'ج�…ع کرد�†' : 'باز کرد�†'}>
+                <button className="editor-v2-toc-toggle" type="button" onClick={() => onToggle(item.id)} aria-label={isOpen ? 'جمع کردن' : 'باز کردن'}>
                   {isOpen ? <ChevronDown size={12} /> : <ChevronLeft size={12} />}
                 </button>
               )}
@@ -828,7 +828,7 @@ function RightPanelV2({
   const ActiveIcon = PANEL_LABELS[activePanel].icon
   return (
     <aside className="editor-v2-side">
-      <nav className="editor-v2-side-tabs" aria-label="ابزار�‡ا�Œ اد�Œت�ˆر">
+      <nav className="editor-v2-side-tabs" aria-label="ابزارهای ادیتور">
         {(Object.keys(PANEL_LABELS) as EditorPanelV2[]).map(panel => {
           const Icon = PANEL_LABELS[panel].icon
           return (
@@ -847,17 +847,17 @@ function RightPanelV2({
         {activePanel === 'toc' && (
           <>
             <div className="editor-v2-panel-actions">
-              <button type="button" onClick={() => setOpenIds(new Set(tocAsFlatListV2(document).map(item => item.id)))}>باز کرد�† �‡�…�‡</button>
-              <button type="button" onClick={() => setOpenIds(new Set())}>ج�…ع کرد�† �‡�…�‡</button>
+              <button type="button" onClick={() => setOpenIds(new Set(tocAsFlatListV2(document).map(item => item.id)))}>باز کردن همه</button>
+              <button type="button" onClick={() => setOpenIds(new Set())}>جمع کردن همه</button>
             </div>
-            {tree.length ? <TocTreeV2 items={tree} activeId={activeTocId} openIds={openIds} onToggle={toggle} onJump={onJumpToToc} /> : <p className="editor-v2-empty-panel">ف�‡رست�Œ برا�Œ ا�Œ�† کتاب ثبت �†شد�‡ است.</p>}
+            {tree.length ? <TocTreeV2 items={tree} activeId={activeTocId} openIds={openIds} onToggle={toggle} onJump={onJumpToToc} /> : <p className="editor-v2-empty-panel">فهرستی برای این کتاب ثبت نشده است.</p>}
           </>
         )}
         {activePanel === 'upgrade' && (
           <div className="editor-v2-action-grid">
             {CALLOUT_VARIANTS_V2.map(variant => <button key={variant} type="button" onClick={() => onApplyCallout(variant)}><span>{CALLOUT_META_V2[variant].icon}</span>{CALLOUT_META_V2[variant].title}</button>)}
-            <button type="button" disabled={!canUnwrapCallout} onClick={onUnwrapCallout}><Undo2 size={15} />برگردا�†د�† کا�„�€Œا�ˆت ب�‡ �…ت�† عاد�Œ</button>
-            <p>برا�Œ تبد�Œ�„ �…ت�† ب�‡ کا�„�€Œا�ˆت�Œ �†شا�†گر را داخ�„ �‡�…ا�† پاراگراف بگذار�Œد �Œا �…ت�† را ا�†تخاب ک�†�Œد �ˆ �†�ˆع کا�„�€Œا�ˆت را از �‡�…�Œ�† پ�†�„ بز�†�Œد.</p>
+            <button type="button" disabled={!canUnwrapCallout} onClick={onUnwrapCallout}><Undo2 size={15} />برگرداندن کال‌اوت به متن عادی</button>
+            <p>برای تبدیل متن به کال‌اوت، نشانگر را داخل همان پاراگراف بگذارید یا متن را انتخاب کنید و نوع کال‌اوت را از همین پنل بزنید.</p>
           </div>
         )}
         {activePanel === 'media' && (
@@ -865,24 +865,24 @@ function RightPanelV2({
             {document.assets.length ? document.assets.slice(0, 80).map(asset => (
               <button key={asset.id} type="button" onClick={() => onInsertImage(asset.id)}>
                 <img src={asset.url} alt={asset.caption || ''} loading="lazy" />
-                <span>{asset.caption || `تص�ˆ�Œر صفح�‡ ${asset.printNumber || ''}`}</span>
+                <span>{asset.caption || `تصویر صفحه ${asset.printNumber || ''}`}</span>
               </button>
-            )) : <p className="editor-v2-empty-panel">تص�ˆ�Œر�Œ در س�†د ش�†اسا�Œ�Œ �†شد�‡ است.</p>}
+            )) : <p className="editor-v2-empty-panel">تصویری در سند شناسایی نشده است.</p>}
           </div>
         )}
         {activePanel === 'interactive' && (
           <div className="editor-v2-action-grid">
             {[
-              ['quiz', 'Quiz �†�†دگز�Œ�†�‡�€Œا�Œ'],
-              ['truefalse', 'صح�Œح/غ�„ط'],
-              ['flashcard', 'ف�„ش�€Œکارت'],
-              ['accordion', 'آکاردئ�ˆ�†'],
-              ['tabs', 'تب�€Œ�‡ا'],
-              ['timeline', 'تا�Œ�…�€Œ�„ا�Œ�†'],
-              ['gallery', 'گا�„ر�Œ تص�ˆ�Œر'],
-              ['scrollytelling', 'است�ˆر�Œ�€Œت�„�Œ�†گ'],
-              ['algorithm', 'ا�„گ�ˆر�Œت�… تعا�…�„�Œ'],
-              ['author', '�…عرف�Œ �†�ˆ�Œس�†د�‡'],
+              ['quiz', 'Quiz چندگزینه‌ای'],
+              ['truefalse', 'صحیح/غلط'],
+              ['flashcard', 'فلش‌کارت'],
+              ['accordion', 'آکاردئون'],
+              ['tabs', 'تب‌ها'],
+              ['timeline', 'تایم‌لاین'],
+              ['gallery', 'گالری تصویر'],
+              ['scrollytelling', 'استوری‌تلینگ'],
+              ['algorithm', 'الگوریتم تعاملی'],
+              ['author', 'معرفی نویسنده'],
             ].map(([kind, label]) => <button key={kind} type="button" onClick={() => onInsertInteractive(kind)}><Sparkles size={15} />{label}</button>)}
           </div>
         )}
@@ -890,9 +890,9 @@ function RightPanelV2({
           <div className="editor-v2-action-grid">
             <button type="button" disabled={aiBusy} onClick={onAiEnhance}>
               {aiBusy ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
-              پ�Œش�†�‡اد ارت�‚ا�Œ خ�ˆا�†ا�Œ�Œ
+              پیشنهاد ارتقای خوانایی
             </button>
-            <p>{aiMessage || 'اگر ب�„�ˆک�Œ ا�†تخاب شد�‡ باشد �‡�…ا�† �…ت�† بررس�Œ �…�Œ�€Œش�ˆد�› در غ�Œر ا�Œ�† ص�ˆرت �…ت�† صفح�‡/ابتدا�Œ س�†د �…ب�†ا �‚رار �…�Œ�€Œگ�Œرد.'}</p>
+            <p>{aiMessage || 'اگر بلوکی انتخاب شده باشد همان متن بررسی می‌شود؛ در غیر این صورت متن صفحه یا ابتدای سند مبنا قرار می‌گیرد.'}</p>
           </div>
         )}
       </section>
@@ -962,7 +962,7 @@ export default function EditorV2Page() {
       .then(found => {
         if (!alive) return
         if (!found) {
-          setError('کتاب پ�Œدا �†شد.')
+          setError('کتاب پیدا نشد.')
           setBook(null)
           setDocument(null)
           return
@@ -976,7 +976,7 @@ export default function EditorV2Page() {
       })
       .catch(reason => {
         if (!alive) return
-        setError(reason instanceof Error ? reason.message : '�„�ˆد کتاب �†ا�…�ˆف�‚ ب�ˆد.')
+        setError(reason instanceof Error ? reason.message : 'لود کتاب ناموفق بود.')
       })
       .finally(() => {
         if (alive) setLoading(false)
@@ -1424,14 +1424,14 @@ export default function EditorV2Page() {
   }, [markEditorDirty, pushEditorHistory, readToolbarStateFromSelection, rememberEditorSelection, restoreEditorSelection, scheduleToolbarDocumentRefresh])
 
   const createLinkForSelection = useCallback(() => {
-    const href = window.prompt('آدرس �„�Œ�†ک را �ˆارد ک�†�Œد')
+    const href = window.prompt('آدرس لینک را وارد کنید')
     if (!href?.trim()) return
     execTextCommand('createLink', href.trim())
   }, [execTextCommand])
 
   const insertSimpleTable = useCallback(() => {
     const tableId = createV2Id('table', Date.now())
-    const html = `<table data-block-id="${tableId}" data-v2-type="table"><tbody><tr><td>ع�†�ˆا�†</td><td>�…�‚دار</td></tr><tr><td></td><td></td></tr></tbody></table>`
+    const html = `<table data-block-id="${tableId}" data-v2-type="table"><tbody><tr><td>عنوان</td><td>مقدار</td></tr><tr><td></td><td></td></tr></tbody></table>`
     execTextCommand('insertHTML', html)
   }, [execTextCommand])
 
@@ -1445,14 +1445,14 @@ export default function EditorV2Page() {
       : null
     if (!targetBlockId) {
       calloutActionLockRef.current = false
-      setAiMessage('برا�Œ ساخت کا�„�€Œا�ˆت�Œ �†شا�†گر را داخ�„ �Œک پاراگراف بگذار�Œد �Œا بخش�Œ از �…ت�† را ا�†تخاب ک�†�Œد.')
+      setAiMessage('برای ساخت کال‌اوت، نشانگر را داخل یک پاراگراف بگذارید یا بخشی از متن را انتخاب کنید.')
       setActivePanel('upgrade')
       return
     }
     const meta = CALLOUT_META_V2[variant]
     if (!target || !root?.contains(target)) {
       calloutActionLockRef.current = false
-      setAiMessage('�…ت�† ا�†تخاب�€Œشد�‡ در ب�ˆ�… اد�Œت�ˆر پ�Œدا �†شد.')
+      setAiMessage('متن انتخاب‌شده در بوم ادیتور پیدا نشد.')
       return
     }
     const existingCallout = target.closest<HTMLElement>('section.editor-v2-callout[data-v2-type="callout"]')
@@ -1482,7 +1482,7 @@ export default function EditorV2Page() {
         unwrapButton.contentEditable = 'false'
         unwrapButton.dataset.calloutUnwrap = 'true'
         unwrapButton.setAttribute('aria-label', 'Unwrap callout')
-        unwrapButton.textContent = '�'
+        unwrapButton.textContent = '×'
         existingCallout.prepend(unwrapButton)
       }
       if (titleElement && !titleElement.textContent?.trim()) titleElement.textContent = meta.title
@@ -1491,7 +1491,7 @@ export default function EditorV2Page() {
       const editableTarget = /^h[1-6]$/i.test(target.tagName) ? retagEditorBlockElement(target, 'p') : target
       if (!['p', 'div'].includes(editableTarget.tagName.toLowerCase())) {
         calloutActionLockRef.current = false
-        setAiMessage('ف�‚ط پاراگراف �Œا ع�†�ˆا�† ا�†تخاب�€Œشد�‡ را �…�Œ�€Œت�ˆا�† ب�‡ کا�„�€Œا�ˆت تبد�Œ�„ کرد.')
+        setAiMessage('فقط پاراگراف یا عنوان انتخاب‌شده را می‌توان به کال‌اوت تبدیل کرد.')
         return
       }
       editableTarget.dataset.v2Type = 'paragraph'
@@ -1504,7 +1504,7 @@ export default function EditorV2Page() {
       section.dataset.calloutVariant = variant
       section.dataset.calloutTitle = meta.title
       section.dataset.calloutIcon = meta.icon
-      section.innerHTML = `<button type="button" class="book-callout-unwrap editor-v2-callout-unwrap" contenteditable="false" data-callout-unwrap="true" aria-label="Unwrap callout">�</button><div class="book-callout-head"><span class="book-callout-icon" contenteditable="false">${escapeHtmlV2(meta.icon)}</span><strong class="book-callout-title" contenteditable="true" data-callout-title-editor="true">${escapeHtmlV2(meta.title)}</strong></div><div class="book-callout-bg-icon" contenteditable="false">${escapeHtmlV2(meta.icon)}</div><div class="book-callout-content"></div>`
+      section.innerHTML = `<button type="button" class="book-callout-unwrap editor-v2-callout-unwrap" contenteditable="false" data-callout-unwrap="true" aria-label="Unwrap callout">×</button><div class="book-callout-head"><span class="book-callout-icon" contenteditable="false">${escapeHtmlV2(meta.icon)}</span><strong class="book-callout-title" contenteditable="true" data-callout-title-editor="true">${escapeHtmlV2(meta.title)}</strong></div><div class="book-callout-bg-icon" contenteditable="false">${escapeHtmlV2(meta.icon)}</div><div class="book-callout-content"></div>`
       const content = section.querySelector<HTMLElement>('.book-callout-content')
       editableTarget.replaceWith(section)
       content?.appendChild(editableTarget)
@@ -1587,17 +1587,17 @@ export default function EditorV2Page() {
     if (!document) return
     const pageText = aiSourceText()
     if (!pageText.trim()) {
-      setAiMessage('�…ت�†�Œ برا�Œ تح�„�Œ�„ پ�Œدا �†شد.')
+      setAiMessage('متنی برای تحلیل پیدا نشد.')
       return
     }
     setAiBusy(true)
-    setAiMessage('در حا�„ برآ�ˆرد �‡ز�Œ�†�‡...')
+    setAiMessage('در حال برآورد هزینه...')
     try {
       const estimate = await estimateAiTextUsage({ action: 'callout_suggestions', bookTitle: document.title, pageText, bookId: document.sourceBookId, user })
       setAiApproval({ usage: estimate.usage, provider: estimate.provider, model: estimate.model, pageText })
-      setAiMessage('�‡ز�Œ�†�‡ برآ�ˆرد شد�› برا�Œ اجرا تا�Œ�Œد ک�†�Œد.')
+      setAiMessage('هزینه برآورد شد؛ برای اجرا تایید کنید.')
     } catch (error) {
-      setAiMessage(error instanceof Error ? error.message : 'برآ�ˆرد �‡ز�Œ�†�‡ �†ا�…�ˆف�‚ ب�ˆد.')
+      setAiMessage(error instanceof Error ? error.message : 'برآورد هزینه ناموفق بود.')
     } finally {
       setAiBusy(false)
     }
@@ -1612,7 +1612,7 @@ export default function EditorV2Page() {
   const runApprovedAi = useCallback(async () => {
     if (!document || !aiApproval) return
     setAiBusy(true)
-    setAiMessage('در حا�„ ت�ˆ�„�Œد پ�Œش�†�‡اد...')
+    setAiMessage('در حال تولید پیشنهاد...')
     try {
       const result = await runAiThroughGateway({ action: 'callout_suggestions', bookTitle: document.title, pageText: aiApproval.pageText, bookId: document.sourceBookId, user })
       const suggestion = result.content?.type === 'callout_suggestions' ? result.content.suggestions?.[0] : null
@@ -1638,9 +1638,9 @@ export default function EditorV2Page() {
       setSelectedBlockId(callout.id)
       recordAiUsage(result.usage)
       setAiApproval(null)
-      setAiMessage('پ�Œش�†�‡اد �‡�ˆش �…ص�†�ˆع�Œ ب�‡ �…ت�† اضاف�‡ شد.')
+      setAiMessage('پیشنهاد هوش مصنوعی به متن اضافه شد.')
     } catch (error) {
-      setAiMessage(error instanceof Error ? error.message : 'ت�ˆ�„�Œد پ�Œش�†�‡اد �†ا�…�ˆف�‚ ب�ˆد.')
+      setAiMessage(error instanceof Error ? error.message : 'تولید پیشنهاد ناموفق بود.')
     } finally {
       setAiBusy(false)
     }
