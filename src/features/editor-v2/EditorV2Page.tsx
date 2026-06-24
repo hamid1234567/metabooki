@@ -936,12 +936,12 @@ export default function EditorV2Page() {
         ? 'dirty'
         : 'saved'
   const saveButtonTitle = visualSaveState === 'saving'
-    ? 'در حا�„ ذخ�Œر�‡'
+    ? 'در حال ذخیره'
     : visualSaveState === 'error'
-      ? 'ت�„اش د�ˆبار�‡ برا�Œ ذخ�Œر�‡'
+      ? 'تلاش دوباره برای ذخیره'
       : visualSaveState === 'dirty'
-        ? 'تغ�Œ�Œرات ذخ�Œر�‡�€Œ�†شد�‡'
-        : 'ذخ�Œر�‡ شد'
+        ? 'تغییرات ذخیره‌نشده'
+        : 'ذخیره شد'
   const saveButtonClass = `${visualSaveState === 'saving' ? 'is-saving' : ''} ${visualSaveState === 'saved' ? 'is-saved' : ''} ${visualSaveState === 'dirty' ? 'is-dirty' : ''} ${visualSaveState === 'error' ? 'is-error' : ''}`
 
   useEffect(() => {
@@ -1679,7 +1679,7 @@ export default function EditorV2Page() {
     return (
       <div className="editor-v2-loading">
         <Loader2 className="animate-spin" />
-        <span>در حا�„ آ�…اد�‡�€Œساز�Œ اد�Œت�ˆر جد�Œد...</span>
+        <span>در حال آماده‌سازی ادیتور جدید...</span>
       </div>
     )
   }
@@ -1688,8 +1688,8 @@ export default function EditorV2Page() {
     return (
       <div className="editor-v2-error menu-glass-70">
         <BookOpen size={32} />
-        <h1>{error || 'کتاب پ�Œدا �†شد.'}</h1>
-        <Button onClick={() => navigate('/publisher/me')}><ArrowRight size={18} />بازگشت ب�‡ ا�†تشارات</Button>
+        <h1>{error || 'کتاب پیدا نشد.'}</h1>
+        <Button onClick={() => navigate('/publisher/me')}><ArrowRight size={18} />بازگشت به انتشارات</Button>
       </div>
     )
   }
@@ -1706,24 +1706,24 @@ export default function EditorV2Page() {
           </div>
         </div>
         <div className="editor-v2-actions">
-          <Button variant="outline" onClick={() => setMetadataOpen(value => !value)}><Info size={17} />�…شخصات</Button>
-          <Button variant="outline" onClick={() => openReaderPreview(book.id, `/edit-v2/${book.id}`)}><Eye size={17} />پ�Œش�€Œ�†�…ا�Œش</Button>
+          <Button variant="outline" onClick={() => setMetadataOpen(value => !value)}><Info size={17} />مشخصات</Button>
+          <Button variant="outline" onClick={() => openReaderPreview(book.id, `/edit-v2/${book.id}`)}><Eye size={17} />پیش‌نمایش</Button>
           <Button className={`editor-v2-manual-save ${saveButtonClass}`} onClick={() => void saveDocument()} disabled={saveState === 'saving'} title={saveButtonTitle}>
             <span className="editor-v2-save-button-icon">
               {visualSaveState === 'saving' ? <Loader2 size={17} /> : <Save size={17} />}
               {visualSaveState === 'saved' && <Check size={10} className="editor-v2-save-button-check" />}
             </span>
-            ذخ�Œر�‡ دست�Œ
+            ذخیره دستی
           </Button>
         </div>
       </header>
 
       {metadataOpen && (
         <section className="editor-v2-metadata menu-glass-70">
-          <div><span>�†�ˆ�Œس�†د�‡</span><strong>{document.metadata.author || 'ثبت �†شد�‡'}</strong></div>
-          <div><span>�†اشر</span><strong>{document.metadata.publisherName || 'ثبت �†شد�‡'}</strong></div>
-          <div><span>�†�ˆع کتاب</span><strong>{document.metadata.bookType || 'ثبت �†شد�‡'}</strong></div>
-          <div><span>دست�‡�€Œب�†د�Œ</span><strong>{document.metadata.category || 'ثبت �†شد�‡'}</strong></div>
+          <div><span>نویسنده</span><strong>{document.metadata.author || 'ثبت نشده'}</strong></div>
+          <div><span>ناشر</span><strong>{document.metadata.publisherName || 'ثبت نشده'}</strong></div>
+          <div><span>نوع کتاب</span><strong>{document.metadata.bookType || 'ثبت نشده'}</strong></div>
+          <div><span>دسته‌بندی</span><strong>{document.metadata.category || 'ثبت نشده'}</strong></div>
           <div><span>صفحات</span><strong>{document.pages.length.toLocaleString('fa-IR')}</strong></div>
         </section>
       )}
@@ -1778,9 +1778,9 @@ export default function EditorV2Page() {
       </div>
 
       <div className="editor-v2-floating">
-        <button type="button" onClick={scrollToTop} aria-label="برگشت ب�‡ ابتدا�Œ اد�Œت�ˆر">�†‘</button>
-        <button type="button" onClick={() => scrollToPageBreak('previous')} aria-label="صفح�‡ �‚ب�„�Œ"><ChevronRight size={18} /></button>
-        <button type="button" onClick={() => scrollToPageBreak('next')} aria-label="صفح�‡ بعد�Œ"><ChevronLeft size={18} /></button>
+        <button type="button" onClick={scrollToTop} aria-label="برگشت به ابتدای ادیتور">↑</button>
+        <button type="button" onClick={() => scrollToPageBreak('previous')} aria-label="صفحه قبلی"><ChevronRight size={18} /></button>
+        <button type="button" onClick={() => scrollToPageBreak('next')} aria-label="صفحه بعدی"><ChevronLeft size={18} /></button>
         <button
           type="button"
           className={`editor-v2-floating-save ${saveButtonClass}`}
@@ -1801,18 +1801,18 @@ export default function EditorV2Page() {
           <section className="editor-v2-ai-modal menu-glass-70" role="dialog" aria-modal="true">
             <header>
               <Sparkles size={20} />
-              <strong>تا�Œ�Œد �‡ز�Œ�†�‡ �‡�ˆش �…ص�†�ˆع�Œ</strong>
+              <strong>تایید هزینه هوش مصنوعی</strong>
             </header>
-            <p>ا�Œ�† ع�…�„�Œات ف�‚ط پ�Œش�†�‡اد callout ت�ˆ�„�Œد �…�Œ�€Œک�†د �ˆ �‡�Œ�† بخش�Œ از �…ت�† اص�„�Œ را حذف �Œا جا�Œگز�Œ�† �†�…�Œ�€Œک�†د.</p>
+            <p>این عملیات فقط پیشنهاد callout تولید می‌کند و هیچ بخشی از متن اصلی را حذف یا جایگزین نمی‌کند.</p>
             <div className="editor-v2-ai-cost">
-              <span><b>{aiApproval.usage.chargedCredits.toLocaleString('fa-IR')}</b><small>کرد�Œت</small></span>
-              <span><b>{aiApproval.usage.chargedToman.toLocaleString('fa-IR')}</b><small>ت�ˆ�…ا�†</small></span>
-              <span><b>${aiApproval.usage.chargedUsd.toFixed(6)}</b><small>د�„ار</small></span>
+              <span><b>{aiApproval.usage.chargedCredits.toLocaleString('fa-IR')}</b><small>کردیت</small></span>
+              <span><b>{aiApproval.usage.chargedToman.toLocaleString('fa-IR')}</b><small>تومان</small></span>
+              <span><b>${aiApproval.usage.chargedUsd.toFixed(6)}</b><small>دلار</small></span>
             </div>
             <small>{aiApproval.provider} · {aiApproval.model}</small>
             <footer>
-              <Button variant="outline" onClick={() => setAiApproval(null)} disabled={aiBusy}>�„غ�ˆ</Button>
-              <Button onClick={() => void runApprovedAi()} disabled={aiBusy}>{aiBusy ? 'در حا�„ ت�ˆ�„�Œد...' : 'تا�Œ�Œد �ˆ اجرا'}</Button>
+              <Button variant="outline" onClick={() => setAiApproval(null)} disabled={aiBusy}>لغو</Button>
+              <Button onClick={() => void runApprovedAi()} disabled={aiBusy}>{aiBusy ? 'در حال تولید...' : 'تایید و اجرا'}</Button>
             </footer>
           </section>
         </div>
