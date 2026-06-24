@@ -897,6 +897,7 @@ export default function EditorV2Page() {
   const editorSurfaceRef = useRef<HTMLDivElement | null>(null)
   const savedSelectionRef = useRef<Range | null>(null)
   const lastInlineStyleTargetRef = useRef<HTMLElement | null>(null)
+  const calloutActionLockRef = useRef(false)
   const undoStackRef = useRef<string[]>([])
   const redoStackRef = useRef<string[]>([])
   const skipNextSurfaceSyncRef = useRef(false)
@@ -1408,8 +1409,11 @@ export default function EditorV2Page() {
   }, [execTextCommand])
 
   const wrapSelectedCallout = useCallback((variant: (typeof CALLOUT_VARIANTS_V2)[number]) => {
+    if (calloutActionLockRef.current) return
+    calloutActionLockRef.current = true
     const targetBlockId = selectedBlockIdFromEditorTarget()
     if (!targetBlockId) {
+      calloutActionLockRef.current = false
       setAiMessage('برای ساخت کال‌اوت، نشانگر را داخل یک پاراگراف بگذارید یا بخشی از متن را انتخاب کنید.')
       setActivePanel('upgrade')
       return
@@ -1442,13 +1446,20 @@ export default function EditorV2Page() {
       return callout
     }), { recordHistory: true })
     window.setTimeout(() => setSelectedBlockId(nextSelectedBlockId), 0)
+    window.setTimeout(() => { calloutActionLockRef.current = false }, 180)
   }, [commitDocument, selectedBlockIdFromEditorTarget])
 
   const unwrapSelectedCallout = useCallback(() => {
+    if (calloutActionLockRef.current) return
+    calloutActionLockRef.current = true
     const targetBlockId = selectedBlockIdFromEditorTarget()
-    if (!targetBlockId) return
+    if (!targetBlockId) {
+      calloutActionLockRef.current = false
+      return
+    }
     commitDocument(current => updateBlockInDocumentV2(current, targetBlockId, block => block.type === 'callout' ? block.blocks : block), { recordHistory: true })
     setSelectedBlockId(undefined)
+    window.setTimeout(() => { calloutActionLockRef.current = false }, 180)
   }, [commitDocument, selectedBlockIdFromEditorTarget])
 
   const insertImageFromAsset = useCallback((assetId: string) => {

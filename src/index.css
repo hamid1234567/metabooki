@@ -4267,12 +4267,14 @@ body {
 
 /* Stable callout surface: keep variants distinct without double-tone backgrounds. */
 .book-callout {
-  background: color-mix(in srgb, var(--callout-bg) 72%, #fff) !important;
-  box-shadow: 0 12px 28px color-mix(in srgb, var(--callout-accent) 10%, transparent), inset 0 1px 0 #fff !important;
+  border-color: color-mix(in srgb, var(--callout-accent) 34%, #dbe4ef) !important;
+  background: color-mix(in srgb, var(--callout-bg) 84%, #fff) !important;
+  box-shadow: 0 14px 32px color-mix(in srgb, var(--callout-accent) 13%, transparent), inset 0 1px 0 #fff !important;
 }
 .book-callout:after {
   background: var(--callout-accent) !important;
-  opacity: .58 !important;
+  opacity: .78 !important;
+  width: .3rem !important;
 }
 .book-callout-content:before {
   content: none !important;
@@ -4286,7 +4288,21 @@ body {
 .book-callout.callout-glossary,
 .book-callout.callout-data,
 .book-callout.callout-margin {
-  background: color-mix(in srgb, var(--callout-bg) 78%, #fff) !important;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--callout-bg) 88%, #fff), #fff 82%) !important;
+}
+.book-callout.callout-key { --callout-accent:#0284c7; --callout-bg:#e0f7ff; --callout-border:#7dd3fc; }
+.book-callout.callout-question { --callout-accent:#6d28d9; --callout-bg:#f1ebff; --callout-border:#c4b5fd; }
+.book-callout.callout-warning { --callout-accent:#c2410c; --callout-bg:#fff1df; --callout-border:#fdba74; }
+.book-callout.callout-quote { --callout-accent:#7e22ce; --callout-bg:#f8edff; --callout-border:#d8b4fe; }
+.book-callout.callout-deep { --callout-accent:#0f766e; --callout-bg:#e5fbf6; --callout-border:#5eead4; }
+.book-callout.callout-practice { --callout-accent:#15803d; --callout-bg:#eafbe9; --callout-border:#86efac; }
+.book-callout.callout-glossary { --callout-accent:#1d4ed8; --callout-bg:#eaf2ff; --callout-border:#93c5fd; }
+.book-callout.callout-data { --callout-accent:#334155; --callout-bg:#f3f7fb; --callout-border:#94a3b8; }
+.book-callout.callout-margin { --callout-accent:#be185d; --callout-bg:#fff0f7; --callout-border:#f9a8d4; }
+.book-callout .book-callout-head {
+  border: 1px solid color-mix(in srgb, var(--callout-accent) 18%, #fff) !important;
+  background: color-mix(in srgb, var(--callout-accent) 9%, #fff) !important;
+  color: color-mix(in srgb, var(--callout-accent) 76%, #172033) !important;
 }
 .book-callout.callout-quote .book-callout-content,
 .book-callout.callout-data .book-callout-content strong:first-child {
