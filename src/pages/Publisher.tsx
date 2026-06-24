@@ -25,10 +25,55 @@ const stageMeta = {
 const UUID_RE = /^[0-9a-f-]{36}$/i
 const PUBLISHER_BOOK_LIST_COLUMNS = 'id,title,subtitle,description,cover_url,back_cover_url,preview_pages,price,status,review_status,publisher_id,language,tags,metadata,series_id,series_order,created_at'
 
+function resolvePublisherStage(book: Partial<PublisherBook>): PublisherBook['stage'] {
+  if (book.stage && book.stage in stageMeta) return book.stage
+  if (book.status === 'published' && book.review_status === 'approved') return 'published'
+  if (book.status === 'published') return 'store'
+  if (String(book.status || '') === 'pricing') return 'pricing'
+  return 'editing'
+}
+
+function normalizePublisherBook(book: Partial<PublisherBook> & { id?: string }, fallbackIndex = 0): PublisherBook {
+  const metadata = (book.metadata || {}) as Record<string, unknown>
+  const title = String(book.title || metadata.title || 'کتاب بدون عنوان')
+  const category = String(book.category || metadata.category || book.tags?.[0] || 'عمومی')
+  return {
+    ...(book as PublisherBook),
+    id: String(book.id || `publisher-book-${fallbackIndex}`),
+    title,
+    subtitle: book.subtitle ?? null,
+    description: String(book.description || metadata.description || ''),
+    cover_url: String(book.cover_url || resolveBookCoverArt({ coverUrl: '', title, category, description: String(book.description || ''), sample: '' })),
+    back_cover_url: book.back_cover_url ?? null,
+    pages: Array.isArray(book.pages) ? book.pages : [],
+    preview_pages: Array.isArray(book.preview_pages) ? book.preview_pages : [],
+    price: Number(book.price || 0),
+    status: book.status === 'published' ? 'published' : 'draft',
+    review_status: book.review_status === 'approved' || book.review_status === 'rejected' ? book.review_status : 'pending',
+    publisher_id: String(book.publisher_id || 'publisher-001'),
+    language: String(book.language || 'fa'),
+    tags: Array.isArray(book.tags) ? book.tags.filter(Boolean) : [],
+    category,
+    series_id: book.series_id ?? null,
+    series_order: book.series_order ?? null,
+    publisher_name: String(book.publisher_name || metadata.publisher_name || 'ناشر متابوکی'),
+    book_type: String(book.book_type || metadata.book_type || 'تألیف'),
+    page_count: Number(book.page_count || metadata.page_count || metadata.print_page_count || 0),
+    created_at: String(book.created_at || new Date(0).toISOString()),
+    stage: resolvePublisherStage(book),
+    readers: Number(book.readers || 0),
+    sales: Number(book.sales || 0),
+    revenue: Number(book.revenue || 0),
+    author: String(book.author || metadata.author || 'نویسنده نامشخص'),
+    importStatus: book.importStatus || (metadata.import_project_id ? 'word-imported' : 'manual'),
+    metadata,
+  }
+}
+
 export default function Publisher() {
   const navigate = useNavigate()
   const { user } = useAuthContext()
-  const [books, setBooks] = useState<PublisherBook[]>(() => getPublisherBooks())
+  const [books, setBooks] = useState<PublisherBook[]>(() => getPublisherBooks().map(normalizePublisherBook))
   const [remoteLoading, setRemoteLoading] = useState(false)
   const [remoteLoaded, setRemoteLoaded] = useState(false)
   const [remoteError, setRemoteError] = useState('')
@@ -95,7 +140,7 @@ export default function Publisher() {
         else if (!isAdmin) return
         const result = await query
         if (result.error) throw result.error
-        const remote: PublisherBook[] = (result.data || []).map((row: any) => ({
+        const remote: PublisherBook[] = (result.data || []).map((row: any, index: number) => normalizePublisherBook({
           ...row,
           cover_url: resolveBookCoverArt({
             coverUrl: row.cover_url || '',
@@ -113,11 +158,11 @@ export default function Publisher() {
           stage: row.status === 'published' && row.review_status === 'approved' ? 'published' : 'editing',
           readers: 0, sales: 0, revenue: 0,
           importStatus: row.metadata?.import_project_id ? 'word-imported' : 'manual',
-        }))
+        }, index))
         if (cancelled) return
         setBooks(current => {
           const remoteIds = new Set(remote.map(item => item.id))
-          return [...remote, ...current.filter(item => !remoteIds.has(item.id))]
+          return [...remote, ...current.map(normalizePublisherBook).filter(item => !remoteIds.has(item.id))]
         })
       } catch (error) {
         if (!cancelled) setRemoteError(error instanceof Error ? error.message : 'دریافت فهرست کامل کتاب‌ها ناموفق بود.')
@@ -317,41 +362,42 @@ export default function Publisher() {
         </div>
 
         {pagedBooks.items.map(book => {
-          const meta = stageMeta[book.stage]
+          const safeBook = normalizePublisherBook(book)
+          const meta = stageMeta[safeBook.stage] || stageMeta.editing
           const commentsCount = comments.filter(c => c.bookId === book.id).length
-          const canDelete = canDeletePublisherBook(book)
+          const canDelete = canDeletePublisherBook(safeBook)
           return (
             <div key={book.id} className="menu-glass-70 rounded-3xl overflow-hidden border border-primary/20">
               <div className="grid md:grid-cols-[140px_1fr] gap-5">
-                <img src={book.cover_url} alt={book.title} className="w-full h-full min-h-52 object-cover" />
+                <img src={safeBook.cover_url} alt={safeBook.title} className="w-full h-full min-h-52 object-cover" />
                 <div className="p-5 flex flex-col gap-5">
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
                       <span className={`inline-flex items-center gap-1 text-xs px-3 py-1 rounded-full ${meta.className}`}><meta.icon className="w-3 h-3" />{meta.label}</span>
-                      <h3 className="text-2xl font-black mt-3">{book.title}</h3>
-                      <p className="text-sm text-muted-foreground mt-1">{book.author}</p>
+                      <h3 className="text-2xl font-black mt-3">{safeBook.title}</h3>
+                      <p className="text-sm text-muted-foreground mt-1">{safeBook.author}</p>
                       <div className="flex flex-wrap gap-3 text-xs text-muted-foreground mt-3">
-                        <span>{book.readers.toLocaleString('fa-IR')} خواننده</span>
-                        <span>{book.sales.toLocaleString('fa-IR')} فروش</span>
+                        <span>{safeBook.readers.toLocaleString('fa-IR')} خواننده</span>
+                        <span>{safeBook.sales.toLocaleString('fa-IR')} فروش</span>
                         <span>{commentsCount.toLocaleString('fa-IR')} نظر</span>
-                        <span>{book.price === 0 ? 'رایگان' : `${book.price.toLocaleString('fa-IR')} کردیت`}</span>
+                        <span>{safeBook.price === 0 ? 'رایگان' : `${safeBook.price.toLocaleString('fa-IR')} کردیت`}</span>
                       </div>
                     </div>
                     <div className="grid grid-cols-3 gap-2 text-center">
-                      <div className="rounded-xl bg-background/50 p-3"><p className="font-bold">{book.readers.toLocaleString('fa-IR')}</p><p className="text-[10px] text-muted-foreground">خواننده</p></div>
-                      <div className="rounded-xl bg-background/50 p-3"><p className="font-bold">{book.sales.toLocaleString('fa-IR')}</p><p className="text-[10px] text-muted-foreground">فروش</p></div>
-                      <div className="rounded-xl bg-background/50 p-3"><p className="font-bold">{book.revenue.toLocaleString('fa-IR')}</p><p className="text-[10px] text-muted-foreground">سهم شما</p></div>
+                      <div className="rounded-xl bg-background/50 p-3"><p className="font-bold">{safeBook.readers.toLocaleString('fa-IR')}</p><p className="text-[10px] text-muted-foreground">خواننده</p></div>
+                      <div className="rounded-xl bg-background/50 p-3"><p className="font-bold">{safeBook.sales.toLocaleString('fa-IR')}</p><p className="text-[10px] text-muted-foreground">فروش</p></div>
+                      <div className="rounded-xl bg-background/50 p-3"><p className="font-bold">{safeBook.revenue.toLocaleString('fa-IR')}</p><p className="text-[10px] text-muted-foreground">سهم شما</p></div>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 mt-auto">
-                    <Button onClick={() => navigate(`/edit/${book.id}`)} className="gap-2 flex-1 sm:min-w-56"><FileText className="w-4 h-4" />ویرایش متن و محتوا</Button>
-                    <Button variant="outline" onClick={() => navigate(`/edit-legacy/${book.id}`)} className="gap-2 flex-1 sm:min-w-56"><BookOpen className="w-4 h-4" />ادیتور قبلی</Button>
-                    <Button onClick={() => navigate(`/publish/${book.id}`)} className="gap-2 bg-amber-500 hover:bg-amber-600 flex-1 sm:min-w-56"><Rocket className="w-4 h-4" />قیمت، سهام و انتشار</Button>
-                    <Button variant="outline" onClick={() => void previewPublisherBook(book)} className="gap-2"><Eye className="w-4 h-4" />پیش‌نمایش</Button>
-                    <Button variant="outline" disabled={coverGeneratingBookId === book.id} onClick={() => void generateCover(book)} className="gap-2"><Sparkles className={`w-4 h-4 ${coverGeneratingBookId === book.id ? 'animate-spin' : ''}`} />{coverGeneratingBookId === book.id ? 'طراحی جلد...' : 'طراحی جلد AI'}</Button>
+                    <Button onClick={() => navigate(`/edit/${safeBook.id}`)} className="gap-2 flex-1 sm:min-w-56"><FileText className="w-4 h-4" />ویرایش متن و محتوا</Button>
+                    <Button variant="outline" onClick={() => navigate(`/edit-legacy/${safeBook.id}`)} className="gap-2 flex-1 sm:min-w-56"><BookOpen className="w-4 h-4" />ادیتور قبلی</Button>
+                    <Button onClick={() => navigate(`/publish/${safeBook.id}`)} className="gap-2 bg-amber-500 hover:bg-amber-600 flex-1 sm:min-w-56"><Rocket className="w-4 h-4" />قیمت، سهام و انتشار</Button>
+                    <Button variant="outline" onClick={() => void previewPublisherBook(safeBook)} className="gap-2"><Eye className="w-4 h-4" />پیش‌نمایش</Button>
+                    <Button variant="outline" disabled={coverGeneratingBookId === safeBook.id} onClick={() => void generateCover(safeBook)} className="gap-2"><Sparkles className={`w-4 h-4 ${coverGeneratingBookId === safeBook.id ? 'animate-spin' : ''}`} />{coverGeneratingBookId === safeBook.id ? 'طراحی جلد...' : 'طراحی جلد AI'}</Button>
                     <Button variant="outline" className="gap-2"><MessageSquare className="w-4 h-4" />نظرات</Button>
-                    <Button variant="outline" disabled={!book.metadata?.import_project_id} onClick={() => reconvert(book)} className="gap-2"><RefreshCcw className="w-4 h-4" />تبدیل مجدد از فایل سرور</Button>
-                    {canDelete && <Button variant="ghost" disabled={deletingBookId === book.id} onClick={() => removeBook(book)} className="text-destructive"><Trash2 className="w-4 h-4" />{deletingBookId === book.id ? 'در حال حذف...' : ''}</Button>}
+                    <Button variant="outline" disabled={!safeBook.metadata?.import_project_id} onClick={() => reconvert(safeBook)} className="gap-2"><RefreshCcw className="w-4 h-4" />تبدیل مجدد از فایل سرور</Button>
+                    {canDelete && <Button variant="ghost" disabled={deletingBookId === safeBook.id} onClick={() => removeBook(safeBook)} className="text-destructive"><Trash2 className="w-4 h-4" />{deletingBookId === safeBook.id ? 'در حال حذف...' : ''}</Button>}
                   </div>
                 </div>
               </div>
