@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+﻿import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { AlignCenter, AlignJustify, AlignLeft, AlignRight, ArrowLeft, ArrowRight, Bold, BookOpen, Check, ChevronDown, ChevronLeft, ChevronRight, Eraser, Eye, FileText, Image as ImageIcon, Info, Italic, Link2, List, ListOrdered, ListTree, Loader2, PanelRight, Redo2, Save, Sparkles, Strikethrough, Subscript, Superscript, Table2, Type, Underline as UnderlineIcon, Undo2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -36,34 +36,34 @@ type AiApprovalV2 = {
 }
 
 const PANEL_LABELS: Record<EditorPanelV2, { title: string; icon: typeof ListTree }> = {
-  toc: { title: 'فهرست', icon: ListTree },
-  upgrade: { title: 'ارتقا متن', icon: FileText },
-  media: { title: 'رسانه', icon: ImageIcon },
-  interactive: { title: 'ابزار تعاملی', icon: PanelRight },
-  ai: { title: 'هوش مصنوعی', icon: Sparkles },
+  toc: { title: 'ÙÙ‡Ø±Ø³Øª', icon: ListTree },
+  upgrade: { title: 'Ø§Ø±ØªÙ‚Ø§ Ù…ØªÙ†', icon: FileText },
+  media: { title: 'Ø±Ø³Ø§Ù†Ù‡', icon: ImageIcon },
+  interactive: { title: 'Ø§Ø¨Ø²Ø§Ø± ØªØ¹Ø§Ù…Ù„ÛŒ', icon: PanelRight },
+  ai: { title: 'Ù‡ÙˆØ´ Ù…ØµÙ†ÙˆØ¹ÛŒ', icon: Sparkles },
 }
 
 const CALLOUT_VARIANTS_V2 = ['key', 'question', 'warning', 'quote', 'deep', 'practice', 'glossary', 'data', 'margin'] as const
 
 const TEXT_COLOR_SWATCHES_V2 = [
-  { label: 'مشکی', value: '#111827' },
-  { label: 'آبی', value: '#2563EB' },
-  { label: 'سبز', value: '#16A34A' },
-  { label: 'نارنجی', value: '#EA580C' },
-  { label: 'قرمز', value: '#DC2626' },
-  { label: 'بنفش', value: '#7C3AED' },
+  { label: 'Ù…Ø´Ú©ÛŒ', value: '#111827' },
+  { label: 'Ø¢Ø¨ÛŒ', value: '#2563EB' },
+  { label: 'Ø³Ø¨Ø²', value: '#16A34A' },
+  { label: 'Ù†Ø§Ø±Ù†Ø¬ÛŒ', value: '#EA580C' },
+  { label: 'Ù‚Ø±Ù…Ø²', value: '#DC2626' },
+  { label: 'Ø¨Ù†ÙØ´', value: '#7C3AED' },
 ] as const
 
 const CALLOUT_META_V2: Record<(typeof CALLOUT_VARIANTS_V2)[number], { title: string; icon: string }> = {
-  key: { title: 'نکته کلیدی', icon: '💡' },
-  question: { title: 'مکث و فکر کن', icon: '❔' },
-  warning: { title: 'اشتباه رایج', icon: '⚠️' },
-  quote: { title: 'جمله طلایی', icon: '❝' },
-  deep: { title: 'عمیق‌تر بخوان', icon: '🔍' },
-  practice: { title: 'تمرین سریع', icon: '✅' },
-  glossary: { title: 'تعریف واژه', icon: '📘' },
-  data: { title: 'داده و منبع', icon: '📊' },
-  margin: { title: 'یادداشت حاشیه‌ای', icon: '📝' },
+  key: { title: 'Ù†Ú©ØªÙ‡ Ú©Ù„ÛŒØ¯ÛŒ', icon: 'ðŸ’¡' },
+  question: { title: 'Ù…Ú©Ø« Ùˆ ÙÚ©Ø± Ú©Ù†', icon: 'â”' },
+  warning: { title: 'Ø§Ø´ØªØ¨Ø§Ù‡ Ø±Ø§ÛŒØ¬', icon: 'âš ï¸' },
+  quote: { title: 'Ø¬Ù…Ù„Ù‡ Ø·Ù„Ø§ÛŒÛŒ', icon: 'â' },
+  deep: { title: 'Ø¹Ù…ÛŒÙ‚â€ŒØªØ± Ø¨Ø®ÙˆØ§Ù†', icon: 'ðŸ”' },
+  practice: { title: 'ØªÙ…Ø±ÛŒÙ† Ø³Ø±ÛŒØ¹', icon: 'âœ…' },
+  glossary: { title: 'ØªØ¹Ø±ÛŒÙ ÙˆØ§Ú˜Ù‡', icon: 'ðŸ“˜' },
+  data: { title: 'Ø¯Ø§Ø¯Ù‡ Ùˆ Ù…Ù†Ø¨Ø¹', icon: 'ðŸ“Š' },
+  margin: { title: 'ÛŒØ§Ø¯Ø¯Ø§Ø´Øª Ø­Ø§Ø´ÛŒÙ‡â€ŒØ§ÛŒ', icon: 'ðŸ“' },
 }
 
 const escapeHtmlV2 = (value = '') => String(value)
@@ -183,7 +183,7 @@ function blockToEditorHtmlV2(block: BookBlockV2): string {
   }
   if (block.type === 'image') {
     const width = block.widthPercent ? `${Math.max(12, Math.min(100, block.widthPercent))}%` : block.widthPx ? `${Math.max(80, block.widthPx)}px` : ''
-    return `<figure contenteditable="false" data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="image"${attrV2('data-image-id', block.imageId)}${attrV2('data-width-px', block.widthPx)}${attrV2('data-width-percent', block.widthPercent)}>${block.url ? `<img src="${escapeHtmlV2(block.url)}" alt="${escapeHtmlV2(block.caption || '')}"${width ? ` style="max-width:${escapeHtmlV2(width)}"` : ''}>` : '<div class="book-v2-missing-image">تصویر در دسترس نیست</div>'}${block.caption ? `<figcaption>${escapeHtmlV2(block.caption)}</figcaption>` : ''}</figure>`
+    return `<figure contenteditable="false" data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="image"${attrV2('data-image-id', block.imageId)}${attrV2('data-width-px', block.widthPx)}${attrV2('data-width-percent', block.widthPercent)}>${block.url ? `<img src="${escapeHtmlV2(block.url)}" alt="${escapeHtmlV2(block.caption || '')}"${width ? ` style="max-width:${escapeHtmlV2(width)}"` : ''}>` : '<div class="book-v2-missing-image">ØªØµÙˆÛŒØ± Ø¯Ø± Ø¯Ø³ØªØ±Ø³ Ù†ÛŒØ³Øª</div>'}${block.caption ? `<figcaption>${escapeHtmlV2(block.caption)}</figcaption>` : ''}</figure>`
   }
   if (block.type === 'table') {
     const headers = block.headers?.length ? `<thead><tr>${block.headers.map(cell => `<th>${escapeHtmlV2(cell)}</th>`).join('')}</tr></thead>` : ''
@@ -192,10 +192,10 @@ function blockToEditorHtmlV2(block: BookBlockV2): string {
   }
   if (block.type === 'callout') {
     const body = block.blocks.map(blockToEditorHtmlV2).join('')
-    return `<section class="book-callout editor-v2-callout has-rendered-title callout-${escapeHtmlV2(block.variant)}" data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="callout" data-variant="${escapeHtmlV2(block.variant)}" data-callout-variant="${escapeHtmlV2(block.variant)}" data-callout-title="${escapeHtmlV2(block.title)}" data-callout-icon="${escapeHtmlV2(block.icon || '')}"><button type="button" class="book-callout-unwrap editor-v2-callout-unwrap" contenteditable="false" data-callout-unwrap="true" title="برگرداندن به متن عادی">×</button><div class="book-callout-head"><span class="book-callout-icon" contenteditable="false">${escapeHtmlV2(block.icon || '')}</span><strong class="book-callout-title" contenteditable="true" data-callout-title-editor="true">${escapeHtmlV2(block.title)}</strong></div><div class="book-callout-bg-icon" contenteditable="false">${escapeHtmlV2(block.icon || '')}</div><div class="book-callout-content">${body}</div></section>`
+    return `<section class="book-callout editor-v2-callout has-rendered-title callout-${escapeHtmlV2(block.variant)}" data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="callout" data-variant="${escapeHtmlV2(block.variant)}" data-callout-variant="${escapeHtmlV2(block.variant)}" data-callout-title="${escapeHtmlV2(block.title)}" data-callout-icon="${escapeHtmlV2(block.icon || '')}"><button type="button" class="book-callout-unwrap editor-v2-callout-unwrap" contenteditable="false" data-callout-unwrap="true" aria-label="Unwrap callout">×</button><div class="book-callout-head"><span class="book-callout-icon" contenteditable="false">${escapeHtmlV2(block.icon || '')}</span><strong class="book-callout-title" contenteditable="true" data-callout-title-editor="true">${escapeHtmlV2(block.title)}</strong></div><div class="book-callout-bg-icon" contenteditable="false">${escapeHtmlV2(block.icon || '')}</div><div class="book-callout-content">${body}</div></section>`
   }
   if (block.type === 'interactive') {
-    return `<section contenteditable="false" class="book-interactive-v2" data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="interactive" data-kind="${escapeHtmlV2(block.kind)}"><strong>${escapeHtmlV2(block.title || String(block.payload.title || 'بخش تعاملی'))}</strong></section>`
+    return `<section contenteditable="false" class="book-interactive-v2" data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="interactive" data-kind="${escapeHtmlV2(block.kind)}"><strong>${escapeHtmlV2(block.title || String(block.payload.title || 'Ø¨Ø®Ø´ ØªØ¹Ø§Ù…Ù„ÛŒ'))}</strong></section>`
   }
   if (block.type === 'math') {
     return `<p data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="math">${escapeHtmlV2(block.expression)}</p>`
@@ -350,7 +350,12 @@ function elementToBlockV2(element: Element, page: BookDocumentV2['pages'][number
     const title = normalizeBookTextV2(titleElement?.innerText || html.dataset.calloutTitle || (old?.type === 'callout' ? old.title : meta.title))
     const icon = html.dataset.calloutIcon || (old?.type === 'callout' ? old.icon : meta.icon)
     const contentElement = element.querySelector<HTMLElement>(':scope > .book-callout-content')
-    const contentNodes = contentElement ? Array.from(contentElement.childNodes) : Array.from(element.childNodes).filter(node => !(node instanceof Element && node.classList.contains('book-callout-head')))
+    const contentNodes = contentElement ? Array.from(contentElement.childNodes) : Array.from(element.childNodes).filter(node => {
+      if (!(node instanceof Element)) return true
+      return !node.classList.contains('book-callout-head')
+        && !node.classList.contains('book-callout-bg-icon')
+        && !node.matches('[data-callout-unwrap]')
+    })
     const blocks = editorNodesToBlocksV2(contentNodes, page, existing)
     const fallbackBlocks = old?.type === 'callout' ? old.blocks : []
     return {
@@ -572,13 +577,13 @@ function insertBlockAfterV2(document: BookDocumentV2, selectedBlockId: string | 
 function createInteractiveTemplateV2(kind: string, printNumber?: PrintPageValue): BookBlockV2 {
   const id = createV2Id('interactive', kind, Date.now())
   const common = { id, type: 'interactive' as const, kind: kind as any, anchor: id, printNumber }
-  if (kind === 'quiz') return { ...common, title: 'کوییز چندگزینه‌ای', payload: { question: 'سؤال را اینجا بنویسید', options: ['گزینه اول', 'گزینه دوم', 'گزینه سوم'], correct: 0, explanation: '' } }
-  if (kind === 'truefalse') return { ...common, title: 'صحیح یا غلط', payload: { question: 'گزاره را اینجا بنویسید', options: ['صحیح', 'غلط'], correct: 0, explanation: '' } }
-  if (kind === 'flashcard') return { ...common, title: 'فلش‌کارت', payload: { cards: [{ front: 'روی کارت', back: 'پشت کارت', image: '' }] } }
-  if (kind === 'gallery') return { ...common, title: 'گالری تصویر', payload: { title: 'گالری تصویر', images: [{ url: '', caption: '' }] } }
-  if (kind === 'timeline') return { ...common, title: 'تایم‌لاین', payload: { title: 'تایم‌لاین', events: [{ title: 'مرحله اول', description: '', image: '' }, { title: 'مرحله دوم', description: '', image: '' }] } }
-  if (kind === 'author') return { ...common, title: 'معرفی نویسندگان', payload: { title: 'نویسندگان', authors: [{ name: '', role: '', bio: '', image: '' }] } }
-  return { ...common, title: 'مراحل تعاملی', payload: { title: 'مراحل تعاملی', steps: [{ title: 'مرحله اول', description: '', image: '' }, { title: 'مرحله دوم', description: '', image: '' }] } }
+  if (kind === 'quiz') return { ...common, title: 'Ú©ÙˆÛŒÛŒØ² Ú†Ù†Ø¯Ú¯Ø²ÛŒÙ†Ù‡â€ŒØ§ÛŒ', payload: { question: 'Ø³Ø¤Ø§Ù„ Ø±Ø§ Ø§ÛŒÙ†Ø¬Ø§ Ø¨Ù†ÙˆÛŒØ³ÛŒØ¯', options: ['Ú¯Ø²ÛŒÙ†Ù‡ Ø§ÙˆÙ„', 'Ú¯Ø²ÛŒÙ†Ù‡ Ø¯ÙˆÙ…', 'Ú¯Ø²ÛŒÙ†Ù‡ Ø³ÙˆÙ…'], correct: 0, explanation: '' } }
+  if (kind === 'truefalse') return { ...common, title: 'ØµØ­ÛŒØ­ ÛŒØ§ ØºÙ„Ø·', payload: { question: 'Ú¯Ø²Ø§Ø±Ù‡ Ø±Ø§ Ø§ÛŒÙ†Ø¬Ø§ Ø¨Ù†ÙˆÛŒØ³ÛŒØ¯', options: ['ØµØ­ÛŒØ­', 'ØºÙ„Ø·'], correct: 0, explanation: '' } }
+  if (kind === 'flashcard') return { ...common, title: 'ÙÙ„Ø´â€ŒÚ©Ø§Ø±Øª', payload: { cards: [{ front: 'Ø±ÙˆÛŒ Ú©Ø§Ø±Øª', back: 'Ù¾Ø´Øª Ú©Ø§Ø±Øª', image: '' }] } }
+  if (kind === 'gallery') return { ...common, title: 'Ú¯Ø§Ù„Ø±ÛŒ ØªØµÙˆÛŒØ±', payload: { title: 'Ú¯Ø§Ù„Ø±ÛŒ ØªØµÙˆÛŒØ±', images: [{ url: '', caption: '' }] } }
+  if (kind === 'timeline') return { ...common, title: 'ØªØ§ÛŒÙ…â€ŒÙ„Ø§ÛŒÙ†', payload: { title: 'ØªØ§ÛŒÙ…â€ŒÙ„Ø§ÛŒÙ†', events: [{ title: 'Ù…Ø±Ø­Ù„Ù‡ Ø§ÙˆÙ„', description: '', image: '' }, { title: 'Ù…Ø±Ø­Ù„Ù‡ Ø¯ÙˆÙ…', description: '', image: '' }] } }
+  if (kind === 'author') return { ...common, title: 'Ù…Ø¹Ø±ÙÛŒ Ù†ÙˆÛŒØ³Ù†Ø¯Ú¯Ø§Ù†', payload: { title: 'Ù†ÙˆÛŒØ³Ù†Ø¯Ú¯Ø§Ù†', authors: [{ name: '', role: '', bio: '', image: '' }] } }
+  return { ...common, title: 'Ù…Ø±Ø§Ø­Ù„ ØªØ¹Ø§Ù…Ù„ÛŒ', payload: { title: 'Ù…Ø±Ø§Ø­Ù„ ØªØ¹Ø§Ù…Ù„ÛŒ', steps: [{ title: 'Ù…Ø±Ø­Ù„Ù‡ Ø§ÙˆÙ„', description: '', image: '' }, { title: 'Ù…Ø±Ø­Ù„Ù‡ Ø¯ÙˆÙ…', description: '', image: '' }] } }
 }
 
 function plainTextFromBlockV2(block: BookBlockV2): string {
@@ -598,14 +603,14 @@ function isUuid(value = '') {
 
 function SaveIndicator({ state, floating = false }: { state: SaveVisualStateV2; floating?: boolean }) {
   const label = state === 'saving'
-    ? 'در حال ذخیره'
+    ? 'Ø¯Ø± Ø­Ø§Ù„ Ø°Ø®ÛŒØ±Ù‡'
     : state === 'saved'
-      ? 'ذخیره شد'
+      ? 'Ø°Ø®ÛŒØ±Ù‡ Ø´Ø¯'
       : state === 'error'
-        ? 'ذخیره ناموفق'
+        ? 'Ø°Ø®ÛŒØ±Ù‡ Ù†Ø§Ù…ÙˆÙÙ‚'
         : state === 'dirty'
-          ? 'ذخیره نشده'
-        : 'منتشر شده'
+          ? 'Ø°Ø®ÛŒØ±Ù‡ Ù†Ø´Ø¯Ù‡'
+        : 'Ù…Ù†ØªØ´Ø± Ø´Ø¯Ù‡'
   const isReady = state === 'saved'
   if (floating) {
     return (
@@ -663,13 +668,13 @@ function TextToolbarV2({
         if ((event.target as HTMLElement).closest('button')) event.preventDefault()
       }}
     >
-      <Button variant="outline" size="icon" onClick={() => execTextCommand('undo')} title="بازگشت"><Undo2 size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => execTextCommand('redo')} title="انجام دوباره"><Redo2 size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('undo')} title="Ø¨Ø§Ø²Ú¯Ø´Øª"><Undo2 size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('redo')} title="Ø§Ù†Ø¬Ø§Ù… Ø¯ÙˆØ¨Ø§Ø±Ù‡"><Redo2 size={17} /></Button>
       <span className="editor-v2-toolbar-divider" />
-      <Button variant="outline" size="icon" onClick={() => formatCurrentBlock('p')} title="متن عادی"><Type size={17} /></Button>
-      <select defaultValue="" onChange={event => { if (event.target.value) formatCurrentBlock(event.target.value); event.target.value = '' }} title="سطح عنوان">
+      <Button variant="outline" size="icon" onClick={() => formatCurrentBlock('p')} title="Ù…ØªÙ† Ø¹Ø§Ø¯ÛŒ"><Type size={17} /></Button>
+      <select defaultValue="" onChange={event => { if (event.target.value) formatCurrentBlock(event.target.value); event.target.value = '' }} title="Ø³Ø·Ø­ Ø¹Ù†ÙˆØ§Ù†">
         <option value="" disabled>H</option>
-        <option value="p">متن عادی</option>
+        <option value="p">Ù…ØªÙ† Ø¹Ø§Ø¯ÛŒ</option>
         <option value="h1">H1</option>
         <option value="h2">H2</option>
         <option value="h3">H3</option>
@@ -677,31 +682,31 @@ function TextToolbarV2({
         <option value="h5">H5</option>
         <option value="h6">H6</option>
       </select>
-      <select defaultValue="" onChange={event => { if (event.target.value) applyInlineStyleToSelection({ fontFamily: event.target.value }); event.target.value = '' }} title="فونت">
-        <option value="" disabled>فونت</option>
+      <select defaultValue="" onChange={event => { if (event.target.value) applyInlineStyleToSelection({ fontFamily: event.target.value }); event.target.value = '' }} title="ÙÙˆÙ†Øª">
+        <option value="" disabled>ÙÙˆÙ†Øª</option>
         <option value="Vazirmatn">Vazirmatn</option>
         <option value="Tahoma">Tahoma</option>
         <option value="Arial">Arial</option>
         <option value="Georgia">Georgia</option>
         <option value="Times New Roman">Times</option>
       </select>
-      <select defaultValue="" onChange={event => { if (event.target.value) applyInlineStyleToSelection({ fontSize: FONT_SIZE_MAP_V2[event.target.value] || event.target.value }); event.target.value = '' }} title="اندازه متن">
-        <option value="" disabled>اندازه</option>
-        <option value="1">خیلی ریز</option>
-        <option value="2">ریز</option>
-        <option value="3">عادی</option>
-        <option value="4">درشت</option>
-        <option value="5">خیلی درشت</option>
+      <select defaultValue="" onChange={event => { if (event.target.value) applyInlineStyleToSelection({ fontSize: FONT_SIZE_MAP_V2[event.target.value] || event.target.value }); event.target.value = '' }} title="Ø§Ù†Ø¯Ø§Ø²Ù‡ Ù…ØªÙ†">
+        <option value="" disabled>Ø§Ù†Ø¯Ø§Ø²Ù‡</option>
+        <option value="1">Ø®ÛŒÙ„ÛŒ Ø±ÛŒØ²</option>
+        <option value="2">Ø±ÛŒØ²</option>
+        <option value="3">Ø¹Ø§Ø¯ÛŒ</option>
+        <option value="4">Ø¯Ø±Ø´Øª</option>
+        <option value="5">Ø®ÛŒÙ„ÛŒ Ø¯Ø±Ø´Øª</option>
       </select>
-      <div className="editor-v2-color-swatches" role="group" aria-label="رنگ متن">
+      <div className="editor-v2-color-swatches" role="group" aria-label="Ø±Ù†Ú¯ Ù…ØªÙ†">
         {TEXT_COLOR_SWATCHES_V2.map(color => (
           <button
             key={color.value}
             type="button"
             className="editor-v2-color-swatch"
             style={{ '--swatch-color': color.value } as CSSProperties}
-            title={`رنگ متن: ${color.label}`}
-            aria-label={`رنگ متن: ${color.label}`}
+            title={`Ø±Ù†Ú¯ Ù…ØªÙ†: ${color.label}`}
+            aria-label={`Ø±Ù†Ú¯ Ù…ØªÙ†: ${color.label}`}
             onMouseDown={event => {
               event.preventDefault()
               rememberEditorSelection()
@@ -712,25 +717,25 @@ function TextToolbarV2({
       </div>
       <span className="editor-v2-toolbar-divider" />
       <Button variant="outline" size="icon" onClick={applyRegularToSelection} title="Regular" aria-pressed={toolbarState.hasSelection && !toolbarState.bold && !toolbarState.italic} className={toolbarState.hasSelection && !toolbarState.bold && !toolbarState.italic ? 'is-active' : undefined}><span className="editor-v2-regular-mark">R</span></Button>
-      <Button variant="outline" size="icon" onClick={() => execTextCommand('bold')} title="پررنگ" aria-pressed={toolbarState.bold} className={toolbarState.bold ? 'is-active' : undefined}><Bold size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => execTextCommand('italic')} title="مورب" aria-pressed={toolbarState.italic} className={toolbarState.italic ? 'is-active' : undefined}><Italic size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => execTextCommand('underline')} title="زیرخط" aria-pressed={toolbarState.underline} className={toolbarState.underline ? 'is-active' : undefined}><UnderlineIcon size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => execTextCommand('strikeThrough')} title="خط‌خورده" aria-pressed={toolbarState.strike} className={toolbarState.strike ? 'is-active' : undefined}><Strikethrough size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => execTextCommand('superscript')} title="بالانویس" aria-pressed={toolbarState.superscript} className={toolbarState.superscript ? 'is-active' : undefined}><Superscript size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => execTextCommand('subscript')} title="زیرنویس" aria-pressed={toolbarState.subscript} className={toolbarState.subscript ? 'is-active' : undefined}><Subscript size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={createLinkForSelection} title="لینک"><Link2 size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => execTextCommand('removeFormat')} title="پاک کردن فرمت"><Eraser size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('bold')} title="Ù¾Ø±Ø±Ù†Ú¯" aria-pressed={toolbarState.bold} className={toolbarState.bold ? 'is-active' : undefined}><Bold size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('italic')} title="Ù…ÙˆØ±Ø¨" aria-pressed={toolbarState.italic} className={toolbarState.italic ? 'is-active' : undefined}><Italic size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('underline')} title="Ø²ÛŒØ±Ø®Ø·" aria-pressed={toolbarState.underline} className={toolbarState.underline ? 'is-active' : undefined}><UnderlineIcon size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('strikeThrough')} title="Ø®Ø·â€ŒØ®ÙˆØ±Ø¯Ù‡" aria-pressed={toolbarState.strike} className={toolbarState.strike ? 'is-active' : undefined}><Strikethrough size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('superscript')} title="Ø¨Ø§Ù„Ø§Ù†ÙˆÛŒØ³" aria-pressed={toolbarState.superscript} className={toolbarState.superscript ? 'is-active' : undefined}><Superscript size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('subscript')} title="Ø²ÛŒØ±Ù†ÙˆÛŒØ³" aria-pressed={toolbarState.subscript} className={toolbarState.subscript ? 'is-active' : undefined}><Subscript size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={createLinkForSelection} title="Ù„ÛŒÙ†Ú©"><Link2 size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('removeFormat')} title="Ù¾Ø§Ú© Ú©Ø±Ø¯Ù† ÙØ±Ù…Øª"><Eraser size={17} /></Button>
       <span className="editor-v2-toolbar-divider" />
-      <Button variant="outline" size="icon" onClick={() => execTextCommand('insertUnorderedList')} title="فهرست نقطه‌ای"><List size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => execTextCommand('insertOrderedList')} title="فهرست شماره‌ای"><ListOrdered size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => applyBlockAlignment('right')} title="راست‌چین" aria-pressed={toolbarState.alignment === 'right'} className={toolbarState.alignment === 'right' ? 'is-active' : undefined}><AlignRight size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => applyBlockAlignment('center')} title="وسط‌چین" aria-pressed={toolbarState.alignment === 'center'} className={toolbarState.alignment === 'center' ? 'is-active' : undefined}><AlignCenter size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => applyBlockAlignment('left')} title="چپ‌چین" aria-pressed={toolbarState.alignment === 'left'} className={toolbarState.alignment === 'left' ? 'is-active' : undefined}><AlignLeft size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => applyBlockAlignment('justify')} title="تراز کامل" aria-pressed={toolbarState.alignment === 'justify'} className={toolbarState.alignment === 'justify' ? 'is-active' : undefined}><AlignJustify size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => setCurrentBlockDirection('rtl')} title="جهت راست به چپ"><ArrowRight size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => setCurrentBlockDirection('ltr')} title="جهت چپ به راست"><ArrowLeft size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('insertUnorderedList')} title="ÙÙ‡Ø±Ø³Øª Ù†Ù‚Ø·Ù‡â€ŒØ§ÛŒ"><List size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('insertOrderedList')} title="ÙÙ‡Ø±Ø³Øª Ø´Ù…Ø§Ø±Ù‡â€ŒØ§ÛŒ"><ListOrdered size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => applyBlockAlignment('right')} title="Ø±Ø§Ø³Øªâ€ŒÚ†ÛŒÙ†" aria-pressed={toolbarState.alignment === 'right'} className={toolbarState.alignment === 'right' ? 'is-active' : undefined}><AlignRight size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => applyBlockAlignment('center')} title="ÙˆØ³Ø·â€ŒÚ†ÛŒÙ†" aria-pressed={toolbarState.alignment === 'center'} className={toolbarState.alignment === 'center' ? 'is-active' : undefined}><AlignCenter size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => applyBlockAlignment('left')} title="Ú†Ù¾â€ŒÚ†ÛŒÙ†" aria-pressed={toolbarState.alignment === 'left'} className={toolbarState.alignment === 'left' ? 'is-active' : undefined}><AlignLeft size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => applyBlockAlignment('justify')} title="ØªØ±Ø§Ø² Ú©Ø§Ù…Ù„" aria-pressed={toolbarState.alignment === 'justify'} className={toolbarState.alignment === 'justify' ? 'is-active' : undefined}><AlignJustify size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => setCurrentBlockDirection('rtl')} title="Ø¬Ù‡Øª Ø±Ø§Ø³Øª Ø¨Ù‡ Ú†Ù¾"><ArrowRight size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => setCurrentBlockDirection('ltr')} title="Ø¬Ù‡Øª Ú†Ù¾ Ø¨Ù‡ Ø±Ø§Ø³Øª"><ArrowLeft size={17} /></Button>
       <span className="editor-v2-toolbar-divider" />
-      <Button variant="outline" size="icon" onClick={insertSimpleTable} title="جدول ساده"><Table2 size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={insertSimpleTable} title="Ø¬Ø¯ÙˆÙ„ Ø³Ø§Ø¯Ù‡"><Table2 size={17} /></Button>
     </section>
   )
 }
@@ -763,7 +768,7 @@ function TocTreeV2({
                 <span>{item.title}</span>
               </button>
               {hasChildren && (
-                <button className="editor-v2-toc-toggle" type="button" onClick={() => onToggle(item.id)} aria-label={isOpen ? 'جمع کردن' : 'باز کردن'}>
+                <button className="editor-v2-toc-toggle" type="button" onClick={() => onToggle(item.id)} aria-label={isOpen ? 'Ø¬Ù…Ø¹ Ú©Ø±Ø¯Ù†' : 'Ø¨Ø§Ø² Ú©Ø±Ø¯Ù†'}>
                   {isOpen ? <ChevronDown size={12} /> : <ChevronLeft size={12} />}
                 </button>
               )}
@@ -823,7 +828,7 @@ function RightPanelV2({
   const ActiveIcon = PANEL_LABELS[activePanel].icon
   return (
     <aside className="editor-v2-side">
-      <nav className="editor-v2-side-tabs" aria-label="ابزارهای ادیتور">
+      <nav className="editor-v2-side-tabs" aria-label="Ø§Ø¨Ø²Ø§Ø±Ù‡Ø§ÛŒ Ø§Ø¯ÛŒØªÙˆØ±">
         {(Object.keys(PANEL_LABELS) as EditorPanelV2[]).map(panel => {
           const Icon = PANEL_LABELS[panel].icon
           return (
@@ -842,17 +847,17 @@ function RightPanelV2({
         {activePanel === 'toc' && (
           <>
             <div className="editor-v2-panel-actions">
-              <button type="button" onClick={() => setOpenIds(new Set(tocAsFlatListV2(document).map(item => item.id)))}>باز کردن همه</button>
-              <button type="button" onClick={() => setOpenIds(new Set())}>جمع کردن همه</button>
+              <button type="button" onClick={() => setOpenIds(new Set(tocAsFlatListV2(document).map(item => item.id)))}>Ø¨Ø§Ø² Ú©Ø±Ø¯Ù† Ù‡Ù…Ù‡</button>
+              <button type="button" onClick={() => setOpenIds(new Set())}>Ø¬Ù…Ø¹ Ú©Ø±Ø¯Ù† Ù‡Ù…Ù‡</button>
             </div>
-            {tree.length ? <TocTreeV2 items={tree} activeId={activeTocId} openIds={openIds} onToggle={toggle} onJump={onJumpToToc} /> : <p className="editor-v2-empty-panel">فهرستی برای این کتاب ثبت نشده است.</p>}
+            {tree.length ? <TocTreeV2 items={tree} activeId={activeTocId} openIds={openIds} onToggle={toggle} onJump={onJumpToToc} /> : <p className="editor-v2-empty-panel">ÙÙ‡Ø±Ø³ØªÛŒ Ø¨Ø±Ø§ÛŒ Ø§ÛŒÙ† Ú©ØªØ§Ø¨ Ø«Ø¨Øª Ù†Ø´Ø¯Ù‡ Ø§Ø³Øª.</p>}
           </>
         )}
         {activePanel === 'upgrade' && (
           <div className="editor-v2-action-grid">
             {CALLOUT_VARIANTS_V2.map(variant => <button key={variant} type="button" onClick={() => onApplyCallout(variant)}><span>{CALLOUT_META_V2[variant].icon}</span>{CALLOUT_META_V2[variant].title}</button>)}
-            <button type="button" disabled={!canUnwrapCallout} onClick={onUnwrapCallout}><Undo2 size={15} />برگرداندن کال‌اوت به متن عادی</button>
-            <p>برای تبدیل متن به کال‌اوت، نشانگر را داخل همان پاراگراف بگذارید یا متن را انتخاب کنید و نوع کال‌اوت را از همین پنل بزنید.</p>
+            <button type="button" disabled={!canUnwrapCallout} onClick={onUnwrapCallout}><Undo2 size={15} />Ø¨Ø±Ú¯Ø±Ø¯Ø§Ù†Ø¯Ù† Ú©Ø§Ù„â€ŒØ§ÙˆØª Ø¨Ù‡ Ù…ØªÙ† Ø¹Ø§Ø¯ÛŒ</button>
+            <p>Ø¨Ø±Ø§ÛŒ ØªØ¨Ø¯ÛŒÙ„ Ù…ØªÙ† Ø¨Ù‡ Ú©Ø§Ù„â€ŒØ§ÙˆØªØŒ Ù†Ø´Ø§Ù†Ú¯Ø± Ø±Ø§ Ø¯Ø§Ø®Ù„ Ù‡Ù…Ø§Ù† Ù¾Ø§Ø±Ø§Ú¯Ø±Ø§Ù Ø¨Ú¯Ø°Ø§Ø±ÛŒØ¯ ÛŒØ§ Ù…ØªÙ† Ø±Ø§ Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ù†ÛŒØ¯ Ùˆ Ù†ÙˆØ¹ Ú©Ø§Ù„â€ŒØ§ÙˆØª Ø±Ø§ Ø§Ø² Ù‡Ù…ÛŒÙ† Ù¾Ù†Ù„ Ø¨Ø²Ù†ÛŒØ¯.</p>
           </div>
         )}
         {activePanel === 'media' && (
@@ -860,24 +865,24 @@ function RightPanelV2({
             {document.assets.length ? document.assets.slice(0, 80).map(asset => (
               <button key={asset.id} type="button" onClick={() => onInsertImage(asset.id)}>
                 <img src={asset.url} alt={asset.caption || ''} loading="lazy" />
-                <span>{asset.caption || `تصویر صفحه ${asset.printNumber || ''}`}</span>
+                <span>{asset.caption || `ØªØµÙˆÛŒØ± ØµÙØ­Ù‡ ${asset.printNumber || ''}`}</span>
               </button>
-            )) : <p className="editor-v2-empty-panel">تصویری در سند شناسایی نشده است.</p>}
+            )) : <p className="editor-v2-empty-panel">ØªØµÙˆÛŒØ±ÛŒ Ø¯Ø± Ø³Ù†Ø¯ Ø´Ù†Ø§Ø³Ø§ÛŒÛŒ Ù†Ø´Ø¯Ù‡ Ø§Ø³Øª.</p>}
           </div>
         )}
         {activePanel === 'interactive' && (
           <div className="editor-v2-action-grid">
             {[
-              ['quiz', 'Quiz چندگزینه‌ای'],
-              ['truefalse', 'صحیح/غلط'],
-              ['flashcard', 'فلش‌کارت'],
-              ['accordion', 'آکاردئون'],
-              ['tabs', 'تب‌ها'],
-              ['timeline', 'تایم‌لاین'],
-              ['gallery', 'گالری تصویر'],
-              ['scrollytelling', 'استوری‌تلینگ'],
-              ['algorithm', 'الگوریتم تعاملی'],
-              ['author', 'معرفی نویسنده'],
+              ['quiz', 'Quiz Ú†Ù†Ø¯Ú¯Ø²ÛŒÙ†Ù‡â€ŒØ§ÛŒ'],
+              ['truefalse', 'ØµØ­ÛŒØ­/ØºÙ„Ø·'],
+              ['flashcard', 'ÙÙ„Ø´â€ŒÚ©Ø§Ø±Øª'],
+              ['accordion', 'Ø¢Ú©Ø§Ø±Ø¯Ø¦ÙˆÙ†'],
+              ['tabs', 'ØªØ¨â€ŒÙ‡Ø§'],
+              ['timeline', 'ØªØ§ÛŒÙ…â€ŒÙ„Ø§ÛŒÙ†'],
+              ['gallery', 'Ú¯Ø§Ù„Ø±ÛŒ ØªØµÙˆÛŒØ±'],
+              ['scrollytelling', 'Ø§Ø³ØªÙˆØ±ÛŒâ€ŒØªÙ„ÛŒÙ†Ú¯'],
+              ['algorithm', 'Ø§Ù„Ú¯ÙˆØ±ÛŒØªÙ… ØªØ¹Ø§Ù…Ù„ÛŒ'],
+              ['author', 'Ù…Ø¹Ø±ÙÛŒ Ù†ÙˆÛŒØ³Ù†Ø¯Ù‡'],
             ].map(([kind, label]) => <button key={kind} type="button" onClick={() => onInsertInteractive(kind)}><Sparkles size={15} />{label}</button>)}
           </div>
         )}
@@ -885,9 +890,9 @@ function RightPanelV2({
           <div className="editor-v2-action-grid">
             <button type="button" disabled={aiBusy} onClick={onAiEnhance}>
               {aiBusy ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
-              پیشنهاد ارتقای خوانایی
+              Ù¾ÛŒØ´Ù†Ù‡Ø§Ø¯ Ø§Ø±ØªÙ‚Ø§ÛŒ Ø®ÙˆØ§Ù†Ø§ÛŒÛŒ
             </button>
-            <p>{aiMessage || 'اگر بلوکی انتخاب شده باشد همان متن بررسی می‌شود؛ در غیر این صورت متن صفحه/ابتدای سند مبنا قرار می‌گیرد.'}</p>
+            <p>{aiMessage || 'Ø§Ú¯Ø± Ø¨Ù„ÙˆÚ©ÛŒ Ø§Ù†ØªØ®Ø§Ø¨ Ø´Ø¯Ù‡ Ø¨Ø§Ø´Ø¯ Ù‡Ù…Ø§Ù† Ù…ØªÙ† Ø¨Ø±Ø±Ø³ÛŒ Ù…ÛŒâ€ŒØ´ÙˆØ¯Ø› Ø¯Ø± ØºÛŒØ± Ø§ÛŒÙ† ØµÙˆØ±Øª Ù…ØªÙ† ØµÙØ­Ù‡/Ø§Ø¨ØªØ¯Ø§ÛŒ Ø³Ù†Ø¯ Ù…Ø¨Ù†Ø§ Ù‚Ø±Ø§Ø± Ù…ÛŒâ€ŒÚ¯ÛŒØ±Ø¯.'}</p>
           </div>
         )}
       </section>
@@ -931,12 +936,12 @@ export default function EditorV2Page() {
         ? 'dirty'
         : 'saved'
   const saveButtonTitle = visualSaveState === 'saving'
-    ? 'در حال ذخیره'
+    ? 'Ø¯Ø± Ø­Ø§Ù„ Ø°Ø®ÛŒØ±Ù‡'
     : visualSaveState === 'error'
-      ? 'تلاش دوباره برای ذخیره'
+      ? 'ØªÙ„Ø§Ø´ Ø¯ÙˆØ¨Ø§Ø±Ù‡ Ø¨Ø±Ø§ÛŒ Ø°Ø®ÛŒØ±Ù‡'
       : visualSaveState === 'dirty'
-        ? 'تغییرات ذخیره‌نشده'
-        : 'ذخیره شد'
+        ? 'ØªØºÛŒÛŒØ±Ø§Øª Ø°Ø®ÛŒØ±Ù‡â€ŒÙ†Ø´Ø¯Ù‡'
+        : 'Ø°Ø®ÛŒØ±Ù‡ Ø´Ø¯'
   const saveButtonClass = `${visualSaveState === 'saving' ? 'is-saving' : ''} ${visualSaveState === 'saved' ? 'is-saved' : ''} ${visualSaveState === 'dirty' ? 'is-dirty' : ''} ${visualSaveState === 'error' ? 'is-error' : ''}`
 
   useEffect(() => {
@@ -957,7 +962,7 @@ export default function EditorV2Page() {
       .then(found => {
         if (!alive) return
         if (!found) {
-          setError('کتاب پیدا نشد.')
+          setError('Ú©ØªØ§Ø¨ Ù¾ÛŒØ¯Ø§ Ù†Ø´Ø¯.')
           setBook(null)
           setDocument(null)
           return
@@ -971,7 +976,7 @@ export default function EditorV2Page() {
       })
       .catch(reason => {
         if (!alive) return
-        setError(reason instanceof Error ? reason.message : 'لود کتاب ناموفق بود.')
+        setError(reason instanceof Error ? reason.message : 'Ù„ÙˆØ¯ Ú©ØªØ§Ø¨ Ù†Ø§Ù…ÙˆÙÙ‚ Ø¨ÙˆØ¯.')
       })
       .finally(() => {
         if (alive) setLoading(false)
@@ -1419,14 +1424,14 @@ export default function EditorV2Page() {
   }, [markEditorDirty, pushEditorHistory, readToolbarStateFromSelection, rememberEditorSelection, restoreEditorSelection, scheduleToolbarDocumentRefresh])
 
   const createLinkForSelection = useCallback(() => {
-    const href = window.prompt('آدرس لینک را وارد کنید')
+    const href = window.prompt('Ø¢Ø¯Ø±Ø³ Ù„ÛŒÙ†Ú© Ø±Ø§ ÙˆØ§Ø±Ø¯ Ú©Ù†ÛŒØ¯')
     if (!href?.trim()) return
     execTextCommand('createLink', href.trim())
   }, [execTextCommand])
 
   const insertSimpleTable = useCallback(() => {
     const tableId = createV2Id('table', Date.now())
-    const html = `<table data-block-id="${tableId}" data-v2-type="table"><tbody><tr><td>عنوان</td><td>مقدار</td></tr><tr><td></td><td></td></tr></tbody></table>`
+    const html = `<table data-block-id="${tableId}" data-v2-type="table"><tbody><tr><td>Ø¹Ù†ÙˆØ§Ù†</td><td>Ù…Ù‚Ø¯Ø§Ø±</td></tr><tr><td></td><td></td></tr></tbody></table>`
     execTextCommand('insertHTML', html)
   }, [execTextCommand])
 
@@ -1440,14 +1445,14 @@ export default function EditorV2Page() {
       : null
     if (!targetBlockId) {
       calloutActionLockRef.current = false
-      setAiMessage('برای ساخت کال‌اوت، نشانگر را داخل یک پاراگراف بگذارید یا بخشی از متن را انتخاب کنید.')
+      setAiMessage('Ø¨Ø±Ø§ÛŒ Ø³Ø§Ø®Øª Ú©Ø§Ù„â€ŒØ§ÙˆØªØŒ Ù†Ø´Ø§Ù†Ú¯Ø± Ø±Ø§ Ø¯Ø§Ø®Ù„ ÛŒÚ© Ù¾Ø§Ø±Ø§Ú¯Ø±Ø§Ù Ø¨Ú¯Ø°Ø§Ø±ÛŒØ¯ ÛŒØ§ Ø¨Ø®Ø´ÛŒ Ø§Ø² Ù…ØªÙ† Ø±Ø§ Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ù†ÛŒØ¯.')
       setActivePanel('upgrade')
       return
     }
     const meta = CALLOUT_META_V2[variant]
     if (!target || !root?.contains(target)) {
       calloutActionLockRef.current = false
-      setAiMessage('متن انتخاب‌شده در بوم ادیتور پیدا نشد.')
+      setAiMessage('Ù…ØªÙ† Ø§Ù†ØªØ®Ø§Ø¨â€ŒØ´Ø¯Ù‡ Ø¯Ø± Ø¨ÙˆÙ… Ø§Ø¯ÛŒØªÙˆØ± Ù¾ÛŒØ¯Ø§ Ù†Ø´Ø¯.')
       return
     }
     const existingCallout = target.closest<HTMLElement>('section.editor-v2-callout[data-v2-type="callout"]')
@@ -1459,15 +1464,17 @@ export default function EditorV2Page() {
       existingCallout.dataset.calloutTitle = meta.title
       existingCallout.dataset.calloutIcon = meta.icon
       const iconElement = existingCallout.querySelector<HTMLElement>('.book-callout-icon')
+      const bgIconElement = existingCallout.querySelector<HTMLElement>('.book-callout-bg-icon')
       const titleElement = existingCallout.querySelector<HTMLElement>('[data-callout-title-editor], .book-callout-head strong')
       if (iconElement) iconElement.textContent = meta.icon
+      if (bgIconElement) bgIconElement.textContent = meta.icon
       if (titleElement && !titleElement.textContent?.trim()) titleElement.textContent = meta.title
       setSelectedBlockId(existingCallout.dataset.blockId)
     } else {
       const editableTarget = /^h[1-6]$/i.test(target.tagName) ? retagEditorBlockElement(target, 'p') : target
       if (!['p', 'div'].includes(editableTarget.tagName.toLowerCase())) {
         calloutActionLockRef.current = false
-        setAiMessage('فقط پاراگراف یا عنوان انتخاب‌شده را می‌توان به کال‌اوت تبدیل کرد.')
+        setAiMessage('ÙÙ‚Ø· Ù¾Ø§Ø±Ø§Ú¯Ø±Ø§Ù ÛŒØ§ Ø¹Ù†ÙˆØ§Ù† Ø§Ù†ØªØ®Ø§Ø¨â€ŒØ´Ø¯Ù‡ Ø±Ø§ Ù…ÛŒâ€ŒØªÙˆØ§Ù† Ø¨Ù‡ Ú©Ø§Ù„â€ŒØ§ÙˆØª ØªØ¨Ø¯ÛŒÙ„ Ú©Ø±Ø¯.')
         return
       }
       editableTarget.dataset.v2Type = 'paragraph'
@@ -1480,7 +1487,7 @@ export default function EditorV2Page() {
       section.dataset.calloutVariant = variant
       section.dataset.calloutTitle = meta.title
       section.dataset.calloutIcon = meta.icon
-      section.innerHTML = `<div class="book-callout-head"><span class="book-callout-icon" contenteditable="false">${escapeHtmlV2(meta.icon)}</span><strong class="book-callout-title" contenteditable="true" data-callout-title-editor="true">${escapeHtmlV2(meta.title)}</strong></div><div class="book-callout-content"></div>`
+      section.innerHTML = `<button type="button" class="book-callout-unwrap editor-v2-callout-unwrap" contenteditable="false" data-callout-unwrap="true" aria-label="Unwrap callout">×</button><div class="book-callout-head"><span class="book-callout-icon" contenteditable="false">${escapeHtmlV2(meta.icon)}</span><strong class="book-callout-title" contenteditable="true" data-callout-title-editor="true">${escapeHtmlV2(meta.title)}</strong></div><div class="book-callout-bg-icon" contenteditable="false">${escapeHtmlV2(meta.icon)}</div><div class="book-callout-content"></div>`
       const content = section.querySelector<HTMLElement>('.book-callout-content')
       editableTarget.replaceWith(section)
       content?.appendChild(editableTarget)
@@ -1563,17 +1570,17 @@ export default function EditorV2Page() {
     if (!document) return
     const pageText = aiSourceText()
     if (!pageText.trim()) {
-      setAiMessage('متنی برای تحلیل پیدا نشد.')
+      setAiMessage('Ù…ØªÙ†ÛŒ Ø¨Ø±Ø§ÛŒ ØªØ­Ù„ÛŒÙ„ Ù¾ÛŒØ¯Ø§ Ù†Ø´Ø¯.')
       return
     }
     setAiBusy(true)
-    setAiMessage('در حال برآورد هزینه...')
+    setAiMessage('Ø¯Ø± Ø­Ø§Ù„ Ø¨Ø±Ø¢ÙˆØ±Ø¯ Ù‡Ø²ÛŒÙ†Ù‡...')
     try {
       const estimate = await estimateAiTextUsage({ action: 'callout_suggestions', bookTitle: document.title, pageText, bookId: document.sourceBookId, user })
       setAiApproval({ usage: estimate.usage, provider: estimate.provider, model: estimate.model, pageText })
-      setAiMessage('هزینه برآورد شد؛ برای اجرا تایید کنید.')
+      setAiMessage('Ù‡Ø²ÛŒÙ†Ù‡ Ø¨Ø±Ø¢ÙˆØ±Ø¯ Ø´Ø¯Ø› Ø¨Ø±Ø§ÛŒ Ø§Ø¬Ø±Ø§ ØªØ§ÛŒÛŒØ¯ Ú©Ù†ÛŒØ¯.')
     } catch (error) {
-      setAiMessage(error instanceof Error ? error.message : 'برآورد هزینه ناموفق بود.')
+      setAiMessage(error instanceof Error ? error.message : 'Ø¨Ø±Ø¢ÙˆØ±Ø¯ Ù‡Ø²ÛŒÙ†Ù‡ Ù†Ø§Ù…ÙˆÙÙ‚ Ø¨ÙˆØ¯.')
     } finally {
       setAiBusy(false)
     }
@@ -1588,7 +1595,7 @@ export default function EditorV2Page() {
   const runApprovedAi = useCallback(async () => {
     if (!document || !aiApproval) return
     setAiBusy(true)
-    setAiMessage('در حال تولید پیشنهاد...')
+    setAiMessage('Ø¯Ø± Ø­Ø§Ù„ ØªÙˆÙ„ÛŒØ¯ Ù¾ÛŒØ´Ù†Ù‡Ø§Ø¯...')
     try {
       const result = await runAiThroughGateway({ action: 'callout_suggestions', bookTitle: document.title, pageText: aiApproval.pageText, bookId: document.sourceBookId, user })
       const suggestion = result.content?.type === 'callout_suggestions' ? result.content.suggestions?.[0] : null
@@ -1614,9 +1621,9 @@ export default function EditorV2Page() {
       setSelectedBlockId(callout.id)
       recordAiUsage(result.usage)
       setAiApproval(null)
-      setAiMessage('پیشنهاد هوش مصنوعی به متن اضافه شد.')
+      setAiMessage('Ù¾ÛŒØ´Ù†Ù‡Ø§Ø¯ Ù‡ÙˆØ´ Ù…ØµÙ†ÙˆØ¹ÛŒ Ø¨Ù‡ Ù…ØªÙ† Ø§Ø¶Ø§ÙÙ‡ Ø´Ø¯.')
     } catch (error) {
-      setAiMessage(error instanceof Error ? error.message : 'تولید پیشنهاد ناموفق بود.')
+      setAiMessage(error instanceof Error ? error.message : 'ØªÙˆÙ„ÛŒØ¯ Ù¾ÛŒØ´Ù†Ù‡Ø§Ø¯ Ù†Ø§Ù…ÙˆÙÙ‚ Ø¨ÙˆØ¯.')
     } finally {
       setAiBusy(false)
     }
@@ -1655,7 +1662,7 @@ export default function EditorV2Page() {
     return (
       <div className="editor-v2-loading">
         <Loader2 className="animate-spin" />
-        <span>در حال آماده‌سازی ادیتور جدید...</span>
+        <span>Ø¯Ø± Ø­Ø§Ù„ Ø¢Ù…Ø§Ø¯Ù‡â€ŒØ³Ø§Ø²ÛŒ Ø§Ø¯ÛŒØªÙˆØ± Ø¬Ø¯ÛŒØ¯...</span>
       </div>
     )
   }
@@ -1664,8 +1671,8 @@ export default function EditorV2Page() {
     return (
       <div className="editor-v2-error menu-glass-70">
         <BookOpen size={32} />
-        <h1>{error || 'کتاب پیدا نشد.'}</h1>
-        <Button onClick={() => navigate('/publisher/me')}><ArrowRight size={18} />بازگشت به انتشارات</Button>
+        <h1>{error || 'Ú©ØªØ§Ø¨ Ù¾ÛŒØ¯Ø§ Ù†Ø´Ø¯.'}</h1>
+        <Button onClick={() => navigate('/publisher/me')}><ArrowRight size={18} />Ø¨Ø§Ø²Ú¯Ø´Øª Ø¨Ù‡ Ø§Ù†ØªØ´Ø§Ø±Ø§Øª</Button>
       </div>
     )
   }
@@ -1674,7 +1681,7 @@ export default function EditorV2Page() {
     <div className="editor-v2-root" dir="rtl">
       <header className="editor-v2-topbar menu-glass-70">
         <div className="editor-v2-title">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/publisher/me')} aria-label="بازگشت"><ArrowRight size={19} /></Button>
+          <Button variant="ghost" size="icon" onClick={() => navigate('/publisher/me')} aria-label="Ø¨Ø§Ø²Ú¯Ø´Øª"><ArrowRight size={19} /></Button>
           {document.coverUrl && <img src={document.coverUrl} alt={document.title} loading="lazy" />}
           <div>
             <small>Editor V2</small>
@@ -1682,25 +1689,25 @@ export default function EditorV2Page() {
           </div>
         </div>
         <div className="editor-v2-actions">
-          <Button variant="outline" onClick={() => setMetadataOpen(value => !value)}><Info size={17} />مشخصات</Button>
-          <Button variant="outline" onClick={() => openReaderPreview(book.id, `/edit-v2/${book.id}`)}><Eye size={17} />پیش‌نمایش</Button>
+          <Button variant="outline" onClick={() => setMetadataOpen(value => !value)}><Info size={17} />Ù…Ø´Ø®ØµØ§Øª</Button>
+          <Button variant="outline" onClick={() => openReaderPreview(book.id, `/edit-v2/${book.id}`)}><Eye size={17} />Ù¾ÛŒØ´â€ŒÙ†Ù…Ø§ÛŒØ´</Button>
           <Button className={`editor-v2-manual-save ${saveButtonClass}`} onClick={() => void saveDocument()} disabled={saveState === 'saving'} title={saveButtonTitle}>
             <span className="editor-v2-save-button-icon">
               {visualSaveState === 'saving' ? <Loader2 size={17} /> : <Save size={17} />}
               {visualSaveState === 'saved' && <Check size={10} className="editor-v2-save-button-check" />}
             </span>
-            ذخیره دستی
+            Ø°Ø®ÛŒØ±Ù‡ Ø¯Ø³ØªÛŒ
           </Button>
         </div>
       </header>
 
       {metadataOpen && (
         <section className="editor-v2-metadata menu-glass-70">
-          <div><span>نویسنده</span><strong>{document.metadata.author || 'ثبت نشده'}</strong></div>
-          <div><span>ناشر</span><strong>{document.metadata.publisherName || 'ثبت نشده'}</strong></div>
-          <div><span>نوع کتاب</span><strong>{document.metadata.bookType || 'ثبت نشده'}</strong></div>
-          <div><span>دسته‌بندی</span><strong>{document.metadata.category || 'ثبت نشده'}</strong></div>
-          <div><span>صفحات</span><strong>{document.pages.length.toLocaleString('fa-IR')}</strong></div>
+          <div><span>Ù†ÙˆÛŒØ³Ù†Ø¯Ù‡</span><strong>{document.metadata.author || 'Ø«Ø¨Øª Ù†Ø´Ø¯Ù‡'}</strong></div>
+          <div><span>Ù†Ø§Ø´Ø±</span><strong>{document.metadata.publisherName || 'Ø«Ø¨Øª Ù†Ø´Ø¯Ù‡'}</strong></div>
+          <div><span>Ù†ÙˆØ¹ Ú©ØªØ§Ø¨</span><strong>{document.metadata.bookType || 'Ø«Ø¨Øª Ù†Ø´Ø¯Ù‡'}</strong></div>
+          <div><span>Ø¯Ø³ØªÙ‡â€ŒØ¨Ù†Ø¯ÛŒ</span><strong>{document.metadata.category || 'Ø«Ø¨Øª Ù†Ø´Ø¯Ù‡'}</strong></div>
+          <div><span>ØµÙØ­Ø§Øª</span><strong>{document.pages.length.toLocaleString('fa-IR')}</strong></div>
         </section>
       )}
 
@@ -1754,9 +1761,9 @@ export default function EditorV2Page() {
       </div>
 
       <div className="editor-v2-floating">
-        <button type="button" onClick={scrollToTop} aria-label="برگشت به ابتدای ادیتور">↑</button>
-        <button type="button" onClick={() => scrollToPageBreak('previous')} aria-label="صفحه قبلی"><ChevronRight size={18} /></button>
-        <button type="button" onClick={() => scrollToPageBreak('next')} aria-label="صفحه بعدی"><ChevronLeft size={18} /></button>
+        <button type="button" onClick={scrollToTop} aria-label="Ø¨Ø±Ú¯Ø´Øª Ø¨Ù‡ Ø§Ø¨ØªØ¯Ø§ÛŒ Ø§Ø¯ÛŒØªÙˆØ±">â†‘</button>
+        <button type="button" onClick={() => scrollToPageBreak('previous')} aria-label="ØµÙØ­Ù‡ Ù‚Ø¨Ù„ÛŒ"><ChevronRight size={18} /></button>
+        <button type="button" onClick={() => scrollToPageBreak('next')} aria-label="ØµÙØ­Ù‡ Ø¨Ø¹Ø¯ÛŒ"><ChevronLeft size={18} /></button>
         <button
           type="button"
           className={`editor-v2-floating-save ${saveButtonClass}`}
@@ -1777,18 +1784,18 @@ export default function EditorV2Page() {
           <section className="editor-v2-ai-modal menu-glass-70" role="dialog" aria-modal="true">
             <header>
               <Sparkles size={20} />
-              <strong>تایید هزینه هوش مصنوعی</strong>
+              <strong>ØªØ§ÛŒÛŒØ¯ Ù‡Ø²ÛŒÙ†Ù‡ Ù‡ÙˆØ´ Ù…ØµÙ†ÙˆØ¹ÛŒ</strong>
             </header>
-            <p>این عملیات فقط پیشنهاد callout تولید می‌کند و هیچ بخشی از متن اصلی را حذف یا جایگزین نمی‌کند.</p>
+            <p>Ø§ÛŒÙ† Ø¹Ù…Ù„ÛŒØ§Øª ÙÙ‚Ø· Ù¾ÛŒØ´Ù†Ù‡Ø§Ø¯ callout ØªÙˆÙ„ÛŒØ¯ Ù…ÛŒâ€ŒÚ©Ù†Ø¯ Ùˆ Ù‡ÛŒÚ† Ø¨Ø®Ø´ÛŒ Ø§Ø² Ù…ØªÙ† Ø§ØµÙ„ÛŒ Ø±Ø§ Ø­Ø°Ù ÛŒØ§ Ø¬Ø§ÛŒÚ¯Ø²ÛŒÙ† Ù†Ù…ÛŒâ€ŒÚ©Ù†Ø¯.</p>
             <div className="editor-v2-ai-cost">
-              <span><b>{aiApproval.usage.chargedCredits.toLocaleString('fa-IR')}</b><small>کردیت</small></span>
-              <span><b>{aiApproval.usage.chargedToman.toLocaleString('fa-IR')}</b><small>تومان</small></span>
-              <span><b>${aiApproval.usage.chargedUsd.toFixed(6)}</b><small>دلار</small></span>
+              <span><b>{aiApproval.usage.chargedCredits.toLocaleString('fa-IR')}</b><small>Ú©Ø±Ø¯ÛŒØª</small></span>
+              <span><b>{aiApproval.usage.chargedToman.toLocaleString('fa-IR')}</b><small>ØªÙˆÙ…Ø§Ù†</small></span>
+              <span><b>${aiApproval.usage.chargedUsd.toFixed(6)}</b><small>Ø¯Ù„Ø§Ø±</small></span>
             </div>
-            <small>{aiApproval.provider} · {aiApproval.model}</small>
+            <small>{aiApproval.provider} Â· {aiApproval.model}</small>
             <footer>
-              <Button variant="outline" onClick={() => setAiApproval(null)} disabled={aiBusy}>لغو</Button>
-              <Button onClick={() => void runApprovedAi()} disabled={aiBusy}>{aiBusy ? 'در حال تولید...' : 'تایید و اجرا'}</Button>
+              <Button variant="outline" onClick={() => setAiApproval(null)} disabled={aiBusy}>Ù„ØºÙˆ</Button>
+              <Button onClick={() => void runApprovedAi()} disabled={aiBusy}>{aiBusy ? 'Ø¯Ø± Ø­Ø§Ù„ ØªÙˆÙ„ÛŒØ¯...' : 'ØªØ§ÛŒÛŒØ¯ Ùˆ Ø§Ø¬Ø±Ø§'}</Button>
             </footer>
           </section>
         </div>
