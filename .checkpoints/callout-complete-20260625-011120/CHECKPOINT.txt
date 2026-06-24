@@ -1,0 +1,4 @@
+﻿checkpoint=callout-complete
+created_at=2026-06-25T01:11:21.5812542+03:30
+git_commit=b9bd4c2425f901ea3f9041b79c479b7dbfc552eb
+note=Callout editor and shared rendering checkpoint before media panel fixes
