@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowRight, BookOpen, ChevronDown, ChevronLeft, ChevronRight, Eye, FileText, Image as ImageIcon, Info, ListTree, Loader2, PanelRight, Save, Sparkles, Type, Undo2 } from 'lucide-react'
+import { AlignCenter, AlignLeft, AlignRight, ArrowRight, Bold, BookOpen, ChevronDown, ChevronLeft, ChevronRight, Eye, FileText, Image as ImageIcon, Info, Italic, List, ListOrdered, ListTree, Loader2, PanelRight, Redo2, Save, Sparkles, Type, Underline as UnderlineIcon, Undo2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { BookRendererV2 } from '@/components/book-content-v2'
 import { getBook } from '@/lib/book-repository'
 import { updatePublisherBook, type PublisherBook } from '@/lib/publisher-books'
 import { openReaderPreview } from '@/lib/app-routes'
@@ -11,7 +10,7 @@ import { estimateAiTextUsage, runAiThroughGateway, type RunAiResult } from '@/li
 import { useAuthContext } from '@/lib/auth-context'
 import { useCredits } from '@/hooks/useCredits'
 import { creditsBus } from '@/lib/credits-bus'
-import { buildTocFromHeadingsV2, createV2Id, documentV2ToConfirmedToc, documentV2ToLegacyPages, legacyBookToDocumentV2, normalizeBookTextV2, resolveTocTreeV2, tocAsFlatListV2, type BookBlockV2, type BookDocumentV2, type BookTocItemV2, type CalloutBlockV2, type HeadingBlockV2, type ParagraphBlockV2 } from '@/lib/book-document-v2'
+import { buildTocFromHeadingsV2, createV2Id, documentV2ToConfirmedToc, documentV2ToLegacyPages, legacyBookToDocumentV2, normalizeBookTextV2, resolveTocTreeV2, tocAsFlatListV2, type BookBlockV2, type BookDocumentV2, type BookInlineV2, type BookTocItemV2, type CalloutBlockV2, type ParagraphBlockV2 } from '@/lib/book-document-v2'
 import type { PrintPageValue } from '@/lib/book-content'
 import type { MockBook } from '@/lib/mock-data'
 import './editor-v2.css'
@@ -45,6 +44,145 @@ const CALLOUT_META_V2: Record<(typeof CALLOUT_VARIANTS_V2)[number], { title: str
   glossary: { title: 'تعریف واژه', icon: '📘' },
   data: { title: 'داده و منبع', icon: '📊' },
   margin: { title: 'یادداشت حاشیه‌ای', icon: '📝' },
+}
+
+const escapeHtmlV2 = (value = '') => String(value)
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+
+const attrV2 = (name: string, value: unknown) => value === undefined || value === null || value === '' ? '' : ` ${name}="${escapeHtmlV2(String(value))}"`
+
+function inlineToEditorHtmlV2(block: ParagraphBlockV2 | HeadingBlockV2) {
+  if (!block.inline?.length) return escapeHtmlV2(block.text)
+  return block.inline.map(span => {
+    let html = escapeHtmlV2(span.text)
+    const marks = span.marks || []
+    if (marks.includes('subscript')) html = `<sub>${html}</sub>`
+    if (marks.includes('superscript')) html = `<sup>${html}</sup>`
+    if (marks.includes('bold')) html = `<strong>${html}</strong>`
+    if (marks.includes('italic')) html = `<em>${html}</em>`
+    if (marks.includes('underline')) html = `<u>${html}</u>`
+    if (marks.includes('strike')) html = `<s>${html}</s>`
+    if (span.href) html = `<a href="${escapeHtmlV2(span.href)}">${html}</a>`
+    return html
+  }).join('')
+}
+
+function blockToEditorHtmlV2(block: BookBlockV2): string {
+  if (block.type === 'heading') {
+    return `<h${block.level}${attrV2('id', block.anchor || block.id)} data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="heading" data-level="${block.level}"${attrV2('dir', block.direction)}>${inlineToEditorHtmlV2(block)}</h${block.level}>`
+  }
+  if (block.type === 'paragraph') {
+    return `<p${attrV2('id', block.anchor || block.id)} data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="paragraph"${attrV2('dir', block.direction)}>${inlineToEditorHtmlV2(block)}</p>`
+  }
+  if (block.type === 'list') {
+    const tag = block.ordered ? 'ol' : 'ul'
+    return `<${tag} data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="list">${block.items.map(item => `<li>${escapeHtmlV2(item.text)}</li>`).join('')}</${tag}>`
+  }
+  if (block.type === 'image') {
+    const width = block.widthPercent ? `${Math.max(12, Math.min(100, block.widthPercent))}%` : block.widthPx ? `${Math.max(80, block.widthPx)}px` : ''
+    return `<figure contenteditable="false" data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="image"${attrV2('data-image-id', block.imageId)}${attrV2('data-width-px', block.widthPx)}${attrV2('data-width-percent', block.widthPercent)}>${block.url ? `<img src="${escapeHtmlV2(block.url)}" alt="${escapeHtmlV2(block.caption || '')}"${width ? ` style="max-width:${escapeHtmlV2(width)}"` : ''}>` : '<div class="book-v2-missing-image">تصویر در دسترس نیست</div>'}${block.caption ? `<figcaption>${escapeHtmlV2(block.caption)}</figcaption>` : ''}</figure>`
+  }
+  if (block.type === 'table') {
+    const headers = block.headers?.length ? `<thead><tr>${block.headers.map(cell => `<th>${escapeHtmlV2(cell)}</th>`).join('')}</tr></thead>` : ''
+    const rows = block.rows.map(row => `<tr>${row.map(cell => `<td>${escapeHtmlV2(cell)}</td>`).join('')}</tr>`).join('')
+    return `<div contenteditable="false" class="final-table book-v2-table" data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="table">${block.caption ? `<p class="reader-table-title">${escapeHtmlV2(block.caption)}</p>` : ''}<table>${headers}<tbody>${rows}</tbody></table></div>`
+  }
+  if (block.type === 'callout') {
+    const body = block.blocks.map(blockToEditorHtmlV2).join('')
+    return `<section contenteditable="false" class="book-callout-v2 book-callout-${escapeHtmlV2(block.variant)}" data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="callout" data-variant="${escapeHtmlV2(block.variant)}"><header><span>${escapeHtmlV2(block.icon || '')}</span><strong>${escapeHtmlV2(block.title)}</strong></header>${body}</section>`
+  }
+  if (block.type === 'interactive') {
+    return `<section contenteditable="false" class="book-interactive-v2" data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="interactive" data-kind="${escapeHtmlV2(block.kind)}"><strong>${escapeHtmlV2(block.title || String(block.payload.title || 'بخش تعاملی'))}</strong></section>`
+  }
+  if (block.type === 'math') {
+    return `<p data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="math">${escapeHtmlV2(block.expression)}</p>`
+  }
+  return ''
+}
+
+function documentToEditorHtmlV2(bookDocument: BookDocumentV2) {
+  return bookDocument.pages.map((page, index) => {
+    const pageBreak = index > 0
+      ? `<div contenteditable="false" class="editor-v2-flow-page-break" data-page-break="true"><span>${escapeHtmlV2(String(page.printNumber ?? index + 1))}</span></div>`
+      : ''
+    return `<section class="editor-v2-flow-page" data-page-index="${page.index}"${attrV2('data-print-page', page.printNumber)}>${pageBreak}${page.blocks.map(blockToEditorHtmlV2).join('')}</section>`
+  }).join('')
+}
+
+function textFromElementV2(element: Element) {
+  return normalizeBookTextV2((element as HTMLElement).innerText || element.textContent || '')
+}
+
+function existingBlocksV2(bookDocument: BookDocumentV2) {
+  const map = new Map<string, BookBlockV2>()
+  const visit = (blocks: BookBlockV2[]) => {
+    blocks.forEach(block => {
+      map.set(block.id, block)
+      if (block.type === 'callout') visit(block.blocks)
+    })
+  }
+  bookDocument.pages.forEach(page => visit(page.blocks))
+  return map
+}
+
+function elementToBlockV2(element: Element, page: BookDocumentV2['pages'][number], index: number, existing: Map<string, BookBlockV2>): BookBlockV2 | null {
+  if ((element as HTMLElement).dataset.pageBreak) return null
+  const id = (element as HTMLElement).dataset.blockId || createV2Id('block', page.index, index, Date.now())
+  const old = existing.get(id)
+  const tag = element.tagName.toLowerCase()
+  if (/^h[1-6]$/.test(tag)) {
+    const level = Number(tag.slice(1)) as 1 | 2 | 3 | 4 | 5 | 6
+    return { ...(old && old.type === 'heading' ? old : {}), id, type: 'heading', level, text: textFromElementV2(element), anchor: old?.anchor || id, printNumber: page.printNumber } as HeadingBlockV2
+  }
+  if (tag === 'p' || tag === 'div') {
+    const text = textFromElementV2(element)
+    if (!text) return null
+    return { ...(old && old.type === 'paragraph' ? old : {}), id, type: 'paragraph', text, inline: undefined, anchor: old?.anchor || id, printNumber: page.printNumber } as ParagraphBlockV2
+  }
+  if (tag === 'ol' || tag === 'ul') {
+    const items = Array.from(element.querySelectorAll(':scope > li')).map((li, itemIndex) => ({
+      id: createV2Id('item', id, itemIndex),
+      text: textFromElementV2(li),
+    })).filter(item => item.text)
+    if (!items.length) return null
+    return { ...(old && old.type === 'list' ? old : {}), id, type: 'list', ordered: tag === 'ol', items, anchor: old?.anchor || id, printNumber: page.printNumber }
+  }
+  if (tag === 'figure') {
+    const image = element.querySelector('img')
+    return {
+      ...(old && old.type === 'image' ? old : {}),
+      id,
+      type: 'image',
+      url: image?.getAttribute('src') || (old?.type === 'image' ? old.url : ''),
+      caption: textFromElementV2(element.querySelector('figcaption') || element),
+      imageId: (element as HTMLElement).dataset.imageId || (old?.type === 'image' ? old.imageId : undefined),
+      widthPx: Number((element as HTMLElement).dataset.widthPx) || (old?.type === 'image' ? old.widthPx : undefined),
+      widthPercent: Number((element as HTMLElement).dataset.widthPercent) || (old?.type === 'image' ? old.widthPercent : undefined),
+      anchor: old?.anchor || id,
+      printNumber: page.printNumber,
+    } as BookBlockV2
+  }
+  if ((element as HTMLElement).dataset.v2Type === 'callout' && old?.type === 'callout') return old
+  if ((element as HTMLElement).dataset.v2Type === 'interactive' && old?.type === 'interactive') return old
+  if (old) return old
+  return null
+}
+
+function documentFromEditorDomV2(bookDocument: BookDocumentV2, root: HTMLElement | null): BookDocumentV2 {
+  if (!root) return bookDocument
+  const existing = existingBlocksV2(bookDocument)
+  const pages = bookDocument.pages.map((page, pageIndex) => {
+    const pageElement = root.querySelector<HTMLElement>(`.editor-v2-flow-page[data-page-index="${page.index}"]`) || root.querySelectorAll<HTMLElement>('.editor-v2-flow-page')[pageIndex]
+    if (!pageElement) return page
+    const blocks = Array.from(pageElement.children)
+      .map((element, index) => elementToBlockV2(element, page, index, existing))
+      .filter((block): block is BookBlockV2 => Boolean(block))
+    return { ...page, blocks }
+  })
+  return rebuildDocumentTocV2({ ...bookDocument, pages, updatedAt: new Date().toISOString() })
 }
 
 function mapBlocksV2(blocks: BookBlockV2[], mapper: (block: BookBlockV2) => BookBlockV2 | BookBlockV2[] | null): BookBlockV2[] {
@@ -193,6 +331,9 @@ function RightPanelV2({
   onJumpToToc,
   onInsertImage,
   onInsertInteractive,
+  onApplyCallout,
+  onUnwrapCallout,
+  canUnwrapCallout,
   onAiEnhance,
   aiBusy,
   aiMessage,
@@ -204,6 +345,9 @@ function RightPanelV2({
   onJumpToToc: (item: BookTocItemV2) => void
   onInsertImage: (assetId: string) => void
   onInsertInteractive: (kind: string) => void
+  onApplyCallout: (variant: (typeof CALLOUT_VARIANTS_V2)[number]) => void
+  onUnwrapCallout: () => void
+  canUnwrapCallout: boolean
   onAiEnhance: () => void
   aiBusy: boolean
   aiMessage: string
@@ -251,8 +395,9 @@ function RightPanelV2({
         )}
         {activePanel === 'upgrade' && (
           <div className="editor-v2-action-grid">
-            {CALLOUT_VARIANTS_V2.map(variant => <button key={variant} type="button" onClick={() => setActivePanel('upgrade')}><span>{CALLOUT_META_V2[variant].icon}</span>{CALLOUT_META_V2[variant].title}</button>)}
-            <p>برای تبدیل متن به کال‌اوت، اول یک پاراگراف یا هدینگ را در متن انتخاب کنید و از نوار بالای کاغذ نوع کال‌اوت را بزنید.</p>
+            {CALLOUT_VARIANTS_V2.map(variant => <button key={variant} type="button" onClick={() => onApplyCallout(variant)}><span>{CALLOUT_META_V2[variant].icon}</span>{CALLOUT_META_V2[variant].title}</button>)}
+            <button type="button" disabled={!canUnwrapCallout} onClick={onUnwrapCallout}><Undo2 size={15} />برگرداندن کال‌اوت به متن عادی</button>
+            <p>برای تبدیل متن به کال‌اوت، نشانگر را داخل همان پاراگراف بگذارید یا متن را انتخاب کنید و نوع کال‌اوت را از همین پنل بزنید.</p>
           </div>
         )}
         {activePanel === 'media' && (
@@ -314,7 +459,19 @@ export default function EditorV2Page() {
   const [aiApproval, setAiApproval] = useState<AiApprovalV2 | null>(null)
   const [metadataOpen, setMetadataOpen] = useState(false)
   const canvasRef = useRef<HTMLDivElement | null>(null)
+  const editorSurfaceRef = useRef<HTMLDivElement | null>(null)
+  const skipNextSurfaceSyncRef = useRef(false)
   const selectedBlock = useMemo(() => document ? findBlockInDocumentV2(document, selectedBlockId) : null, [document, selectedBlockId])
+
+  useEffect(() => {
+    if (!document || !editorSurfaceRef.current) return
+    if (skipNextSurfaceSyncRef.current) {
+      skipNextSurfaceSyncRef.current = false
+      return
+    }
+    if (dirty && editorSurfaceRef.current.matches(':focus-within')) return
+    editorSurfaceRef.current.innerHTML = documentToEditorHtmlV2(document)
+  }, [dirty, document])
 
   useEffect(() => {
     let alive = true
@@ -351,7 +508,7 @@ export default function EditorV2Page() {
   const saveDocument = useCallback(async () => {
     if (!book || !document) return
     setSaveState('saving')
-    const nextDocument = { ...document, updatedAt: new Date().toISOString() }
+    const nextDocument = { ...documentFromEditorDomV2(document, editorSurfaceRef.current), updatedAt: new Date().toISOString() }
     const pages = documentV2ToLegacyPages(nextDocument)
     const confirmedToc = documentV2ToConfirmedToc(nextDocument)
     const metadata = {
@@ -365,6 +522,7 @@ export default function EditorV2Page() {
       const patch = { metadata, pages, preview_pages: pages.slice(0, 3).map((_, index) => index), page_count: pages.length } as Partial<PublisherBook>
       updatePublisherBook(book.id, patch)
       if (isUuid(book.id)) await (supabase as any).from('books').update(patch).eq('id', book.id)
+      skipNextSurfaceSyncRef.current = true
       setDocument(nextDocument)
       setBook({ ...book, ...patch })
       setDirty(false)
@@ -384,29 +542,37 @@ export default function EditorV2Page() {
   const commitDocument = useCallback((updater: (current: BookDocumentV2) => BookDocumentV2) => {
     setDocument(current => {
       if (!current) return current
-      const next = updater(current)
+      const base = documentFromEditorDomV2(current, editorSurfaceRef.current)
+      const next = updater(base)
       setDirty(true)
       return next
     })
   }, [])
 
-  const updateTextBlock = useCallback((blockId: string, value: string) => {
-    commitDocument(current => updateBlockInDocumentV2(current, blockId, block => {
-      if (block.type === 'heading') return { ...block, text: normalizeBookTextV2(value), inline: undefined }
-      if (block.type === 'paragraph') return { ...block, text: normalizeBookTextV2(value), inline: undefined }
-      return block
-    }))
-  }, [commitDocument])
+  const updateSelectedBlockFromDom = useCallback(() => {
+    const selection = window.getSelection()
+    const node = selection?.anchorNode
+    const element = node instanceof Element ? node : node?.parentElement
+    const target = element?.closest<HTMLElement>('[data-block-id]')
+    setSelectedBlockId(target?.dataset.blockId)
+  }, [])
 
-  const setSelectedHeadingLevel = useCallback((level: 1 | 2 | 3 | 4 | 5 | 6 | 0) => {
-    if (!selectedBlockId) return
-    commitDocument(current => updateBlockInDocumentV2(current, selectedBlockId, block => {
-      if (block.type === 'heading' && level > 0) return { ...block, level: level as 1 | 2 | 3 | 4 | 5 | 6 }
-      if ((block.type === 'paragraph' || block.type === 'heading') && level > 0) return { ...block, type: 'heading', level: level as 1 | 2 | 3 | 4 | 5 | 6, text: 'text' in block ? block.text : '', inline: 'inline' in block ? block.inline : undefined } as HeadingBlockV2
-      if (block.type === 'heading' && level === 0) return { ...block, type: 'paragraph', text: block.text, inline: block.inline, semantic: undefined } as ParagraphBlockV2
-      return block
-    }))
-  }, [commitDocument, selectedBlockId])
+  const markEditorDirty = useCallback(() => {
+    setDirty(true)
+    window.setTimeout(updateSelectedBlockFromDom, 0)
+  }, [updateSelectedBlockFromDom])
+
+  const execTextCommand = useCallback((command: string, value?: string) => {
+    editorSurfaceRef.current?.focus()
+    window.document.execCommand(command, false, value)
+    markEditorDirty()
+  }, [markEditorDirty])
+
+  const formatCurrentBlock = useCallback((tag: string) => {
+    editorSurfaceRef.current?.focus()
+    window.document.execCommand('formatBlock', false, tag)
+    markEditorDirty()
+  }, [markEditorDirty])
 
   const wrapSelectedCallout = useCallback((variant: (typeof CALLOUT_VARIANTS_V2)[number]) => {
     if (!selectedBlockId) return
@@ -600,30 +766,42 @@ export default function EditorV2Page() {
       )}
 
       <div className="editor-v2-layout">
-        <RightPanelV2 document={document} activePanel={activePanel} setActivePanel={setActivePanel} activeTocId={activeTocId} onJumpToToc={jumpToToc} onInsertImage={insertImageFromAsset} onInsertInteractive={insertInteractiveBlock} onAiEnhance={requestAiEnhance} aiBusy={aiBusy} aiMessage={aiMessage} />
+        <RightPanelV2 document={document} activePanel={activePanel} setActivePanel={setActivePanel} activeTocId={activeTocId} onJumpToToc={jumpToToc} onInsertImage={insertImageFromAsset} onInsertInteractive={insertInteractiveBlock} onApplyCallout={wrapSelectedCallout} onUnwrapCallout={unwrapSelectedCallout} canUnwrapCallout={selectedBlock?.type === 'callout'} onAiEnhance={requestAiEnhance} aiBusy={aiBusy} aiMessage={aiMessage} />
         <main className="editor-v2-canvas" ref={canvasRef} onClick={() => setSelectedBlockId(undefined)}>
           <section className="editor-v2-toolbar menu-glass-70" onClick={event => event.stopPropagation()}>
-            <Button variant="outline" size="icon" disabled={!selectedBlock} onClick={() => setSelectedHeadingLevel(0)} title="متن عادی"><Type size={17} /></Button>
-            <select disabled={!selectedBlock || (selectedBlock.type !== 'paragraph' && selectedBlock.type !== 'heading')} value={selectedBlock?.type === 'heading' ? selectedBlock.level : 0} onChange={event => setSelectedHeadingLevel(Number(event.target.value) as 0 | 1 | 2 | 3 | 4 | 5 | 6)}>
-              <option value={0}>متن</option>
-              <option value={1}>H1</option>
-              <option value={2}>H2</option>
-              <option value={3}>H3</option>
-              <option value={4}>H4</option>
-              <option value={5}>H5</option>
-              <option value={6}>H6</option>
+            <Button variant="outline" size="icon" onClick={() => execTextCommand('undo')} title="بازگشت"><Undo2 size={17} /></Button>
+            <Button variant="outline" size="icon" onClick={() => execTextCommand('redo')} title="انجام دوباره"><Redo2 size={17} /></Button>
+            <Button variant="outline" size="icon" onClick={() => formatCurrentBlock('p')} title="متن عادی"><Type size={17} /></Button>
+            <select defaultValue="" onChange={event => { if (event.target.value) formatCurrentBlock(event.target.value); event.target.value = '' }} title="سطح عنوان">
+              <option value="" disabled>H</option>
+              <option value="h1">H1</option>
+              <option value="h2">H2</option>
+              <option value="h3">H3</option>
+              <option value="h4">H4</option>
+              <option value="h5">H5</option>
+              <option value="h6">H6</option>
             </select>
-            {CALLOUT_VARIANTS_V2.map(variant => (
-              <button key={variant} type="button" disabled={!selectedBlock || (selectedBlock.type !== 'paragraph' && selectedBlock.type !== 'heading' && selectedBlock.type !== 'callout')} onClick={() => wrapSelectedCallout(variant)}>
-                <span>{CALLOUT_META_V2[variant].icon}</span>
-                {CALLOUT_META_V2[variant].title}
-              </button>
-            ))}
-            <Button variant="outline" size="icon" disabled={selectedBlock?.type !== 'callout'} onClick={unwrapSelectedCallout} title="برگشت کال‌اوت به متن عادی"><Undo2 size={17} /></Button>
+            <Button variant="outline" size="icon" onClick={() => execTextCommand('bold')} title="پررنگ"><Bold size={17} /></Button>
+            <Button variant="outline" size="icon" onClick={() => execTextCommand('italic')} title="مورب"><Italic size={17} /></Button>
+            <Button variant="outline" size="icon" onClick={() => execTextCommand('underline')} title="زیرخط"><UnderlineIcon size={17} /></Button>
+            <Button variant="outline" size="icon" onClick={() => execTextCommand('insertUnorderedList')} title="فهرست نقطه‌ای"><List size={17} /></Button>
+            <Button variant="outline" size="icon" onClick={() => execTextCommand('insertOrderedList')} title="فهرست شماره‌ای"><ListOrdered size={17} /></Button>
+            <Button variant="outline" size="icon" onClick={() => execTextCommand('justifyRight')} title="راست‌چین"><AlignRight size={17} /></Button>
+            <Button variant="outline" size="icon" onClick={() => execTextCommand('justifyCenter')} title="وسط‌چین"><AlignCenter size={17} /></Button>
+            <Button variant="outline" size="icon" onClick={() => execTextCommand('justifyLeft')} title="چپ‌چین"><AlignLeft size={17} /></Button>
           </section>
 
           <div className="editor-v2-paper">
-            <BookRendererV2 document={document} editable selectedBlockId={selectedBlockId} onSelectBlock={setSelectedBlockId} onTextChange={updateTextBlock} />
+            <div
+              ref={editorSurfaceRef}
+              className="editor-v2-flow-editor"
+              contentEditable
+              suppressContentEditableWarning
+              spellCheck={false}
+              onInput={markEditorDirty}
+              onMouseUp={updateSelectedBlockFromDom}
+              onKeyUp={updateSelectedBlockFromDom}
+            />
           </div>
         </main>
       </div>
