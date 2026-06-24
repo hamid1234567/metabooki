@@ -1016,6 +1016,11 @@ export default function EditorV2Page() {
     window.requestAnimationFrame(() => refreshDocumentFromEditor())
   }, [refreshDocumentFromEditor])
 
+  const scheduleToolbarDocumentRefresh = useCallback(() => {
+    skipNextSurfaceSyncRef.current = true
+    scheduleRefreshDocumentFromEditor()
+  }, [scheduleRefreshDocumentFromEditor])
+
   const pushEditorHistory = useCallback(() => {
     const html = editorSurfaceRef.current?.innerHTML
     if (!html) return
@@ -1079,7 +1084,7 @@ export default function EditorV2Page() {
       pushEditorHistory()
       Object.assign(fallbackTarget.style, style)
       markEditorDirty()
-      scheduleRefreshDocumentFromEditor()
+      scheduleToolbarDocumentRefresh()
       window.setTimeout(() => setToolbarState(readToolbarStateFromSelection()), 0)
       return true
     }
@@ -1091,7 +1096,7 @@ export default function EditorV2Page() {
       pushEditorHistory()
       Object.assign(fallbackTarget.style, style)
       markEditorDirty()
-      scheduleRefreshDocumentFromEditor()
+      scheduleToolbarDocumentRefresh()
       window.setTimeout(() => setToolbarState(readToolbarStateFromSelection()), 0)
       return true
     }
@@ -1102,7 +1107,7 @@ export default function EditorV2Page() {
       Object.assign(target.style, style)
       markEditorDirty()
       rememberEditorSelection()
-      scheduleRefreshDocumentFromEditor()
+      scheduleToolbarDocumentRefresh()
       window.setTimeout(() => setToolbarState(readToolbarStateFromSelection()), 0)
       return true
     }
@@ -1123,10 +1128,10 @@ export default function EditorV2Page() {
     activeSelection.addRange(nextRange)
     savedSelectionRef.current = nextRange.cloneRange()
     markEditorDirty()
-    scheduleRefreshDocumentFromEditor()
+    scheduleToolbarDocumentRefresh()
     window.setTimeout(() => setToolbarState(readToolbarStateFromSelection()), 0)
     return true
-  }, [markEditorDirty, pushEditorHistory, readToolbarStateFromSelection, rememberEditorSelection, restoreEditorSelection, scheduleRefreshDocumentFromEditor, selectedEditorBlockElement])
+  }, [markEditorDirty, pushEditorHistory, readToolbarStateFromSelection, rememberEditorSelection, restoreEditorSelection, scheduleToolbarDocumentRefresh, selectedEditorBlockElement])
 
   const applyRegularToSelection = useCallback(() => {
     restoreEditorSelection()
@@ -1148,9 +1153,9 @@ export default function EditorV2Page() {
     }
     markEditorDirty()
     rememberEditorSelection()
-    scheduleRefreshDocumentFromEditor()
+    scheduleToolbarDocumentRefresh()
     window.setTimeout(() => setToolbarState(readToolbarStateFromSelection()), 0)
-  }, [editorElementFromCurrentSelection, markEditorDirty, pushEditorHistory, readToolbarStateFromSelection, rememberEditorSelection, restoreEditorSelection, scheduleRefreshDocumentFromEditor, selectedEditorBlockElement])
+  }, [editorElementFromCurrentSelection, markEditorDirty, pushEditorHistory, readToolbarStateFromSelection, rememberEditorSelection, restoreEditorSelection, scheduleToolbarDocumentRefresh, selectedEditorBlockElement])
 
   const applyBlockAlignment = useCallback((alignment: 'left' | 'right' | 'center' | 'justify') => {
     restoreEditorSelection()
@@ -1160,9 +1165,9 @@ export default function EditorV2Page() {
     target.style.textAlign = alignment
     markEditorDirty()
     rememberEditorSelection()
-    scheduleRefreshDocumentFromEditor()
+    scheduleToolbarDocumentRefresh()
     window.setTimeout(() => setToolbarState(readToolbarStateFromSelection()), 0)
-  }, [editorElementFromCurrentSelection, markEditorDirty, pushEditorHistory, readToolbarStateFromSelection, rememberEditorSelection, restoreEditorSelection, scheduleRefreshDocumentFromEditor, selectedEditorBlockElement])
+  }, [editorElementFromCurrentSelection, markEditorDirty, pushEditorHistory, readToolbarStateFromSelection, rememberEditorSelection, restoreEditorSelection, scheduleToolbarDocumentRefresh, selectedEditorBlockElement])
 
   const execTextCommand = useCallback((command: string, value?: string) => {
     if (command === 'undo') {
@@ -1178,9 +1183,9 @@ export default function EditorV2Page() {
     window.document.execCommand(command, false, value)
     markEditorDirty()
     rememberEditorSelection()
-    scheduleRefreshDocumentFromEditor()
+    scheduleToolbarDocumentRefresh()
     window.setTimeout(() => setToolbarState(readToolbarStateFromSelection()), 0)
-  }, [markEditorDirty, pushEditorHistory, readToolbarStateFromSelection, redoEditorChange, rememberEditorSelection, restoreEditorSelection, scheduleRefreshDocumentFromEditor, undoEditorChange])
+  }, [markEditorDirty, pushEditorHistory, readToolbarStateFromSelection, redoEditorChange, rememberEditorSelection, restoreEditorSelection, scheduleToolbarDocumentRefresh, undoEditorChange])
 
   const formatCurrentBlock = useCallback((tag: string) => {
     pushEditorHistory()
@@ -1188,9 +1193,9 @@ export default function EditorV2Page() {
     window.document.execCommand('formatBlock', false, tag)
     markEditorDirty()
     rememberEditorSelection()
-    scheduleRefreshDocumentFromEditor()
+    scheduleToolbarDocumentRefresh()
     window.setTimeout(() => setToolbarState(readToolbarStateFromSelection()), 0)
-  }, [markEditorDirty, pushEditorHistory, readToolbarStateFromSelection, rememberEditorSelection, restoreEditorSelection, scheduleRefreshDocumentFromEditor])
+  }, [markEditorDirty, pushEditorHistory, readToolbarStateFromSelection, rememberEditorSelection, restoreEditorSelection, scheduleToolbarDocumentRefresh])
 
   const setCurrentBlockDirection = useCallback((direction: 'rtl' | 'ltr') => {
     pushEditorHistory()
@@ -1202,9 +1207,9 @@ export default function EditorV2Page() {
     target?.setAttribute('dir', direction)
     markEditorDirty()
     rememberEditorSelection()
-    scheduleRefreshDocumentFromEditor()
+    scheduleToolbarDocumentRefresh()
     window.setTimeout(() => setToolbarState(readToolbarStateFromSelection()), 0)
-  }, [markEditorDirty, pushEditorHistory, readToolbarStateFromSelection, rememberEditorSelection, restoreEditorSelection, scheduleRefreshDocumentFromEditor])
+  }, [markEditorDirty, pushEditorHistory, readToolbarStateFromSelection, rememberEditorSelection, restoreEditorSelection, scheduleToolbarDocumentRefresh])
 
   const createLinkForSelection = useCallback(() => {
     const href = window.prompt('آدرس لینک را وارد کنید')
@@ -1477,6 +1482,10 @@ export default function EditorV2Page() {
                   style={{ '--swatch-color': color.value } as CSSProperties}
                   title={`رنگ متن: ${color.label}`}
                   aria-label={`رنگ متن: ${color.label}`}
+                  onMouseDown={event => {
+                    event.preventDefault()
+                    rememberEditorSelection()
+                  }}
                   onClick={() => applyInlineStyleToSelection({ color: color.value })}
                 />
               ))}
