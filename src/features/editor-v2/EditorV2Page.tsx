@@ -309,6 +309,11 @@ function elementToBlockV2(element: Element, page: BookDocumentV2['pages'][number
   if (v2Type === 'interactive' && old?.type === 'interactive') return old
   if (v2Type === 'table' && old?.type === 'table') return old
   if (v2Type === 'table' || tag === 'table' || element.querySelector(':scope > table')) return tableBlockFromElementV2(element, id, page, old)
+  const nestedDirectList = element.querySelector<HTMLElement>(':scope > ol, :scope > ul')
+  if (nestedDirectList && tag !== 'ol' && tag !== 'ul') {
+    nestedDirectList.dataset.blockId = id
+    return elementToBlockV2(nestedDirectList, page, index, existing)
+  }
   if (/^h[1-6]$/.test(tag)) {
     const level = Number(tag.slice(1)) as 1 | 2 | 3 | 4 | 5 | 6
     const inline = inlineFromElementV2(element)
@@ -673,6 +678,8 @@ export default function EditorV2Page() {
   const canvasRef = useRef<HTMLDivElement | null>(null)
   const editorSurfaceRef = useRef<HTMLDivElement | null>(null)
   const savedSelectionRef = useRef<Range | null>(null)
+  const undoStackRef = useRef<string[]>([])
+  const redoStackRef = useRef<string[]>([])
   const skipNextSurfaceSyncRef = useRef(false)
   const selectedBlock = useMemo(() => document ? findBlockInDocumentV2(document, selectedBlockId) : null, [document, selectedBlockId])
   const visualSaveState: SaveVisualStateV2 = saveState === 'saving'
@@ -855,23 +862,104 @@ export default function EditorV2Page() {
     window.requestAnimationFrame(() => refreshDocumentFromEditor())
   }, [refreshDocumentFromEditor])
 
+  const pushEditorHistory = useCallback(() => {
+    const html = editorSurfaceRef.current?.innerHTML
+    if (!html) return
+    const stack = undoStackRef.current
+    if (stack[stack.length - 1] !== html) {
+      undoStackRef.current = [...stack.slice(-59), html]
+      redoStackRef.current = []
+    }
+  }, [])
+
+  const restoreEditorHtmlSnapshot = useCallback((html: string) => {
+    if (!editorSurfaceRef.current) return
+    editorSurfaceRef.current.innerHTML = html
+    markEditorDirty()
+    scheduleRefreshDocumentFromEditor()
+  }, [markEditorDirty, scheduleRefreshDocumentFromEditor])
+
+  const undoEditorChange = useCallback(() => {
+    const currentHtml = editorSurfaceRef.current?.innerHTML
+    const previousHtml = undoStackRef.current.pop()
+    if (!previousHtml || !currentHtml) return
+    redoStackRef.current = [...redoStackRef.current.slice(-59), currentHtml]
+    restoreEditorHtmlSnapshot(previousHtml)
+  }, [restoreEditorHtmlSnapshot])
+
+  const redoEditorChange = useCallback(() => {
+    const currentHtml = editorSurfaceRef.current?.innerHTML
+    const nextHtml = redoStackRef.current.pop()
+    if (!nextHtml || !currentHtml) return
+    undoStackRef.current = [...undoStackRef.current.slice(-59), currentHtml]
+    restoreEditorHtmlSnapshot(nextHtml)
+  }, [restoreEditorHtmlSnapshot])
+
+  const applyInlineStyleToSelection = useCallback((style: Partial<CSSStyleDeclaration>) => {
+    restoreEditorSelection()
+    const selection = window.getSelection()
+    if (!selection?.rangeCount || !editorSurfaceRef.current) return false
+    const range = selection.getRangeAt(0)
+    const container = range.commonAncestorContainer
+    const element = container.nodeType === Node.ELEMENT_NODE ? container as Element : container.parentElement
+    if (!element || !editorSurfaceRef.current.contains(element)) return false
+    pushEditorHistory()
+    if (range.collapsed) {
+      const target = element.closest<HTMLElement>('[data-block-id], p, h1, h2, h3, h4, h5, h6, li')
+      if (!target) return false
+      Object.assign(target.style, style)
+      markEditorDirty()
+      rememberEditorSelection()
+      scheduleRefreshDocumentFromEditor()
+      return true
+    }
+    const span = window.document.createElement('span')
+    Object.assign(span.style, style)
+    try {
+      range.surroundContents(span)
+    } catch {
+      const contents = range.extractContents()
+      span.appendChild(contents)
+      range.insertNode(span)
+    }
+    const nextRange = window.document.createRange()
+    nextRange.selectNodeContents(span)
+    selection.removeAllRanges()
+    selection.addRange(nextRange)
+    savedSelectionRef.current = nextRange.cloneRange()
+    markEditorDirty()
+    scheduleRefreshDocumentFromEditor()
+    return true
+  }, [markEditorDirty, pushEditorHistory, rememberEditorSelection, restoreEditorSelection, scheduleRefreshDocumentFromEditor])
+
   const execTextCommand = useCallback((command: string, value?: string) => {
+    if (command === 'undo') {
+      undoEditorChange()
+      return
+    }
+    if (command === 'redo') {
+      redoEditorChange()
+      return
+    }
+    pushEditorHistory()
     restoreEditorSelection()
     window.document.execCommand(command, false, value)
     markEditorDirty()
     rememberEditorSelection()
     scheduleRefreshDocumentFromEditor()
-  }, [markEditorDirty, rememberEditorSelection, restoreEditorSelection, scheduleRefreshDocumentFromEditor])
+  }, [markEditorDirty, pushEditorHistory, redoEditorChange, rememberEditorSelection, restoreEditorSelection, scheduleRefreshDocumentFromEditor, undoEditorChange])
 
   const formatCurrentBlock = useCallback((tag: string) => {
+    pushEditorHistory()
     restoreEditorSelection()
     window.document.execCommand('formatBlock', false, tag)
     markEditorDirty()
     rememberEditorSelection()
     scheduleRefreshDocumentFromEditor()
-  }, [markEditorDirty, rememberEditorSelection, restoreEditorSelection, scheduleRefreshDocumentFromEditor])
+  }, [markEditorDirty, pushEditorHistory, rememberEditorSelection, restoreEditorSelection, scheduleRefreshDocumentFromEditor])
 
   const setCurrentBlockDirection = useCallback((direction: 'rtl' | 'ltr') => {
+    pushEditorHistory()
     restoreEditorSelection()
     const selection = window.getSelection()
     const node = selection?.anchorNode
@@ -881,7 +969,7 @@ export default function EditorV2Page() {
     markEditorDirty()
     rememberEditorSelection()
     scheduleRefreshDocumentFromEditor()
-  }, [markEditorDirty, rememberEditorSelection, restoreEditorSelection, scheduleRefreshDocumentFromEditor])
+  }, [markEditorDirty, pushEditorHistory, rememberEditorSelection, restoreEditorSelection, scheduleRefreshDocumentFromEditor])
 
   const createLinkForSelection = useCallback(() => {
     const href = window.prompt('آدرس لینک را وارد کنید')
@@ -1129,7 +1217,7 @@ export default function EditorV2Page() {
               <option value="h5">H5</option>
               <option value="h6">H6</option>
             </select>
-            <select defaultValue="" onChange={event => { if (event.target.value) execTextCommand('fontName', event.target.value); event.target.value = '' }} title="فونت">
+            <select defaultValue="" onChange={event => { if (event.target.value) applyInlineStyleToSelection({ fontFamily: event.target.value }); event.target.value = '' }} title="فونت">
               <option value="" disabled>فونت</option>
               <option value="Vazirmatn">Vazirmatn</option>
               <option value="Tahoma">Tahoma</option>
@@ -1137,7 +1225,7 @@ export default function EditorV2Page() {
               <option value="Georgia">Georgia</option>
               <option value="Times New Roman">Times</option>
             </select>
-            <select defaultValue="" onChange={event => { if (event.target.value) execTextCommand('fontSize', event.target.value); event.target.value = '' }} title="اندازه متن">
+            <select defaultValue="" onChange={event => { if (event.target.value) applyInlineStyleToSelection({ fontSize: FONT_SIZE_MAP_V2[event.target.value] || event.target.value }); event.target.value = '' }} title="اندازه متن">
               <option value="" disabled>اندازه</option>
               <option value="1">خیلی ریز</option>
               <option value="2">ریز</option>
@@ -1147,7 +1235,7 @@ export default function EditorV2Page() {
             </select>
             <label className="editor-v2-color-tool" title="رنگ متن">
               <Palette size={16} />
-              <input type="color" defaultValue="#172033" onChange={event => execTextCommand('foreColor', event.target.value)} />
+              <input type="color" defaultValue="#172033" onChange={event => applyInlineStyleToSelection({ color: event.target.value })} />
             </label>
             <span className="editor-v2-toolbar-divider" />
             <Button variant="outline" size="icon" onClick={() => execTextCommand('bold')} title="پررنگ"><Bold size={17} /></Button>
