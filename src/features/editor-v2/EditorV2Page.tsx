@@ -183,7 +183,7 @@ function blockToEditorHtmlV2(block: BookBlockV2): string {
   }
   if (block.type === 'image') {
     const width = block.widthPercent ? `${Math.max(12, Math.min(100, block.widthPercent))}%` : block.widthPx ? `${Math.max(80, block.widthPx)}px` : ''
-    return `<figure contenteditable="false" data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="image"${attrV2('data-image-id', block.imageId)}${attrV2('data-width-px', block.widthPx)}${attrV2('data-width-percent', block.widthPercent)}>${block.url ? `<img src="${escapeHtmlV2(block.url)}" alt="${escapeHtmlV2(block.caption || '')}"${width ? ` style="max-width:${escapeHtmlV2(width)}"` : ''}>` : '<div class="book-v2-missing-image">تصویر در دسترس نیست</div>'}${block.caption ? `<figcaption>${escapeHtmlV2(block.caption)}</figcaption>` : ''}</figure>`
+    return `<figure data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="image"${attrV2('data-image-id', block.imageId)}${attrV2('data-width-px', block.widthPx)}${attrV2('data-width-percent', block.widthPercent)}>${block.url ? `<img contenteditable="false" src="${escapeHtmlV2(block.url)}" alt="${escapeHtmlV2(block.caption || '')}"${width ? ` style="max-width:${escapeHtmlV2(width)}"` : ''}>` : '<div class="book-v2-missing-image" contenteditable="false">تصویر در دسترس نیست</div>'}<figcaption contenteditable="true" data-image-caption="true">${escapeHtmlV2(block.caption || '')}</figcaption></figure>`
   }
   if (block.type === 'table') {
     const headers = block.headers?.length ? `<thead><tr>${block.headers.map(cell => `<th>${escapeHtmlV2(cell)}</th>`).join('')}</tr></thead>` : ''
@@ -449,6 +449,8 @@ function elementToBlockV2(element: Element, page: BookDocumentV2['pages'][number
       widthPercent: Number((element as HTMLElement).dataset.widthPercent) || (old?.type === 'image' ? old.widthPercent : undefined),
       anchor: old?.anchor || id,
       printNumber: page.printNumber,
+      status: old?.type === 'image' ? old.status : undefined,
+      issue: old?.type === 'image' ? old.issue : undefined,
     } as BookBlockV2
   }
   if (old) return old
@@ -1148,6 +1150,11 @@ export default function EditorV2Page() {
         ? 'تغییرات ذخیره‌نشده'
         : 'ذخیره شد'
   const saveButtonClass = `${visualSaveState === 'saving' ? 'is-saving' : ''} ${visualSaveState === 'saved' ? 'is-saved' : ''} ${visualSaveState === 'dirty' ? 'is-dirty' : ''} ${visualSaveState === 'error' ? 'is-error' : ''}`
+  const recordAiUsage = useCallback((usage: RunAiResult['usage']) => {
+    const before = Math.max(Number(creditBalance || 0), Number(usage.chargedCredits || 0))
+    const after = Math.max(0, before - Number(usage.chargedCredits || 0))
+    creditsBus.emit(after)
+  }, [creditBalance])
 
   useEffect(() => () => {
     if (saveIdleTimerRef.current) window.clearTimeout(saveIdleTimerRef.current)
@@ -1811,6 +1818,114 @@ export default function EditorV2Page() {
     setSelectedBlockId(block.id)
   }, [commitDocument, document?.assets, selectedBlockId])
 
+  const insertUploadedImage = useCallback(async (file: File) => {
+    try {
+      const url = await fileToDataUrlV2(file)
+      const asset = {
+        id: createV2Id('asset-upload', Date.now(), file.name),
+        type: 'image' as const,
+        url,
+        caption: file.name.replace(/\.[^.]+$/, ''),
+        printNumber: selectedBlock?.printNumber,
+        status: 'ready' as const,
+      }
+      const block: BookBlockV2 = {
+        id: createV2Id('image', asset.id, Date.now()),
+        type: 'image',
+        url,
+        caption: asset.caption,
+        imageId: asset.id,
+        anchor: createV2Id('image-anchor', asset.id, Date.now()),
+        printNumber: asset.printNumber,
+        status: 'ready',
+        widthPercent: 80,
+      }
+      commitDocument(current => {
+        const next = insertBlockAfterV2(current, selectedBlockId, block)
+        return { ...next, assets: [...next.assets, asset] }
+      })
+      setSelectedBlockId(block.id)
+      setAiMessage('تصویر آپلود و در سند درج شد.')
+    } catch (error) {
+      setAiMessage(error instanceof Error ? error.message : 'آپلود تصویر ناموفق بود.')
+    }
+  }, [commitDocument, selectedBlock?.printNumber, selectedBlockId])
+
+  const generateImageFromPrompt = useCallback(async (prompt: string) => {
+    if (!prompt.trim()) return
+    setAiBusy(true)
+    setAiMessage('در حال تولید تصویر...')
+    try {
+      const result = await generateAiImageThroughGateway({
+        prompt,
+        purpose: 'interactive',
+        bookId: document?.sourceBookId,
+        pageIndex: selectedBlock?.printNumber ? Number(selectedBlock.printNumber) : undefined,
+        user,
+      })
+      const asset = {
+        id: createV2Id('asset-ai', Date.now()),
+        type: 'image' as const,
+        url: result.imageUrl,
+        caption: prompt.slice(0, 90),
+        printNumber: selectedBlock?.printNumber,
+        status: 'ready' as const,
+      }
+      const block: BookBlockV2 = {
+        id: createV2Id('image', asset.id, Date.now()),
+        type: 'image',
+        url: result.imageUrl,
+        caption: asset.caption,
+        imageId: asset.id,
+        anchor: createV2Id('image-anchor', asset.id, Date.now()),
+        printNumber: asset.printNumber,
+        status: 'ready',
+        widthPercent: 80,
+      }
+      commitDocument(current => {
+        const next = insertBlockAfterV2(current, selectedBlockId, block)
+        return { ...next, assets: [...next.assets, asset] }
+      })
+      recordAiUsage(result.usage)
+      setSelectedBlockId(block.id)
+      setAiMessage('تصویر تولید و درج شد.')
+    } catch (error) {
+      setAiMessage(error instanceof Error ? error.message : 'تولید تصویر ناموفق بود.')
+    } finally {
+      setAiBusy(false)
+    }
+  }, [commitDocument, document?.sourceBookId, recordAiUsage, selectedBlock?.printNumber, selectedBlockId, user])
+
+  const resizeImageBlock = useCallback((blockId: string, widthPercent: number) => {
+    commitDocument(current => updateBlockInDocumentV2(current, blockId, block => {
+      if (block.type !== 'image') return block
+      return { ...block, widthPercent, widthPx: undefined }
+    }))
+  }, [commitDocument])
+
+  const resolveMediaIssue = useCallback((ref: EditorMediaReferenceV2) => {
+    commitDocument(current => {
+      const assets = current.assets.map(asset => asset.id === ref.assetId ? { ...asset, status: 'ready' as const, issue: undefined, caption: asset.caption || ref.caption || 'تصویر کتاب' } : asset)
+      const pages = current.pages.map(page => ({
+        ...page,
+        blocks: mapBlocksV2(page.blocks, block => {
+          if (block.type === 'image' && (block.id === ref.blockId || block.imageId === ref.assetId)) {
+            return { ...block, status: 'ready', issue: undefined, caption: block.caption || ref.caption || 'تصویر کتاب' }
+          }
+          return block
+        }),
+      }))
+      return rebuildDocumentTocV2({ ...current, assets, pages })
+    })
+  }, [commitDocument])
+
+  const jumpToEditorBlock = useCallback((blockId: string) => {
+    setSelectedBlockId(blockId)
+    window.setTimeout(() => {
+      editorSurfaceRef.current?.querySelector<HTMLElement>(`[data-block-id="${blockId.replace(/"/g, '\\"')}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 30)
+  }, [])
+
   const insertInteractiveBlock = useCallback((kind: string) => {
     const printNumber = selectedBlock?.printNumber
     const block = createInteractiveTemplateV2(kind, printNumber)
@@ -1849,12 +1964,6 @@ export default function EditorV2Page() {
       setAiBusy(false)
     }
   }, [aiSourceText, document, user])
-
-  const recordAiUsage = useCallback((usage: RunAiResult['usage']) => {
-    const before = Math.max(Number(creditBalance || 0), Number(usage.chargedCredits || 0))
-    const after = Math.max(0, before - Number(usage.chargedCredits || 0))
-    creditsBus.emit(after)
-  }, [creditBalance])
 
   const runApprovedAi = useCallback(async () => {
     if (!document || !aiApproval) return
@@ -1976,7 +2085,27 @@ export default function EditorV2Page() {
       )}
 
       <div className="editor-v2-layout">
-        <RightPanelV2 document={document} activePanel={activePanel} setActivePanel={setActivePanel} activeTocId={activeTocId} onJumpToToc={jumpToToc} onInsertImage={insertImageFromAsset} onInsertInteractive={insertInteractiveBlock} onApplyCallout={wrapSelectedCallout} onUnwrapCallout={unwrapSelectedCallout} canUnwrapCallout={selectedBlock?.type === 'callout'} onAiEnhance={requestAiEnhance} aiBusy={aiBusy} aiMessage={aiMessage} />
+        <RightPanelV2
+          document={document}
+          selectedBlock={selectedBlock}
+          activePanel={activePanel}
+          setActivePanel={setActivePanel}
+          activeTocId={activeTocId}
+          onJumpToToc={jumpToToc}
+          onInsertImage={insertImageFromAsset}
+          onUploadImage={insertUploadedImage}
+          onGenerateImage={generateImageFromPrompt}
+          onResizeImage={resizeImageBlock}
+          onResolveMediaIssue={resolveMediaIssue}
+          onJumpToBlock={jumpToEditorBlock}
+          onInsertInteractive={insertInteractiveBlock}
+          onApplyCallout={wrapSelectedCallout}
+          onUnwrapCallout={unwrapSelectedCallout}
+          canUnwrapCallout={selectedBlock?.type === 'callout'}
+          onAiEnhance={requestAiEnhance}
+          aiBusy={aiBusy}
+          aiMessage={aiMessage}
+        />
         <main
           className="editor-v2-canvas"
           ref={canvasRef}

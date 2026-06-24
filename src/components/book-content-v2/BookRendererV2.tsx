@@ -1,4 +1,4 @@
-import type { CSSProperties, ElementType, FormEvent, HTMLAttributes, MouseEvent, ReactNode } from 'react'
+import { useState, type CSSProperties, type ElementType, type FormEvent, type HTMLAttributes, type MouseEvent, type ReactNode } from 'react'
 import { InlineTextV2 } from '@/components/book-content-v2/InlineTextV2'
 import { PageBreakV2 } from '@/components/book-content-v2/PageBreakV2'
 import { CalloutBlockV2 } from '@/components/book-content-v2/CalloutBlockV2'
@@ -152,16 +152,33 @@ function renderBlocks(blocks: BookBlockV2[], options: RenderOptionsV2 = {}): Rea
 
 export function BookRendererV2({ document, pages, blocks, compact = false, editable = false, selectedBlockId, onSelectBlock, onTextChange }: BookRendererV2Props) {
   const options = { editable, selectedBlockId, onSelectBlock, onTextChange }
-  if (blocks) return <div className={compact ? 'book-v2-renderer compact' : 'book-v2-renderer'}>{renderBlocks(blocks, options)}</div>
+  const [zoomImage, setZoomImage] = useState<{ src: string; alt: string } | null>(null)
+  const handleImageClick = (event: MouseEvent<HTMLElement>) => {
+    const target = event.target as HTMLElement
+    const image = target.closest('img')
+    if (!image?.src) return
+    setZoomImage({ src: image.src, alt: image.alt || '' })
+  }
+  const zoomModal = zoomImage && (
+    <div className="book-v2-image-modal" role="dialog" aria-modal="true" onClick={() => setZoomImage(null)}>
+      <div className="book-v2-image-modal-card" onClick={event => event.stopPropagation()}>
+        <button type="button" onClick={() => setZoomImage(null)}>×</button>
+        <img src={zoomImage.src} alt={zoomImage.alt} />
+        {zoomImage.alt && <p>{normalizeBookTextV2(zoomImage.alt)}</p>}
+      </div>
+    </div>
+  )
+  if (blocks) return <div className={compact ? 'book-v2-renderer compact' : 'book-v2-renderer'} onClick={handleImageClick}>{renderBlocks(blocks, options)}{zoomModal}</div>
   const visiblePages = pages || document?.pages || []
   return (
-    <article className={compact ? 'book-v2-renderer compact' : 'book-v2-renderer'} dir={document?.direction === 'ltr' ? 'ltr' : 'rtl'}>
+    <article className={compact ? 'book-v2-renderer compact' : 'book-v2-renderer'} dir={document?.direction === 'ltr' ? 'ltr' : 'rtl'} onClick={handleImageClick}>
       {visiblePages.map((page, index) => (
         <section key={page.id} className="book-v2-page" data-page-index={page.index} data-print-page={page.printNumber ?? ''}>
           {index > 0 && <PageBreakV2 previous={visiblePages[index - 1]} next={page} />}
           {renderBlocks(page.blocks, options)}
         </section>
       ))}
+      {zoomModal}
     </article>
   )
 }
