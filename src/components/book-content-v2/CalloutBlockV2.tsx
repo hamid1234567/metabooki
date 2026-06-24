@@ -3,11 +3,11 @@ import type { CalloutBlockV2 as CalloutBlockDataV2 } from '@/lib/book-document-v
 
 const CALLOUT_FALLBACKS: Record<string, { title: string; icon: string }> = {
   key: { title: 'نکته کلیدی', icon: '💡' },
-  question: { title: 'مکث و فکر کن', icon: '❔' },
-  warning: { title: 'اشتباه رایج', icon: '⚠️' },
+  question: { title: 'مکث و فکر کن', icon: '؟' },
+  warning: { title: 'اشتباه رایج', icon: '⚠' },
   quote: { title: 'جمله طلایی', icon: '❝' },
   deep: { title: 'عمیق‌تر بخوان', icon: '🔍' },
-  practice: { title: 'تمرین سریع', icon: '✅' },
+  practice: { title: 'تمرین سریع', icon: '✓' },
   glossary: { title: 'تعریف واژه', icon: '📘' },
   data: { title: 'داده و منبع', icon: '📊' },
   margin: { title: 'یادداشت حاشیه‌ای', icon: '📝' },
@@ -22,6 +22,8 @@ export function CalloutBlockV2({ block, children }: { block: CalloutBlockDataV2;
   const meta = calloutMetaV2(block.variant)
   const title = block.title || meta.title
   const icon = block.icon || meta.icon
+  const direction = block.direction === 'ltr' ? 'ltr' : 'rtl'
+
   return (
     <section
       id={block.anchor || block.id}
@@ -29,15 +31,16 @@ export function CalloutBlockV2({ block, children }: { block: CalloutBlockDataV2;
       data-callout-variant={block.variant}
       data-callout-title={title}
       data-callout-icon={icon}
-      dir="rtl"
+      dir={direction}
     >
       <div className="book-callout-head">
         <span className="book-callout-icon">{icon}</span>
         <strong>{title}</strong>
       </div>
-      <div className="book-callout-content">
-        {children}
+      <div className="book-callout-bg-icon" aria-hidden="true">
+        {icon}
       </div>
+      <div className="book-callout-content">{children}</div>
     </section>
   )
 }

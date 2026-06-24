@@ -192,7 +192,8 @@ function blockToEditorHtmlV2(block: BookBlockV2): string {
   }
   if (block.type === 'callout') {
     const body = block.blocks.map(blockToEditorHtmlV2).join('')
-    return `<section class="book-callout editor-v2-callout has-rendered-title callout-${escapeHtmlV2(block.variant)}" data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="callout" data-variant="${escapeHtmlV2(block.variant)}" data-callout-variant="${escapeHtmlV2(block.variant)}" data-callout-title="${escapeHtmlV2(block.title)}" data-callout-icon="${escapeHtmlV2(block.icon || '')}"><button type="button" class="book-callout-unwrap editor-v2-callout-unwrap" contenteditable="false" data-callout-unwrap="true" aria-label="Unwrap callout">×</button><div class="book-callout-head"><span class="book-callout-icon" contenteditable="false">${escapeHtmlV2(block.icon || '')}</span><strong class="book-callout-title" contenteditable="true" data-callout-title-editor="true">${escapeHtmlV2(block.title)}</strong></div><div class="book-callout-bg-icon" contenteditable="false">${escapeHtmlV2(block.icon || '')}</div><div class="book-callout-content">${body}</div></section>`
+    const direction = block.direction || textDirectionV2(block.blocks.map(plainTextFromBlockV2).join(' '))
+    return `<section class="book-callout editor-v2-callout has-rendered-title callout-${escapeHtmlV2(block.variant)}" data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="callout" data-variant="${escapeHtmlV2(block.variant)}" data-callout-variant="${escapeHtmlV2(block.variant)}" data-callout-title="${escapeHtmlV2(block.title)}" data-callout-icon="${escapeHtmlV2(block.icon || '')}"${attrV2('dir', direction)}><button type="button" class="book-callout-unwrap editor-v2-callout-unwrap" contenteditable="false" data-callout-unwrap="true" aria-label="Unwrap callout">×</button><div class="book-callout-head"><span class="book-callout-icon" contenteditable="false">${escapeHtmlV2(block.icon || '')}</span><strong class="book-callout-title" contenteditable="true" data-callout-title-editor="true">${escapeHtmlV2(block.title)}</strong></div><div class="book-callout-bg-icon" contenteditable="false">${escapeHtmlV2(block.icon || '')}</div><div class="book-callout-content">${body}</div></section>`
   }
   if (block.type === 'interactive') {
     return `<section contenteditable="false" class="book-interactive-v2" data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="interactive" data-kind="${escapeHtmlV2(block.kind)}"><strong>${escapeHtmlV2(block.title || String(block.payload.title || 'بخش تعاملی'))}</strong></section>`
@@ -350,6 +351,11 @@ function elementToBlockV2(element: Element, page: BookDocumentV2['pages'][number
     const title = normalizeBookTextV2(titleElement?.innerText || html.dataset.calloutTitle || (old?.type === 'callout' ? old.title : meta.title))
     const icon = html.dataset.calloutIcon || (old?.type === 'callout' ? old.icon : meta.icon)
     const contentElement = element.querySelector<HTMLElement>(':scope > .book-callout-content')
+    const direction = (html.getAttribute('dir') === 'ltr' || html.getAttribute('dir') === 'rtl')
+      ? html.getAttribute('dir') as 'ltr' | 'rtl'
+      : old?.type === 'callout'
+        ? old.direction
+        : textDirectionV2(contentElement?.innerText || title)
     const contentNodes = contentElement ? Array.from(contentElement.childNodes) : Array.from(element.childNodes).filter(node => {
       if (!(node instanceof Element)) return true
       return !node.classList.contains('book-callout-head')
@@ -367,6 +373,7 @@ function elementToBlockV2(element: Element, page: BookDocumentV2['pages'][number
       icon,
       anchor: old?.anchor || id,
       printNumber: page.printNumber,
+      direction,
       blocks: blocks.length ? blocks : fallbackBlocks,
     } as CalloutBlockV2
   }
@@ -1483,6 +1490,9 @@ export default function EditorV2Page() {
       existingCallout.dataset.calloutVariant = variant
       existingCallout.dataset.calloutTitle = meta.title
       existingCallout.dataset.calloutIcon = meta.icon
+      if (!existingCallout.getAttribute('dir')) {
+        existingCallout.setAttribute('dir', textDirectionV2(existingCallout.innerText || meta.title))
+      }
       const iconElement = existingCallout.querySelector<HTMLElement>('.book-callout-icon')
       const bgIconElement = existingCallout.querySelector<HTMLElement>('.book-callout-bg-icon')
       const titleElement = existingCallout.querySelector<HTMLElement>('[data-callout-title-editor], .book-callout-head strong')
@@ -1518,6 +1528,7 @@ export default function EditorV2Page() {
       const calloutId = createV2Id('callout', targetBlockId, Date.now())
       const section = window.document.createElement('section')
       section.className = `book-callout editor-v2-callout has-rendered-title callout-${variant}`
+      section.dir = textDirectionV2(editableTarget.innerText || meta.title)
       section.dataset.blockId = calloutId
       section.dataset.v2Type = 'callout'
       section.dataset.variant = variant
