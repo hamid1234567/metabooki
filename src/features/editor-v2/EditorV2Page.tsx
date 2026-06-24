@@ -88,6 +88,14 @@ function blockStyleAttrV2(block: BookBlockV2) {
   return declarations.length ? ` style="${declarations.join(';')}"` : ''
 }
 
+function normalizeAlignmentV2(value?: string | null) {
+  const alignment = String(value || '').trim().toLowerCase()
+  if (alignment === 'start') return 'right'
+  if (alignment === 'end') return 'left'
+  if (['left', 'right', 'center', 'justify'].includes(alignment)) return alignment
+  return undefined
+}
+
 function citationAttrsV2(span: BookInlineV2) {
   const text = normalizeBookTextV2(span.footnoteText || span.referenceText || '')
   if (!text && !span.footnoteId) return ''
@@ -136,7 +144,7 @@ function blockToEditorHtmlV2(block: BookBlockV2): string {
   }
   if (block.type === 'list') {
     const tag = block.ordered ? 'ol' : 'ul'
-    return `<${tag} data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="list"${blockStyleAttrV2(block)}>${block.items.map(item => `<li data-item-id="${escapeHtmlV2(item.id)}">${inlineSpansToEditorHtmlV2(item.inline, item.text)}</li>`).join('')}</${tag}>`
+    return `<${tag} data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="list"${attrV2('dir', block.direction)}${blockStyleAttrV2(block)}>${block.items.map(item => `<li data-item-id="${escapeHtmlV2(item.id)}">${inlineSpansToEditorHtmlV2(item.inline, item.text)}</li>`).join('')}</${tag}>`
   }
   if (block.type === 'image') {
     const width = block.widthPercent ? `${Math.max(12, Math.min(100, block.widthPercent))}%` : block.widthPx ? `${Math.max(80, block.widthPx)}px` : ''
@@ -189,13 +197,16 @@ function mergeInlineStyleFromElementV2(element: Element, inherited: BookInlineV2
 
 function blockStyleFromElementV2(element: Element, old?: BookBlockV2 | null) {
   const html = element as HTMLElement
-  const style = { ...(old?.style || {}) }
-  if (html.style.textAlign) style.alignment = html.style.textAlign
+  const style: Record<string, unknown> = {}
+  const alignment = normalizeAlignmentV2(html.style.textAlign || html.getAttribute('align'))
+  if (alignment) style.alignment = alignment
   if (html.style.color) style.color = html.style.color
   if (html.style.fontFamily) style.fontFamily = html.style.fontFamily
   if (html.style.fontSize) style.fontSize = html.style.fontSize
-  if (html.style.fontWeight && Number(html.style.fontWeight) >= 600) style.bold = true
+  const fontWeight = html.style.fontWeight
+  if (fontWeight && (fontWeight === 'bold' || Number(fontWeight) >= 600)) style.bold = true
   if (html.style.fontStyle === 'italic') style.italic = true
+  if (!Object.keys(style).length && old?.type !== 'paragraph' && old?.type !== 'heading' && old?.type !== 'list') return old?.style
   return Object.keys(style).length ? style : undefined
 }
 
@@ -208,6 +219,7 @@ function inlineFromDomV2(node: Node, marks: BookInlineV2['marks'] = [], href?: s
   if (!(node instanceof Element)) return []
   if (node.classList.contains('citation-tooltip')) return []
   const tag = node.tagName.toLowerCase()
+  const html = node as HTMLElement
   const nextMarks = [...(marks || [])]
   if ((tag === 'strong' || tag === 'b') && !nextMarks.includes('bold')) nextMarks.push('bold')
   if ((tag === 'em' || tag === 'i') && !nextMarks.includes('italic')) nextMarks.push('italic')
@@ -215,6 +227,14 @@ function inlineFromDomV2(node: Node, marks: BookInlineV2['marks'] = [], href?: s
   if ((tag === 's' || tag === 'strike') && !nextMarks.includes('strike')) nextMarks.push('strike')
   if (tag === 'sub' && !nextMarks.includes('subscript')) nextMarks.push('subscript')
   if (tag === 'sup' && !nextMarks.includes('superscript')) nextMarks.push('superscript')
+  const fontWeight = html.style.fontWeight
+  const textDecoration = html.style.textDecoration || html.style.textDecorationLine
+  if (fontWeight && (fontWeight === 'bold' || Number(fontWeight) >= 600) && !nextMarks.includes('bold')) nextMarks.push('bold')
+  if (html.style.fontStyle === 'italic' && !nextMarks.includes('italic')) nextMarks.push('italic')
+  if (textDecoration.includes('underline') && !nextMarks.includes('underline')) nextMarks.push('underline')
+  if ((textDecoration.includes('line-through') || textDecoration.includes('strike')) && !nextMarks.includes('strike')) nextMarks.push('strike')
+  if ((html.style.verticalAlign === 'super' || html.style.verticalAlign === 'sup') && !nextMarks.includes('superscript')) nextMarks.push('superscript')
+  if ((html.style.verticalAlign === 'sub' || html.style.verticalAlign === 'subscript') && !nextMarks.includes('subscript')) nextMarks.push('subscript')
   const nextHref = tag === 'a' ? node.getAttribute('href') || href : href
   const nextStyle = mergeInlineStyleFromElementV2(node, inheritedStyle)
   const footnoteText = normalizeBookTextV2((node as HTMLElement).dataset.footnoteText || '')
@@ -445,8 +465,18 @@ function SaveIndicator({ state, floating = false }: { state: SaveStateV2; floati
         ? 'ذخیره ناموفق'
         : 'منتشر شده'
   const isReady = state === 'idle' || state === 'saved'
+  if (floating) {
+    return (
+      <span className={`editor-v2-save-state ${state} floating`} title={label} aria-label={label} aria-live="polite">
+        <span className="editor-v2-save-icon">
+          {state === 'saving' ? <Loader2 size={16} /> : <Save size={16} />}
+          {isReady && <Check size={11} className="editor-v2-save-check" />}
+        </span>
+      </span>
+    )
+  }
   return (
-    <span className={`editor-v2-save-state ${state} ${floating ? 'floating' : ''}`} title={label} aria-live="polite">
+    <span className={`editor-v2-save-state ${state}`} title={label} aria-live="polite">
       <span className="editor-v2-save-icon">
         {state === 'saving' ? <Loader2 size={14} /> : <Save size={14} />}
         {isReady && <Check size={10} className="editor-v2-save-check" />}
@@ -636,6 +666,7 @@ export default function EditorV2Page() {
   const [metadataOpen, setMetadataOpen] = useState(false)
   const canvasRef = useRef<HTMLDivElement | null>(null)
   const editorSurfaceRef = useRef<HTMLDivElement | null>(null)
+  const savedSelectionRef = useRef<Range | null>(null)
   const skipNextSurfaceSyncRef = useRef(false)
   const selectedBlock = useMemo(() => document ? findBlockInDocumentV2(document, selectedBlockId) : null, [document, selectedBlockId])
 
@@ -738,13 +769,38 @@ export default function EditorV2Page() {
     })
   }, [])
 
+  const rememberEditorSelection = useCallback(() => {
+    const selection = window.getSelection()
+    if (!selection?.rangeCount || !editorSurfaceRef.current) return
+    const range = selection.getRangeAt(0)
+    const container = range.commonAncestorContainer
+    const selectionNode = container.nodeType === Node.ELEMENT_NODE ? container as Element : container.parentElement
+    if (selectionNode && editorSurfaceRef.current.contains(selectionNode)) {
+      savedSelectionRef.current = range.cloneRange()
+    }
+  }, [])
+
+  const restoreEditorSelection = useCallback(() => {
+    editorSurfaceRef.current?.focus()
+    const range = savedSelectionRef.current
+    if (!range) return
+    try {
+      const selection = window.getSelection()
+      selection?.removeAllRanges()
+      selection?.addRange(range)
+    } catch {
+      savedSelectionRef.current = null
+    }
+  }, [])
+
   const updateSelectedBlockFromDom = useCallback(() => {
+    rememberEditorSelection()
     const selection = window.getSelection()
     const node = selection?.anchorNode
     const element = node instanceof Element ? node : node?.parentElement
     const target = element?.closest<HTMLElement>('[data-block-id]')
     setSelectedBlockId(target?.dataset.blockId)
-  }, [])
+  }, [rememberEditorSelection])
 
   const markEditorDirty = useCallback(() => {
     setDirty(true)
@@ -756,29 +812,32 @@ export default function EditorV2Page() {
   }, [])
 
   const execTextCommand = useCallback((command: string, value?: string) => {
-    editorSurfaceRef.current?.focus()
+    restoreEditorSelection()
     window.document.execCommand(command, false, value)
     markEditorDirty()
+    rememberEditorSelection()
     window.setTimeout(refreshDocumentFromEditor, 0)
-  }, [markEditorDirty, refreshDocumentFromEditor])
+  }, [markEditorDirty, refreshDocumentFromEditor, rememberEditorSelection, restoreEditorSelection])
 
   const formatCurrentBlock = useCallback((tag: string) => {
-    editorSurfaceRef.current?.focus()
+    restoreEditorSelection()
     window.document.execCommand('formatBlock', false, tag)
     markEditorDirty()
+    rememberEditorSelection()
     window.setTimeout(refreshDocumentFromEditor, 0)
-  }, [markEditorDirty, refreshDocumentFromEditor])
+  }, [markEditorDirty, refreshDocumentFromEditor, rememberEditorSelection, restoreEditorSelection])
 
   const setCurrentBlockDirection = useCallback((direction: 'rtl' | 'ltr') => {
-    editorSurfaceRef.current?.focus()
+    restoreEditorSelection()
     const selection = window.getSelection()
     const node = selection?.anchorNode
     const element = node instanceof Element ? node : node?.parentElement
     const target = element?.closest<HTMLElement>('[data-block-id], p, h1, h2, h3, h4, h5, h6, ol, ul')
     target?.setAttribute('dir', direction)
     markEditorDirty()
+    rememberEditorSelection()
     window.setTimeout(refreshDocumentFromEditor, 0)
-  }, [markEditorDirty, refreshDocumentFromEditor])
+  }, [markEditorDirty, refreshDocumentFromEditor, rememberEditorSelection, restoreEditorSelection])
 
   const createLinkForSelection = useCallback(() => {
     const href = window.prompt('آدرس لینک را وارد کنید')
@@ -991,7 +1050,13 @@ export default function EditorV2Page() {
       <div className="editor-v2-layout">
         <RightPanelV2 document={document} activePanel={activePanel} setActivePanel={setActivePanel} activeTocId={activeTocId} onJumpToToc={jumpToToc} onInsertImage={insertImageFromAsset} onInsertInteractive={insertInteractiveBlock} onApplyCallout={wrapSelectedCallout} onUnwrapCallout={unwrapSelectedCallout} canUnwrapCallout={selectedBlock?.type === 'callout'} onAiEnhance={requestAiEnhance} aiBusy={aiBusy} aiMessage={aiMessage} />
         <main className="editor-v2-canvas" ref={canvasRef} onClick={() => setSelectedBlockId(undefined)}>
-          <section className="editor-v2-toolbar menu-glass-70" onClick={event => event.stopPropagation()}>
+          <section
+            className="editor-v2-toolbar menu-glass-70"
+            onClick={event => event.stopPropagation()}
+            onMouseDown={event => {
+              if ((event.target as HTMLElement).closest('button')) event.preventDefault()
+            }}
+          >
             <Button variant="outline" size="icon" onClick={() => execTextCommand('undo')} title="بازگشت"><Undo2 size={17} /></Button>
             <Button variant="outline" size="icon" onClick={() => execTextCommand('redo')} title="انجام دوباره"><Redo2 size={17} /></Button>
             <span className="editor-v2-toolbar-divider" />
@@ -1057,6 +1122,7 @@ export default function EditorV2Page() {
               onInput={markEditorDirty}
               onMouseUp={updateSelectedBlockFromDom}
               onKeyUp={updateSelectedBlockFromDom}
+              onFocus={updateSelectedBlockFromDom}
             />
           </div>
         </main>

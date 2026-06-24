@@ -135,10 +135,18 @@
 
 .editor-v2-save-state.floating {
   justify-content: center;
-  min-width: 6.35rem;
+  width: 2.58rem;
+  height: 2.58rem;
+  min-width: 0;
+  padding: 0;
   background: hsl(0 0% 100% / 0.82);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
+}
+
+.editor-v2-save-state.floating .editor-v2-save-icon {
+  width: 1.65rem;
+  height: 1.65rem;
 }
 
 .editor-v2-manual-save {

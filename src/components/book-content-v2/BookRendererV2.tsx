@@ -25,7 +25,8 @@ function blockStyle(block: BookBlockV2): CSSProperties {
   const format = (block.style || {}) as Record<string, unknown>
   return {
     color: format.color ? String(format.color) : undefined,
-    fontSize: format.fontSizePt ? `${format.fontSizePt}pt` : undefined,
+    fontSize: format.fontSize ? String(format.fontSize) : format.fontSizePt ? `${format.fontSizePt}pt` : undefined,
+    fontFamily: format.fontFamily ? String(format.fontFamily) : undefined,
     fontWeight: format.bold ? 800 : undefined,
     fontStyle: format.italic ? 'italic' : undefined,
     textAlign: format.alignment ? String(format.alignment) as CSSProperties['textAlign'] : undefined,
@@ -124,7 +125,7 @@ export function renderBookBlockV2(block: BookBlockV2, renderChildren: (blocks: B
   if (block.type === 'list') {
     const ListTag = block.ordered ? 'ol' : 'ul'
     return (
-      <ListTag key={block.id} id={block.anchor || block.id} className={`book-v2-list ${block.ordered ? 'reader-list-ordered' : 'reader-list-bullet'}${selectedClass(block, options)}`} data-block-id={block.id} dir={direction}>
+      <ListTag key={block.id} id={block.anchor || block.id} className={`book-v2-list ${block.ordered ? 'reader-list-ordered' : 'reader-list-bullet'}${selectedClass(block, options)}`} data-block-id={block.id} dir={direction} style={blockStyle(block)}>
         {block.items.map(item => <li key={item.id}><InlineTextV2 inline={item.inline} fallback={item.text} /></li>)}
       </ListTag>
     )
