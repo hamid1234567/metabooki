@@ -871,6 +871,48 @@ export default function EditorV2Page() {
     return target && root.contains(target) ? target.dataset.blockId : undefined
   }, [])
 
+  const selectedEditorBlockElement = useCallback(() => {
+    if (!selectedBlockId || !editorSurfaceRef.current) return null
+    const safeId = selectedBlockId.replace(/"/g, '\\"')
+    return editorSurfaceRef.current.querySelector<HTMLElement>(`[data-block-id="${safeId}"]`)
+  }, [selectedBlockId])
+
+  const editorElementFromCurrentSelection = useCallback(() => {
+    const root = editorSurfaceRef.current
+    const selection = window.getSelection()
+    const range = selection?.rangeCount ? selection.getRangeAt(0) : savedSelectionRef.current
+    if (!range || !root) return null
+    const container = range.commonAncestorContainer
+    const element = container.nodeType === Node.ELEMENT_NODE ? container as Element : container.parentElement
+    return element && root.contains(element) ? element : null
+  }, [])
+
+  const readToolbarStateFromSelection = useCallback((): TextToolbarStateV2 => {
+    const element = editorElementFromCurrentSelection()
+    const root = editorSurfaceRef.current
+    if (!element || !root) return { ...EMPTY_TEXT_TOOLBAR_STATE_V2 }
+    const target = element.closest<HTMLElement>('[data-block-id], p, h1, h2, h3, h4, h5, h6, li, ol, ul')
+    const computed = window.getComputedStyle(element)
+    const commandState = (command: string) => {
+      try {
+        return window.document.queryCommandState(command)
+      } catch {
+        return false
+      }
+    }
+    const alignment = normalizeAlignmentV2(target?.style.textAlign || target?.getAttribute('align') || computed.textAlign)
+    return {
+      hasSelection: true,
+      bold: commandState('bold') || boldWeightV2(computed.fontWeight),
+      italic: commandState('italic') || computed.fontStyle === 'italic',
+      underline: commandState('underline') || computed.textDecorationLine.includes('underline'),
+      strike: commandState('strikeThrough') || computed.textDecorationLine.includes('line-through'),
+      superscript: commandState('superscript') || computed.verticalAlign === 'super',
+      subscript: commandState('subscript') || computed.verticalAlign === 'sub',
+      alignment: alignment as TextToolbarStateV2['alignment'],
+    }
+  }, [editorElementFromCurrentSelection])
+
   const updateSelectedBlockFromDom = useCallback(() => {
     rememberEditorSelection()
     const selection = window.getSelection()
@@ -878,7 +920,8 @@ export default function EditorV2Page() {
     const element = node instanceof Element ? node : node?.parentElement
     const target = element?.closest<HTMLElement>('[data-block-id]')
     setSelectedBlockId(target?.dataset.blockId)
-  }, [rememberEditorSelection])
+    setToolbarState(readToolbarStateFromSelection())
+  }, [readToolbarStateFromSelection, rememberEditorSelection])
 
   const markEditorDirty = useCallback(() => {
     setDirty(true)
@@ -948,11 +991,30 @@ export default function EditorV2Page() {
   const applyInlineStyleToSelection = useCallback((style: Partial<CSSStyleDeclaration>) => {
     restoreEditorSelection()
     const selection = window.getSelection()
-    if (!selection?.rangeCount || !editorSurfaceRef.current) return false
-    const range = selection.getRangeAt(0)
+    if (!editorSurfaceRef.current) return false
+    const range = selection?.rangeCount ? selection.getRangeAt(0) : savedSelectionRef.current
+    if (!range) {
+      const fallbackTarget = selectedEditorBlockElement()
+      if (!fallbackTarget) return false
+      pushEditorHistory()
+      Object.assign(fallbackTarget.style, style)
+      markEditorDirty()
+      scheduleRefreshDocumentFromEditor()
+      window.setTimeout(() => setToolbarState(readToolbarStateFromSelection()), 0)
+      return true
+    }
     const container = range.commonAncestorContainer
     const element = container.nodeType === Node.ELEMENT_NODE ? container as Element : container.parentElement
-    if (!element || !editorSurfaceRef.current.contains(element)) return false
+    if (!element || !editorSurfaceRef.current.contains(element)) {
+      const fallbackTarget = selectedEditorBlockElement()
+      if (!fallbackTarget) return false
+      pushEditorHistory()
+      Object.assign(fallbackTarget.style, style)
+      markEditorDirty()
+      scheduleRefreshDocumentFromEditor()
+      window.setTimeout(() => setToolbarState(readToolbarStateFromSelection()), 0)
+      return true
+    }
     pushEditorHistory()
     if (range.collapsed) {
       const target = element.closest<HTMLElement>('[data-block-id], p, h1, h2, h3, h4, h5, h6, li')
@@ -961,6 +1023,7 @@ export default function EditorV2Page() {
       markEditorDirty()
       rememberEditorSelection()
       scheduleRefreshDocumentFromEditor()
+      window.setTimeout(() => setToolbarState(readToolbarStateFromSelection()), 0)
       return true
     }
     const span = window.document.createElement('span')
@@ -974,13 +1037,52 @@ export default function EditorV2Page() {
     }
     const nextRange = window.document.createRange()
     nextRange.selectNodeContents(span)
-    selection.removeAllRanges()
-    selection.addRange(nextRange)
+    const activeSelection = selection || window.getSelection()
+    if (!activeSelection) return false
+    activeSelection.removeAllRanges()
+    activeSelection.addRange(nextRange)
     savedSelectionRef.current = nextRange.cloneRange()
     markEditorDirty()
     scheduleRefreshDocumentFromEditor()
+    window.setTimeout(() => setToolbarState(readToolbarStateFromSelection()), 0)
     return true
-  }, [markEditorDirty, pushEditorHistory, rememberEditorSelection, restoreEditorSelection, scheduleRefreshDocumentFromEditor])
+  }, [markEditorDirty, pushEditorHistory, readToolbarStateFromSelection, rememberEditorSelection, restoreEditorSelection, scheduleRefreshDocumentFromEditor, selectedEditorBlockElement])
+
+  const applyRegularToSelection = useCallback(() => {
+    restoreEditorSelection()
+    pushEditorHistory()
+    ;(['bold', 'italic', 'underline', 'strikeThrough', 'superscript', 'subscript'] as const).forEach(command => {
+      try {
+        if (window.document.queryCommandState(command)) window.document.execCommand(command, false)
+      } catch {
+        // Ignore unsupported browser command states.
+      }
+    })
+    const target = editorElementFromCurrentSelection()?.closest<HTMLElement>('[data-block-id], p, h1, h2, h3, h4, h5, h6, li') || selectedEditorBlockElement()
+    if (target) {
+      target.style.fontWeight = ''
+      target.style.fontStyle = ''
+      target.style.textDecoration = ''
+      target.style.textDecorationLine = ''
+      target.style.verticalAlign = ''
+    }
+    markEditorDirty()
+    rememberEditorSelection()
+    scheduleRefreshDocumentFromEditor()
+    window.setTimeout(() => setToolbarState(readToolbarStateFromSelection()), 0)
+  }, [editorElementFromCurrentSelection, markEditorDirty, pushEditorHistory, readToolbarStateFromSelection, rememberEditorSelection, restoreEditorSelection, scheduleRefreshDocumentFromEditor, selectedEditorBlockElement])
+
+  const applyBlockAlignment = useCallback((alignment: 'left' | 'right' | 'center' | 'justify') => {
+    restoreEditorSelection()
+    const target = editorElementFromCurrentSelection()?.closest<HTMLElement>('[data-block-id], p, h1, h2, h3, h4, h5, h6, ol, ul') || selectedEditorBlockElement()
+    if (!target) return
+    pushEditorHistory()
+    target.style.textAlign = alignment
+    markEditorDirty()
+    rememberEditorSelection()
+    scheduleRefreshDocumentFromEditor()
+    window.setTimeout(() => setToolbarState(readToolbarStateFromSelection()), 0)
+  }, [editorElementFromCurrentSelection, markEditorDirty, pushEditorHistory, readToolbarStateFromSelection, rememberEditorSelection, restoreEditorSelection, scheduleRefreshDocumentFromEditor, selectedEditorBlockElement])
 
   const execTextCommand = useCallback((command: string, value?: string) => {
     if (command === 'undo') {
@@ -997,7 +1099,8 @@ export default function EditorV2Page() {
     markEditorDirty()
     rememberEditorSelection()
     scheduleRefreshDocumentFromEditor()
-  }, [markEditorDirty, pushEditorHistory, redoEditorChange, rememberEditorSelection, restoreEditorSelection, scheduleRefreshDocumentFromEditor, undoEditorChange])
+    window.setTimeout(() => setToolbarState(readToolbarStateFromSelection()), 0)
+  }, [markEditorDirty, pushEditorHistory, readToolbarStateFromSelection, redoEditorChange, rememberEditorSelection, restoreEditorSelection, scheduleRefreshDocumentFromEditor, undoEditorChange])
 
   const formatCurrentBlock = useCallback((tag: string) => {
     pushEditorHistory()
@@ -1006,7 +1109,8 @@ export default function EditorV2Page() {
     markEditorDirty()
     rememberEditorSelection()
     scheduleRefreshDocumentFromEditor()
-  }, [markEditorDirty, pushEditorHistory, rememberEditorSelection, restoreEditorSelection, scheduleRefreshDocumentFromEditor])
+    window.setTimeout(() => setToolbarState(readToolbarStateFromSelection()), 0)
+  }, [markEditorDirty, pushEditorHistory, readToolbarStateFromSelection, rememberEditorSelection, restoreEditorSelection, scheduleRefreshDocumentFromEditor])
 
   const setCurrentBlockDirection = useCallback((direction: 'rtl' | 'ltr') => {
     pushEditorHistory()
@@ -1019,7 +1123,8 @@ export default function EditorV2Page() {
     markEditorDirty()
     rememberEditorSelection()
     scheduleRefreshDocumentFromEditor()
-  }, [markEditorDirty, pushEditorHistory, rememberEditorSelection, restoreEditorSelection, scheduleRefreshDocumentFromEditor])
+    window.setTimeout(() => setToolbarState(readToolbarStateFromSelection()), 0)
+  }, [markEditorDirty, pushEditorHistory, readToolbarStateFromSelection, rememberEditorSelection, restoreEditorSelection, scheduleRefreshDocumentFromEditor])
 
   const createLinkForSelection = useCallback(() => {
     const href = window.prompt('آدرس لینک را وارد کنید')
@@ -1288,21 +1393,22 @@ export default function EditorV2Page() {
               <input type="color" defaultValue="#172033" onChange={event => applyInlineStyleToSelection({ color: event.target.value })} />
             </label>
             <span className="editor-v2-toolbar-divider" />
-            <Button variant="outline" size="icon" onClick={() => execTextCommand('bold')} title="پررنگ"><Bold size={17} /></Button>
-            <Button variant="outline" size="icon" onClick={() => execTextCommand('italic')} title="مورب"><Italic size={17} /></Button>
-            <Button variant="outline" size="icon" onClick={() => execTextCommand('underline')} title="زیرخط"><UnderlineIcon size={17} /></Button>
-            <Button variant="outline" size="icon" onClick={() => execTextCommand('strikeThrough')} title="خط‌خورده"><Strikethrough size={17} /></Button>
-            <Button variant="outline" size="icon" onClick={() => execTextCommand('superscript')} title="بالانویس"><Superscript size={17} /></Button>
-            <Button variant="outline" size="icon" onClick={() => execTextCommand('subscript')} title="زیرنویس"><Subscript size={17} /></Button>
+            <Button variant="outline" size="icon" onClick={applyRegularToSelection} title="Regular" aria-pressed={toolbarState.hasSelection && !toolbarState.bold && !toolbarState.italic} className={toolbarState.hasSelection && !toolbarState.bold && !toolbarState.italic ? 'is-active' : undefined}><span className="editor-v2-regular-mark">R</span></Button>
+            <Button variant="outline" size="icon" onClick={() => execTextCommand('bold')} title="پررنگ" aria-pressed={toolbarState.bold} className={toolbarState.bold ? 'is-active' : undefined}><Bold size={17} /></Button>
+            <Button variant="outline" size="icon" onClick={() => execTextCommand('italic')} title="مورب" aria-pressed={toolbarState.italic} className={toolbarState.italic ? 'is-active' : undefined}><Italic size={17} /></Button>
+            <Button variant="outline" size="icon" onClick={() => execTextCommand('underline')} title="زیرخط" aria-pressed={toolbarState.underline} className={toolbarState.underline ? 'is-active' : undefined}><UnderlineIcon size={17} /></Button>
+            <Button variant="outline" size="icon" onClick={() => execTextCommand('strikeThrough')} title="خط‌خورده" aria-pressed={toolbarState.strike} className={toolbarState.strike ? 'is-active' : undefined}><Strikethrough size={17} /></Button>
+            <Button variant="outline" size="icon" onClick={() => execTextCommand('superscript')} title="بالانویس" aria-pressed={toolbarState.superscript} className={toolbarState.superscript ? 'is-active' : undefined}><Superscript size={17} /></Button>
+            <Button variant="outline" size="icon" onClick={() => execTextCommand('subscript')} title="زیرنویس" aria-pressed={toolbarState.subscript} className={toolbarState.subscript ? 'is-active' : undefined}><Subscript size={17} /></Button>
             <Button variant="outline" size="icon" onClick={createLinkForSelection} title="لینک"><Link2 size={17} /></Button>
             <Button variant="outline" size="icon" onClick={() => execTextCommand('removeFormat')} title="پاک کردن فرمت"><Eraser size={17} /></Button>
             <span className="editor-v2-toolbar-divider" />
             <Button variant="outline" size="icon" onClick={() => execTextCommand('insertUnorderedList')} title="فهرست نقطه‌ای"><List size={17} /></Button>
             <Button variant="outline" size="icon" onClick={() => execTextCommand('insertOrderedList')} title="فهرست شماره‌ای"><ListOrdered size={17} /></Button>
-            <Button variant="outline" size="icon" onClick={() => execTextCommand('justifyRight')} title="راست‌چین"><AlignRight size={17} /></Button>
-            <Button variant="outline" size="icon" onClick={() => execTextCommand('justifyCenter')} title="وسط‌چین"><AlignCenter size={17} /></Button>
-            <Button variant="outline" size="icon" onClick={() => execTextCommand('justifyLeft')} title="چپ‌چین"><AlignLeft size={17} /></Button>
-            <Button variant="outline" size="icon" onClick={() => execTextCommand('justifyFull')} title="تراز کامل"><AlignJustify size={17} /></Button>
+            <Button variant="outline" size="icon" onClick={() => applyBlockAlignment('right')} title="راست‌چین" aria-pressed={toolbarState.alignment === 'right'} className={toolbarState.alignment === 'right' ? 'is-active' : undefined}><AlignRight size={17} /></Button>
+            <Button variant="outline" size="icon" onClick={() => applyBlockAlignment('center')} title="وسط‌چین" aria-pressed={toolbarState.alignment === 'center'} className={toolbarState.alignment === 'center' ? 'is-active' : undefined}><AlignCenter size={17} /></Button>
+            <Button variant="outline" size="icon" onClick={() => applyBlockAlignment('left')} title="چپ‌چین" aria-pressed={toolbarState.alignment === 'left'} className={toolbarState.alignment === 'left' ? 'is-active' : undefined}><AlignLeft size={17} /></Button>
+            <Button variant="outline" size="icon" onClick={() => applyBlockAlignment('justify')} title="تراز کامل" aria-pressed={toolbarState.alignment === 'justify'} className={toolbarState.alignment === 'justify' ? 'is-active' : undefined}><AlignJustify size={17} /></Button>
             <Button variant="outline" size="icon" onClick={() => setCurrentBlockDirection('rtl')} title="جهت راست به چپ"><ArrowRight size={17} /></Button>
             <Button variant="outline" size="icon" onClick={() => setCurrentBlockDirection('ltr')} title="جهت چپ به راست"><ArrowLeft size={17} /></Button>
             <span className="editor-v2-toolbar-divider" />

@@ -489,6 +489,20 @@
   padding: 0;
 }
 
+.editor-v2-toolbar > button.is-active,
+.editor-v2-toolbar > button[aria-pressed="true"] {
+  border-color: #2563eb;
+  background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+  color: #fff;
+  box-shadow: 0 8px 20px hsl(220 72% 42% / 0.24);
+}
+
+.editor-v2-regular-mark {
+  font-size: 0.72rem;
+  font-weight: 950;
+  line-height: 1;
+}
+
 .editor-v2-toolbar svg {
   width: 14px;
   height: 14px;
