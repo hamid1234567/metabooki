@@ -1105,6 +1105,7 @@ export default function EditorV2Page() {
             className="editor-v2-toolbar menu-glass-70"
             onClick={event => event.stopPropagation()}
             onPointerDownCapture={rememberEditorSelection}
+            onMouseDownCapture={rememberEditorSelection}
             onMouseDown={event => {
               if ((event.target as HTMLElement).closest('button')) event.preventDefault()
             }}
