@@ -183,7 +183,7 @@ function blockToEditorHtmlV2(block: BookBlockV2): string {
   }
   if (block.type === 'image') {
     const width = block.widthPercent ? `${Math.max(12, Math.min(100, block.widthPercent))}%` : block.widthPx ? `${Math.max(80, block.widthPx)}px` : ''
-    return `<figure data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="image"${attrV2('data-image-id', block.imageId)}${attrV2('data-width-px', block.widthPx)}${attrV2('data-width-percent', block.widthPercent)}>${block.url ? `<img contenteditable="false" src="${escapeHtmlV2(block.url)}" alt="${escapeHtmlV2(block.caption || '')}"${width ? ` style="max-width:${escapeHtmlV2(width)}"` : ''}>` : '<div class="book-v2-missing-image" contenteditable="false">تصویر در دسترس نیست</div>'}<figcaption contenteditable="true" data-image-caption="true">${escapeHtmlV2(block.caption || '')}</figcaption></figure>`
+    return `<figure data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="image"${attrV2('data-image-id', block.imageId)}${attrV2('data-width-px', block.widthPx)}${attrV2('data-width-percent', block.widthPercent)}><div class="editor-v2-image-controls" contenteditable="false"><button type="button" data-image-delete="true" title="حذف تصویر" aria-label="حذف تصویر">×</button></div><span class="editor-v2-image-resize-handle is-start" contenteditable="false" data-image-resize-handle="start" aria-hidden="true"></span><span class="editor-v2-image-resize-handle is-end" contenteditable="false" data-image-resize-handle="end" aria-hidden="true"></span>${block.url ? `<img contenteditable="false" src="${escapeHtmlV2(block.url)}" alt="${escapeHtmlV2(block.caption || '')}"${width ? ` style="max-width:${escapeHtmlV2(width)}"` : ''}>` : '<div class="book-v2-missing-image" contenteditable="false">تصویر در دسترس نیست</div>'}<figcaption contenteditable="true" data-image-caption="true">${escapeHtmlV2(block.caption || '')}</figcaption></figure>`
   }
   if (block.type === 'table') {
     const headers = block.headers?.length ? `<thead><tr>${block.headers.map(cell => `<th>${escapeHtmlV2(cell)}</th>`).join('')}</tr></thead>` : ''
@@ -902,7 +902,6 @@ function RightPanelV2({
   onInsertImage: (assetId: string) => void
   onUploadImage: (file: File) => void
   onGenerateImage: (prompt: string) => void
-  onResizeImage: (blockId: string, widthPercent: number) => void
   onResolveMediaIssue: (ref: EditorMediaReferenceV2) => void
   onJumpToBlock: (blockId: string) => void
   onInsertInteractive: (kind: string) => void
@@ -1005,15 +1004,7 @@ function RightPanelV2({
             {selectedImageBlock && (
               <div className="editor-v2-media-resize">
                 <strong>اندازه تصویر انتخاب‌شده</strong>
-                <input
-                  type="range"
-                  min="20"
-                  max="100"
-                  step="5"
-                  value={selectedImageBlock.widthPercent || 100}
-                  onChange={event => onResizeImage(selectedImageBlock.id, Number(event.target.value))}
-                />
-                <span>{(selectedImageBlock.widthPercent || 100).toLocaleString('fa-IR')}٪</span>
+                <span>{(selectedImageBlock.widthPercent || 100).toLocaleString('fa-IR')}٪ · برای تغییر اندازه، دستگیره‌های دو طرف تصویر را بکشید.</span>
               </div>
             )}
 
@@ -1903,6 +1894,83 @@ export default function EditorV2Page() {
     }))
   }, [commitDocument])
 
+  const deleteImageBlock = useCallback((blockId: string) => {
+    commitDocument(current => {
+      const removedAssetIds = new Set<string>()
+      const pages = current.pages.map(page => ({
+        ...page,
+        blocks: mapBlocksV2(page.blocks, block => {
+          if (block.type === 'image' && block.id === blockId) {
+            if (block.imageId) removedAssetIds.add(block.imageId)
+            return null
+          }
+          return block
+        }),
+      }))
+      const usedAssetIds = new Set<string>()
+      pages.forEach(page => {
+        const visit = (blocks: BookBlockV2[]) => blocks.forEach(block => {
+          if (block.type === 'image' && block.imageId) usedAssetIds.add(block.imageId)
+          if (block.type === 'callout') visit(block.blocks)
+        })
+        visit(page.blocks)
+      })
+      const assets = current.assets.filter(asset => !removedAssetIds.has(asset.id) || usedAssetIds.has(asset.id))
+      return rebuildDocumentTocV2({ ...current, pages, assets })
+    }, { recordHistory: true })
+    setSelectedBlockId(current => current === blockId ? undefined : current)
+  }, [commitDocument])
+
+  const handleImageResizePointerDown = useCallback((event: any) => {
+    const target = event.target as HTMLElement
+    const handle = target.closest<HTMLElement>('[data-image-resize-handle]')
+    if (!handle) return
+    const figure = handle.closest<HTMLElement>('figure[data-v2-type="image"][data-block-id]')
+    const image = figure?.querySelector<HTMLImageElement>('img')
+    const blockId = figure?.dataset.blockId
+    const container = figure?.parentElement
+    if (!figure || !image || !blockId || !container) return
+    event.preventDefault()
+    event.stopPropagation()
+    pushEditorHistory()
+    setSelectedBlockId(blockId)
+    const side = handle.dataset.imageResizeHandle
+    const startX = Number(event.clientX)
+    const startWidth = image.getBoundingClientRect().width
+    const containerWidth = Math.max(240, container.getBoundingClientRect().width)
+    let latestPercent = Math.max(20, Math.min(100, Number(figure.dataset.widthPercent || 0) || (startWidth / containerWidth) * 100))
+    const move = (moveEvent: PointerEvent) => {
+      const delta = side === 'start' ? startX - moveEvent.clientX : moveEvent.clientX - startX
+      latestPercent = Math.max(20, Math.min(100, ((startWidth + delta) / containerWidth) * 100))
+      figure.dataset.widthPercent = String(Math.round(latestPercent))
+      figure.dataset.widthPx = ''
+      image.style.maxWidth = `${latestPercent}%`
+    }
+    const up = () => {
+      window.document.removeEventListener('pointermove', move)
+      window.document.removeEventListener('pointerup', up)
+      resizeImageBlock(blockId, Math.round(latestPercent))
+    }
+    window.document.addEventListener('pointermove', move)
+    window.document.addEventListener('pointerup', up, { once: true })
+  }, [pushEditorHistory, resizeImageBlock])
+
+  const handleEditorSurfaceClick = useCallback((event: any) => {
+    const target = event.target as HTMLElement
+    const deleteButton = target.closest<HTMLElement>('[data-image-delete="true"]')
+    if (deleteButton) {
+      const figure = deleteButton.closest<HTMLElement>('figure[data-v2-type="image"][data-block-id]')
+      const blockId = figure?.dataset.blockId
+      if (blockId) {
+        event.preventDefault()
+        event.stopPropagation()
+        deleteImageBlock(blockId)
+      }
+      return
+    }
+    updateSelectedBlockFromDom()
+  }, [deleteImageBlock, updateSelectedBlockFromDom])
+
   const resolveMediaIssue = useCallback((ref: EditorMediaReferenceV2) => {
     commitDocument(current => {
       const assets = current.assets.map(asset => asset.id === ref.assetId ? { ...asset, status: 'ready' as const, issue: undefined, caption: asset.caption || ref.caption || 'تصویر کتاب' } : asset)
@@ -2095,7 +2163,6 @@ export default function EditorV2Page() {
           onInsertImage={insertImageFromAsset}
           onUploadImage={insertUploadedImage}
           onGenerateImage={generateImageFromPrompt}
-          onResizeImage={resizeImageBlock}
           onResolveMediaIssue={resolveMediaIssue}
           onJumpToBlock={jumpToEditorBlock}
           onInsertInteractive={insertInteractiveBlock}
