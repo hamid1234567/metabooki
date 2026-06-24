@@ -882,7 +882,6 @@ function RightPanelV2({
   onInsertImage,
   onUploadImage,
   onGenerateImage,
-  onResizeImage,
   onResolveMediaIssue,
   onJumpToBlock,
   onInsertInteractive,
@@ -1337,6 +1336,15 @@ export default function EditorV2Page() {
     const safeId = selectedBlockId.replace(/"/g, '\\"')
     return editorSurfaceRef.current.querySelector<HTMLElement>(`[data-block-id="${safeId}"]`)
   }, [selectedBlockId])
+
+  useEffect(() => {
+    const root = editorSurfaceRef.current
+    if (!root) return
+    root.querySelectorAll('.is-editor-selected').forEach(element => element.classList.remove('is-editor-selected'))
+    if (!selectedBlockId) return
+    const safeId = selectedBlockId.replace(/"/g, '\\"')
+    root.querySelector<HTMLElement>(`[data-block-id="${safeId}"]`)?.classList.add('is-editor-selected')
+  }, [selectedBlockId, document?.updatedAt])
 
   const editorElementFromCurrentSelection = useCallback(() => {
     const root = editorSurfaceRef.current
@@ -2211,6 +2219,8 @@ export default function EditorV2Page() {
               spellCheck={false}
               onBeforeInput={handleEditorBeforeInput}
               onKeyDown={handleEditorKeyDown}
+              onPointerDown={handleImageResizePointerDown}
+              onClick={handleEditorSurfaceClick}
               onInput={markEditorDirty}
               onMouseUp={updateSelectedBlockFromDom}
               onKeyUp={updateSelectedBlockFromDom}

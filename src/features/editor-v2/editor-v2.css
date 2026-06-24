@@ -1036,6 +1036,7 @@
 }
 
 .editor-v2-flow-editor figure[data-v2-type="image"] {
+  position: relative;
   display: grid;
   justify-items: center;
   gap: 0.55rem;
@@ -1047,6 +1048,72 @@
 .editor-v2-flow-editor figure[data-v2-type="image"].is-editor-selected {
   background: #eff6ff;
   box-shadow: 0 0 0 3px #2563eb22;
+}
+
+.editor-v2-image-controls {
+  position: absolute;
+  z-index: 4;
+  inset-block-start: 0.65rem;
+  inset-inline-end: 0.65rem;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-0.25rem);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.editor-v2-flow-editor figure[data-v2-type="image"]:hover .editor-v2-image-controls,
+.editor-v2-flow-editor figure[data-v2-type="image"].is-editor-selected .editor-v2-image-controls {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.editor-v2-image-controls button {
+  width: 2rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid #fecaca;
+  border-radius: 999px;
+  background: color-mix(in srgb, #fff 84%, transparent);
+  color: #dc2626;
+  font-size: 1.25rem;
+  font-weight: 900;
+  line-height: 1;
+  box-shadow: 0 12px 28px #991b1b22, inset 0 1px 0 #fff;
+  cursor: pointer;
+}
+
+.editor-v2-image-resize-handle {
+  position: absolute;
+  z-index: 3;
+  inset-block: 1.2rem 2.6rem;
+  width: 0.55rem;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #60a5fa, #2563eb);
+  box-shadow: 0 0 0 4px #2563eb18, 0 10px 24px #2563eb30;
+  opacity: 0;
+  pointer-events: none;
+  cursor: ew-resize;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.editor-v2-image-resize-handle.is-start {
+  inset-inline-start: 0.15rem;
+}
+
+.editor-v2-image-resize-handle.is-end {
+  inset-inline-end: 0.15rem;
+}
+
+.editor-v2-flow-editor figure[data-v2-type="image"]:hover .editor-v2-image-resize-handle,
+.editor-v2-flow-editor figure[data-v2-type="image"].is-editor-selected .editor-v2-image-resize-handle {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.editor-v2-image-resize-handle:hover {
+  transform: scaleX(1.35);
 }
 
 .editor-v2-flow-editor figure[data-v2-type="image"] img {
