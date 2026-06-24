@@ -413,24 +413,57 @@ function elementToBlockV2(element: Element, page: BookDocumentV2['pages'][number
   return null
 }
 
-function textNodeToParagraphV2(node: Text, page: BookDocumentV2['pages'][number], index: number): ParagraphBlockV2 | null {
-  const text = normalizeBookTextV2(node.textContent || '')
+function looseInlineNodeV2(node: ChildNode) {
+  if (node.nodeType === Node.TEXT_NODE) return Boolean(normalizeBookTextV2(node.textContent || ''))
+  return node instanceof Element && inlineOnlyElementV2(node)
+}
+
+function looseInlineNodesToParagraphV2(nodes: ChildNode[], page: BookDocumentV2['pages'][number], index: number, existing: Map<string, BookBlockV2>): ParagraphBlockV2 | null {
+  const inline = nodes.flatMap(node => inlineFromDomV2(node))
+  const text = inline.map(span => span.text).join('')
   if (!text) return null
-  const id = createV2Id('paragraph', page.index, index, Date.now())
+  const blockIdElement = nodes.find((node): node is Element => node instanceof Element && Boolean((node as HTMLElement).dataset.blockId))
+  const id = blockIdElement ? (blockIdElement as HTMLElement).dataset.blockId || createV2Id('paragraph', page.index, index, Date.now()) : createV2Id('paragraph', page.index, index, Date.now())
+  const old = existing.get(id)
+  const directionElement = nodes.find((node): node is Element => node instanceof Element && Boolean(node.getAttribute('dir')))
   return {
+    ...(old && old.type === 'paragraph' ? old : {}),
     id,
     type: 'paragraph',
     text,
-    inline: [{ text }],
-    anchor: id,
+    inline,
+    anchor: old?.anchor || id,
     printNumber: page.printNumber,
+    direction: (directionElement?.getAttribute('dir') as any) || old?.direction,
   }
 }
 
 function editorNodeToBlockV2(node: ChildNode, page: BookDocumentV2['pages'][number], index: number, existing: Map<string, BookBlockV2>): BookBlockV2 | null {
-  if (node.nodeType === Node.TEXT_NODE) return textNodeToParagraphV2(node as Text, page, index)
   if (node instanceof Element) return elementToBlockV2(node, page, index, existing)
   return null
+}
+
+function editorNodesToBlocksV2(nodes: ChildNode[], page: BookDocumentV2['pages'][number], existing: Map<string, BookBlockV2>): BookBlockV2[] {
+  const blocks: BookBlockV2[] = []
+  let inlineBuffer: ChildNode[] = []
+  const flushInline = (index: number) => {
+    if (!inlineBuffer.length) return
+    const paragraph = looseInlineNodesToParagraphV2(inlineBuffer, page, index, existing)
+    if (paragraph) blocks.push(paragraph)
+    inlineBuffer = []
+  }
+  nodes.forEach((node, index) => {
+    if (looseInlineNodeV2(node)) {
+      inlineBuffer.push(node)
+      return
+    }
+    if (node.nodeType === Node.TEXT_NODE) return
+    flushInline(index)
+    const block = editorNodeToBlockV2(node, page, index, existing)
+    if (block) blocks.push(block)
+  })
+  flushInline(nodes.length)
+  return blocks
 }
 
 function documentFromEditorDomV2(bookDocument: BookDocumentV2, root: HTMLElement | null): BookDocumentV2 {
@@ -439,9 +472,7 @@ function documentFromEditorDomV2(bookDocument: BookDocumentV2, root: HTMLElement
   const pages = bookDocument.pages.map((page, pageIndex) => {
     const pageElement = root.querySelector<HTMLElement>(`.editor-v2-flow-page[data-page-index="${page.index}"]`) || root.querySelectorAll<HTMLElement>('.editor-v2-flow-page')[pageIndex]
     if (!pageElement) return page
-    const blocks = Array.from(pageElement.childNodes)
-      .map((node, index) => editorNodeToBlockV2(node, page, index, existing))
-      .filter((block): block is BookBlockV2 => Boolean(block))
+    const blocks = editorNodesToBlocksV2(Array.from(pageElement.childNodes), page, existing)
     return { ...page, blocks }
   })
   return rebuildDocumentTocV2({ ...bookDocument, pages, updatedAt: new Date().toISOString() })
