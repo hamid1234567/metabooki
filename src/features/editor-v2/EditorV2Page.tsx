@@ -36,34 +36,34 @@ type AiApprovalV2 = {
 }
 
 const PANEL_LABELS: Record<EditorPanelV2, { title: string; icon: typeof ListTree }> = {
-  toc: { title: 'ÙÙ‡Ø±Ø³Øª', icon: ListTree },
-  upgrade: { title: 'Ø§Ø±ØªÙ‚Ø§ Ù…ØªÙ†', icon: FileText },
-  media: { title: 'Ø±Ø³Ø§Ù†Ù‡', icon: ImageIcon },
-  interactive: { title: 'Ø§Ø¨Ø²Ø§Ø± ØªØ¹Ø§Ù…Ù„ÛŒ', icon: PanelRight },
-  ai: { title: 'Ù‡ÙˆØ´ Ù…ØµÙ†ÙˆØ¹ÛŒ', icon: Sparkles },
+  toc: { title: 'فهرست', icon: ListTree },
+  upgrade: { title: 'ارتقا متن', icon: FileText },
+  media: { title: 'رسانه', icon: ImageIcon },
+  interactive: { title: 'ابزار تعاملی', icon: PanelRight },
+  ai: { title: 'هوش مصنوعی', icon: Sparkles },
 }
 
 const CALLOUT_VARIANTS_V2 = ['key', 'question', 'warning', 'quote', 'deep', 'practice', 'glossary', 'data', 'margin'] as const
 
 const TEXT_COLOR_SWATCHES_V2 = [
-  { label: 'Ù…Ø´Ú©ÛŒ', value: '#111827' },
-  { label: 'Ø¢Ø¨ÛŒ', value: '#2563EB' },
-  { label: 'Ø³Ø¨Ø²', value: '#16A34A' },
-  { label: 'Ù†Ø§Ø±Ù†Ø¬ÛŒ', value: '#EA580C' },
-  { label: 'Ù‚Ø±Ù…Ø²', value: '#DC2626' },
-  { label: 'Ø¨Ù†ÙØ´', value: '#7C3AED' },
+  { label: 'مشکی', value: '#111827' },
+  { label: 'آبی', value: '#2563EB' },
+  { label: 'سبز', value: '#16A34A' },
+  { label: 'نارنجی', value: '#EA580C' },
+  { label: 'قرمز', value: '#DC2626' },
+  { label: 'بنفش', value: '#7C3AED' },
 ] as const
 
 const CALLOUT_META_V2: Record<(typeof CALLOUT_VARIANTS_V2)[number], { title: string; icon: string }> = {
-  key: { title: 'Ù†Ú©ØªÙ‡ Ú©Ù„ÛŒØ¯ÛŒ', icon: 'ðŸ’¡' },
-  question: { title: 'Ù…Ú©Ø« Ùˆ ÙÚ©Ø± Ú©Ù†', icon: 'â”' },
-  warning: { title: 'Ø§Ø´ØªØ¨Ø§Ù‡ Ø±Ø§ÛŒØ¬', icon: 'âš ï¸' },
-  quote: { title: 'Ø¬Ù…Ù„Ù‡ Ø·Ù„Ø§ÛŒÛŒ', icon: 'â' },
-  deep: { title: 'Ø¹Ù…ÛŒÙ‚â€ŒØªØ± Ø¨Ø®ÙˆØ§Ù†', icon: 'ðŸ”' },
-  practice: { title: 'ØªÙ…Ø±ÛŒÙ† Ø³Ø±ÛŒØ¹', icon: 'âœ…' },
-  glossary: { title: 'ØªØ¹Ø±ÛŒÙ ÙˆØ§Ú˜Ù‡', icon: 'ðŸ“˜' },
-  data: { title: 'Ø¯Ø§Ø¯Ù‡ Ùˆ Ù…Ù†Ø¨Ø¹', icon: 'ðŸ“Š' },
-  margin: { title: 'ÛŒØ§Ø¯Ø¯Ø§Ø´Øª Ø­Ø§Ø´ÛŒÙ‡â€ŒØ§ÛŒ', icon: 'ðŸ“' },
+  key: { title: 'نکته کلیدی', icon: '💡' },
+  question: { title: 'مکث و فکر کن', icon: '؟' },
+  warning: { title: 'اشتباه رایج', icon: '⚠' },
+  quote: { title: 'جمله طلایی', icon: '❝' },
+  deep: { title: 'عمیق‌تر بخوان', icon: '🔍' },
+  practice: { title: 'تمرین سریع', icon: '✓' },
+  glossary: { title: 'تعریف واژه', icon: '📘' },
+  data: { title: 'داده و منبع', icon: '📊' },
+  margin: { title: 'یادداشت حاشیه‌ای', icon: '📝' },
 }
 
 const escapeHtmlV2 = (value = '') => String(value)
@@ -183,7 +183,7 @@ function blockToEditorHtmlV2(block: BookBlockV2): string {
   }
   if (block.type === 'image') {
     const width = block.widthPercent ? `${Math.max(12, Math.min(100, block.widthPercent))}%` : block.widthPx ? `${Math.max(80, block.widthPx)}px` : ''
-    return `<figure contenteditable="false" data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="image"${attrV2('data-image-id', block.imageId)}${attrV2('data-width-px', block.widthPx)}${attrV2('data-width-percent', block.widthPercent)}>${block.url ? `<img src="${escapeHtmlV2(block.url)}" alt="${escapeHtmlV2(block.caption || '')}"${width ? ` style="max-width:${escapeHtmlV2(width)}"` : ''}>` : '<div class="book-v2-missing-image">ØªØµÙˆÛŒØ± Ø¯Ø± Ø¯Ø³ØªØ±Ø³ Ù†ÛŒØ³Øª</div>'}${block.caption ? `<figcaption>${escapeHtmlV2(block.caption)}</figcaption>` : ''}</figure>`
+    return `<figure contenteditable="false" data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="image"${attrV2('data-image-id', block.imageId)}${attrV2('data-width-px', block.widthPx)}${attrV2('data-width-percent', block.widthPercent)}>${block.url ? `<img src="${escapeHtmlV2(block.url)}" alt="${escapeHtmlV2(block.caption || '')}"${width ? ` style="max-width:${escapeHtmlV2(width)}"` : ''}>` : '<div class="book-v2-missing-image">تص�ˆ�Œر در دسترس �†�Œست</div>'}${block.caption ? `<figcaption>${escapeHtmlV2(block.caption)}</figcaption>` : ''}</figure>`
   }
   if (block.type === 'table') {
     const headers = block.headers?.length ? `<thead><tr>${block.headers.map(cell => `<th>${escapeHtmlV2(cell)}</th>`).join('')}</tr></thead>` : ''
@@ -192,10 +192,10 @@ function blockToEditorHtmlV2(block: BookBlockV2): string {
   }
   if (block.type === 'callout') {
     const body = block.blocks.map(blockToEditorHtmlV2).join('')
-    return `<section class="book-callout editor-v2-callout has-rendered-title callout-${escapeHtmlV2(block.variant)}" data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="callout" data-variant="${escapeHtmlV2(block.variant)}" data-callout-variant="${escapeHtmlV2(block.variant)}" data-callout-title="${escapeHtmlV2(block.title)}" data-callout-icon="${escapeHtmlV2(block.icon || '')}"><button type="button" class="book-callout-unwrap editor-v2-callout-unwrap" contenteditable="false" data-callout-unwrap="true" aria-label="Unwrap callout">×</button><div class="book-callout-head"><span class="book-callout-icon" contenteditable="false">${escapeHtmlV2(block.icon || '')}</span><strong class="book-callout-title" contenteditable="true" data-callout-title-editor="true">${escapeHtmlV2(block.title)}</strong></div><div class="book-callout-bg-icon" contenteditable="false">${escapeHtmlV2(block.icon || '')}</div><div class="book-callout-content">${body}</div></section>`
+    return `<section class="book-callout editor-v2-callout has-rendered-title callout-${escapeHtmlV2(block.variant)}" data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="callout" data-variant="${escapeHtmlV2(block.variant)}" data-callout-variant="${escapeHtmlV2(block.variant)}" data-callout-title="${escapeHtmlV2(block.title)}" data-callout-icon="${escapeHtmlV2(block.icon || '')}"><button type="button" class="book-callout-unwrap editor-v2-callout-unwrap" contenteditable="false" data-callout-unwrap="true" aria-label="Unwrap callout">�</button><div class="book-callout-head"><span class="book-callout-icon" contenteditable="false">${escapeHtmlV2(block.icon || '')}</span><strong class="book-callout-title" contenteditable="true" data-callout-title-editor="true">${escapeHtmlV2(block.title)}</strong></div><div class="book-callout-bg-icon" contenteditable="false">${escapeHtmlV2(block.icon || '')}</div><div class="book-callout-content">${body}</div></section>`
   }
   if (block.type === 'interactive') {
-    return `<section contenteditable="false" class="book-interactive-v2" data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="interactive" data-kind="${escapeHtmlV2(block.kind)}"><strong>${escapeHtmlV2(block.title || String(block.payload.title || 'Ø¨Ø®Ø´ ØªØ¹Ø§Ù…Ù„ÛŒ'))}</strong></section>`
+    return `<section contenteditable="false" class="book-interactive-v2" data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="interactive" data-kind="${escapeHtmlV2(block.kind)}"><strong>${escapeHtmlV2(block.title || String(block.payload.title || 'بخش تعا�…�„�Œ'))}</strong></section>`
   }
   if (block.type === 'math') {
     return `<p data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="math">${escapeHtmlV2(block.expression)}</p>`
@@ -577,13 +577,13 @@ function insertBlockAfterV2(document: BookDocumentV2, selectedBlockId: string | 
 function createInteractiveTemplateV2(kind: string, printNumber?: PrintPageValue): BookBlockV2 {
   const id = createV2Id('interactive', kind, Date.now())
   const common = { id, type: 'interactive' as const, kind: kind as any, anchor: id, printNumber }
-  if (kind === 'quiz') return { ...common, title: 'Ú©ÙˆÛŒÛŒØ² Ú†Ù†Ø¯Ú¯Ø²ÛŒÙ†Ù‡â€ŒØ§ÛŒ', payload: { question: 'Ø³Ø¤Ø§Ù„ Ø±Ø§ Ø§ÛŒÙ†Ø¬Ø§ Ø¨Ù†ÙˆÛŒØ³ÛŒØ¯', options: ['Ú¯Ø²ÛŒÙ†Ù‡ Ø§ÙˆÙ„', 'Ú¯Ø²ÛŒÙ†Ù‡ Ø¯ÙˆÙ…', 'Ú¯Ø²ÛŒÙ†Ù‡ Ø³ÙˆÙ…'], correct: 0, explanation: '' } }
-  if (kind === 'truefalse') return { ...common, title: 'ØµØ­ÛŒØ­ ÛŒØ§ ØºÙ„Ø·', payload: { question: 'Ú¯Ø²Ø§Ø±Ù‡ Ø±Ø§ Ø§ÛŒÙ†Ø¬Ø§ Ø¨Ù†ÙˆÛŒØ³ÛŒØ¯', options: ['ØµØ­ÛŒØ­', 'ØºÙ„Ø·'], correct: 0, explanation: '' } }
-  if (kind === 'flashcard') return { ...common, title: 'ÙÙ„Ø´â€ŒÚ©Ø§Ø±Øª', payload: { cards: [{ front: 'Ø±ÙˆÛŒ Ú©Ø§Ø±Øª', back: 'Ù¾Ø´Øª Ú©Ø§Ø±Øª', image: '' }] } }
-  if (kind === 'gallery') return { ...common, title: 'Ú¯Ø§Ù„Ø±ÛŒ ØªØµÙˆÛŒØ±', payload: { title: 'Ú¯Ø§Ù„Ø±ÛŒ ØªØµÙˆÛŒØ±', images: [{ url: '', caption: '' }] } }
-  if (kind === 'timeline') return { ...common, title: 'ØªØ§ÛŒÙ…â€ŒÙ„Ø§ÛŒÙ†', payload: { title: 'ØªØ§ÛŒÙ…â€ŒÙ„Ø§ÛŒÙ†', events: [{ title: 'Ù…Ø±Ø­Ù„Ù‡ Ø§ÙˆÙ„', description: '', image: '' }, { title: 'Ù…Ø±Ø­Ù„Ù‡ Ø¯ÙˆÙ…', description: '', image: '' }] } }
-  if (kind === 'author') return { ...common, title: 'Ù…Ø¹Ø±ÙÛŒ Ù†ÙˆÛŒØ³Ù†Ø¯Ú¯Ø§Ù†', payload: { title: 'Ù†ÙˆÛŒØ³Ù†Ø¯Ú¯Ø§Ù†', authors: [{ name: '', role: '', bio: '', image: '' }] } }
-  return { ...common, title: 'Ù…Ø±Ø§Ø­Ù„ ØªØ¹Ø§Ù…Ù„ÛŒ', payload: { title: 'Ù…Ø±Ø§Ø­Ù„ ØªØ¹Ø§Ù…Ù„ÛŒ', steps: [{ title: 'Ù…Ø±Ø­Ù„Ù‡ Ø§ÙˆÙ„', description: '', image: '' }, { title: 'Ù…Ø±Ø­Ù„Ù‡ Ø¯ÙˆÙ…', description: '', image: '' }] } }
+  if (kind === 'quiz') return { ...common, title: 'ک�ˆ�Œ�Œز �†�†دگز�Œ�†�‡�€Œا�Œ', payload: { question: 'سؤا�„ را ا�Œ�†جا ب�†�ˆ�Œس�Œد', options: ['گز�Œ�†�‡ ا�ˆ�„', 'گز�Œ�†�‡ د�ˆ�…', 'گز�Œ�†�‡ س�ˆ�…'], correct: 0, explanation: '' } }
+  if (kind === 'truefalse') return { ...common, title: 'صح�Œح �Œا غ�„ط', payload: { question: 'گزار�‡ را ا�Œ�†جا ب�†�ˆ�Œس�Œد', options: ['صح�Œح', 'غ�„ط'], correct: 0, explanation: '' } }
+  if (kind === 'flashcard') return { ...common, title: 'ف�„ش�€Œکارت', payload: { cards: [{ front: 'ر�ˆ�Œ کارت', back: 'پشت کارت', image: '' }] } }
+  if (kind === 'gallery') return { ...common, title: 'گا�„ر�Œ تص�ˆ�Œر', payload: { title: 'گا�„ر�Œ تص�ˆ�Œر', images: [{ url: '', caption: '' }] } }
+  if (kind === 'timeline') return { ...common, title: 'تا�Œ�…�€Œ�„ا�Œ�†', payload: { title: 'تا�Œ�…�€Œ�„ا�Œ�†', events: [{ title: '�…رح�„�‡ ا�ˆ�„', description: '', image: '' }, { title: '�…رح�„�‡ د�ˆ�…', description: '', image: '' }] } }
+  if (kind === 'author') return { ...common, title: '�…عرف�Œ �†�ˆ�Œس�†دگا�†', payload: { title: '�†�ˆ�Œس�†دگا�†', authors: [{ name: '', role: '', bio: '', image: '' }] } }
+  return { ...common, title: '�…راح�„ تعا�…�„�Œ', payload: { title: '�…راح�„ تعا�…�„�Œ', steps: [{ title: '�…رح�„�‡ ا�ˆ�„', description: '', image: '' }, { title: '�…رح�„�‡ د�ˆ�…', description: '', image: '' }] } }
 }
 
 function plainTextFromBlockV2(block: BookBlockV2): string {
@@ -603,14 +603,14 @@ function isUuid(value = '') {
 
 function SaveIndicator({ state, floating = false }: { state: SaveVisualStateV2; floating?: boolean }) {
   const label = state === 'saving'
-    ? 'Ø¯Ø± Ø­Ø§Ù„ Ø°Ø®ÛŒØ±Ù‡'
+    ? 'در حا�„ ذخ�Œر�‡'
     : state === 'saved'
-      ? 'Ø°Ø®ÛŒØ±Ù‡ Ø´Ø¯'
+      ? 'ذخ�Œر�‡ شد'
       : state === 'error'
-        ? 'Ø°Ø®ÛŒØ±Ù‡ Ù†Ø§Ù…ÙˆÙÙ‚'
+        ? 'ذخ�Œر�‡ �†ا�…�ˆف�‚'
         : state === 'dirty'
-          ? 'Ø°Ø®ÛŒØ±Ù‡ Ù†Ø´Ø¯Ù‡'
-        : 'Ù…Ù†ØªØ´Ø± Ø´Ø¯Ù‡'
+          ? 'ذخ�Œر�‡ �†شد�‡'
+        : '�…�†تشر شد�‡'
   const isReady = state === 'saved'
   if (floating) {
     return (
@@ -668,13 +668,13 @@ function TextToolbarV2({
         if ((event.target as HTMLElement).closest('button')) event.preventDefault()
       }}
     >
-      <Button variant="outline" size="icon" onClick={() => execTextCommand('undo')} title="Ø¨Ø§Ø²Ú¯Ø´Øª"><Undo2 size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => execTextCommand('redo')} title="Ø§Ù†Ø¬Ø§Ù… Ø¯ÙˆØ¨Ø§Ø±Ù‡"><Redo2 size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('undo')} title="بازگشت"><Undo2 size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('redo')} title="ا�†جا�… د�ˆبار�‡"><Redo2 size={17} /></Button>
       <span className="editor-v2-toolbar-divider" />
-      <Button variant="outline" size="icon" onClick={() => formatCurrentBlock('p')} title="Ù…ØªÙ† Ø¹Ø§Ø¯ÛŒ"><Type size={17} /></Button>
-      <select defaultValue="" onChange={event => { if (event.target.value) formatCurrentBlock(event.target.value); event.target.value = '' }} title="Ø³Ø·Ø­ Ø¹Ù†ÙˆØ§Ù†">
+      <Button variant="outline" size="icon" onClick={() => formatCurrentBlock('p')} title="�…ت�† عاد�Œ"><Type size={17} /></Button>
+      <select defaultValue="" onChange={event => { if (event.target.value) formatCurrentBlock(event.target.value); event.target.value = '' }} title="سطح ع�†�ˆا�†">
         <option value="" disabled>H</option>
-        <option value="p">Ù…ØªÙ† Ø¹Ø§Ø¯ÛŒ</option>
+        <option value="p">�…ت�† عاد�Œ</option>
         <option value="h1">H1</option>
         <option value="h2">H2</option>
         <option value="h3">H3</option>
@@ -682,31 +682,31 @@ function TextToolbarV2({
         <option value="h5">H5</option>
         <option value="h6">H6</option>
       </select>
-      <select defaultValue="" onChange={event => { if (event.target.value) applyInlineStyleToSelection({ fontFamily: event.target.value }); event.target.value = '' }} title="ÙÙˆÙ†Øª">
-        <option value="" disabled>ÙÙˆÙ†Øª</option>
+      <select defaultValue="" onChange={event => { if (event.target.value) applyInlineStyleToSelection({ fontFamily: event.target.value }); event.target.value = '' }} title="ف�ˆ�†ت">
+        <option value="" disabled>ف�ˆ�†ت</option>
         <option value="Vazirmatn">Vazirmatn</option>
         <option value="Tahoma">Tahoma</option>
         <option value="Arial">Arial</option>
         <option value="Georgia">Georgia</option>
         <option value="Times New Roman">Times</option>
       </select>
-      <select defaultValue="" onChange={event => { if (event.target.value) applyInlineStyleToSelection({ fontSize: FONT_SIZE_MAP_V2[event.target.value] || event.target.value }); event.target.value = '' }} title="Ø§Ù†Ø¯Ø§Ø²Ù‡ Ù…ØªÙ†">
-        <option value="" disabled>Ø§Ù†Ø¯Ø§Ø²Ù‡</option>
-        <option value="1">Ø®ÛŒÙ„ÛŒ Ø±ÛŒØ²</option>
-        <option value="2">Ø±ÛŒØ²</option>
-        <option value="3">Ø¹Ø§Ø¯ÛŒ</option>
-        <option value="4">Ø¯Ø±Ø´Øª</option>
-        <option value="5">Ø®ÛŒÙ„ÛŒ Ø¯Ø±Ø´Øª</option>
+      <select defaultValue="" onChange={event => { if (event.target.value) applyInlineStyleToSelection({ fontSize: FONT_SIZE_MAP_V2[event.target.value] || event.target.value }); event.target.value = '' }} title="ا�†داز�‡ �…ت�†">
+        <option value="" disabled>ا�†داز�‡</option>
+        <option value="1">خ�Œ�„�Œ ر�Œز</option>
+        <option value="2">ر�Œز</option>
+        <option value="3">عاد�Œ</option>
+        <option value="4">درشت</option>
+        <option value="5">خ�Œ�„�Œ درشت</option>
       </select>
-      <div className="editor-v2-color-swatches" role="group" aria-label="Ø±Ù†Ú¯ Ù…ØªÙ†">
+      <div className="editor-v2-color-swatches" role="group" aria-label="ر�†گ �…ت�†">
         {TEXT_COLOR_SWATCHES_V2.map(color => (
           <button
             key={color.value}
             type="button"
             className="editor-v2-color-swatch"
             style={{ '--swatch-color': color.value } as CSSProperties}
-            title={`Ø±Ù†Ú¯ Ù…ØªÙ†: ${color.label}`}
-            aria-label={`Ø±Ù†Ú¯ Ù…ØªÙ†: ${color.label}`}
+            title={`ر�†گ �…ت�†: ${color.label}`}
+            aria-label={`ر�†گ �…ت�†: ${color.label}`}
             onMouseDown={event => {
               event.preventDefault()
               rememberEditorSelection()
@@ -717,25 +717,25 @@ function TextToolbarV2({
       </div>
       <span className="editor-v2-toolbar-divider" />
       <Button variant="outline" size="icon" onClick={applyRegularToSelection} title="Regular" aria-pressed={toolbarState.hasSelection && !toolbarState.bold && !toolbarState.italic} className={toolbarState.hasSelection && !toolbarState.bold && !toolbarState.italic ? 'is-active' : undefined}><span className="editor-v2-regular-mark">R</span></Button>
-      <Button variant="outline" size="icon" onClick={() => execTextCommand('bold')} title="Ù¾Ø±Ø±Ù†Ú¯" aria-pressed={toolbarState.bold} className={toolbarState.bold ? 'is-active' : undefined}><Bold size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => execTextCommand('italic')} title="Ù…ÙˆØ±Ø¨" aria-pressed={toolbarState.italic} className={toolbarState.italic ? 'is-active' : undefined}><Italic size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => execTextCommand('underline')} title="Ø²ÛŒØ±Ø®Ø·" aria-pressed={toolbarState.underline} className={toolbarState.underline ? 'is-active' : undefined}><UnderlineIcon size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => execTextCommand('strikeThrough')} title="Ø®Ø·â€ŒØ®ÙˆØ±Ø¯Ù‡" aria-pressed={toolbarState.strike} className={toolbarState.strike ? 'is-active' : undefined}><Strikethrough size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => execTextCommand('superscript')} title="Ø¨Ø§Ù„Ø§Ù†ÙˆÛŒØ³" aria-pressed={toolbarState.superscript} className={toolbarState.superscript ? 'is-active' : undefined}><Superscript size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => execTextCommand('subscript')} title="Ø²ÛŒØ±Ù†ÙˆÛŒØ³" aria-pressed={toolbarState.subscript} className={toolbarState.subscript ? 'is-active' : undefined}><Subscript size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={createLinkForSelection} title="Ù„ÛŒÙ†Ú©"><Link2 size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => execTextCommand('removeFormat')} title="Ù¾Ø§Ú© Ú©Ø±Ø¯Ù† ÙØ±Ù…Øª"><Eraser size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('bold')} title="پرر�†گ" aria-pressed={toolbarState.bold} className={toolbarState.bold ? 'is-active' : undefined}><Bold size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('italic')} title="�…�ˆرب" aria-pressed={toolbarState.italic} className={toolbarState.italic ? 'is-active' : undefined}><Italic size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('underline')} title="ز�Œرخط" aria-pressed={toolbarState.underline} className={toolbarState.underline ? 'is-active' : undefined}><UnderlineIcon size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('strikeThrough')} title="خط�€Œخ�ˆرد�‡" aria-pressed={toolbarState.strike} className={toolbarState.strike ? 'is-active' : undefined}><Strikethrough size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('superscript')} title="با�„ا�†�ˆ�Œس" aria-pressed={toolbarState.superscript} className={toolbarState.superscript ? 'is-active' : undefined}><Superscript size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('subscript')} title="ز�Œر�†�ˆ�Œس" aria-pressed={toolbarState.subscript} className={toolbarState.subscript ? 'is-active' : undefined}><Subscript size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={createLinkForSelection} title="�„�Œ�†ک"><Link2 size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('removeFormat')} title="پاک کرد�† فر�…ت"><Eraser size={17} /></Button>
       <span className="editor-v2-toolbar-divider" />
-      <Button variant="outline" size="icon" onClick={() => execTextCommand('insertUnorderedList')} title="ÙÙ‡Ø±Ø³Øª Ù†Ù‚Ø·Ù‡â€ŒØ§ÛŒ"><List size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => execTextCommand('insertOrderedList')} title="ÙÙ‡Ø±Ø³Øª Ø´Ù…Ø§Ø±Ù‡â€ŒØ§ÛŒ"><ListOrdered size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => applyBlockAlignment('right')} title="Ø±Ø§Ø³Øªâ€ŒÚ†ÛŒÙ†" aria-pressed={toolbarState.alignment === 'right'} className={toolbarState.alignment === 'right' ? 'is-active' : undefined}><AlignRight size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => applyBlockAlignment('center')} title="ÙˆØ³Ø·â€ŒÚ†ÛŒÙ†" aria-pressed={toolbarState.alignment === 'center'} className={toolbarState.alignment === 'center' ? 'is-active' : undefined}><AlignCenter size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => applyBlockAlignment('left')} title="Ú†Ù¾â€ŒÚ†ÛŒÙ†" aria-pressed={toolbarState.alignment === 'left'} className={toolbarState.alignment === 'left' ? 'is-active' : undefined}><AlignLeft size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => applyBlockAlignment('justify')} title="ØªØ±Ø§Ø² Ú©Ø§Ù…Ù„" aria-pressed={toolbarState.alignment === 'justify'} className={toolbarState.alignment === 'justify' ? 'is-active' : undefined}><AlignJustify size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => setCurrentBlockDirection('rtl')} title="Ø¬Ù‡Øª Ø±Ø§Ø³Øª Ø¨Ù‡ Ú†Ù¾"><ArrowRight size={17} /></Button>
-      <Button variant="outline" size="icon" onClick={() => setCurrentBlockDirection('ltr')} title="Ø¬Ù‡Øª Ú†Ù¾ Ø¨Ù‡ Ø±Ø§Ø³Øª"><ArrowLeft size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('insertUnorderedList')} title="ف�‡رست �†�‚ط�‡�€Œا�Œ"><List size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => execTextCommand('insertOrderedList')} title="ف�‡رست ش�…ار�‡�€Œا�Œ"><ListOrdered size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => applyBlockAlignment('right')} title="راست�€Œ�†�Œ�†" aria-pressed={toolbarState.alignment === 'right'} className={toolbarState.alignment === 'right' ? 'is-active' : undefined}><AlignRight size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => applyBlockAlignment('center')} title="�ˆسط�€Œ�†�Œ�†" aria-pressed={toolbarState.alignment === 'center'} className={toolbarState.alignment === 'center' ? 'is-active' : undefined}><AlignCenter size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => applyBlockAlignment('left')} title="�†پ�€Œ�†�Œ�†" aria-pressed={toolbarState.alignment === 'left'} className={toolbarState.alignment === 'left' ? 'is-active' : undefined}><AlignLeft size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => applyBlockAlignment('justify')} title="تراز کا�…�„" aria-pressed={toolbarState.alignment === 'justify'} className={toolbarState.alignment === 'justify' ? 'is-active' : undefined}><AlignJustify size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => setCurrentBlockDirection('rtl')} title="ج�‡ت راست ب�‡ �†پ"><ArrowRight size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={() => setCurrentBlockDirection('ltr')} title="ج�‡ت �†پ ب�‡ راست"><ArrowLeft size={17} /></Button>
       <span className="editor-v2-toolbar-divider" />
-      <Button variant="outline" size="icon" onClick={insertSimpleTable} title="Ø¬Ø¯ÙˆÙ„ Ø³Ø§Ø¯Ù‡"><Table2 size={17} /></Button>
+      <Button variant="outline" size="icon" onClick={insertSimpleTable} title="جد�ˆ�„ ساد�‡"><Table2 size={17} /></Button>
     </section>
   )
 }
@@ -768,7 +768,7 @@ function TocTreeV2({
                 <span>{item.title}</span>
               </button>
               {hasChildren && (
-                <button className="editor-v2-toc-toggle" type="button" onClick={() => onToggle(item.id)} aria-label={isOpen ? 'Ø¬Ù…Ø¹ Ú©Ø±Ø¯Ù†' : 'Ø¨Ø§Ø² Ú©Ø±Ø¯Ù†'}>
+                <button className="editor-v2-toc-toggle" type="button" onClick={() => onToggle(item.id)} aria-label={isOpen ? 'ج�…ع کرد�†' : 'باز کرد�†'}>
                   {isOpen ? <ChevronDown size={12} /> : <ChevronLeft size={12} />}
                 </button>
               )}
@@ -828,7 +828,7 @@ function RightPanelV2({
   const ActiveIcon = PANEL_LABELS[activePanel].icon
   return (
     <aside className="editor-v2-side">
-      <nav className="editor-v2-side-tabs" aria-label="Ø§Ø¨Ø²Ø§Ø±Ù‡Ø§ÛŒ Ø§Ø¯ÛŒØªÙˆØ±">
+      <nav className="editor-v2-side-tabs" aria-label="ابزار�‡ا�Œ اد�Œت�ˆر">
         {(Object.keys(PANEL_LABELS) as EditorPanelV2[]).map(panel => {
           const Icon = PANEL_LABELS[panel].icon
           return (
@@ -847,17 +847,17 @@ function RightPanelV2({
         {activePanel === 'toc' && (
           <>
             <div className="editor-v2-panel-actions">
-              <button type="button" onClick={() => setOpenIds(new Set(tocAsFlatListV2(document).map(item => item.id)))}>Ø¨Ø§Ø² Ú©Ø±Ø¯Ù† Ù‡Ù…Ù‡</button>
-              <button type="button" onClick={() => setOpenIds(new Set())}>Ø¬Ù…Ø¹ Ú©Ø±Ø¯Ù† Ù‡Ù…Ù‡</button>
+              <button type="button" onClick={() => setOpenIds(new Set(tocAsFlatListV2(document).map(item => item.id)))}>باز کرد�† �‡�…�‡</button>
+              <button type="button" onClick={() => setOpenIds(new Set())}>ج�…ع کرد�† �‡�…�‡</button>
             </div>
-            {tree.length ? <TocTreeV2 items={tree} activeId={activeTocId} openIds={openIds} onToggle={toggle} onJump={onJumpToToc} /> : <p className="editor-v2-empty-panel">ÙÙ‡Ø±Ø³ØªÛŒ Ø¨Ø±Ø§ÛŒ Ø§ÛŒÙ† Ú©ØªØ§Ø¨ Ø«Ø¨Øª Ù†Ø´Ø¯Ù‡ Ø§Ø³Øª.</p>}
+            {tree.length ? <TocTreeV2 items={tree} activeId={activeTocId} openIds={openIds} onToggle={toggle} onJump={onJumpToToc} /> : <p className="editor-v2-empty-panel">ف�‡رست�Œ برا�Œ ا�Œ�† کتاب ثبت �†شد�‡ است.</p>}
           </>
         )}
         {activePanel === 'upgrade' && (
           <div className="editor-v2-action-grid">
             {CALLOUT_VARIANTS_V2.map(variant => <button key={variant} type="button" onClick={() => onApplyCallout(variant)}><span>{CALLOUT_META_V2[variant].icon}</span>{CALLOUT_META_V2[variant].title}</button>)}
-            <button type="button" disabled={!canUnwrapCallout} onClick={onUnwrapCallout}><Undo2 size={15} />Ø¨Ø±Ú¯Ø±Ø¯Ø§Ù†Ø¯Ù† Ú©Ø§Ù„â€ŒØ§ÙˆØª Ø¨Ù‡ Ù…ØªÙ† Ø¹Ø§Ø¯ÛŒ</button>
-            <p>Ø¨Ø±Ø§ÛŒ ØªØ¨Ø¯ÛŒÙ„ Ù…ØªÙ† Ø¨Ù‡ Ú©Ø§Ù„â€ŒØ§ÙˆØªØŒ Ù†Ø´Ø§Ù†Ú¯Ø± Ø±Ø§ Ø¯Ø§Ø®Ù„ Ù‡Ù…Ø§Ù† Ù¾Ø§Ø±Ø§Ú¯Ø±Ø§Ù Ø¨Ú¯Ø°Ø§Ø±ÛŒØ¯ ÛŒØ§ Ù…ØªÙ† Ø±Ø§ Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ù†ÛŒØ¯ Ùˆ Ù†ÙˆØ¹ Ú©Ø§Ù„â€ŒØ§ÙˆØª Ø±Ø§ Ø§Ø² Ù‡Ù…ÛŒÙ† Ù¾Ù†Ù„ Ø¨Ø²Ù†ÛŒØ¯.</p>
+            <button type="button" disabled={!canUnwrapCallout} onClick={onUnwrapCallout}><Undo2 size={15} />برگردا�†د�† کا�„�€Œا�ˆت ب�‡ �…ت�† عاد�Œ</button>
+            <p>برا�Œ تبد�Œ�„ �…ت�† ب�‡ کا�„�€Œا�ˆت�Œ �†شا�†گر را داخ�„ �‡�…ا�† پاراگراف بگذار�Œد �Œا �…ت�† را ا�†تخاب ک�†�Œد �ˆ �†�ˆع کا�„�€Œا�ˆت را از �‡�…�Œ�† پ�†�„ بز�†�Œد.</p>
           </div>
         )}
         {activePanel === 'media' && (
@@ -865,24 +865,24 @@ function RightPanelV2({
             {document.assets.length ? document.assets.slice(0, 80).map(asset => (
               <button key={asset.id} type="button" onClick={() => onInsertImage(asset.id)}>
                 <img src={asset.url} alt={asset.caption || ''} loading="lazy" />
-                <span>{asset.caption || `ØªØµÙˆÛŒØ± ØµÙØ­Ù‡ ${asset.printNumber || ''}`}</span>
+                <span>{asset.caption || `تص�ˆ�Œر صفح�‡ ${asset.printNumber || ''}`}</span>
               </button>
-            )) : <p className="editor-v2-empty-panel">ØªØµÙˆÛŒØ±ÛŒ Ø¯Ø± Ø³Ù†Ø¯ Ø´Ù†Ø§Ø³Ø§ÛŒÛŒ Ù†Ø´Ø¯Ù‡ Ø§Ø³Øª.</p>}
+            )) : <p className="editor-v2-empty-panel">تص�ˆ�Œر�Œ در س�†د ش�†اسا�Œ�Œ �†شد�‡ است.</p>}
           </div>
         )}
         {activePanel === 'interactive' && (
           <div className="editor-v2-action-grid">
             {[
-              ['quiz', 'Quiz Ú†Ù†Ø¯Ú¯Ø²ÛŒÙ†Ù‡â€ŒØ§ÛŒ'],
-              ['truefalse', 'ØµØ­ÛŒØ­/ØºÙ„Ø·'],
-              ['flashcard', 'ÙÙ„Ø´â€ŒÚ©Ø§Ø±Øª'],
-              ['accordion', 'Ø¢Ú©Ø§Ø±Ø¯Ø¦ÙˆÙ†'],
-              ['tabs', 'ØªØ¨â€ŒÙ‡Ø§'],
-              ['timeline', 'ØªØ§ÛŒÙ…â€ŒÙ„Ø§ÛŒÙ†'],
-              ['gallery', 'Ú¯Ø§Ù„Ø±ÛŒ ØªØµÙˆÛŒØ±'],
-              ['scrollytelling', 'Ø§Ø³ØªÙˆØ±ÛŒâ€ŒØªÙ„ÛŒÙ†Ú¯'],
-              ['algorithm', 'Ø§Ù„Ú¯ÙˆØ±ÛŒØªÙ… ØªØ¹Ø§Ù…Ù„ÛŒ'],
-              ['author', 'Ù…Ø¹Ø±ÙÛŒ Ù†ÙˆÛŒØ³Ù†Ø¯Ù‡'],
+              ['quiz', 'Quiz �†�†دگز�Œ�†�‡�€Œا�Œ'],
+              ['truefalse', 'صح�Œح/غ�„ط'],
+              ['flashcard', 'ف�„ش�€Œکارت'],
+              ['accordion', 'آکاردئ�ˆ�†'],
+              ['tabs', 'تب�€Œ�‡ا'],
+              ['timeline', 'تا�Œ�…�€Œ�„ا�Œ�†'],
+              ['gallery', 'گا�„ر�Œ تص�ˆ�Œر'],
+              ['scrollytelling', 'است�ˆر�Œ�€Œت�„�Œ�†گ'],
+              ['algorithm', 'ا�„گ�ˆر�Œت�… تعا�…�„�Œ'],
+              ['author', '�…عرف�Œ �†�ˆ�Œس�†د�‡'],
             ].map(([kind, label]) => <button key={kind} type="button" onClick={() => onInsertInteractive(kind)}><Sparkles size={15} />{label}</button>)}
           </div>
         )}
@@ -890,9 +890,9 @@ function RightPanelV2({
           <div className="editor-v2-action-grid">
             <button type="button" disabled={aiBusy} onClick={onAiEnhance}>
               {aiBusy ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
-              Ù¾ÛŒØ´Ù†Ù‡Ø§Ø¯ Ø§Ø±ØªÙ‚Ø§ÛŒ Ø®ÙˆØ§Ù†Ø§ÛŒÛŒ
+              پ�Œش�†�‡اد ارت�‚ا�Œ خ�ˆا�†ا�Œ�Œ
             </button>
-            <p>{aiMessage || 'Ø§Ú¯Ø± Ø¨Ù„ÙˆÚ©ÛŒ Ø§Ù†ØªØ®Ø§Ø¨ Ø´Ø¯Ù‡ Ø¨Ø§Ø´Ø¯ Ù‡Ù…Ø§Ù† Ù…ØªÙ† Ø¨Ø±Ø±Ø³ÛŒ Ù…ÛŒâ€ŒØ´ÙˆØ¯Ø› Ø¯Ø± ØºÛŒØ± Ø§ÛŒÙ† ØµÙˆØ±Øª Ù…ØªÙ† ØµÙØ­Ù‡/Ø§Ø¨ØªØ¯Ø§ÛŒ Ø³Ù†Ø¯ Ù…Ø¨Ù†Ø§ Ù‚Ø±Ø§Ø± Ù…ÛŒâ€ŒÚ¯ÛŒØ±Ø¯.'}</p>
+            <p>{aiMessage || 'اگر ب�„�ˆک�Œ ا�†تخاب شد�‡ باشد �‡�…ا�† �…ت�† بررس�Œ �…�Œ�€Œش�ˆد�› در غ�Œر ا�Œ�† ص�ˆرت �…ت�† صفح�‡/ابتدا�Œ س�†د �…ب�†ا �‚رار �…�Œ�€Œگ�Œرد.'}</p>
           </div>
         )}
       </section>
@@ -936,12 +936,12 @@ export default function EditorV2Page() {
         ? 'dirty'
         : 'saved'
   const saveButtonTitle = visualSaveState === 'saving'
-    ? 'Ø¯Ø± Ø­Ø§Ù„ Ø°Ø®ÛŒØ±Ù‡'
+    ? 'در حا�„ ذخ�Œر�‡'
     : visualSaveState === 'error'
-      ? 'ØªÙ„Ø§Ø´ Ø¯ÙˆØ¨Ø§Ø±Ù‡ Ø¨Ø±Ø§ÛŒ Ø°Ø®ÛŒØ±Ù‡'
+      ? 'ت�„اش د�ˆبار�‡ برا�Œ ذخ�Œر�‡'
       : visualSaveState === 'dirty'
-        ? 'ØªØºÛŒÛŒØ±Ø§Øª Ø°Ø®ÛŒØ±Ù‡â€ŒÙ†Ø´Ø¯Ù‡'
-        : 'Ø°Ø®ÛŒØ±Ù‡ Ø´Ø¯'
+        ? 'تغ�Œ�Œرات ذخ�Œر�‡�€Œ�†شد�‡'
+        : 'ذخ�Œر�‡ شد'
   const saveButtonClass = `${visualSaveState === 'saving' ? 'is-saving' : ''} ${visualSaveState === 'saved' ? 'is-saved' : ''} ${visualSaveState === 'dirty' ? 'is-dirty' : ''} ${visualSaveState === 'error' ? 'is-error' : ''}`
 
   useEffect(() => {
@@ -962,7 +962,7 @@ export default function EditorV2Page() {
       .then(found => {
         if (!alive) return
         if (!found) {
-          setError('Ú©ØªØ§Ø¨ Ù¾ÛŒØ¯Ø§ Ù†Ø´Ø¯.')
+          setError('کتاب پ�Œدا �†شد.')
           setBook(null)
           setDocument(null)
           return
@@ -976,7 +976,7 @@ export default function EditorV2Page() {
       })
       .catch(reason => {
         if (!alive) return
-        setError(reason instanceof Error ? reason.message : 'Ù„ÙˆØ¯ Ú©ØªØ§Ø¨ Ù†Ø§Ù…ÙˆÙÙ‚ Ø¨ÙˆØ¯.')
+        setError(reason instanceof Error ? reason.message : '�„�ˆد کتاب �†ا�…�ˆف�‚ ب�ˆد.')
       })
       .finally(() => {
         if (alive) setLoading(false)
@@ -1424,14 +1424,14 @@ export default function EditorV2Page() {
   }, [markEditorDirty, pushEditorHistory, readToolbarStateFromSelection, rememberEditorSelection, restoreEditorSelection, scheduleToolbarDocumentRefresh])
 
   const createLinkForSelection = useCallback(() => {
-    const href = window.prompt('Ø¢Ø¯Ø±Ø³ Ù„ÛŒÙ†Ú© Ø±Ø§ ÙˆØ§Ø±Ø¯ Ú©Ù†ÛŒØ¯')
+    const href = window.prompt('آدرس �„�Œ�†ک را �ˆارد ک�†�Œد')
     if (!href?.trim()) return
     execTextCommand('createLink', href.trim())
   }, [execTextCommand])
 
   const insertSimpleTable = useCallback(() => {
     const tableId = createV2Id('table', Date.now())
-    const html = `<table data-block-id="${tableId}" data-v2-type="table"><tbody><tr><td>Ø¹Ù†ÙˆØ§Ù†</td><td>Ù…Ù‚Ø¯Ø§Ø±</td></tr><tr><td></td><td></td></tr></tbody></table>`
+    const html = `<table data-block-id="${tableId}" data-v2-type="table"><tbody><tr><td>ع�†�ˆا�†</td><td>�…�‚دار</td></tr><tr><td></td><td></td></tr></tbody></table>`
     execTextCommand('insertHTML', html)
   }, [execTextCommand])
 
@@ -1445,14 +1445,14 @@ export default function EditorV2Page() {
       : null
     if (!targetBlockId) {
       calloutActionLockRef.current = false
-      setAiMessage('Ø¨Ø±Ø§ÛŒ Ø³Ø§Ø®Øª Ú©Ø§Ù„â€ŒØ§ÙˆØªØŒ Ù†Ø´Ø§Ù†Ú¯Ø± Ø±Ø§ Ø¯Ø§Ø®Ù„ ÛŒÚ© Ù¾Ø§Ø±Ø§Ú¯Ø±Ø§Ù Ø¨Ú¯Ø°Ø§Ø±ÛŒØ¯ ÛŒØ§ Ø¨Ø®Ø´ÛŒ Ø§Ø² Ù…ØªÙ† Ø±Ø§ Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ù†ÛŒØ¯.')
+      setAiMessage('برا�Œ ساخت کا�„�€Œا�ˆت�Œ �†شا�†گر را داخ�„ �Œک پاراگراف بگذار�Œد �Œا بخش�Œ از �…ت�† را ا�†تخاب ک�†�Œد.')
       setActivePanel('upgrade')
       return
     }
     const meta = CALLOUT_META_V2[variant]
     if (!target || !root?.contains(target)) {
       calloutActionLockRef.current = false
-      setAiMessage('Ù…ØªÙ† Ø§Ù†ØªØ®Ø§Ø¨â€ŒØ´Ø¯Ù‡ Ø¯Ø± Ø¨ÙˆÙ… Ø§Ø¯ÛŒØªÙˆØ± Ù¾ÛŒØ¯Ø§ Ù†Ø´Ø¯.')
+      setAiMessage('�…ت�† ا�†تخاب�€Œشد�‡ در ب�ˆ�… اد�Œت�ˆر پ�Œدا �†شد.')
       return
     }
     const existingCallout = target.closest<HTMLElement>('section.editor-v2-callout[data-v2-type="callout"]')
@@ -1482,7 +1482,7 @@ export default function EditorV2Page() {
         unwrapButton.contentEditable = 'false'
         unwrapButton.dataset.calloutUnwrap = 'true'
         unwrapButton.setAttribute('aria-label', 'Unwrap callout')
-        unwrapButton.textContent = '×'
+        unwrapButton.textContent = '�'
         existingCallout.prepend(unwrapButton)
       }
       if (titleElement && !titleElement.textContent?.trim()) titleElement.textContent = meta.title
@@ -1491,7 +1491,7 @@ export default function EditorV2Page() {
       const editableTarget = /^h[1-6]$/i.test(target.tagName) ? retagEditorBlockElement(target, 'p') : target
       if (!['p', 'div'].includes(editableTarget.tagName.toLowerCase())) {
         calloutActionLockRef.current = false
-        setAiMessage('ÙÙ‚Ø· Ù¾Ø§Ø±Ø§Ú¯Ø±Ø§Ù ÛŒØ§ Ø¹Ù†ÙˆØ§Ù† Ø§Ù†ØªØ®Ø§Ø¨â€ŒØ´Ø¯Ù‡ Ø±Ø§ Ù…ÛŒâ€ŒØªÙˆØ§Ù† Ø¨Ù‡ Ú©Ø§Ù„â€ŒØ§ÙˆØª ØªØ¨Ø¯ÛŒÙ„ Ú©Ø±Ø¯.')
+        setAiMessage('ف�‚ط پاراگراف �Œا ع�†�ˆا�† ا�†تخاب�€Œشد�‡ را �…�Œ�€Œت�ˆا�† ب�‡ کا�„�€Œا�ˆت تبد�Œ�„ کرد.')
         return
       }
       editableTarget.dataset.v2Type = 'paragraph'
@@ -1504,7 +1504,7 @@ export default function EditorV2Page() {
       section.dataset.calloutVariant = variant
       section.dataset.calloutTitle = meta.title
       section.dataset.calloutIcon = meta.icon
-      section.innerHTML = `<button type="button" class="book-callout-unwrap editor-v2-callout-unwrap" contenteditable="false" data-callout-unwrap="true" aria-label="Unwrap callout">×</button><div class="book-callout-head"><span class="book-callout-icon" contenteditable="false">${escapeHtmlV2(meta.icon)}</span><strong class="book-callout-title" contenteditable="true" data-callout-title-editor="true">${escapeHtmlV2(meta.title)}</strong></div><div class="book-callout-bg-icon" contenteditable="false">${escapeHtmlV2(meta.icon)}</div><div class="book-callout-content"></div>`
+      section.innerHTML = `<button type="button" class="book-callout-unwrap editor-v2-callout-unwrap" contenteditable="false" data-callout-unwrap="true" aria-label="Unwrap callout">�</button><div class="book-callout-head"><span class="book-callout-icon" contenteditable="false">${escapeHtmlV2(meta.icon)}</span><strong class="book-callout-title" contenteditable="true" data-callout-title-editor="true">${escapeHtmlV2(meta.title)}</strong></div><div class="book-callout-bg-icon" contenteditable="false">${escapeHtmlV2(meta.icon)}</div><div class="book-callout-content"></div>`
       const content = section.querySelector<HTMLElement>('.book-callout-content')
       editableTarget.replaceWith(section)
       content?.appendChild(editableTarget)
@@ -1587,17 +1587,17 @@ export default function EditorV2Page() {
     if (!document) return
     const pageText = aiSourceText()
     if (!pageText.trim()) {
-      setAiMessage('Ù…ØªÙ†ÛŒ Ø¨Ø±Ø§ÛŒ ØªØ­Ù„ÛŒÙ„ Ù¾ÛŒØ¯Ø§ Ù†Ø´Ø¯.')
+      setAiMessage('�…ت�†�Œ برا�Œ تح�„�Œ�„ پ�Œدا �†شد.')
       return
     }
     setAiBusy(true)
-    setAiMessage('Ø¯Ø± Ø­Ø§Ù„ Ø¨Ø±Ø¢ÙˆØ±Ø¯ Ù‡Ø²ÛŒÙ†Ù‡...')
+    setAiMessage('در حا�„ برآ�ˆرد �‡ز�Œ�†�‡...')
     try {
       const estimate = await estimateAiTextUsage({ action: 'callout_suggestions', bookTitle: document.title, pageText, bookId: document.sourceBookId, user })
       setAiApproval({ usage: estimate.usage, provider: estimate.provider, model: estimate.model, pageText })
-      setAiMessage('Ù‡Ø²ÛŒÙ†Ù‡ Ø¨Ø±Ø¢ÙˆØ±Ø¯ Ø´Ø¯Ø› Ø¨Ø±Ø§ÛŒ Ø§Ø¬Ø±Ø§ ØªØ§ÛŒÛŒØ¯ Ú©Ù†ÛŒØ¯.')
+      setAiMessage('�‡ز�Œ�†�‡ برآ�ˆرد شد�› برا�Œ اجرا تا�Œ�Œد ک�†�Œد.')
     } catch (error) {
-      setAiMessage(error instanceof Error ? error.message : 'Ø¨Ø±Ø¢ÙˆØ±Ø¯ Ù‡Ø²ÛŒÙ†Ù‡ Ù†Ø§Ù…ÙˆÙÙ‚ Ø¨ÙˆØ¯.')
+      setAiMessage(error instanceof Error ? error.message : 'برآ�ˆرد �‡ز�Œ�†�‡ �†ا�…�ˆف�‚ ب�ˆد.')
     } finally {
       setAiBusy(false)
     }
@@ -1612,7 +1612,7 @@ export default function EditorV2Page() {
   const runApprovedAi = useCallback(async () => {
     if (!document || !aiApproval) return
     setAiBusy(true)
-    setAiMessage('Ø¯Ø± Ø­Ø§Ù„ ØªÙˆÙ„ÛŒØ¯ Ù¾ÛŒØ´Ù†Ù‡Ø§Ø¯...')
+    setAiMessage('در حا�„ ت�ˆ�„�Œد پ�Œش�†�‡اد...')
     try {
       const result = await runAiThroughGateway({ action: 'callout_suggestions', bookTitle: document.title, pageText: aiApproval.pageText, bookId: document.sourceBookId, user })
       const suggestion = result.content?.type === 'callout_suggestions' ? result.content.suggestions?.[0] : null
@@ -1638,9 +1638,9 @@ export default function EditorV2Page() {
       setSelectedBlockId(callout.id)
       recordAiUsage(result.usage)
       setAiApproval(null)
-      setAiMessage('Ù¾ÛŒØ´Ù†Ù‡Ø§Ø¯ Ù‡ÙˆØ´ Ù…ØµÙ†ÙˆØ¹ÛŒ Ø¨Ù‡ Ù…ØªÙ† Ø§Ø¶Ø§ÙÙ‡ Ø´Ø¯.')
+      setAiMessage('پ�Œش�†�‡اد �‡�ˆش �…ص�†�ˆع�Œ ب�‡ �…ت�† اضاف�‡ شد.')
     } catch (error) {
-      setAiMessage(error instanceof Error ? error.message : 'ØªÙˆÙ„ÛŒØ¯ Ù¾ÛŒØ´Ù†Ù‡Ø§Ø¯ Ù†Ø§Ù…ÙˆÙÙ‚ Ø¨ÙˆØ¯.')
+      setAiMessage(error instanceof Error ? error.message : 'ت�ˆ�„�Œد پ�Œش�†�‡اد �†ا�…�ˆف�‚ ب�ˆد.')
     } finally {
       setAiBusy(false)
     }
@@ -1679,7 +1679,7 @@ export default function EditorV2Page() {
     return (
       <div className="editor-v2-loading">
         <Loader2 className="animate-spin" />
-        <span>Ø¯Ø± Ø­Ø§Ù„ Ø¢Ù…Ø§Ø¯Ù‡â€ŒØ³Ø§Ø²ÛŒ Ø§Ø¯ÛŒØªÙˆØ± Ø¬Ø¯ÛŒØ¯...</span>
+        <span>در حا�„ آ�…اد�‡�€Œساز�Œ اد�Œت�ˆر جد�Œد...</span>
       </div>
     )
   }
@@ -1688,8 +1688,8 @@ export default function EditorV2Page() {
     return (
       <div className="editor-v2-error menu-glass-70">
         <BookOpen size={32} />
-        <h1>{error || 'Ú©ØªØ§Ø¨ Ù¾ÛŒØ¯Ø§ Ù†Ø´Ø¯.'}</h1>
-        <Button onClick={() => navigate('/publisher/me')}><ArrowRight size={18} />Ø¨Ø§Ø²Ú¯Ø´Øª Ø¨Ù‡ Ø§Ù†ØªØ´Ø§Ø±Ø§Øª</Button>
+        <h1>{error || 'کتاب پ�Œدا �†شد.'}</h1>
+        <Button onClick={() => navigate('/publisher/me')}><ArrowRight size={18} />بازگشت ب�‡ ا�†تشارات</Button>
       </div>
     )
   }
@@ -1698,7 +1698,7 @@ export default function EditorV2Page() {
     <div className="editor-v2-root" dir="rtl">
       <header className="editor-v2-topbar menu-glass-70">
         <div className="editor-v2-title">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/publisher/me')} aria-label="Ø¨Ø§Ø²Ú¯Ø´Øª"><ArrowRight size={19} /></Button>
+          <Button variant="ghost" size="icon" onClick={() => navigate('/publisher/me')} aria-label="بازگشت"><ArrowRight size={19} /></Button>
           {document.coverUrl && <img src={document.coverUrl} alt={document.title} loading="lazy" />}
           <div>
             <small>Editor V2</small>
@@ -1706,25 +1706,25 @@ export default function EditorV2Page() {
           </div>
         </div>
         <div className="editor-v2-actions">
-          <Button variant="outline" onClick={() => setMetadataOpen(value => !value)}><Info size={17} />Ù…Ø´Ø®ØµØ§Øª</Button>
-          <Button variant="outline" onClick={() => openReaderPreview(book.id, `/edit-v2/${book.id}`)}><Eye size={17} />Ù¾ÛŒØ´â€ŒÙ†Ù…Ø§ÛŒØ´</Button>
+          <Button variant="outline" onClick={() => setMetadataOpen(value => !value)}><Info size={17} />�…شخصات</Button>
+          <Button variant="outline" onClick={() => openReaderPreview(book.id, `/edit-v2/${book.id}`)}><Eye size={17} />پ�Œش�€Œ�†�…ا�Œش</Button>
           <Button className={`editor-v2-manual-save ${saveButtonClass}`} onClick={() => void saveDocument()} disabled={saveState === 'saving'} title={saveButtonTitle}>
             <span className="editor-v2-save-button-icon">
               {visualSaveState === 'saving' ? <Loader2 size={17} /> : <Save size={17} />}
               {visualSaveState === 'saved' && <Check size={10} className="editor-v2-save-button-check" />}
             </span>
-            Ø°Ø®ÛŒØ±Ù‡ Ø¯Ø³ØªÛŒ
+            ذخ�Œر�‡ دست�Œ
           </Button>
         </div>
       </header>
 
       {metadataOpen && (
         <section className="editor-v2-metadata menu-glass-70">
-          <div><span>Ù†ÙˆÛŒØ³Ù†Ø¯Ù‡</span><strong>{document.metadata.author || 'Ø«Ø¨Øª Ù†Ø´Ø¯Ù‡'}</strong></div>
-          <div><span>Ù†Ø§Ø´Ø±</span><strong>{document.metadata.publisherName || 'Ø«Ø¨Øª Ù†Ø´Ø¯Ù‡'}</strong></div>
-          <div><span>Ù†ÙˆØ¹ Ú©ØªØ§Ø¨</span><strong>{document.metadata.bookType || 'Ø«Ø¨Øª Ù†Ø´Ø¯Ù‡'}</strong></div>
-          <div><span>Ø¯Ø³ØªÙ‡â€ŒØ¨Ù†Ø¯ÛŒ</span><strong>{document.metadata.category || 'Ø«Ø¨Øª Ù†Ø´Ø¯Ù‡'}</strong></div>
-          <div><span>ØµÙØ­Ø§Øª</span><strong>{document.pages.length.toLocaleString('fa-IR')}</strong></div>
+          <div><span>�†�ˆ�Œس�†د�‡</span><strong>{document.metadata.author || 'ثبت �†شد�‡'}</strong></div>
+          <div><span>�†اشر</span><strong>{document.metadata.publisherName || 'ثبت �†شد�‡'}</strong></div>
+          <div><span>�†�ˆع کتاب</span><strong>{document.metadata.bookType || 'ثبت �†شد�‡'}</strong></div>
+          <div><span>دست�‡�€Œب�†د�Œ</span><strong>{document.metadata.category || 'ثبت �†شد�‡'}</strong></div>
+          <div><span>صفحات</span><strong>{document.pages.length.toLocaleString('fa-IR')}</strong></div>
         </section>
       )}
 
@@ -1778,9 +1778,9 @@ export default function EditorV2Page() {
       </div>
 
       <div className="editor-v2-floating">
-        <button type="button" onClick={scrollToTop} aria-label="Ø¨Ø±Ú¯Ø´Øª Ø¨Ù‡ Ø§Ø¨ØªØ¯Ø§ÛŒ Ø§Ø¯ÛŒØªÙˆØ±">â†‘</button>
-        <button type="button" onClick={() => scrollToPageBreak('previous')} aria-label="ØµÙØ­Ù‡ Ù‚Ø¨Ù„ÛŒ"><ChevronRight size={18} /></button>
-        <button type="button" onClick={() => scrollToPageBreak('next')} aria-label="ØµÙØ­Ù‡ Ø¨Ø¹Ø¯ÛŒ"><ChevronLeft size={18} /></button>
+        <button type="button" onClick={scrollToTop} aria-label="برگشت ب�‡ ابتدا�Œ اد�Œت�ˆر">�†‘</button>
+        <button type="button" onClick={() => scrollToPageBreak('previous')} aria-label="صفح�‡ �‚ب�„�Œ"><ChevronRight size={18} /></button>
+        <button type="button" onClick={() => scrollToPageBreak('next')} aria-label="صفح�‡ بعد�Œ"><ChevronLeft size={18} /></button>
         <button
           type="button"
           className={`editor-v2-floating-save ${saveButtonClass}`}
@@ -1801,18 +1801,18 @@ export default function EditorV2Page() {
           <section className="editor-v2-ai-modal menu-glass-70" role="dialog" aria-modal="true">
             <header>
               <Sparkles size={20} />
-              <strong>ØªØ§ÛŒÛŒØ¯ Ù‡Ø²ÛŒÙ†Ù‡ Ù‡ÙˆØ´ Ù…ØµÙ†ÙˆØ¹ÛŒ</strong>
+              <strong>تا�Œ�Œد �‡ز�Œ�†�‡ �‡�ˆش �…ص�†�ˆع�Œ</strong>
             </header>
-            <p>Ø§ÛŒÙ† Ø¹Ù…Ù„ÛŒØ§Øª ÙÙ‚Ø· Ù¾ÛŒØ´Ù†Ù‡Ø§Ø¯ callout ØªÙˆÙ„ÛŒØ¯ Ù…ÛŒâ€ŒÚ©Ù†Ø¯ Ùˆ Ù‡ÛŒÚ† Ø¨Ø®Ø´ÛŒ Ø§Ø² Ù…ØªÙ† Ø§ØµÙ„ÛŒ Ø±Ø§ Ø­Ø°Ù ÛŒØ§ Ø¬Ø§ÛŒÚ¯Ø²ÛŒÙ† Ù†Ù…ÛŒâ€ŒÚ©Ù†Ø¯.</p>
+            <p>ا�Œ�† ع�…�„�Œات ف�‚ط پ�Œش�†�‡اد callout ت�ˆ�„�Œد �…�Œ�€Œک�†د �ˆ �‡�Œ�† بخش�Œ از �…ت�† اص�„�Œ را حذف �Œا جا�Œگز�Œ�† �†�…�Œ�€Œک�†د.</p>
             <div className="editor-v2-ai-cost">
-              <span><b>{aiApproval.usage.chargedCredits.toLocaleString('fa-IR')}</b><small>Ú©Ø±Ø¯ÛŒØª</small></span>
-              <span><b>{aiApproval.usage.chargedToman.toLocaleString('fa-IR')}</b><small>ØªÙˆÙ…Ø§Ù†</small></span>
-              <span><b>${aiApproval.usage.chargedUsd.toFixed(6)}</b><small>Ø¯Ù„Ø§Ø±</small></span>
+              <span><b>{aiApproval.usage.chargedCredits.toLocaleString('fa-IR')}</b><small>کرد�Œت</small></span>
+              <span><b>{aiApproval.usage.chargedToman.toLocaleString('fa-IR')}</b><small>ت�ˆ�…ا�†</small></span>
+              <span><b>${aiApproval.usage.chargedUsd.toFixed(6)}</b><small>د�„ار</small></span>
             </div>
-            <small>{aiApproval.provider} Â· {aiApproval.model}</small>
+            <small>{aiApproval.provider} · {aiApproval.model}</small>
             <footer>
-              <Button variant="outline" onClick={() => setAiApproval(null)} disabled={aiBusy}>Ù„ØºÙˆ</Button>
-              <Button onClick={() => void runApprovedAi()} disabled={aiBusy}>{aiBusy ? 'Ø¯Ø± Ø­Ø§Ù„ ØªÙˆÙ„ÛŒØ¯...' : 'ØªØ§ÛŒÛŒØ¯ Ùˆ Ø§Ø¬Ø±Ø§'}</Button>
+              <Button variant="outline" onClick={() => setAiApproval(null)} disabled={aiBusy}>�„غ�ˆ</Button>
+              <Button onClick={() => void runApprovedAi()} disabled={aiBusy}>{aiBusy ? 'در حا�„ ت�ˆ�„�Œد...' : 'تا�Œ�Œد �ˆ اجرا'}</Button>
             </footer>
           </section>
         </div>
@@ -1820,3 +1820,4 @@ export default function EditorV2Page() {
     </div>
   )
 }
+
