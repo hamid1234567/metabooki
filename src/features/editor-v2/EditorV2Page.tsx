@@ -1205,6 +1205,18 @@ export default function EditorV2Page() {
     window.setTimeout(() => setToolbarState(readToolbarStateFromSelection()), 0)
   }, [editorElementFromCurrentSelection, markEditorDirty, pushEditorHistory, readToolbarStateFromSelection, rememberEditorSelection, restoreEditorSelection, scheduleToolbarDocumentRefresh, selectedEditorBlockElement])
 
+  const retagEditorBlockElement = useCallback((element: HTMLElement, tag: string) => {
+    const normalizedTag = tag.toLowerCase()
+    if (element.tagName.toLowerCase() === normalizedTag) return element
+    const replacement = window.document.createElement(normalizedTag)
+    Array.from(element.attributes).forEach(attribute => {
+      replacement.setAttribute(attribute.name, attribute.value)
+    })
+    while (element.firstChild) replacement.appendChild(element.firstChild)
+    element.replaceWith(replacement)
+    return replacement
+  }, [])
+
   const execTextCommand = useCallback((command: string, value?: string) => {
     if (command === 'undo') {
       undoEditorChange()
@@ -1226,12 +1238,23 @@ export default function EditorV2Page() {
   const formatCurrentBlock = useCallback((tag: string) => {
     pushEditorHistory()
     restoreEditorSelection()
+    const beforeTarget = editorElementFromCurrentSelection()?.closest<HTMLElement>('[data-block-id], p, h1, h2, h3, h4, h5, h6') || selectedEditorBlockElement()
     window.document.execCommand('formatBlock', false, tag)
+    let target = editorElementFromCurrentSelection()?.closest<HTMLElement>('[data-block-id], p, h1, h2, h3, h4, h5, h6') || beforeTarget
+    if (target && ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(tag)) {
+      target = retagEditorBlockElement(target, tag)
+      target.dataset.v2Type = tag === 'p' ? 'paragraph' : 'heading'
+      if (tag === 'p') {
+        target.removeAttribute('aria-level')
+        target.classList.remove('editor-v2-heading')
+      }
+      setSelectedBlockId(target.dataset.blockId)
+    }
     markEditorDirty()
     rememberEditorSelection()
     scheduleToolbarDocumentRefresh()
     window.setTimeout(() => setToolbarState(readToolbarStateFromSelection()), 0)
-  }, [markEditorDirty, pushEditorHistory, readToolbarStateFromSelection, rememberEditorSelection, restoreEditorSelection, scheduleToolbarDocumentRefresh])
+  }, [editorElementFromCurrentSelection, markEditorDirty, pushEditorHistory, readToolbarStateFromSelection, rememberEditorSelection, restoreEditorSelection, retagEditorBlockElement, scheduleToolbarDocumentRefresh, selectedEditorBlockElement])
 
   const setCurrentBlockDirection = useCallback((direction: 'rtl' | 'ltr') => {
     pushEditorHistory()
@@ -1501,6 +1524,7 @@ export default function EditorV2Page() {
             <Button variant="outline" size="icon" onClick={() => formatCurrentBlock('p')} title="متن عادی"><Type size={17} /></Button>
             <select defaultValue="" onChange={event => { if (event.target.value) formatCurrentBlock(event.target.value); event.target.value = '' }} title="سطح عنوان">
               <option value="" disabled>H</option>
+              <option value="p">متن عادی</option>
               <option value="h1">H1</option>
               <option value="h2">H2</option>
               <option value="h3">H3</option>
