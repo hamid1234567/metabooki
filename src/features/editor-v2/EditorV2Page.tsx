@@ -157,7 +157,7 @@ function blockToEditorHtmlV2(block: BookBlockV2): string {
   }
   if (block.type === 'callout') {
     const body = block.blocks.map(blockToEditorHtmlV2).join('')
-    return `<section contenteditable="false" class="book-callout-v2 book-callout-${escapeHtmlV2(block.variant)}" data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="callout" data-variant="${escapeHtmlV2(block.variant)}"><header><span>${escapeHtmlV2(block.icon || '')}</span><strong>${escapeHtmlV2(block.title)}</strong></header>${body}</section>`
+    return `<section contenteditable="false" class="book-callout editor-v2-callout has-rendered-title callout-${escapeHtmlV2(block.variant)}" data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="callout" data-variant="${escapeHtmlV2(block.variant)}" data-callout-variant="${escapeHtmlV2(block.variant)}" data-callout-title="${escapeHtmlV2(block.title)}" data-callout-icon="${escapeHtmlV2(block.icon || '')}"><div class="book-callout-head"><span class="book-callout-icon">${escapeHtmlV2(block.icon || '')}</span><strong>${escapeHtmlV2(block.title)}</strong></div><div class="book-callout-content">${body}</div></section>`
   }
   if (block.type === 'interactive') {
     return `<section contenteditable="false" class="book-interactive-v2" data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="interactive" data-kind="${escapeHtmlV2(block.kind)}"><strong>${escapeHtmlV2(block.title || String(block.payload.title || 'بخش تعاملی'))}</strong></section>`
@@ -793,6 +793,16 @@ export default function EditorV2Page() {
     }
   }, [])
 
+  const selectedBlockIdFromSavedRange = useCallback(() => {
+    const range = savedSelectionRef.current
+    const root = editorSurfaceRef.current
+    if (!range || !root) return undefined
+    const container = range.commonAncestorContainer
+    const element = container.nodeType === Node.ELEMENT_NODE ? container as Element : container.parentElement
+    const target = element?.closest<HTMLElement>('[data-block-id]')
+    return target && root.contains(target) ? target.dataset.blockId : undefined
+  }, [])
+
   const updateSelectedBlockFromDom = useCallback(() => {
     rememberEditorSelection()
     const selection = window.getSelection()
@@ -852,28 +862,33 @@ export default function EditorV2Page() {
   }, [execTextCommand])
 
   const wrapSelectedCallout = useCallback((variant: (typeof CALLOUT_VARIANTS_V2)[number]) => {
-    if (!selectedBlockId) return
+    const targetBlockId = selectedBlockId || selectedBlockIdFromSavedRange()
+    if (!targetBlockId) {
+      setAiMessage('برای ساخت کال‌اوت، نشانگر را داخل یک پاراگراف بگذارید یا بخشی از متن را انتخاب کنید.')
+      setActivePanel('upgrade')
+      return
+    }
     const meta = CALLOUT_META_V2[variant]
-    commitDocument(current => updateBlockInDocumentV2(current, selectedBlockId, block => {
+    commitDocument(current => updateBlockInDocumentV2(current, targetBlockId, block => {
       if (block.type === 'callout') return { ...block, variant, title: meta.title, icon: meta.icon }
       if (block.type !== 'paragraph' && block.type !== 'heading') return block
       const paragraph: ParagraphBlockV2 = block.type === 'paragraph'
         ? block
         : { ...block, type: 'paragraph', text: block.text, inline: block.inline, semantic: undefined }
       const callout: CalloutBlockV2 = {
-        id: createV2Id('callout', selectedBlockId, Date.now()),
+        id: createV2Id('callout', targetBlockId, Date.now()),
         type: 'callout',
         variant,
         title: meta.title,
         icon: meta.icon,
-        anchor: createV2Id('callout-anchor', selectedBlockId),
+        anchor: createV2Id('callout-anchor', targetBlockId),
         printNumber: block.printNumber,
-        blocks: [{ ...paragraph, id: createV2Id('callout-text', selectedBlockId), anchor: createV2Id('callout-text-anchor', selectedBlockId) }],
+        blocks: [{ ...paragraph, id: createV2Id('callout-text', targetBlockId), anchor: createV2Id('callout-text-anchor', targetBlockId) }],
       }
       window.setTimeout(() => setSelectedBlockId(callout.id), 0)
       return callout
     }))
-  }, [commitDocument, selectedBlockId])
+  }, [commitDocument, selectedBlockId, selectedBlockIdFromSavedRange])
 
   const unwrapSelectedCallout = useCallback(() => {
     if (!selectedBlockId) return
@@ -1049,7 +1064,15 @@ export default function EditorV2Page() {
 
       <div className="editor-v2-layout">
         <RightPanelV2 document={document} activePanel={activePanel} setActivePanel={setActivePanel} activeTocId={activeTocId} onJumpToToc={jumpToToc} onInsertImage={insertImageFromAsset} onInsertInteractive={insertInteractiveBlock} onApplyCallout={wrapSelectedCallout} onUnwrapCallout={unwrapSelectedCallout} canUnwrapCallout={selectedBlock?.type === 'callout'} onAiEnhance={requestAiEnhance} aiBusy={aiBusy} aiMessage={aiMessage} />
-        <main className="editor-v2-canvas" ref={canvasRef} onClick={() => setSelectedBlockId(undefined)}>
+        <main
+          className="editor-v2-canvas"
+          ref={canvasRef}
+          onClick={event => {
+            const target = event.target as HTMLElement
+            if (target.closest('.editor-v2-paper, .editor-v2-toolbar, [data-block-id]')) return
+            setSelectedBlockId(undefined)
+          }}
+        >
           <section
             className="editor-v2-toolbar menu-glass-70"
             onClick={event => event.stopPropagation()}
