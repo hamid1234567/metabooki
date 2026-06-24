@@ -48,3 +48,16 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
     navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js?v=${APP_VERSION}`, { updateViaCache: 'none', scope: import.meta.env.BASE_URL }).then(registration => registration.update()).catch(() => {})
   })
 }
+
+if ('serviceWorker' in navigator && !import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    void navigator.serviceWorker.getRegistrations()
+      .then(registrations => Promise.all(registrations.map(registration => registration.unregister())))
+      .then(async () => {
+        if (!('caches' in window)) return
+        const names = await caches.keys()
+        await Promise.all(names.filter(name => name.startsWith('metabooki-')).map(name => caches.delete(name)))
+      })
+      .catch(() => {})
+  })
+}

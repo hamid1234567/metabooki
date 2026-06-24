@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowRight, BookOpen, ChevronDown, ChevronLeft, ChevronRight, Eye, FileText, Image as ImageIcon, Info, ListTree, Loader2, PanelRight, Save, Sparkles, Type, Undo2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -18,7 +18,6 @@ import './editor-v2.css'
 
 type EditorPanelV2 = 'toc' | 'upgrade' | 'media' | 'interactive' | 'ai'
 type SaveStateV2 = 'idle' | 'saving' | 'saved' | 'error'
-type EditableTextBlockV2 = ParagraphBlockV2 | HeadingBlockV2
 type AiApprovalV2 = {
   usage: RunAiResult['usage']
   provider: string
@@ -172,7 +171,7 @@ function TocTreeV2({
               </button>
               {hasChildren && (
                 <button className="editor-v2-toc-toggle" type="button" onClick={() => onToggle(item.id)} aria-label={isOpen ? 'جمع کردن' : 'باز کردن'}>
-                  {isOpen ? <ChevronDown size={15} /> : <ChevronLeft size={15} />}
+                  {isOpen ? <ChevronDown size={12} /> : <ChevronLeft size={12} />}
                 </button>
               )}
             </div>
@@ -230,7 +229,7 @@ function RightPanelV2({
           const Icon = PANEL_LABELS[panel].icon
           return (
             <button key={panel} className={activePanel === panel ? 'is-active' : ''} type="button" onClick={() => setActivePanel(panel)}>
-              <Icon size={18} />
+              <Icon size={14} />
               <span>{PANEL_LABELS[panel].title}</span>
             </button>
           )
@@ -238,7 +237,7 @@ function RightPanelV2({
       </nav>
       <section className="editor-v2-panel menu-glass-70">
         <header>
-          <ActiveIcon size={18} />
+          <ActiveIcon size={14} />
           <strong>{PANEL_LABELS[activePanel].title}</strong>
         </header>
         {activePanel === 'toc' && (
@@ -391,14 +390,13 @@ export default function EditorV2Page() {
     })
   }, [])
 
-  const updateSelectedText = useCallback((value: string) => {
-    if (!selectedBlockId) return
-    commitDocument(current => updateBlockInDocumentV2(current, selectedBlockId, block => {
+  const updateTextBlock = useCallback((blockId: string, value: string) => {
+    commitDocument(current => updateBlockInDocumentV2(current, blockId, block => {
       if (block.type === 'heading') return { ...block, text: normalizeBookTextV2(value), inline: undefined }
       if (block.type === 'paragraph') return { ...block, text: normalizeBookTextV2(value), inline: undefined }
       return block
     }))
-  }, [commitDocument, selectedBlockId])
+  }, [commitDocument])
 
   const setSelectedHeadingLevel = useCallback((level: 1 | 2 | 3 | 4 | 5 | 6 | 0) => {
     if (!selectedBlockId) return
@@ -438,11 +436,6 @@ export default function EditorV2Page() {
     if (!selectedBlockId) return
     commitDocument(current => updateBlockInDocumentV2(current, selectedBlockId, block => block.type === 'callout' ? block.blocks : block))
     setSelectedBlockId(undefined)
-  }, [commitDocument, selectedBlockId])
-
-  const updateSelectedCalloutTitle = useCallback((value: string) => {
-    if (!selectedBlockId) return
-    commitDocument(current => updateBlockInDocumentV2(current, selectedBlockId, block => block.type === 'callout' ? { ...block, title: normalizeBookTextV2(value) } : block))
   }, [commitDocument, selectedBlockId])
 
   const insertImageFromAsset = useCallback((assetId: string) => {
@@ -545,12 +538,6 @@ export default function EditorV2Page() {
     }
   }, [aiApproval, commitDocument, document, recordAiUsage, selectedBlock?.printNumber, selectedBlockId, user])
 
-  const selectBlockFromCanvas = useCallback((event: ReactMouseEvent<HTMLElement>) => {
-    const target = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-block-id]') : null
-    if (!target) return
-    setSelectedBlockId(target.dataset.blockId)
-  }, [])
-
   const jumpToToc = useCallback((item: BookTocItemV2) => {
     setActiveTocId(item.id)
     window.setTimeout(() => {
@@ -614,7 +601,7 @@ export default function EditorV2Page() {
 
       <div className="editor-v2-layout">
         <RightPanelV2 document={document} activePanel={activePanel} setActivePanel={setActivePanel} activeTocId={activeTocId} onJumpToToc={jumpToToc} onInsertImage={insertImageFromAsset} onInsertInteractive={insertInteractiveBlock} onAiEnhance={requestAiEnhance} aiBusy={aiBusy} aiMessage={aiMessage} />
-        <main className="editor-v2-canvas" ref={canvasRef} onClick={selectBlockFromCanvas}>
+        <main className="editor-v2-canvas" ref={canvasRef} onClick={() => setSelectedBlockId(undefined)}>
           <section className="editor-v2-toolbar menu-glass-70" onClick={event => event.stopPropagation()}>
             <Button variant="outline" size="icon" disabled={!selectedBlock} onClick={() => setSelectedHeadingLevel(0)} title="متن عادی"><Type size={17} /></Button>
             <select disabled={!selectedBlock || (selectedBlock.type !== 'paragraph' && selectedBlock.type !== 'heading')} value={selectedBlock?.type === 'heading' ? selectedBlock.level : 0} onChange={event => setSelectedHeadingLevel(Number(event.target.value) as 0 | 1 | 2 | 3 | 4 | 5 | 6)}>
@@ -635,24 +622,8 @@ export default function EditorV2Page() {
             <Button variant="outline" size="icon" disabled={selectedBlock?.type !== 'callout'} onClick={unwrapSelectedCallout} title="برگشت کال‌اوت به متن عادی"><Undo2 size={17} /></Button>
           </section>
 
-          {selectedBlock && (
-            <section className="editor-v2-selection menu-glass-70" onClick={event => event.stopPropagation()}>
-              <header>
-                <strong>{selectedBlock.type === 'heading' ? `هدینگ H${selectedBlock.level}` : selectedBlock.type === 'callout' ? 'کال‌اوت انتخاب‌شده' : selectedBlock.type === 'paragraph' ? 'متن انتخاب‌شده' : 'بلوک انتخاب‌شده'}</strong>
-                <button type="button" onClick={() => setSelectedBlockId(undefined)}>×</button>
-              </header>
-              {(selectedBlock.type === 'paragraph' || selectedBlock.type === 'heading') && (
-                <textarea value={selectedBlock.text} onChange={event => updateSelectedText(event.target.value)} rows={Math.min(8, Math.max(3, Math.ceil(selectedBlock.text.length / 70)))} />
-              )}
-              {selectedBlock.type === 'callout' && (
-                <input value={selectedBlock.title} onChange={event => updateSelectedCalloutTitle(event.target.value)} />
-              )}
-              <p>تغییرات به صورت خودکار ذخیره می‌شوند؛ دکمه ذخیره دستی هم همان مسیر را تکرار می‌کند.</p>
-            </section>
-          )}
-
           <div className="editor-v2-paper">
-            <BookRendererV2 document={document} />
+            <BookRendererV2 document={document} editable selectedBlockId={selectedBlockId} onSelectBlock={setSelectedBlockId} onTextChange={updateTextBlock} />
           </div>
         </main>
       </div>
