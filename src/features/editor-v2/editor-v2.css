@@ -103,6 +103,20 @@
   color: #15803d;
 }
 
+.editor-v2-save-state.dirty .editor-v2-save-icon,
+.editor-v2-manual-save.is-dirty .editor-v2-save-button-icon,
+.editor-v2-floating-save.is-dirty .editor-v2-save-icon {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
+.editor-v2-save-state.error .editor-v2-save-icon,
+.editor-v2-manual-save.is-error .editor-v2-save-button-icon,
+.editor-v2-floating-save.is-error .editor-v2-save-icon {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
 .editor-v2-save-check,
 .editor-v2-save-button-check {
   position: absolute;
@@ -126,6 +140,11 @@
 .editor-v2-save-state.saved {
   border-color: #bbf7d0;
   color: #15803d;
+}
+
+.editor-v2-save-state.dirty {
+  border-color: #fed7aa;
+  color: #c2410c;
 }
 
 .editor-v2-save-state.error {
@@ -741,6 +760,18 @@
   border-color: #bfdbfe;
   color: #1d4ed8;
   animation: editor-v2-save-pulse 1.15s ease-in-out infinite;
+}
+
+.editor-v2-floating-save.is-dirty {
+  border-color: #fed7aa;
+  color: #c2410c;
+  box-shadow: 0 16px 34px hsl(24 95% 50% / 0.16);
+}
+
+.editor-v2-floating-save.is-error {
+  border-color: #fecaca;
+  color: #b91c1c;
+  box-shadow: 0 16px 34px hsl(0 84% 60% / 0.16);
 }
 
 .editor-v2-modal-backdrop {

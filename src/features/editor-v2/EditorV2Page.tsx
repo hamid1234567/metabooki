@@ -17,6 +17,7 @@ import './editor-v2.css'
 
 type EditorPanelV2 = 'toc' | 'upgrade' | 'media' | 'interactive' | 'ai'
 type SaveStateV2 = 'idle' | 'saving' | 'saved' | 'error'
+type SaveVisualStateV2 = SaveStateV2 | 'dirty'
 type AiApprovalV2 = {
   usage: RunAiResult['usage']
   provider: string
@@ -456,15 +457,17 @@ function isUuid(value = '') {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
 }
 
-function SaveIndicator({ state, floating = false }: { state: SaveStateV2; floating?: boolean }) {
+function SaveIndicator({ state, floating = false }: { state: SaveVisualStateV2; floating?: boolean }) {
   const label = state === 'saving'
     ? 'در حال ذخیره'
     : state === 'saved'
       ? 'ذخیره شد'
       : state === 'error'
         ? 'ذخیره ناموفق'
+        : state === 'dirty'
+          ? 'ذخیره نشده'
         : 'منتشر شده'
-  const isReady = state === 'idle' || state === 'saved'
+  const isReady = state === 'saved'
   if (floating) {
     return (
       <span className={`editor-v2-save-state ${state} floating`} title={label} aria-label={label} aria-live="polite">
@@ -669,6 +672,21 @@ export default function EditorV2Page() {
   const savedSelectionRef = useRef<Range | null>(null)
   const skipNextSurfaceSyncRef = useRef(false)
   const selectedBlock = useMemo(() => document ? findBlockInDocumentV2(document, selectedBlockId) : null, [document, selectedBlockId])
+  const visualSaveState: SaveVisualStateV2 = saveState === 'saving'
+    ? 'saving'
+    : saveState === 'error'
+      ? 'error'
+      : dirty
+        ? 'dirty'
+        : 'saved'
+  const saveButtonTitle = visualSaveState === 'saving'
+    ? 'در حال ذخیره'
+    : visualSaveState === 'error'
+      ? 'تلاش دوباره برای ذخیره'
+      : visualSaveState === 'dirty'
+        ? 'تغییرات ذخیره‌نشده'
+        : 'ذخیره شد'
+  const saveButtonClass = `${visualSaveState === 'saving' ? 'is-saving' : ''} ${visualSaveState === 'saved' ? 'is-saved' : ''} ${visualSaveState === 'dirty' ? 'is-dirty' : ''} ${visualSaveState === 'error' ? 'is-error' : ''}`
 
   useEffect(() => {
     if (!document || !editorSurfaceRef.current) return
@@ -714,6 +732,7 @@ export default function EditorV2Page() {
 
   const saveDocument = useCallback(async () => {
     if (!book || !document) return
+    const startedAt = performance.now()
     setSaveState('saving')
     const nextDocument = { ...documentFromEditorDomV2(document, editorSurfaceRef.current), updatedAt: new Date().toISOString() }
     const pages = documentV2ToLegacyPages(nextDocument)
@@ -738,17 +757,22 @@ export default function EditorV2Page() {
       skipNextSurfaceSyncRef.current = true
       setDocument(nextDocument)
       setBook(nextBook)
+      if (isUuid(book.id)) {
+        const { error } = await (supabase as any).from('books').update(patch).eq('id', book.id)
+        if (error) throw error
+      }
+      const remainingAnimationMs = 520 - (performance.now() - startedAt)
+      if (remainingAnimationMs > 0) {
+        await new Promise(resolve => window.setTimeout(resolve, remainingAnimationMs))
+      }
       setDirty(false)
       setSaveState('saved')
-      if (isUuid(book.id)) {
-        void (supabase as any).from('books').update(patch).eq('id', book.id).then(({ error }: { error?: unknown }) => {
-          if (error) console.warn('Editor V2 remote save failed; local snapshot is preserved.', error)
-        }).catch((reason: unknown) => {
-          console.warn('Editor V2 remote save failed; local snapshot is preserved.', reason)
-        })
-      }
       window.setTimeout(() => setSaveState('idle'), 2200)
     } catch {
+      const remainingAnimationMs = 360 - (performance.now() - startedAt)
+      if (remainingAnimationMs > 0) {
+        await new Promise(resolve => window.setTimeout(resolve, remainingAnimationMs))
+      }
       setSaveState('error')
     }
   }, [book, document])
@@ -821,21 +845,25 @@ export default function EditorV2Page() {
     setDocument(current => current ? documentFromEditorDomV2(current, editorSurfaceRef.current) : current)
   }, [])
 
+  const scheduleRefreshDocumentFromEditor = useCallback(() => {
+    window.requestAnimationFrame(() => refreshDocumentFromEditor())
+  }, [refreshDocumentFromEditor])
+
   const execTextCommand = useCallback((command: string, value?: string) => {
     restoreEditorSelection()
     window.document.execCommand(command, false, value)
     markEditorDirty()
     rememberEditorSelection()
-    window.setTimeout(refreshDocumentFromEditor, 0)
-  }, [markEditorDirty, refreshDocumentFromEditor, rememberEditorSelection, restoreEditorSelection])
+    scheduleRefreshDocumentFromEditor()
+  }, [markEditorDirty, rememberEditorSelection, restoreEditorSelection, scheduleRefreshDocumentFromEditor])
 
   const formatCurrentBlock = useCallback((tag: string) => {
     restoreEditorSelection()
     window.document.execCommand('formatBlock', false, tag)
     markEditorDirty()
     rememberEditorSelection()
-    window.setTimeout(refreshDocumentFromEditor, 0)
-  }, [markEditorDirty, refreshDocumentFromEditor, rememberEditorSelection, restoreEditorSelection])
+    scheduleRefreshDocumentFromEditor()
+  }, [markEditorDirty, rememberEditorSelection, restoreEditorSelection, scheduleRefreshDocumentFromEditor])
 
   const setCurrentBlockDirection = useCallback((direction: 'rtl' | 'ltr') => {
     restoreEditorSelection()
@@ -846,8 +874,8 @@ export default function EditorV2Page() {
     target?.setAttribute('dir', direction)
     markEditorDirty()
     rememberEditorSelection()
-    window.setTimeout(refreshDocumentFromEditor, 0)
-  }, [markEditorDirty, refreshDocumentFromEditor, rememberEditorSelection, restoreEditorSelection])
+    scheduleRefreshDocumentFromEditor()
+  }, [markEditorDirty, rememberEditorSelection, restoreEditorSelection, scheduleRefreshDocumentFromEditor])
 
   const createLinkForSelection = useCallback(() => {
     const href = window.prompt('آدرس لینک را وارد کنید')
@@ -1042,10 +1070,10 @@ export default function EditorV2Page() {
         <div className="editor-v2-actions">
           <Button variant="outline" onClick={() => setMetadataOpen(value => !value)}><Info size={17} />مشخصات</Button>
           <Button variant="outline" onClick={() => openReaderPreview(book.id, `/edit-v2/${book.id}`)}><Eye size={17} />پیش‌نمایش</Button>
-          <Button className={`editor-v2-manual-save ${saveState === 'saving' ? 'is-saving' : ''} ${saveState === 'saved' || saveState === 'idle' ? 'is-saved' : ''}`} onClick={() => void saveDocument()} disabled={saveState === 'saving'}>
+          <Button className={`editor-v2-manual-save ${saveButtonClass}`} onClick={() => void saveDocument()} disabled={saveState === 'saving'} title={saveButtonTitle}>
             <span className="editor-v2-save-button-icon">
-              {saveState === 'saving' ? <Loader2 size={17} /> : <Save size={17} />}
-              {(saveState === 'saved' || saveState === 'idle') && <Check size={10} className="editor-v2-save-button-check" />}
+              {visualSaveState === 'saving' ? <Loader2 size={17} /> : <Save size={17} />}
+              {visualSaveState === 'saved' && <Check size={10} className="editor-v2-save-button-check" />}
             </span>
             ذخیره دستی
           </Button>
@@ -1076,6 +1104,7 @@ export default function EditorV2Page() {
           <section
             className="editor-v2-toolbar menu-glass-70"
             onClick={event => event.stopPropagation()}
+            onPointerDownCapture={rememberEditorSelection}
             onMouseDown={event => {
               if ((event.target as HTMLElement).closest('button')) event.preventDefault()
             }}
@@ -1157,15 +1186,15 @@ export default function EditorV2Page() {
         <button type="button" onClick={() => window.scrollBy({ left: 0, top: window.innerHeight * 0.72, behavior: 'smooth' })} aria-label="بخش بعدی"><ChevronLeft size={18} /></button>
         <button
           type="button"
-          className={`editor-v2-floating-save ${saveState === 'saving' ? 'is-saving' : ''} ${saveState === 'saved' || saveState === 'idle' ? 'is-saved' : ''}`}
+          className={`editor-v2-floating-save ${saveButtonClass}`}
           onClick={() => void saveDocument()}
           disabled={saveState === 'saving'}
-          aria-label={saveState === 'saving' ? 'در حال ذخیره' : 'ذخیره دستی'}
-          title={saveState === 'saving' ? 'در حال ذخیره' : saveState === 'error' ? 'تلاش دوباره برای ذخیره' : 'ذخیره دستی'}
+          aria-label={saveButtonTitle}
+          title={saveButtonTitle}
         >
           <span className="editor-v2-save-icon">
-            {saveState === 'saving' ? <Loader2 size={17} /> : <Save size={17} />}
-            {(saveState === 'saved' || saveState === 'idle') && <Check size={11} className="editor-v2-save-check" />}
+            {visualSaveState === 'saving' ? <Loader2 size={17} /> : <Save size={17} />}
+            {visualSaveState === 'saved' && <Check size={11} className="editor-v2-save-check" />}
           </span>
         </button>
       </div>
