@@ -789,6 +789,7 @@ export default function EditorV2Page() {
   const canvasRef = useRef<HTMLDivElement | null>(null)
   const editorSurfaceRef = useRef<HTMLDivElement | null>(null)
   const savedSelectionRef = useRef<Range | null>(null)
+  const lastInlineStyleTargetRef = useRef<HTMLElement | null>(null)
   const undoStackRef = useRef<string[]>([])
   const redoStackRef = useRef<string[]>([])
   const skipNextSurfaceSyncRef = useRef(false)
@@ -1074,11 +1075,34 @@ export default function EditorV2Page() {
   }, [redoEditorChange, undoEditorChange])
 
   const applyInlineStyleToSelection = useCallback((style: Partial<CSSStyleDeclaration>) => {
+    const keepInlineTargetSelected = (target: HTMLElement) => {
+      const nextRange = window.document.createRange()
+      nextRange.selectNodeContents(target)
+      const activeSelection = window.getSelection()
+      activeSelection?.removeAllRanges()
+      activeSelection?.addRange(nextRange)
+      savedSelectionRef.current = nextRange.cloneRange()
+      lastInlineStyleTargetRef.current = target
+    }
+
+    const applyStyleToLastInlineTarget = () => {
+      const target = lastInlineStyleTargetRef.current
+      if (!target || !editorSurfaceRef.current?.contains(target)) return false
+      pushEditorHistory()
+      Object.assign(target.style, style)
+      markEditorDirty()
+      keepInlineTargetSelected(target)
+      scheduleToolbarDocumentRefresh()
+      window.setTimeout(() => setToolbarState(readToolbarStateFromSelection()), 0)
+      return true
+    }
+
     restoreEditorSelection()
     const selection = window.getSelection()
     if (!editorSurfaceRef.current) return false
     const range = selection?.rangeCount ? selection.getRangeAt(0) : savedSelectionRef.current
     if (!range) {
+      if (applyStyleToLastInlineTarget()) return true
       const fallbackTarget = selectedEditorBlockElement()
       if (!fallbackTarget) return false
       pushEditorHistory()
@@ -1091,6 +1115,7 @@ export default function EditorV2Page() {
     const container = range.commonAncestorContainer
     const element = container.nodeType === Node.ELEMENT_NODE ? container as Element : container.parentElement
     if (!element || !editorSurfaceRef.current.contains(element)) {
+      if (applyStyleToLastInlineTarget()) return true
       const fallbackTarget = selectedEditorBlockElement()
       if (!fallbackTarget) return false
       pushEditorHistory()
@@ -1105,8 +1130,18 @@ export default function EditorV2Page() {
       const target = element.closest<HTMLElement>('[data-block-id], p, h1, h2, h3, h4, h5, h6, li')
       if (!target) return false
       Object.assign(target.style, style)
+      lastInlineStyleTargetRef.current = target
       markEditorDirty()
       rememberEditorSelection()
+      scheduleToolbarDocumentRefresh()
+      window.setTimeout(() => setToolbarState(readToolbarStateFromSelection()), 0)
+      return true
+    }
+    const existingInlineTarget = element.closest<HTMLElement>('span[style]')
+    if (existingInlineTarget && editorSurfaceRef.current.contains(existingInlineTarget) && existingInlineTarget.textContent === range.toString()) {
+      Object.assign(existingInlineTarget.style, style)
+      keepInlineTargetSelected(existingInlineTarget)
+      markEditorDirty()
       scheduleToolbarDocumentRefresh()
       window.setTimeout(() => setToolbarState(readToolbarStateFromSelection()), 0)
       return true
@@ -1127,6 +1162,7 @@ export default function EditorV2Page() {
     activeSelection.removeAllRanges()
     activeSelection.addRange(nextRange)
     savedSelectionRef.current = nextRange.cloneRange()
+    lastInlineStyleTargetRef.current = span
     markEditorDirty()
     scheduleToolbarDocumentRefresh()
     window.setTimeout(() => setToolbarState(readToolbarStateFromSelection()), 0)
