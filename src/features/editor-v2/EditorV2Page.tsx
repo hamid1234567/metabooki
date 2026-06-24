@@ -1436,11 +1436,12 @@ export default function EditorV2Page() {
       window.scrollBy({ left: 0, top: window.innerHeight * (direction === 'next' ? 0.72 : -0.72), behavior: 'smooth' })
       return
     }
-    const currentTop = window.scrollY + 120
+    const viewportAnchor = window.scrollY + (window.innerHeight * 0.5)
+    const threshold = Math.max(32, window.innerHeight * 0.04)
     const withTop = pageBreaks.map(element => ({ element, top: element.getBoundingClientRect().top + window.scrollY }))
     const target = direction === 'next'
-      ? withTop.find(item => item.top > currentTop + 12)
-      : [...withTop].reverse().find(item => item.top < currentTop - 12)
+      ? withTop.find(item => item.top > viewportAnchor + threshold)
+      : [...withTop].reverse().find(item => item.top < viewportAnchor - threshold)
     const fallback = direction === 'next' ? withTop[withTop.length - 1] : withTop[0]
     ;(target || fallback)?.element.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }, [])
