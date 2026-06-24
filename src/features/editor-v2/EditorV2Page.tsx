@@ -861,8 +861,18 @@ function RightPanelV2({
           </>
         )}
         {activePanel === 'upgrade' && (
-          <div className="editor-v2-action-grid">
-            {CALLOUT_VARIANTS_V2.map(variant => <button key={variant} type="button" onClick={() => onApplyCallout(variant)}><span>{CALLOUT_META_V2[variant].icon}</span>{CALLOUT_META_V2[variant].title}</button>)}
+          <div className="editor-v2-action-grid editor-v2-callout-picker">
+            {CALLOUT_VARIANTS_V2.map(variant => (
+              <button
+                key={variant}
+                type="button"
+                className={`editor-v2-callout-option callout-${variant}`}
+                onClick={() => onApplyCallout(variant)}
+              >
+                <span>{CALLOUT_META_V2[variant].icon}</span>
+                {CALLOUT_META_V2[variant].title}
+              </button>
+            ))}
             <button type="button" disabled={!canUnwrapCallout} onClick={onUnwrapCallout}><Undo2 size={15} />برگرداندن کال‌اوت به متن عادی</button>
             <p>برای تبدیل متن به کال‌اوت، نشانگر را داخل همان پاراگراف بگذارید یا متن را انتخاب کنید و نوع کال‌اوت را از همین پنل بزنید.</p>
           </div>
