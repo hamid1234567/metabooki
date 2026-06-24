@@ -1031,7 +1031,7 @@ function RightPanelV2({
 
             <div className="editor-v2-media-list">
               {filteredMediaRefs.length ? filteredMediaRefs.slice(0, 80).map(item => (
-                <button key={item.key} type="button" className={item.needsCheck ? 'has-issue' : ''} disabled={!item.assetId || !item.url} onClick={() => item.assetId && onInsertImage(item.assetId)}>
+                <button key={item.key} type="button" className={item.needsCheck ? 'has-issue' : ''} disabled={!item.url || (!item.blockId && !item.assetId)} onClick={() => item.blockId ? onJumpToBlock(item.blockId) : item.assetId && onInsertImage(item.assetId)}>
                   {item.url ? <img src={item.url} alt={item.caption || ''} loading="lazy" /> : <span className="editor-v2-missing-thumb"><ImageIcon size={16} /></span>}
                   <span>{item.caption || `تصویر صفحه ${item.printNumber || ''}`}</span>
                   <small>صفحه {item.printNumber || 'نامشخص'}</small>
@@ -1802,6 +1802,8 @@ export default function EditorV2Page() {
   const insertImageFromAsset = useCallback((assetId: string) => {
     const asset = document?.assets.find(item => item.id === assetId)
     if (!asset) return
+    const insertionBlockId = selectedBlockIdFromEditorTarget() || selectedBlockId
+    const anchorBlock = document ? findBlockInDocumentV2(document, insertionBlockId) : null
     const block: BookBlockV2 = {
       id: createV2Id('image', asset.id, Date.now()),
       type: 'image',
@@ -1809,15 +1811,17 @@ export default function EditorV2Page() {
       caption: asset.caption,
       imageId: asset.id,
       anchor: createV2Id('image-anchor', asset.id, Date.now()),
-      printNumber: asset.printNumber,
+      printNumber: anchorBlock?.printNumber || asset.printNumber,
       status: asset.status,
       issue: asset.issue,
     }
-    commitDocument(current => insertBlockAfterV2(current, selectedBlockId, block))
+    commitDocument(current => insertBlockAfterV2(current, insertionBlockId, block))
     setSelectedBlockId(block.id)
-  }, [commitDocument, document?.assets, selectedBlockId])
+  }, [commitDocument, document, selectedBlockId, selectedBlockIdFromEditorTarget])
 
   const insertUploadedImage = useCallback(async (file: File) => {
+    const insertionBlockId = selectedBlockIdFromEditorTarget() || selectedBlockId
+    const anchorBlock = document ? findBlockInDocumentV2(document, insertionBlockId) : null
     try {
       const url = await fileToDataUrlV2(file)
       const asset = {
@@ -1825,7 +1829,7 @@ export default function EditorV2Page() {
         type: 'image' as const,
         url,
         caption: file.name.replace(/\.[^.]+$/, ''),
-        printNumber: selectedBlock?.printNumber,
+        printNumber: anchorBlock?.printNumber,
         status: 'ready' as const,
       }
       const block: BookBlockV2 = {
@@ -1840,7 +1844,7 @@ export default function EditorV2Page() {
         widthPercent: 80,
       }
       commitDocument(current => {
-        const next = insertBlockAfterV2(current, selectedBlockId, block)
+        const next = insertBlockAfterV2(current, insertionBlockId, block)
         return { ...next, assets: [...next.assets, asset] }
       })
       setSelectedBlockId(block.id)
@@ -1848,10 +1852,12 @@ export default function EditorV2Page() {
     } catch (error) {
       setAiMessage(error instanceof Error ? error.message : 'آپلود تصویر ناموفق بود.')
     }
-  }, [commitDocument, selectedBlock?.printNumber, selectedBlockId])
+  }, [commitDocument, document, selectedBlockId, selectedBlockIdFromEditorTarget])
 
   const generateImageFromPrompt = useCallback(async (prompt: string) => {
     if (!prompt.trim()) return
+    const insertionBlockId = selectedBlockIdFromEditorTarget() || selectedBlockId
+    const anchorBlock = document ? findBlockInDocumentV2(document, insertionBlockId) : null
     setAiBusy(true)
     setAiMessage('در حال تولید تصویر...')
     try {
@@ -1859,7 +1865,7 @@ export default function EditorV2Page() {
         prompt,
         purpose: 'interactive',
         bookId: document?.sourceBookId,
-        pageIndex: selectedBlock?.printNumber ? Number(selectedBlock.printNumber) : undefined,
+        pageIndex: anchorBlock?.printNumber ? Number(anchorBlock.printNumber) : undefined,
         user,
       })
       const asset = {
@@ -1867,7 +1873,7 @@ export default function EditorV2Page() {
         type: 'image' as const,
         url: result.imageUrl,
         caption: prompt.slice(0, 90),
-        printNumber: selectedBlock?.printNumber,
+        printNumber: anchorBlock?.printNumber,
         status: 'ready' as const,
       }
       const block: BookBlockV2 = {
@@ -1882,7 +1888,7 @@ export default function EditorV2Page() {
         widthPercent: 80,
       }
       commitDocument(current => {
-        const next = insertBlockAfterV2(current, selectedBlockId, block)
+        const next = insertBlockAfterV2(current, insertionBlockId, block)
         return { ...next, assets: [...next.assets, asset] }
       })
       recordAiUsage(result.usage)
@@ -1893,7 +1899,7 @@ export default function EditorV2Page() {
     } finally {
       setAiBusy(false)
     }
-  }, [commitDocument, document?.sourceBookId, recordAiUsage, selectedBlock?.printNumber, selectedBlockId, user])
+  }, [commitDocument, document, recordAiUsage, selectedBlockId, selectedBlockIdFromEditorTarget, user])
 
   const resizeImageBlock = useCallback((blockId: string, widthPercent: number) => {
     commitDocument(current => updateBlockInDocumentV2(current, blockId, block => {
