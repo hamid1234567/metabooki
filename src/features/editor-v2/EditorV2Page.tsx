@@ -1132,7 +1132,19 @@ export default function EditorV2Page() {
         <button type="button" onClick={scrollToTop} aria-label="برگشت به ابتدای ادیتور">↑</button>
         <button type="button" onClick={() => window.scrollBy({ left: 0, top: -window.innerHeight * 0.72, behavior: 'smooth' })} aria-label="بخش قبلی"><ChevronRight size={18} /></button>
         <button type="button" onClick={() => window.scrollBy({ left: 0, top: window.innerHeight * 0.72, behavior: 'smooth' })} aria-label="بخش بعدی"><ChevronLeft size={18} /></button>
-        <SaveIndicator state={saveState} floating />
+        <button
+          type="button"
+          className={`editor-v2-floating-save ${saveState === 'saving' ? 'is-saving' : ''} ${saveState === 'saved' || saveState === 'idle' ? 'is-saved' : ''}`}
+          onClick={() => void saveDocument()}
+          disabled={saveState === 'saving'}
+          aria-label={saveState === 'saving' ? 'در حال ذخیره' : 'ذخیره دستی'}
+          title={saveState === 'saving' ? 'در حال ذخیره' : saveState === 'error' ? 'تلاش دوباره برای ذخیره' : 'ذخیره دستی'}
+        >
+          <span className="editor-v2-save-icon">
+            {saveState === 'saving' ? <Loader2 size={17} /> : <Save size={17} />}
+            {(saveState === 'saved' || saveState === 'idle') && <Check size={11} className="editor-v2-save-check" />}
+          </span>
+        </button>
       </div>
 
       {aiApproval && (
