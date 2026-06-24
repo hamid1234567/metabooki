@@ -1492,6 +1492,24 @@ export default function EditorV2Page() {
       setAiMessage('متن انتخاب‌شده در بوم ادیتور پیدا نشد.')
       return
     }
+    const selection = window.getSelection()
+    const activeRange = selection?.rangeCount ? selection.getRangeAt(0) : savedSelectionRef.current
+    const selectedBlockElements = (() => {
+      if (!activeRange || activeRange.collapsed) return []
+      const targetPage = target.closest<HTMLElement>('.editor-v2-flow-page')
+      return Array.from(root.querySelectorAll<HTMLElement>('[data-block-id]'))
+        .filter(element => {
+          if (element.closest('section.editor-v2-callout[data-v2-type="callout"]')) return false
+          if (targetPage && element.closest('.editor-v2-flow-page') !== targetPage) return false
+          if (!['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ol', 'ul'].includes(element.tagName.toLowerCase())) return false
+          try {
+            return activeRange.intersectsNode(element)
+          } catch {
+            return false
+          }
+        })
+        .filter((element, _index, elements) => !elements.some(other => other !== element && other.contains(element)))
+    })()
     const existingCallout = target.closest<HTMLElement>('section.editor-v2-callout[data-v2-type="callout"]')
     pushEditorHistory()
     if (existingCallout) {
@@ -1528,17 +1546,20 @@ export default function EditorV2Page() {
       if (titleElement && !titleElement.textContent?.trim()) titleElement.textContent = meta.title
       setSelectedBlockId(existingCallout.dataset.blockId)
     } else {
-      const editableTarget = /^h[1-6]$/i.test(target.tagName) ? retagEditorBlockElement(target, 'p') : target
-      if (!['p', 'div'].includes(editableTarget.tagName.toLowerCase())) {
+      const wrappedTargets = selectedBlockElements.length > 1 ? selectedBlockElements : [target]
+      const editableTargets = wrappedTargets.map(item => /^h[1-6]$/i.test(item.tagName) ? retagEditorBlockElement(item, 'p') : item)
+      if (!editableTargets.every(item => ['p', 'div', 'ol', 'ul'].includes(item.tagName.toLowerCase()))) {
         calloutActionLockRef.current = false
-        setAiMessage('فقط پاراگراف یا عنوان انتخاب‌شده را می‌توان به کال‌اوت تبدیل کرد.')
+        setAiMessage('فقط پاراگراف‌ها، عنوان‌ها یا لیست‌های انتخاب‌شده را می‌توان به یک کال‌اوت تبدیل کرد.')
         return
       }
-      editableTarget.dataset.v2Type = 'paragraph'
+      editableTargets.forEach(item => {
+        if (item.tagName.toLowerCase() === 'p' || item.tagName.toLowerCase() === 'div') item.dataset.v2Type = 'paragraph'
+      })
       const calloutId = createV2Id('callout', targetBlockId, Date.now())
       const section = window.document.createElement('section')
       section.className = `book-callout editor-v2-callout has-rendered-title callout-${variant}`
-      section.dir = textDirectionV2(editableTarget.innerText || meta.title)
+      section.dir = textDirectionV2(editableTargets.map(item => item.innerText).join('\n') || meta.title)
       section.dataset.blockId = calloutId
       section.dataset.v2Type = 'callout'
       section.dataset.variant = variant
@@ -1547,8 +1568,8 @@ export default function EditorV2Page() {
       section.dataset.calloutIcon = meta.icon
       section.innerHTML = `<button type="button" class="book-callout-unwrap editor-v2-callout-unwrap" contenteditable="false" data-callout-unwrap="true" aria-label="Unwrap callout">×</button><div class="book-callout-head"><span class="book-callout-icon" contenteditable="false">${escapeHtmlV2(meta.icon)}</span><strong class="book-callout-title" contenteditable="true" data-callout-title-editor="true">${escapeHtmlV2(meta.title)}</strong></div><div class="book-callout-bg-icon" contenteditable="false">${escapeHtmlV2(meta.icon)}</div><div class="book-callout-content"></div>`
       const content = section.querySelector<HTMLElement>('.book-callout-content')
-      editableTarget.replaceWith(section)
-      content?.appendChild(editableTarget)
+      editableTargets[0].replaceWith(section)
+      editableTargets.forEach(item => content?.appendChild(item))
       setSelectedBlockId(calloutId)
     }
     markEditorDirty()
