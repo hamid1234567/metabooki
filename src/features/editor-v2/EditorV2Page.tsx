@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { AlignCenter, AlignLeft, AlignRight, ArrowRight, Bold, BookOpen, ChevronDown, ChevronLeft, ChevronRight, Eye, FileText, Image as ImageIcon, Info, Italic, List, ListOrdered, ListTree, Loader2, PanelRight, Redo2, Save, Sparkles, Type, Underline as UnderlineIcon, Undo2 } from 'lucide-react'
+import { AlignCenter, AlignJustify, AlignLeft, AlignRight, ArrowLeft, ArrowRight, Bold, BookOpen, ChevronDown, ChevronLeft, ChevronRight, Eraser, Eye, FileText, Image as ImageIcon, Info, Italic, Link2, List, ListOrdered, ListTree, Loader2, Palette, PanelRight, Redo2, Save, Sparkles, Strikethrough, Subscript, Superscript, Table2, Type, Underline as UnderlineIcon, Undo2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { getBook } from '@/lib/book-repository'
 import { updatePublisherBook, type PublisherBook } from '@/lib/publisher-books'
@@ -10,7 +10,7 @@ import { estimateAiTextUsage, runAiThroughGateway, type RunAiResult } from '@/li
 import { useAuthContext } from '@/lib/auth-context'
 import { useCredits } from '@/hooks/useCredits'
 import { creditsBus } from '@/lib/credits-bus'
-import { buildTocFromHeadingsV2, createV2Id, documentV2ToConfirmedToc, documentV2ToLegacyPages, legacyBookToDocumentV2, normalizeBookTextV2, resolveTocTreeV2, tocAsFlatListV2, type BookBlockV2, type BookDocumentV2, type BookInlineV2, type BookTocItemV2, type CalloutBlockV2, type ParagraphBlockV2 } from '@/lib/book-document-v2'
+import { buildTocFromHeadingsV2, createV2Id, documentV2ToConfirmedToc, documentV2ToLegacyPages, legacyBookToDocumentV2, normalizeBookTextV2, resolveTocTreeV2, textDirectionV2, tocAsFlatListV2, type BookBlockV2, type BookDocumentV2, type BookInlineV2, type BookTocItemV2, type CalloutBlockV2, type ParagraphBlockV2 } from '@/lib/book-document-v2'
 import type { PrintPageValue } from '@/lib/book-content'
 import type { MockBook } from '@/lib/mock-data'
 import './editor-v2.css'
@@ -54,9 +54,56 @@ const escapeHtmlV2 = (value = '') => String(value)
 
 const attrV2 = (name: string, value: unknown) => value === undefined || value === null || value === '' ? '' : ` ${name}="${escapeHtmlV2(String(value))}"`
 
-function inlineToEditorHtmlV2(block: ParagraphBlockV2 | HeadingBlockV2) {
-  if (!block.inline?.length) return escapeHtmlV2(block.text)
-  return block.inline.map(span => {
+const FONT_SIZE_MAP_V2: Record<string, string> = {
+  '1': '0.72rem',
+  '2': '0.86rem',
+  '3': '1rem',
+  '4': '1.16rem',
+  '5': '1.34rem',
+  '6': '1.56rem',
+  '7': '1.82rem',
+}
+
+function styleAttrFromInlineV2(style?: BookInlineV2['style']) {
+  if (!style) return ''
+  const declarations = [
+    style.color ? `color:${escapeHtmlV2(style.color)}` : '',
+    style.fontFamily ? `font-family:${escapeHtmlV2(style.fontFamily)}` : '',
+    style.fontSize ? `font-size:${escapeHtmlV2(style.fontSize)}` : '',
+  ].filter(Boolean)
+  return declarations.length ? ` style="${declarations.join(';')}"` : ''
+}
+
+function blockStyleAttrV2(block: BookBlockV2) {
+  const style = block.style || {}
+  const declarations = [
+    style.color ? `color:${escapeHtmlV2(String(style.color))}` : '',
+    style.fontFamily ? `font-family:${escapeHtmlV2(String(style.fontFamily))}` : '',
+    style.fontSize ? `font-size:${escapeHtmlV2(String(style.fontSize))}` : '',
+    style.fontSizePt ? `font-size:${escapeHtmlV2(String(style.fontSizePt))}pt` : '',
+    style.alignment ? `text-align:${escapeHtmlV2(String(style.alignment))}` : '',
+    style.bold ? 'font-weight:800' : '',
+    style.italic ? 'font-style:italic' : '',
+  ].filter(Boolean)
+  return declarations.length ? ` style="${declarations.join(';')}"` : ''
+}
+
+function citationAttrsV2(span: BookInlineV2) {
+  const text = normalizeBookTextV2(span.footnoteText || span.referenceText || '')
+  if (!text && !span.footnoteId) return ''
+  return [
+    ' class="citation-reference editor-v2-citation-reference"',
+    span.footnoteId ? attrV2('data-footnote-id', span.footnoteId) : '',
+    span.footnoteText ? attrV2('data-footnote-text', text) : '',
+    span.referenceAnchor ? attrV2('data-reference-anchor', span.referenceAnchor) : '',
+    span.referenceText ? attrV2('data-reference-text', text) : '',
+    attrV2('data-tooltip-dir', textDirectionV2(text || span.text)),
+  ].join('')
+}
+
+function inlineSpansToEditorHtmlV2(inline?: BookInlineV2[], fallback = '') {
+  if (!inline?.length) return escapeHtmlV2(fallback)
+  return inline.map(span => {
     let html = escapeHtmlV2(span.text)
     const marks = span.marks || []
     if (marks.includes('subscript')) html = `<sub>${html}</sub>`
@@ -65,21 +112,31 @@ function inlineToEditorHtmlV2(block: ParagraphBlockV2 | HeadingBlockV2) {
     if (marks.includes('italic')) html = `<em>${html}</em>`
     if (marks.includes('underline')) html = `<u>${html}</u>`
     if (marks.includes('strike')) html = `<s>${html}</s>`
+    if (span.style) html = `<span${styleAttrFromInlineV2(span.style)}>${html}</span>`
     if (span.href) html = `<a href="${escapeHtmlV2(span.href)}">${html}</a>`
+    if (span.footnoteText || span.referenceText || span.footnoteId) {
+      const noteText = normalizeBookTextV2(span.footnoteText || span.referenceText || '')
+      const dir = textDirectionV2(noteText || span.text)
+      html = `<span${citationAttrsV2(span)} dir="${dir}">${html}${noteText ? `<span contenteditable="false" class="citation-tooltip" dir="${dir}">${escapeHtmlV2(noteText)}</span>` : ''}</span>`
+    }
     return html
   }).join('')
 }
 
+function inlineToEditorHtmlV2(block: Extract<BookBlockV2, { type: 'paragraph' | 'heading' }>) {
+  return inlineSpansToEditorHtmlV2(block.inline, block.text)
+}
+
 function blockToEditorHtmlV2(block: BookBlockV2): string {
   if (block.type === 'heading') {
-    return `<h${block.level}${attrV2('id', block.anchor || block.id)} data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="heading" data-level="${block.level}"${attrV2('dir', block.direction)}>${inlineToEditorHtmlV2(block)}</h${block.level}>`
+    return `<h${block.level}${attrV2('id', block.anchor || block.id)} data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="heading" data-level="${block.level}"${attrV2('dir', block.direction)}${blockStyleAttrV2(block)}>${inlineToEditorHtmlV2(block)}</h${block.level}>`
   }
   if (block.type === 'paragraph') {
-    return `<p${attrV2('id', block.anchor || block.id)} data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="paragraph"${attrV2('dir', block.direction)}>${inlineToEditorHtmlV2(block)}</p>`
+    return `<p${attrV2('id', block.anchor || block.id)} data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="paragraph"${attrV2('dir', block.direction)}${blockStyleAttrV2(block)}>${inlineToEditorHtmlV2(block)}</p>`
   }
   if (block.type === 'list') {
     const tag = block.ordered ? 'ol' : 'ul'
-    return `<${tag} data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="list">${block.items.map(item => `<li>${escapeHtmlV2(item.text)}</li>`).join('')}</${tag}>`
+    return `<${tag} data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="list"${blockStyleAttrV2(block)}>${block.items.map(item => `<li data-item-id="${escapeHtmlV2(item.id)}">${inlineSpansToEditorHtmlV2(item.inline, item.text)}</li>`).join('')}</${tag}>`
   }
   if (block.type === 'image') {
     const width = block.widthPercent ? `${Math.max(12, Math.min(100, block.widthPercent))}%` : block.widthPx ? `${Math.max(80, block.widthPx)}px` : ''
@@ -112,8 +169,76 @@ function documentToEditorHtmlV2(bookDocument: BookDocumentV2) {
   }).join('')
 }
 
+function mergeInlineStyleFromElementV2(element: Element, inherited: BookInlineV2['style'] = {}) {
+  const html = element as HTMLElement
+  const tag = element.tagName.toLowerCase()
+  const style = { ...(inherited || {}) }
+  if (html.style.color) style.color = html.style.color
+  if (html.style.fontFamily) style.fontFamily = html.style.fontFamily
+  if (html.style.fontSize) style.fontSize = html.style.fontSize
+  if (tag === 'font') {
+    const color = element.getAttribute('color')
+    const face = element.getAttribute('face')
+    const size = element.getAttribute('size')
+    if (color) style.color = color
+    if (face) style.fontFamily = face
+    if (size) style.fontSize = FONT_SIZE_MAP_V2[size] || size
+  }
+  return style
+}
+
+function blockStyleFromElementV2(element: Element, old?: BookBlockV2 | null) {
+  const html = element as HTMLElement
+  const style = { ...(old?.style || {}) }
+  if (html.style.textAlign) style.alignment = html.style.textAlign
+  if (html.style.color) style.color = html.style.color
+  if (html.style.fontFamily) style.fontFamily = html.style.fontFamily
+  if (html.style.fontSize) style.fontSize = html.style.fontSize
+  if (html.style.fontWeight && Number(html.style.fontWeight) >= 600) style.bold = true
+  if (html.style.fontStyle === 'italic') style.italic = true
+  return Object.keys(style).length ? style : undefined
+}
+
+function inlineFromDomV2(node: Node, marks: BookInlineV2['marks'] = [], href?: string, inheritedStyle: BookInlineV2['style'] = {}): BookInlineV2[] {
+  if (node.nodeType === Node.TEXT_NODE) {
+    const text = normalizeBookTextV2(node.textContent || '')
+    const style = Object.keys(inheritedStyle || {}).length ? { ...inheritedStyle } : undefined
+    return text ? [{ text, marks: marks.length ? [...marks] : undefined, href, style }] : []
+  }
+  if (!(node instanceof Element)) return []
+  if (node.classList.contains('citation-tooltip')) return []
+  const tag = node.tagName.toLowerCase()
+  const nextMarks = [...(marks || [])]
+  if ((tag === 'strong' || tag === 'b') && !nextMarks.includes('bold')) nextMarks.push('bold')
+  if ((tag === 'em' || tag === 'i') && !nextMarks.includes('italic')) nextMarks.push('italic')
+  if (tag === 'u' && !nextMarks.includes('underline')) nextMarks.push('underline')
+  if ((tag === 's' || tag === 'strike') && !nextMarks.includes('strike')) nextMarks.push('strike')
+  if (tag === 'sub' && !nextMarks.includes('subscript')) nextMarks.push('subscript')
+  if (tag === 'sup' && !nextMarks.includes('superscript')) nextMarks.push('superscript')
+  const nextHref = tag === 'a' ? node.getAttribute('href') || href : href
+  const nextStyle = mergeInlineStyleFromElementV2(node, inheritedStyle)
+  const footnoteText = normalizeBookTextV2((node as HTMLElement).dataset.footnoteText || '')
+  const referenceText = normalizeBookTextV2((node as HTMLElement).dataset.referenceText || '')
+  const footnoteId = (node as HTMLElement).dataset.footnoteId
+  const referenceAnchor = (node as HTMLElement).dataset.referenceAnchor
+  const children = Array.from(node.childNodes).flatMap(child => inlineFromDomV2(child, nextMarks, nextHref, nextStyle))
+  if (!footnoteText && !referenceText && !footnoteId && !referenceAnchor) return children
+  if (children.length) {
+    return children.map((span, index) => index === 0
+      ? { ...span, footnoteId, footnoteText: footnoteText || undefined, referenceAnchor, referenceText: referenceText || undefined }
+      : span)
+  }
+  return [{ text: footnoteId || referenceAnchor || '', marks: nextMarks.length ? nextMarks : undefined, href: nextHref, style: Object.keys(nextStyle || {}).length ? nextStyle : undefined, footnoteId, footnoteText: footnoteText || undefined, referenceAnchor, referenceText: referenceText || undefined }]
+}
+
+function inlineFromElementV2(element: Element) {
+  const inline = Array.from(element.childNodes).flatMap(child => inlineFromDomV2(child))
+  return inline.length ? inline : undefined
+}
+
 function textFromElementV2(element: Element) {
-  return normalizeBookTextV2((element as HTMLElement).innerText || element.textContent || '')
+  const inline = inlineFromElementV2(element)
+  return inline?.map(span => span.text).join('') || normalizeBookTextV2((element as HTMLElement).innerText || element.textContent || '')
 }
 
 function existingBlocksV2(bookDocument: BookDocumentV2) {
@@ -128,27 +253,67 @@ function existingBlocksV2(bookDocument: BookDocumentV2) {
   return map
 }
 
+function tableBlockFromElementV2(element: Element, id: string, page: BookDocumentV2['pages'][number], old?: BookBlockV2 | null): BookBlockV2 | null {
+  const table = element.tagName.toLowerCase() === 'table' ? element : element.querySelector('table')
+  if (!table) return null
+  const rows = Array.from(table.querySelectorAll('tr')).map(row =>
+    Array.from(row.querySelectorAll('th,td')).map(cell => normalizeBookTextV2((cell as HTMLElement).innerText || cell.textContent || '')),
+  ).filter(row => row.some(Boolean))
+  if (!rows.length) return null
+  const headerCells = Array.from(table.querySelectorAll('thead tr:first-child th')).map(cell => normalizeBookTextV2((cell as HTMLElement).innerText || cell.textContent || '')).filter(Boolean)
+  const caption = normalizeBookTextV2(element.querySelector('caption')?.textContent || element.querySelector('.reader-table-title')?.textContent || '')
+  return {
+    ...(old && old.type === 'table' ? old : {}),
+    id,
+    type: 'table',
+    headers: headerCells.length ? headerCells : undefined,
+    rows: headerCells.length ? rows.slice(1) : rows,
+    caption: caption || (old?.type === 'table' ? old.caption : undefined),
+    anchor: old?.anchor || id,
+    printNumber: page.printNumber,
+    style: blockStyleFromElementV2(element, old),
+  } as BookBlockV2
+}
+
 function elementToBlockV2(element: Element, page: BookDocumentV2['pages'][number], index: number, existing: Map<string, BookBlockV2>): BookBlockV2 | null {
   if ((element as HTMLElement).dataset.pageBreak) return null
   const id = (element as HTMLElement).dataset.blockId || createV2Id('block', page.index, index, Date.now())
   const old = existing.get(id)
   const tag = element.tagName.toLowerCase()
+  const v2Type = (element as HTMLElement).dataset.v2Type
+  if (v2Type === 'callout' && old?.type === 'callout') return old
+  if (v2Type === 'interactive' && old?.type === 'interactive') return old
+  if (v2Type === 'table' && old?.type === 'table') return old
+  if (v2Type === 'table' || tag === 'table' || element.querySelector(':scope > table')) return tableBlockFromElementV2(element, id, page, old)
   if (/^h[1-6]$/.test(tag)) {
     const level = Number(tag.slice(1)) as 1 | 2 | 3 | 4 | 5 | 6
-    return { ...(old && old.type === 'heading' ? old : {}), id, type: 'heading', level, text: textFromElementV2(element), anchor: old?.anchor || id, printNumber: page.printNumber } as HeadingBlockV2
+    const inline = inlineFromElementV2(element)
+    return { ...(old && old.type === 'heading' ? old : {}), id, type: 'heading', level, text: textFromElementV2(element), inline, anchor: old?.anchor || id, printNumber: page.printNumber, direction: (element.getAttribute('dir') as any) || old?.direction, style: blockStyleFromElementV2(element, old) }
+  }
+  if (tag === 'div') {
+    const directContent = Array.from(element.children).filter(child => !(child as HTMLElement).dataset.pageBreak)
+    if (directContent.length === 1 && ['ol', 'ul'].includes(directContent[0].tagName.toLowerCase())) {
+      return elementToBlockV2(directContent[0], page, index, existing)
+    }
   }
   if (tag === 'p' || tag === 'div') {
     const text = textFromElementV2(element)
     if (!text) return null
-    return { ...(old && old.type === 'paragraph' ? old : {}), id, type: 'paragraph', text, inline: undefined, anchor: old?.anchor || id, printNumber: page.printNumber } as ParagraphBlockV2
+    return { ...(old && old.type === 'paragraph' ? old : {}), id, type: 'paragraph', text, inline: inlineFromElementV2(element), anchor: old?.anchor || id, printNumber: page.printNumber, direction: (element.getAttribute('dir') as any) || old?.direction, style: blockStyleFromElementV2(element, old) } as ParagraphBlockV2
+  }
+  if (tag === 'blockquote') {
+    const text = textFromElementV2(element)
+    if (!text) return null
+    return { ...(old && old.type === 'paragraph' ? old : {}), id, type: 'paragraph', semantic: 'quote', text, inline: inlineFromElementV2(element), anchor: old?.anchor || id, printNumber: page.printNumber, direction: (element.getAttribute('dir') as any) || old?.direction, style: blockStyleFromElementV2(element, old) } as ParagraphBlockV2
   }
   if (tag === 'ol' || tag === 'ul') {
     const items = Array.from(element.querySelectorAll(':scope > li')).map((li, itemIndex) => ({
-      id: createV2Id('item', id, itemIndex),
+      id: (li as HTMLElement).dataset.itemId || createV2Id('item', id, itemIndex),
       text: textFromElementV2(li),
+      inline: inlineFromElementV2(li),
     })).filter(item => item.text)
     if (!items.length) return null
-    return { ...(old && old.type === 'list' ? old : {}), id, type: 'list', ordered: tag === 'ol', items, anchor: old?.anchor || id, printNumber: page.printNumber }
+    return { ...(old && old.type === 'list' ? old : {}), id, type: 'list', ordered: tag === 'ol', items, anchor: old?.anchor || id, printNumber: page.printNumber, direction: (element.getAttribute('dir') as any) || old?.direction, style: blockStyleFromElementV2(element, old) }
   }
   if (tag === 'figure') {
     const image = element.querySelector('img')
@@ -165,8 +330,6 @@ function elementToBlockV2(element: Element, page: BookDocumentV2['pages'][number
       printNumber: page.printNumber,
     } as BookBlockV2
   }
-  if ((element as HTMLElement).dataset.v2Type === 'callout' && old?.type === 'callout') return old
-  if ((element as HTMLElement).dataset.v2Type === 'interactive' && old?.type === 'interactive') return old
   if (old) return old
   return null
 }
@@ -562,17 +725,46 @@ export default function EditorV2Page() {
     window.setTimeout(updateSelectedBlockFromDom, 0)
   }, [updateSelectedBlockFromDom])
 
+  const refreshDocumentFromEditor = useCallback(() => {
+    setDocument(current => current ? documentFromEditorDomV2(current, editorSurfaceRef.current) : current)
+  }, [])
+
   const execTextCommand = useCallback((command: string, value?: string) => {
     editorSurfaceRef.current?.focus()
     window.document.execCommand(command, false, value)
     markEditorDirty()
-  }, [markEditorDirty])
+    window.setTimeout(refreshDocumentFromEditor, 0)
+  }, [markEditorDirty, refreshDocumentFromEditor])
 
   const formatCurrentBlock = useCallback((tag: string) => {
     editorSurfaceRef.current?.focus()
     window.document.execCommand('formatBlock', false, tag)
     markEditorDirty()
-  }, [markEditorDirty])
+    window.setTimeout(refreshDocumentFromEditor, 0)
+  }, [markEditorDirty, refreshDocumentFromEditor])
+
+  const setCurrentBlockDirection = useCallback((direction: 'rtl' | 'ltr') => {
+    editorSurfaceRef.current?.focus()
+    const selection = window.getSelection()
+    const node = selection?.anchorNode
+    const element = node instanceof Element ? node : node?.parentElement
+    const target = element?.closest<HTMLElement>('[data-block-id], p, h1, h2, h3, h4, h5, h6, ol, ul')
+    target?.setAttribute('dir', direction)
+    markEditorDirty()
+    window.setTimeout(refreshDocumentFromEditor, 0)
+  }, [markEditorDirty, refreshDocumentFromEditor])
+
+  const createLinkForSelection = useCallback(() => {
+    const href = window.prompt('آدرس لینک را وارد کنید')
+    if (!href?.trim()) return
+    execTextCommand('createLink', href.trim())
+  }, [execTextCommand])
+
+  const insertSimpleTable = useCallback(() => {
+    const tableId = createV2Id('table', Date.now())
+    const html = `<table data-block-id="${tableId}" data-v2-type="table"><tbody><tr><td>عنوان</td><td>مقدار</td></tr><tr><td></td><td></td></tr></tbody></table>`
+    execTextCommand('insertHTML', html)
+  }, [execTextCommand])
 
   const wrapSelectedCallout = useCallback((variant: (typeof CALLOUT_VARIANTS_V2)[number]) => {
     if (!selectedBlockId) return
@@ -769,8 +961,13 @@ export default function EditorV2Page() {
         <RightPanelV2 document={document} activePanel={activePanel} setActivePanel={setActivePanel} activeTocId={activeTocId} onJumpToToc={jumpToToc} onInsertImage={insertImageFromAsset} onInsertInteractive={insertInteractiveBlock} onApplyCallout={wrapSelectedCallout} onUnwrapCallout={unwrapSelectedCallout} canUnwrapCallout={selectedBlock?.type === 'callout'} onAiEnhance={requestAiEnhance} aiBusy={aiBusy} aiMessage={aiMessage} />
         <main className="editor-v2-canvas" ref={canvasRef} onClick={() => setSelectedBlockId(undefined)}>
           <section className="editor-v2-toolbar menu-glass-70" onClick={event => event.stopPropagation()}>
+            <span className="editor-v2-toolbar-save"><SaveIndicator state={saveState} /></span>
+            <Button variant="outline" size="icon" onClick={() => void saveDocument()} disabled={saveState === 'saving'} title="ذخیره دستی"><Save size={17} /></Button>
+            <Button variant="outline" size="icon" onClick={() => openReaderPreview(book.id, `/edit-v2/${book.id}`)} title="پیش‌نمایش"><Eye size={17} /></Button>
+            <span className="editor-v2-toolbar-divider" />
             <Button variant="outline" size="icon" onClick={() => execTextCommand('undo')} title="بازگشت"><Undo2 size={17} /></Button>
             <Button variant="outline" size="icon" onClick={() => execTextCommand('redo')} title="انجام دوباره"><Redo2 size={17} /></Button>
+            <span className="editor-v2-toolbar-divider" />
             <Button variant="outline" size="icon" onClick={() => formatCurrentBlock('p')} title="متن عادی"><Type size={17} /></Button>
             <select defaultValue="" onChange={event => { if (event.target.value) formatCurrentBlock(event.target.value); event.target.value = '' }} title="سطح عنوان">
               <option value="" disabled>H</option>
@@ -781,14 +978,46 @@ export default function EditorV2Page() {
               <option value="h5">H5</option>
               <option value="h6">H6</option>
             </select>
+            <select defaultValue="" onChange={event => { if (event.target.value) execTextCommand('fontName', event.target.value); event.target.value = '' }} title="فونت">
+              <option value="" disabled>فونت</option>
+              <option value="Vazirmatn">Vazirmatn</option>
+              <option value="Tahoma">Tahoma</option>
+              <option value="Arial">Arial</option>
+              <option value="Georgia">Georgia</option>
+              <option value="Times New Roman">Times</option>
+            </select>
+            <select defaultValue="" onChange={event => { if (event.target.value) execTextCommand('fontSize', event.target.value); event.target.value = '' }} title="اندازه متن">
+              <option value="" disabled>اندازه</option>
+              <option value="1">خیلی ریز</option>
+              <option value="2">ریز</option>
+              <option value="3">عادی</option>
+              <option value="4">درشت</option>
+              <option value="5">خیلی درشت</option>
+            </select>
+            <label className="editor-v2-color-tool" title="رنگ متن">
+              <Palette size={16} />
+              <input type="color" defaultValue="#172033" onChange={event => execTextCommand('foreColor', event.target.value)} />
+            </label>
+            <span className="editor-v2-toolbar-divider" />
             <Button variant="outline" size="icon" onClick={() => execTextCommand('bold')} title="پررنگ"><Bold size={17} /></Button>
             <Button variant="outline" size="icon" onClick={() => execTextCommand('italic')} title="مورب"><Italic size={17} /></Button>
             <Button variant="outline" size="icon" onClick={() => execTextCommand('underline')} title="زیرخط"><UnderlineIcon size={17} /></Button>
+            <Button variant="outline" size="icon" onClick={() => execTextCommand('strikeThrough')} title="خط‌خورده"><Strikethrough size={17} /></Button>
+            <Button variant="outline" size="icon" onClick={() => execTextCommand('superscript')} title="بالانویس"><Superscript size={17} /></Button>
+            <Button variant="outline" size="icon" onClick={() => execTextCommand('subscript')} title="زیرنویس"><Subscript size={17} /></Button>
+            <Button variant="outline" size="icon" onClick={createLinkForSelection} title="لینک"><Link2 size={17} /></Button>
+            <Button variant="outline" size="icon" onClick={() => execTextCommand('removeFormat')} title="پاک کردن فرمت"><Eraser size={17} /></Button>
+            <span className="editor-v2-toolbar-divider" />
             <Button variant="outline" size="icon" onClick={() => execTextCommand('insertUnorderedList')} title="فهرست نقطه‌ای"><List size={17} /></Button>
             <Button variant="outline" size="icon" onClick={() => execTextCommand('insertOrderedList')} title="فهرست شماره‌ای"><ListOrdered size={17} /></Button>
             <Button variant="outline" size="icon" onClick={() => execTextCommand('justifyRight')} title="راست‌چین"><AlignRight size={17} /></Button>
             <Button variant="outline" size="icon" onClick={() => execTextCommand('justifyCenter')} title="وسط‌چین"><AlignCenter size={17} /></Button>
             <Button variant="outline" size="icon" onClick={() => execTextCommand('justifyLeft')} title="چپ‌چین"><AlignLeft size={17} /></Button>
+            <Button variant="outline" size="icon" onClick={() => execTextCommand('justifyFull')} title="تراز کامل"><AlignJustify size={17} /></Button>
+            <Button variant="outline" size="icon" onClick={() => setCurrentBlockDirection('rtl')} title="جهت راست به چپ"><ArrowRight size={17} /></Button>
+            <Button variant="outline" size="icon" onClick={() => setCurrentBlockDirection('ltr')} title="جهت چپ به راست"><ArrowLeft size={17} /></Button>
+            <span className="editor-v2-toolbar-divider" />
+            <Button variant="outline" size="icon" onClick={insertSimpleTable} title="جدول ساده"><Table2 size={17} /></Button>
           </section>
 
           <div className="editor-v2-paper">
