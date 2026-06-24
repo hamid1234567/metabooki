@@ -1015,7 +1015,18 @@ export default function EditorV2Page() {
     return () => window.clearTimeout(handle)
   }, [book, dirty, document, saveDocument, saveState])
 
-  const commitDocument = useCallback((updater: (current: BookDocumentV2) => BookDocumentV2) => {
+  const pushEditorHistory = useCallback(() => {
+    const html = editorSurfaceRef.current?.innerHTML
+    if (!html) return
+    const stack = undoStackRef.current
+    if (stack[stack.length - 1] !== html) {
+      undoStackRef.current = [...stack.slice(-59), html]
+      redoStackRef.current = []
+    }
+  }, [])
+
+  const commitDocument = useCallback((updater: (current: BookDocumentV2) => BookDocumentV2, options: { recordHistory?: boolean } = {}) => {
+    if (options.recordHistory) pushEditorHistory()
     setDocument(current => {
       if (!current) return current
       const base = documentFromEditorDomV2(current, editorSurfaceRef.current)
@@ -1023,7 +1034,7 @@ export default function EditorV2Page() {
       setDirty(true)
       return next
     })
-  }, [])
+  }, [pushEditorHistory])
 
   const rememberEditorSelection = useCallback(() => {
     const selection = window.getSelection()
@@ -1058,6 +1069,23 @@ export default function EditorV2Page() {
     const target = element?.closest<HTMLElement>('[data-block-id]')
     return target && root.contains(target) ? target.dataset.blockId : undefined
   }, [])
+
+  const selectedBlockIdFromEditorTarget = useCallback(() => {
+    const root = editorSurfaceRef.current
+    if (!root) return selectedBlockId
+    const selection = window.getSelection()
+    const ranges = [
+      selection?.rangeCount ? selection.getRangeAt(0) : null,
+      savedSelectionRef.current,
+    ].filter(Boolean) as Range[]
+    for (const range of ranges) {
+      const container = range.commonAncestorContainer
+      const element = container.nodeType === Node.ELEMENT_NODE ? container as Element : container.parentElement
+      const target = element?.closest<HTMLElement>('[data-block-id]')
+      if (target && root.contains(target)) return target.dataset.blockId || selectedBlockId
+    }
+    return selectedBlockId
+  }, [selectedBlockId])
 
   const selectedEditorBlockElement = useCallback(() => {
     if (!selectedBlockId || !editorSurfaceRef.current) return null
@@ -1128,16 +1156,6 @@ export default function EditorV2Page() {
     skipNextSurfaceSyncRef.current = true
     scheduleRefreshDocumentFromEditor()
   }, [scheduleRefreshDocumentFromEditor])
-
-  const pushEditorHistory = useCallback(() => {
-    const html = editorSurfaceRef.current?.innerHTML
-    if (!html) return
-    const stack = undoStackRef.current
-    if (stack[stack.length - 1] !== html) {
-      undoStackRef.current = [...stack.slice(-59), html]
-      redoStackRef.current = []
-    }
-  }, [])
 
   const restoreEditorHtmlSnapshot = useCallback((html: string) => {
     if (!editorSurfaceRef.current) return
@@ -1390,21 +1408,28 @@ export default function EditorV2Page() {
   }, [execTextCommand])
 
   const wrapSelectedCallout = useCallback((variant: (typeof CALLOUT_VARIANTS_V2)[number]) => {
-    const targetBlockId = selectedBlockId || selectedBlockIdFromSavedRange()
+    const targetBlockId = selectedBlockIdFromEditorTarget()
     if (!targetBlockId) {
       setAiMessage('برای ساخت کال‌اوت، نشانگر را داخل یک پاراگراف بگذارید یا بخشی از متن را انتخاب کنید.')
       setActivePanel('upgrade')
       return
     }
     const meta = CALLOUT_META_V2[variant]
+    let nextSelectedBlockId = targetBlockId
     commitDocument(current => updateBlockInDocumentV2(current, targetBlockId, block => {
-      if (block.type === 'callout') return { ...block, variant, title: meta.title, icon: meta.icon }
-      if (block.type !== 'paragraph' && block.type !== 'heading') return block
+      if (block.type === 'callout') {
+        nextSelectedBlockId = block.id
+        return { ...block, variant, title: meta.title, icon: meta.icon }
+      }
+      if (block.type !== 'paragraph' && block.type !== 'heading') {
+        return block
+      }
       const paragraph: ParagraphBlockV2 = block.type === 'paragraph'
         ? block
         : { ...block, type: 'paragraph', text: block.text, inline: block.inline, semantic: undefined }
+      const calloutId = createV2Id('callout', targetBlockId, Date.now())
       const callout: CalloutBlockV2 = {
-        id: createV2Id('callout', targetBlockId, Date.now()),
+        id: calloutId,
         type: 'callout',
         variant,
         title: meta.title,
@@ -1413,16 +1438,18 @@ export default function EditorV2Page() {
         printNumber: block.printNumber,
         blocks: [{ ...paragraph, id: createV2Id('callout-text', targetBlockId), anchor: createV2Id('callout-text-anchor', targetBlockId) }],
       }
-      window.setTimeout(() => setSelectedBlockId(callout.id), 0)
+      nextSelectedBlockId = calloutId
       return callout
-    }))
-  }, [commitDocument, selectedBlockId, selectedBlockIdFromSavedRange])
+    }), { recordHistory: true })
+    window.setTimeout(() => setSelectedBlockId(nextSelectedBlockId), 0)
+  }, [commitDocument, selectedBlockIdFromEditorTarget])
 
   const unwrapSelectedCallout = useCallback(() => {
-    if (!selectedBlockId) return
-    commitDocument(current => updateBlockInDocumentV2(current, selectedBlockId, block => block.type === 'callout' ? block.blocks : block))
+    const targetBlockId = selectedBlockIdFromEditorTarget()
+    if (!targetBlockId) return
+    commitDocument(current => updateBlockInDocumentV2(current, targetBlockId, block => block.type === 'callout' ? block.blocks : block), { recordHistory: true })
     setSelectedBlockId(undefined)
-  }, [commitDocument, selectedBlockId])
+  }, [commitDocument, selectedBlockIdFromEditorTarget])
 
   const insertImageFromAsset = useCallback((assetId: string) => {
     const asset = document?.assets.find(item => item.id === assetId)
