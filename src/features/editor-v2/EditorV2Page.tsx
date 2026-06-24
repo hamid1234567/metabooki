@@ -18,6 +18,16 @@ import './editor-v2.css'
 type EditorPanelV2 = 'toc' | 'upgrade' | 'media' | 'interactive' | 'ai'
 type SaveStateV2 = 'idle' | 'saving' | 'saved' | 'error'
 type SaveVisualStateV2 = SaveStateV2 | 'dirty'
+type TextToolbarStateV2 = {
+  hasSelection: boolean
+  bold: boolean
+  italic: boolean
+  underline: boolean
+  strike: boolean
+  superscript: boolean
+  subscript: boolean
+  alignment?: 'left' | 'right' | 'center' | 'justify'
+}
 type AiApprovalV2 = {
   usage: RunAiResult['usage']
   provider: string
@@ -95,6 +105,21 @@ function normalizeAlignmentV2(value?: string | null) {
   if (alignment === 'end') return 'left'
   if (['left', 'right', 'center', 'justify'].includes(alignment)) return alignment
   return undefined
+}
+
+function boldWeightV2(value?: string | null) {
+  const weight = String(value || '').trim().toLowerCase()
+  return weight === 'bold' || Number(weight) >= 600
+}
+
+const EMPTY_TEXT_TOOLBAR_STATE_V2: TextToolbarStateV2 = {
+  hasSelection: false,
+  bold: false,
+  italic: false,
+  underline: false,
+  strike: false,
+  superscript: false,
+  subscript: false,
 }
 
 function citationAttrsV2(span: BookInlineV2) {
@@ -196,7 +221,7 @@ function mergeInlineStyleFromElementV2(element: Element, inherited: BookInlineV2
   return style
 }
 
-function blockStyleFromElementV2(element: Element, old?: BookBlockV2 | null) {
+function blockStyleFromElementV2(element: Element, _old?: BookBlockV2 | null) {
   const html = element as HTMLElement
   const styledDescendant = element.querySelector<HTMLElement>('[style], [align]')
   const styleSource = styledDescendant || html
@@ -209,9 +234,7 @@ function blockStyleFromElementV2(element: Element, old?: BookBlockV2 | null) {
   const fontWeight = html.style.fontWeight || styleSource.style.fontWeight
   if (fontWeight && (fontWeight === 'bold' || Number(fontWeight) >= 600)) style.bold = true
   if (html.style.fontStyle === 'italic' || styleSource.style.fontStyle === 'italic') style.italic = true
-  const oldStyle = old && ('style' in old) ? old.style : undefined
-  if (!Object.keys(style).length) return oldStyle
-  return { ...(oldStyle || {}), ...style }
+  return Object.keys(style).length ? style : undefined
 }
 
 function inlineFromDomV2(node: Node, marks: BookInlineV2['marks'] = [], href?: string, inheritedStyle: BookInlineV2['style'] = {}): BookInlineV2[] {
@@ -677,6 +700,7 @@ export default function EditorV2Page() {
   const [activePanel, setActivePanel] = useState<EditorPanelV2>('toc')
   const [activeTocId, setActiveTocId] = useState<string>()
   const [selectedBlockId, setSelectedBlockId] = useState<string>()
+  const [toolbarState, setToolbarState] = useState<TextToolbarStateV2>(EMPTY_TEXT_TOOLBAR_STATE_V2)
   const [dirty, setDirty] = useState(false)
   const [aiBusy, setAiBusy] = useState(false)
   const [aiMessage, setAiMessage] = useState('')
