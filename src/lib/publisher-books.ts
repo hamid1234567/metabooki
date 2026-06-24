@@ -208,6 +208,7 @@ export function updatePublisherBook(id: string, patch: Partial<PublisherBook>) {
   else {
     const existing = findPublisherBook(id)
     if (existing) items.unshift({ ...existing, ...patch })
+    else if (patch.title && Array.isArray(patch.pages)) items.unshift({ ...patch, id } as PublisherBook)
   }
   write(items)
   notifyPublisherBookChanged(id, 'updated')

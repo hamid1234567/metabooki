@@ -689,13 +689,20 @@ export default function EditorV2Page() {
         page_count: pages.length,
         content_updated_at: nextDocument.updatedAt,
       } as Partial<PublisherBook>
-      updatePublisherBook(book.id, patch)
-      if (isUuid(book.id)) await (supabase as any).from('books').update(patch).eq('id', book.id)
+      const nextBook = { ...book, ...patch } as MockBook
+      updatePublisherBook(book.id, nextBook as PublisherBook)
       skipNextSurfaceSyncRef.current = true
       setDocument(nextDocument)
-      setBook({ ...book, ...patch })
+      setBook(nextBook)
       setDirty(false)
       setSaveState('saved')
+      if (isUuid(book.id)) {
+        void (supabase as any).from('books').update(patch).eq('id', book.id).then(({ error }: { error?: unknown }) => {
+          if (error) console.warn('Editor V2 remote save failed; local snapshot is preserved.', error)
+        }).catch((reason: unknown) => {
+          console.warn('Editor V2 remote save failed; local snapshot is preserved.', reason)
+        })
+      }
       window.setTimeout(() => setSaveState('idle'), 2200)
     } catch {
       setSaveState('error')
