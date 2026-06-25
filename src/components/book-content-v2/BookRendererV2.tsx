@@ -101,8 +101,13 @@ export function renderBookBlockV2(block: BookBlockV2, renderChildren: (blocks: B
   if (block.type === 'image') {
     const width = block.widthPercent ? `${Math.max(12, Math.min(100, block.widthPercent))}%` : block.widthPx ? `${Math.max(80, block.widthPx)}px` : undefined
     const wrapClass = ` wrap-${block.wrap || 'top-bottom'}`
+    const figureStyle: CSSProperties = {
+      maxWidth: width,
+      shapeOutside: block.wrap === 'tight-inline' && block.url ? `url("${block.url}")` : undefined,
+      shapeMargin: block.wrap === 'tight-inline' && block.url ? '0.45rem' : undefined,
+    }
     return (
-      <figure key={block.id} id={block.anchor || block.id} className={`book-v2-figure${wrapClass}${selectedClass(block, options)}`} data-block-id={block.id} style={{ maxWidth: width }}>
+      <figure key={block.id} id={block.anchor || block.id} className={`book-v2-figure${wrapClass}${selectedClass(block, options)}`} data-block-id={block.id} style={figureStyle}>
         {block.url ? <img src={block.url} alt={block.caption || ''} loading="lazy" /> : <div className="book-v2-missing-image">ØªØµÙˆÛŒØ± Ø¯Ø± Ø¯Ø³ØªØ±Ø³ Ù†ÛŒØ³Øª</div>}
         {block.caption?.trim() && <figcaption><InlineTextV2 inline={block.captionInline} fallback={block.caption} /></figcaption>}
         {block.issue && <small>{normalizeBookTextV2(block.issue)}</small>}

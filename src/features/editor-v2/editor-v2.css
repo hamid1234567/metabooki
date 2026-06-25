@@ -1077,6 +1077,8 @@
 
 .editor-v2-flow-editor figure[data-v2-type="image"][data-image-wrap="tight-inline"] {
   shape-outside: margin-box;
+  shape-image-threshold: 0.12;
+  shape-margin: 0.45rem;
   margin-inline-end: 0.85rem;
 }
 
