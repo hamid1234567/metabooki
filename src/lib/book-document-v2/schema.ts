@@ -66,6 +66,7 @@ export interface ImageBlockV2 extends BookBlockBaseV2 {
   imageId?: string
   widthPx?: number
   widthPercent?: number
+  wrap?: 'tight-inline' | 'square-inline' | 'top-bottom'
   status?: 'ready' | 'missing' | 'needs-conversion' | 'error'
   issue?: string
 }

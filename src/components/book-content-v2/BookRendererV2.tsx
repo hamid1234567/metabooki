@@ -164,7 +164,7 @@ export function BookRendererV2({ document, pages, blocks, compact = false, edita
   const zoomModal = zoomImage && (
     <div className="book-v2-image-modal" role="dialog" aria-modal="true" onClick={() => setZoomImage(null)}>
       <div className="book-v2-image-modal-card" onClick={event => event.stopPropagation()}>
-        <button type="button" onClick={() => setZoomImage(null)} aria-label="Close image preview">×</button>
+        <button type="button" onClick={() => setZoomImage(null)} aria-label="Close image preview" />
         <div className="book-v2-image-modal-toolbar" aria-label="Image zoom tools">
           <button type="button" onClick={() => setZoomScale(scale => Math.min(3, Number((scale + 0.25).toFixed(2))))} aria-label="Zoom in">+</button>
           <button type="button" onClick={() => setZoomScale(scale => Math.max(0.5, Number((scale - 0.25).toFixed(2))))} aria-label="Zoom out">-</button>
