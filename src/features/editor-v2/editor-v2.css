@@ -1104,18 +1104,7 @@
 }
 
 .editor-v2-image-resize-handle {
-  position: absolute;
-  z-index: 3;
-  width: 1rem;
-  height: 1rem;
-  border: 2px solid #2563eb;
-  border-radius: 0.25rem;
-  background: #fff;
-  box-shadow: 0 0 0 3px #2563eb18, 0 8px 18px #2563eb2e;
-  opacity: 0;
-  pointer-events: none;
-  touch-action: none;
-  transition: opacity 0.18s ease, transform 0.18s ease;
+  display: none;
 }
 
 .editor-v2-image-resize-handle.is-top-start {
@@ -1142,22 +1131,54 @@
   cursor: nwse-resize;
 }
 
-.editor-v2-flow-editor figure[data-v2-type="image"]:hover .editor-v2-image-resize-handle,
-.editor-v2-flow-editor figure[data-v2-type="image"].is-editor-selected .editor-v2-image-resize-handle {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.editor-v2-image-resize-handle:hover {
-  transform: scale(1.18);
-}
-
 .editor-v2-flow-editor figure[data-v2-type="image"] img {
   width: 100%;
   max-width: 100%;
   height: auto;
   border-radius: 0.65rem;
   cursor: zoom-in;
+}
+
+.editor-v2-image-size-control {
+  display: grid;
+  grid-template-columns: auto minmax(7rem, 1fr) auto;
+  align-items: center;
+  gap: 0.55rem;
+  width: min(100%, 20rem);
+  border: 1px solid #c9dcf7;
+  border-radius: 999px;
+  background: color-mix(in srgb, #fff 82%, transparent);
+  padding: 0.35rem 0.55rem;
+  color: #34506f;
+  font-size: 0.68rem;
+  font-weight: 900;
+  box-shadow: 0 12px 28px #1d4ed814, inset 0 1px 0 #fff;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-0.2rem);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  backdrop-filter: blur(12px) saturate(1.08);
+  -webkit-backdrop-filter: blur(12px) saturate(1.08);
+}
+
+.editor-v2-flow-editor figure[data-v2-type="image"]:hover .editor-v2-image-size-control,
+.editor-v2-flow-editor figure[data-v2-type="image"].is-editor-selected .editor-v2-image-size-control,
+.editor-v2-image-size-control:focus-within {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.editor-v2-image-size-control input {
+  width: 100%;
+  accent-color: #2563eb;
+  cursor: pointer;
+}
+
+.editor-v2-image-size-control b {
+  min-width: 2.5rem;
+  color: #1d4ed8;
+  text-align: end;
 }
 
 .editor-v2-flow-editor figure[data-v2-type="image"] figcaption {

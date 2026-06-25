@@ -183,7 +183,8 @@ function blockToEditorHtmlV2(block: BookBlockV2): string {
   }
   if (block.type === 'image') {
     const width = block.widthPercent ? `${Math.max(12, Math.min(100, block.widthPercent))}%` : block.widthPx ? `${Math.max(80, block.widthPx)}px` : ''
-    return `<figure data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="image"${attrV2('data-image-id', block.imageId)}${attrV2('data-width-px', block.widthPx)}${attrV2('data-width-percent', block.widthPercent)}${width ? ` style="max-width:${escapeHtmlV2(width)}"` : ''}><div class="editor-v2-image-controls" contenteditable="false"><button type="button" data-image-delete="true" title="حذف تصویر" aria-label="حذف تصویر">×</button></div><span class="editor-v2-image-resize-handle is-top-start" contenteditable="false" data-image-resize-handle="start" aria-hidden="true"></span><span class="editor-v2-image-resize-handle is-top-end" contenteditable="false" data-image-resize-handle="end" aria-hidden="true"></span><span class="editor-v2-image-resize-handle is-bottom-start" contenteditable="false" data-image-resize-handle="start" aria-hidden="true"></span><span class="editor-v2-image-resize-handle is-bottom-end" contenteditable="false" data-image-resize-handle="end" aria-hidden="true"></span>${block.url ? `<img contenteditable="false" src="${escapeHtmlV2(block.url)}" alt="${escapeHtmlV2(block.caption || '')}">` : '<div class="book-v2-missing-image" contenteditable="false">تصویر در دسترس نیست</div>'}<figcaption contenteditable="true" data-image-caption="true" data-placeholder="کپشن تصویر را اینجا بنویسید">${inlineSpansToEditorHtmlV2(block.captionInline, block.caption || '')}</figcaption></figure>`
+    const sizePercent = Math.round(block.widthPercent ? Math.max(20, Math.min(100, block.widthPercent)) : 100)
+    return `<figure data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="image"${attrV2('data-image-id', block.imageId)}${attrV2('data-width-px', block.widthPx)}${attrV2('data-width-percent', block.widthPercent)}${width ? ` style="max-width:${escapeHtmlV2(width)}"` : ''}><div class="editor-v2-image-controls" contenteditable="false"><button type="button" data-image-delete="true" title="حذف تصویر" aria-label="حذف تصویر">×</button></div>${block.url ? `<img contenteditable="false" src="${escapeHtmlV2(block.url)}" alt="${escapeHtmlV2(block.caption || '')}">` : '<div class="book-v2-missing-image" contenteditable="false">تصویر در دسترس نیست</div>'}<div class="editor-v2-image-size-control" contenteditable="false"><span>اندازه</span><input type="range" min="20" max="100" step="1" value="${sizePercent}" data-image-size-range="true" aria-label="تغییر اندازه تصویر"><b data-image-size-value="true">${sizePercent}%</b></div><figcaption contenteditable="true" data-image-caption="true" data-placeholder="کپشن تصویر را اینجا بنویسید">${inlineSpansToEditorHtmlV2(block.captionInline, block.caption || '')}</figcaption></figure>`
   }
   if (block.type === 'table') {
     const headers = block.headers?.length ? `<thead><tr>${block.headers.map(cell => `<th>${escapeHtmlV2(cell)}</th>`).join('')}</tr></thead>` : ''
@@ -1426,6 +1427,32 @@ export default function EditorV2Page() {
     scheduleRefreshDocumentFromEditor()
   }, [scheduleRefreshDocumentFromEditor])
 
+  const handleEditorSurfaceInput = useCallback((event: any) => {
+    const target = event.target as HTMLElement
+    const sizeInput = target.closest<HTMLInputElement>('input[data-image-size-range="true"]')
+    if (sizeInput) {
+      const figure = sizeInput.closest<HTMLElement>('figure[data-v2-type="image"][data-block-id]')
+      const blockId = figure?.dataset.blockId
+      if (!figure || !blockId) return
+      if (sizeInput.dataset.historyRecorded !== 'true') {
+        pushEditorHistory()
+        sizeInput.dataset.historyRecorded = 'true'
+      }
+      const percent = Math.max(20, Math.min(100, Number(sizeInput.value) || 100))
+      figure.dataset.widthPercent = String(percent)
+      figure.dataset.widthPx = ''
+      figure.style.maxWidth = `${percent}%`
+      figure.querySelector<HTMLImageElement>('img')?.style.setProperty('max-width', '100%')
+      const valueLabel = figure.querySelector<HTMLElement>('[data-image-size-value="true"]')
+      if (valueLabel) valueLabel.textContent = `${percent}%`
+      setSelectedBlockId(blockId)
+      markEditorDirty()
+      scheduleToolbarDocumentRefresh()
+      return
+    }
+    markEditorDirty()
+  }, [markEditorDirty, pushEditorHistory, scheduleToolbarDocumentRefresh])
+
   const restoreEditorHtmlSnapshot = useCallback((html: string) => {
     if (!editorSurfaceRef.current) return
     editorSurfaceRef.current.innerHTML = html
@@ -2352,7 +2379,7 @@ export default function EditorV2Page() {
               onPaste={handleEditorPaste}
               onPointerDown={handleImageResizePointerDown}
               onClick={handleEditorSurfaceClick}
-              onInput={markEditorDirty}
+              onInput={handleEditorSurfaceInput}
               onMouseUp={updateSelectedBlockFromDom}
               onKeyUp={updateSelectedBlockFromDom}
               onFocus={updateSelectedBlockFromDom}

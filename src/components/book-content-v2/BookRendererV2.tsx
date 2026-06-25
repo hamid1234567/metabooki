@@ -164,14 +164,14 @@ export function BookRendererV2({ document, pages, blocks, compact = false, edita
   const zoomModal = zoomImage && (
     <div className="book-v2-image-modal" role="dialog" aria-modal="true" onClick={() => setZoomImage(null)}>
       <div className="book-v2-image-modal-card" onClick={event => event.stopPropagation()}>
-        <button type="button" onClick={() => setZoomImage(null)}>Ã—</button>
-        <div className="book-v2-image-modal-toolbar" aria-label="Ø§Ø¨Ø²Ø§Ø± Ø¨Ø²Ø±Ú¯â€ŒÙ†Ù…Ø§ÛŒÛŒ ØªØµÙˆÛŒØ±">
-          <button type="button" onClick={() => setZoomScale(scale => Math.min(3, Number((scale + 0.25).toFixed(2))))} aria-label="Ø¨Ø²Ø±Ú¯â€ŒÙ†Ù…Ø§ÛŒÛŒ">+</button>
-          <button type="button" onClick={() => setZoomScale(scale => Math.max(0.5, Number((scale - 0.25).toFixed(2))))} aria-label="Ú©ÙˆÚ†Ú©â€ŒÙ†Ù…Ø§ÛŒÛŒ">âˆ’</button>
-          <button type="button" onClick={() => setZoomScale(1)} aria-label="Ø§Ù†Ø¯Ø§Ø²Ù‡ Ø§ØµÙ„ÛŒ">Û±Û°Û°Ùª</button>
+        <button type="button" onClick={() => setZoomImage(null)} aria-label="Close image preview">×</button>
+        <div className="book-v2-image-modal-toolbar" aria-label="Image zoom tools">
+          <button type="button" onClick={() => setZoomScale(scale => Math.min(3, Number((scale + 0.25).toFixed(2))))} aria-label="Zoom in">+</button>
+          <button type="button" onClick={() => setZoomScale(scale => Math.max(0.5, Number((scale - 0.25).toFixed(2))))} aria-label="Zoom out">-</button>
+          <button type="button" onClick={() => setZoomScale(1)} aria-label="Reset zoom">100%</button>
         </div>
         <div className="book-v2-image-modal-stage">
-          <img src={zoomImage.src} alt={zoomImage.alt} style={{ width: `${zoomScale * 100}%`, maxWidth: zoomScale > 1 ? 'none' : '100%' }} />
+          <img src={zoomImage.src} alt={zoomImage.alt} style={{ width: `${zoomScale * 100}%`, maxWidth: zoomScale > 1 ? 'none' : '100%', maxHeight: zoomScale > 1 ? 'none' : '100%' }} />
         </div>
         {zoomImage.alt && <p>{normalizeBookTextV2(zoomImage.alt)}</p>}
       </div>

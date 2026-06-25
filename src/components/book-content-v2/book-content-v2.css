@@ -1,4 +1,4 @@
-.book-v2-renderer {
+﻿.book-v2-renderer {
   width: min(100%, 58rem);
   margin-inline: auto;
   color: #162033;
@@ -89,10 +89,10 @@
 .book-v2-image-modal {
   position: fixed;
   inset: 0;
-  z-index: 120;
+  z-index: 10000;
   display: grid;
   place-items: center;
-  padding: clamp(1rem, 4vw, 3rem);
+  padding: clamp(0.75rem, 3vw, 2rem);
   background: hsl(218 42% 13% / 0.38);
   backdrop-filter: blur(18px) saturate(1.1);
   -webkit-backdrop-filter: blur(18px) saturate(1.1);
@@ -101,9 +101,11 @@
 .book-v2-image-modal-card {
   position: relative;
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 0.75rem;
   max-width: min(86rem, 96vw);
-  max-height: 92dvh;
+  width: min(86rem, 96vw);
+  max-height: calc(100dvh - 2rem);
   border: 1px solid hsl(210 50% 88% / 0.85);
   border-radius: 1.25rem;
   padding: 0.9rem;
@@ -127,17 +129,16 @@
 }
 
 .book-v2-image-modal-card > button:first-child::before {
-  content: "×";
+  content: "\\00d7";
   font-size: 1.4rem;
 }
 
 .book-v2-image-modal-toolbar {
-  position: absolute;
-  inset-block-start: 0.8rem;
-  inset-inline-start: 0.8rem;
-  z-index: 2;
+  position: relative;
+  z-index: 3;
   display: flex;
   align-items: center;
+  justify-self: center;
   gap: 0.35rem;
   border: 1px solid hsl(214 45% 85% / 0.9);
   border-radius: 999px;
@@ -173,8 +174,8 @@
 
 .book-v2-image-modal-stage {
   display: grid;
-  max-width: min(82rem, 92vw);
-  max-height: min(76dvh, 56rem);
+  width: 100%;
+  height: min(72dvh, 54rem);
   place-items: center;
   overflow: auto;
   border-radius: 0.9rem;
@@ -184,11 +185,10 @@
 .book-v2-image-modal-stage img {
   display: block;
   max-width: 100%;
-  max-height: min(76dvh, 56rem);
+  max-height: 100%;
   object-fit: contain;
   border-radius: 0.8rem;
-  transform-origin: center center;
-  transition: transform 0.18s ease;
+  transition: width 0.18s ease, max-width 0.18s ease;
 }
 
 .book-v2-image-modal-card p {
@@ -592,3 +592,4 @@
     min-width: 12rem;
   }
 }
+
