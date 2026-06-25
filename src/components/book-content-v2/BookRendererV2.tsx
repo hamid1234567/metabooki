@@ -103,8 +103,6 @@ export function renderBookBlockV2(block: BookBlockV2, renderChildren: (blocks: B
     const wrapClass = ` wrap-${block.wrap || 'top-bottom'}`
     const figureStyle: CSSProperties = {
       maxWidth: width,
-      shapeOutside: block.wrap === 'tight-inline' && block.url ? `url("${block.url}")` : undefined,
-      shapeMargin: block.wrap === 'tight-inline' && block.url ? '0.45rem' : undefined,
     }
     return (
       <figure key={block.id} id={block.anchor || block.id} className={`book-v2-figure${wrapClass}${selectedClass(block, options)}`} data-block-id={block.id} style={figureStyle}>
