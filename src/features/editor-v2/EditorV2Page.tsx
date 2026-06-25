@@ -183,8 +183,9 @@ function blockToEditorHtmlV2(block: BookBlockV2): string {
   }
   if (block.type === 'image') {
     const width = block.widthPercent ? `${Math.max(12, Math.min(100, block.widthPercent))}%` : block.widthPx ? `${Math.max(80, block.widthPx)}px` : ''
-    const sizePercent = Math.round(block.widthPercent ? Math.max(20, Math.min(100, block.widthPercent)) : 100)
-    return `<figure data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="image"${attrV2('data-image-id', block.imageId)}${attrV2('data-width-px', block.widthPx)}${attrV2('data-width-percent', block.widthPercent)}${width ? ` style="max-width:${escapeHtmlV2(width)}"` : ''}><div class="editor-v2-image-controls" contenteditable="false"><button type="button" data-image-delete="true" title="حذف تصویر" aria-label="حذف تصویر">×</button></div>${block.url ? `<img contenteditable="false" src="${escapeHtmlV2(block.url)}" alt="${escapeHtmlV2(block.caption || '')}">` : '<div class="book-v2-missing-image" contenteditable="false">تصویر در دسترس نیست</div>'}<div class="editor-v2-image-size-control" contenteditable="false"><span>اندازه</span><input type="range" min="20" max="100" step="1" value="${sizePercent}" data-image-size-range="true" aria-label="تغییر اندازه تصویر"><b data-image-size-value="true">${sizePercent}%</b></div><figcaption contenteditable="true" data-image-caption="true" data-placeholder="کپشن تصویر را اینجا بنویسید">${inlineSpansToEditorHtmlV2(block.captionInline, block.caption || '')}</figcaption></figure>`
+    const sizePercent = Math.round(block.widthPercent ? Math.max(5, Math.min(100, block.widthPercent)) : 100)
+    const autoSize = block.widthPercent ? 'false' : 'true'
+    return `<figure data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="image"${attrV2('data-image-id', block.imageId)}${attrV2('data-width-px', block.widthPx)}${attrV2('data-width-percent', block.widthPercent)}${attrV2('data-image-size-auto', autoSize)}${width ? ` style="max-width:${escapeHtmlV2(width)}"` : ''}><div class="editor-v2-image-controls" contenteditable="false"><button type="button" data-image-delete="true" title="حذف تصویر" aria-label="حذف تصویر">×</button></div>${block.url ? `<img contenteditable="false" src="${escapeHtmlV2(block.url)}" alt="${escapeHtmlV2(block.caption || '')}">` : '<div class="book-v2-missing-image" contenteditable="false">تصویر در دسترس نیست</div>'}<div class="editor-v2-image-size-control" contenteditable="false"><span>درصد از عرض متن</span><input type="range" min="5" max="100" step="1" value="${sizePercent}" data-image-size-range="true" aria-label="درصد اشغال عرض متن توسط تصویر"><b data-image-size-value="true">${sizePercent}%</b></div><figcaption contenteditable="true" data-image-caption="true" data-placeholder="کپشن تصویر را اینجا بنویسید">${inlineSpansToEditorHtmlV2(block.captionInline, block.caption || '')}</figcaption></figure>`
   }
   if (block.type === 'table') {
     const headers = block.headers?.length ? `<thead><tr>${block.headers.map(cell => `<th>${escapeHtmlV2(cell)}</th>`).join('')}</tr></thead>` : ''
@@ -1397,15 +1398,33 @@ export default function EditorV2Page() {
     }
   }, [editorElementFromCurrentSelection])
 
+  const syncImageSizeControl = useCallback((figure?: HTMLElement | null) => {
+    if (!figure?.matches('figure[data-v2-type="image"]')) return
+    const input = figure.querySelector<HTMLInputElement>('input[data-image-size-range="true"]')
+    const label = figure.querySelector<HTMLElement>('[data-image-size-value="true"]')
+    if (!input || !label) return
+    const explicitPercent = Number(figure.dataset.widthPercent || 0)
+    let percent = explicitPercent
+    if (!percent || figure.dataset.imageSizeAuto === 'true') {
+      const parentWidth = Math.max(1, figure.parentElement?.getBoundingClientRect().width || 0)
+      const figureWidth = Math.max(1, figure.getBoundingClientRect().width)
+      percent = Math.round((figureWidth / parentWidth) * 100)
+    }
+    percent = Math.max(5, Math.min(100, percent || 100))
+    input.value = String(percent)
+    label.textContent = `${percent}%`
+  }, [])
+
   const updateSelectedBlockFromDom = useCallback(() => {
     rememberEditorSelection()
     const selection = window.getSelection()
     const node = selection?.anchorNode
     const element = node instanceof Element ? node : node?.parentElement
     const target = element?.closest<HTMLElement>('[data-block-id]')
+    syncImageSizeControl(target?.matches('figure[data-v2-type="image"]') ? target : target?.closest<HTMLElement>('figure[data-v2-type="image"]'))
     setSelectedBlockId(target?.dataset.blockId)
     setToolbarState(readToolbarStateFromSelection())
-  }, [readToolbarStateFromSelection, rememberEditorSelection])
+  }, [readToolbarStateFromSelection, rememberEditorSelection, syncImageSizeControl])
 
   const markEditorDirty = useCallback(() => {
     editRevisionRef.current += 1
@@ -1438,9 +1457,10 @@ export default function EditorV2Page() {
         pushEditorHistory()
         sizeInput.dataset.historyRecorded = 'true'
       }
-      const percent = Math.max(20, Math.min(100, Number(sizeInput.value) || 100))
+      const percent = Math.max(5, Math.min(100, Number(sizeInput.value) || 100))
       figure.dataset.widthPercent = String(percent)
       figure.dataset.widthPx = ''
+      figure.dataset.imageSizeAuto = 'false'
       figure.style.maxWidth = `${percent}%`
       figure.querySelector<HTMLImageElement>('img')?.style.setProperty('max-width', '100%')
       const valueLabel = figure.querySelector<HTMLElement>('[data-image-size-value="true"]')

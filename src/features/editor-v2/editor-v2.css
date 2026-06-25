@@ -1141,10 +1141,10 @@
 
 .editor-v2-image-size-control {
   display: grid;
-  grid-template-columns: auto minmax(7rem, 1fr) auto;
+  grid-template-columns: minmax(5.5rem, auto) minmax(7rem, 1fr) auto;
   align-items: center;
   gap: 0.55rem;
-  width: min(100%, 20rem);
+  width: min(100%, 24rem);
   border: 1px solid #c9dcf7;
   border-radius: 999px;
   background: color-mix(in srgb, #fff 82%, transparent);
@@ -1159,6 +1159,10 @@
   transition: opacity 0.18s ease, transform 0.18s ease;
   backdrop-filter: blur(12px) saturate(1.08);
   -webkit-backdrop-filter: blur(12px) saturate(1.08);
+}
+
+.editor-v2-image-size-control span {
+  white-space: nowrap;
 }
 
 .editor-v2-flow-editor figure[data-v2-type="image"]:hover .editor-v2-image-size-control,
