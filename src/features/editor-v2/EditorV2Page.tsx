@@ -183,7 +183,7 @@ function blockToEditorHtmlV2(block: BookBlockV2): string {
   }
   if (block.type === 'image') {
     const width = block.widthPercent ? `${Math.max(12, Math.min(100, block.widthPercent))}%` : block.widthPx ? `${Math.max(80, block.widthPx)}px` : ''
-    return `<figure data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="image"${attrV2('data-image-id', block.imageId)}${attrV2('data-width-px', block.widthPx)}${attrV2('data-width-percent', block.widthPercent)}${width ? ` style="max-width:${escapeHtmlV2(width)}"` : ''}><div class="editor-v2-image-controls" contenteditable="false"><button type="button" data-image-delete="true" title="حذف تصویر" aria-label="حذف تصویر">×</button></div><span class="editor-v2-image-resize-handle is-top-start" contenteditable="false" data-image-resize-handle="start" aria-hidden="true"></span><span class="editor-v2-image-resize-handle is-top-end" contenteditable="false" data-image-resize-handle="end" aria-hidden="true"></span><span class="editor-v2-image-resize-handle is-bottom-start" contenteditable="false" data-image-resize-handle="start" aria-hidden="true"></span><span class="editor-v2-image-resize-handle is-bottom-end" contenteditable="false" data-image-resize-handle="end" aria-hidden="true"></span>${block.url ? `<img contenteditable="false" src="${escapeHtmlV2(block.url)}" alt="${escapeHtmlV2(block.caption || '')}">` : '<div class="book-v2-missing-image" contenteditable="false">تصویر در دسترس نیست</div>'}<figcaption contenteditable="true" data-image-caption="true" data-placeholder="کپشن تصویر را اینجا بنویسید">${escapeHtmlV2(block.caption || '')}</figcaption></figure>`
+    return `<figure data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="image"${attrV2('data-image-id', block.imageId)}${attrV2('data-width-px', block.widthPx)}${attrV2('data-width-percent', block.widthPercent)}${width ? ` style="max-width:${escapeHtmlV2(width)}"` : ''}><div class="editor-v2-image-controls" contenteditable="false"><button type="button" data-image-delete="true" title="حذف تصویر" aria-label="حذف تصویر">×</button></div><span class="editor-v2-image-resize-handle is-top-start" contenteditable="false" data-image-resize-handle="start" aria-hidden="true"></span><span class="editor-v2-image-resize-handle is-top-end" contenteditable="false" data-image-resize-handle="end" aria-hidden="true"></span><span class="editor-v2-image-resize-handle is-bottom-start" contenteditable="false" data-image-resize-handle="start" aria-hidden="true"></span><span class="editor-v2-image-resize-handle is-bottom-end" contenteditable="false" data-image-resize-handle="end" aria-hidden="true"></span>${block.url ? `<img contenteditable="false" src="${escapeHtmlV2(block.url)}" alt="${escapeHtmlV2(block.caption || '')}">` : '<div class="book-v2-missing-image" contenteditable="false">تصویر در دسترس نیست</div>'}<figcaption contenteditable="true" data-image-caption="true" data-placeholder="کپشن تصویر را اینجا بنویسید">${inlineSpansToEditorHtmlV2(block.captionInline, block.caption || '')}</figcaption></figure>`
   }
   if (block.type === 'table') {
     const headers = block.headers?.length ? `<thead><tr>${block.headers.map(cell => `<th>${escapeHtmlV2(cell)}</th>`).join('')}</tr></thead>` : ''
@@ -438,12 +438,16 @@ function elementToBlockV2(element: Element, page: BookDocumentV2['pages'][number
   }
   if (tag === 'figure') {
     const image = element.querySelector('img')
+    const captionElement = element.querySelector('figcaption')
+    const captionInline = captionElement ? inlineFromElementV2(captionElement) : undefined
+    const caption = captionElement ? textFromElementV2(captionElement) : textFromElementV2(element)
     return {
       ...(old && old.type === 'image' ? old : {}),
       id,
       type: 'image',
       url: image?.getAttribute('src') || (old?.type === 'image' ? old.url : ''),
-      caption: textFromElementV2(element.querySelector('figcaption') || element),
+      caption,
+      captionInline,
       imageId: (element as HTMLElement).dataset.imageId || (old?.type === 'image' ? old.imageId : undefined),
       widthPx: Number((element as HTMLElement).dataset.widthPx) || (old?.type === 'image' ? old.widthPx : undefined),
       widthPercent: Number((element as HTMLElement).dataset.widthPercent) || (old?.type === 'image' ? old.widthPercent : undefined),

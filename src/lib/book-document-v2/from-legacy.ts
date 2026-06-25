@@ -101,11 +101,13 @@ function legacyBlockToV2(block: unknown, page: BookPageV2, pageIndex: number, bl
   }
 
   if (legacyType === 'image') {
+    const captionInline = normalizeInlineV2(item.captionInline)
     return {
       ...base,
       type: 'image',
       url: textOf(item.url, item.src),
-      caption: textOf(item.caption),
+      caption: inlinePlainTextV2(captionInline, textOf(item.caption)),
+      captionInline,
       imageId: item.imageId ? String(item.imageId) : undefined,
       widthPx: numberOf(item.widthPx ?? item.imageWidthPx),
       widthPercent: numberOf(item.widthPercent ?? item.imageWidthPercent),
@@ -304,7 +306,7 @@ function blockV2ToLegacy(block: BookBlockV2): any {
   const common = { id: block.id, anchor: block.anchor, anchors: block.anchors, format: block.style }
   if (block.type === 'heading') return { ...common, type: 'heading', level: block.level, content: block.text, text: block.text, inline: inlineV2ToLegacy(block.inline) }
   if (block.type === 'paragraph') return { ...common, type: block.semantic || 'paragraph', content: block.text, text: block.text, inline: inlineV2ToLegacy(block.inline) }
-  if (block.type === 'image') return { ...common, type: 'image', url: block.url, caption: block.caption, imageId: block.imageId, widthPx: block.widthPx, widthPercent: block.widthPercent, conversionStatus: block.status === 'error' ? 'failed' : block.status, conversionError: block.issue }
+  if (block.type === 'image') return { ...common, type: 'image', url: block.url, caption: block.caption, captionInline: inlineV2ToLegacy(block.captionInline), imageId: block.imageId, widthPx: block.widthPx, widthPercent: block.widthPercent, conversionStatus: block.status === 'error' ? 'failed' : block.status, conversionError: block.issue }
   if (block.type === 'table') return { ...common, type: 'table', headers: block.headers || [], rows: block.headers?.length ? block.rows : block.rows }
   if (block.type === 'list') return { ...common, type: 'list', ordered: block.ordered, items: block.items.map(item => ({ text: item.text, inline: inlineV2ToLegacy(item.inline), level: item.level })) }
   if (block.type === 'math') return { ...common, type: 'math', expression: block.expression, content: block.expression, text: block.expression }

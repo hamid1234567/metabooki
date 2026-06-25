@@ -62,6 +62,7 @@ export interface ImageBlockV2 extends BookBlockBaseV2 {
   type: 'image'
   url: string
   caption?: string
+  captionInline?: BookInlineV2[]
   imageId?: string
   widthPx?: number
   widthPercent?: number

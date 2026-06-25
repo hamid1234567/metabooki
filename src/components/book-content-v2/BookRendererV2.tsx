@@ -103,7 +103,7 @@ export function renderBookBlockV2(block: BookBlockV2, renderChildren: (blocks: B
     return (
       <figure key={block.id} id={block.anchor || block.id} className={`book-v2-figure${selectedClass(block, options)}`} data-block-id={block.id} style={{ maxWidth: width }}>
         {block.url ? <img src={block.url} alt={block.caption || ''} loading="lazy" /> : <div className="book-v2-missing-image">ØªØµÙˆÛŒØ± Ø¯Ø± Ø¯Ø³ØªØ±Ø³ Ù†ÛŒØ³Øª</div>}
-        {block.caption?.trim() && <figcaption>{normalizeBookTextV2(block.caption)}</figcaption>}
+        {block.caption?.trim() && <figcaption><InlineTextV2 inline={block.captionInline} fallback={block.caption} /></figcaption>}
         {block.issue && <small>{normalizeBookTextV2(block.issue)}</small>}
       </figure>
     )
