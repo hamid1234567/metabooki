@@ -103,7 +103,7 @@ export function renderBookBlockV2(block: BookBlockV2, renderChildren: (blocks: B
     return (
       <figure key={block.id} id={block.anchor || block.id} className={`book-v2-figure${selectedClass(block, options)}`} data-block-id={block.id} style={{ maxWidth: width }}>
         {block.url ? <img src={block.url} alt={block.caption || ''} loading="lazy" /> : <div className="book-v2-missing-image">تصویر در دسترس نیست</div>}
-        {block.caption && <figcaption>{normalizeBookTextV2(block.caption)}</figcaption>}
+        <figcaption className={block.caption?.trim() ? undefined : 'is-placeholder'}>{block.caption?.trim() ? normalizeBookTextV2(block.caption) : 'کپشن تصویر وارد نشده است'}</figcaption>
         {block.issue && <small>{normalizeBookTextV2(block.issue)}</small>}
       </figure>
     )

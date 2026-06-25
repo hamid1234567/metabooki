@@ -55,6 +55,20 @@
   text-align: center;
 }
 
+.book-v2-figure figcaption {
+  min-width: min(28rem, 100%);
+  border-radius: 0.65rem;
+  padding: 0.3rem 0.65rem;
+}
+
+.book-v2-figure figcaption.is-placeholder {
+  border: 1px dashed #adc4e8;
+  background: linear-gradient(135deg, #f8fbff, #eef6ff);
+  color: #3b82f6;
+  font-style: italic;
+  opacity: 0.82;
+}
+
 .book-v2-missing-image {
   display: grid;
   min-height: 10rem;
