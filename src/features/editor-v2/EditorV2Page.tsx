@@ -1909,6 +1909,13 @@ export default function EditorV2Page() {
   }, [commitDocument])
 
   const deleteImageBlock = useCallback((blockId: string) => {
+    const figure = editorSurfaceRef.current?.querySelector<HTMLElement>(`figure[data-v2-type="image"][data-block-id="${blockId.replace(/"/g, '\\"')}"]`)
+    const domAssetId = figure?.dataset.imageId
+    if (figure) {
+      pushEditorHistory()
+      figure.remove()
+      skipNextSurfaceSyncRef.current = true
+    }
     commitDocument(current => {
       const removedAssetIds = new Set<string>()
       const pages = current.pages.map(page => ({
@@ -1921,6 +1928,7 @@ export default function EditorV2Page() {
           return block
         }),
       }))
+      if (domAssetId) removedAssetIds.add(domAssetId)
       const usedAssetIds = new Set<string>()
       pages.forEach(page => {
         const visit = (blocks: BookBlockV2[]) => blocks.forEach(block => {
@@ -1933,10 +1941,22 @@ export default function EditorV2Page() {
       return rebuildDocumentTocV2({ ...current, pages, assets })
     }, { recordHistory: true })
     setSelectedBlockId(current => current === blockId ? undefined : current)
-  }, [commitDocument])
+    scheduleRefreshDocumentFromEditor()
+  }, [commitDocument, pushEditorHistory, scheduleRefreshDocumentFromEditor])
 
   const handleImageResizePointerDown = useCallback((event: any) => {
     const target = event.target as HTMLElement
+    const deleteButton = target.closest<HTMLElement>('[data-image-delete="true"]')
+    if (deleteButton) {
+      const figure = deleteButton.closest<HTMLElement>('figure[data-v2-type="image"][data-block-id]')
+      const blockId = figure?.dataset.blockId
+      if (blockId) {
+        event.preventDefault()
+        event.stopPropagation()
+        deleteImageBlock(blockId)
+      }
+      return
+    }
     const handle = target.closest<HTMLElement>('[data-image-resize-handle]')
     if (!handle) return
     const figure = handle.closest<HTMLElement>('figure[data-v2-type="image"][data-block-id]')
@@ -1967,7 +1987,7 @@ export default function EditorV2Page() {
     }
     window.document.addEventListener('pointermove', move)
     window.document.addEventListener('pointerup', up, { once: true })
-  }, [pushEditorHistory, resizeImageBlock])
+  }, [deleteImageBlock, pushEditorHistory, resizeImageBlock])
 
   const handleEditorSurfaceClick = useCallback((event: any) => {
     const target = event.target as HTMLElement
