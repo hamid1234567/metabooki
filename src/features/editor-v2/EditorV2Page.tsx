@@ -1016,14 +1016,24 @@ function RightPanelV2({
               <div className="editor-v2-media-issues">
                 <h4><AlertTriangle size={14} />نیازمند بررسی</h4>
                 {mediaRefs.filter(item => item.needsCheck).slice(0, 8).map(item => (
-                  <article key={item.key}>
+                  <article
+                    key={item.key}
+                    role={item.blockId ? 'button' : undefined}
+                    tabIndex={item.blockId ? 0 : undefined}
+                    onClick={() => item.blockId && onJumpToBlock(item.blockId)}
+                    onKeyDown={event => {
+                      if (item.blockId && (event.key === 'Enter' || event.key === ' ')) {
+                        event.preventDefault()
+                        onJumpToBlock(item.blockId)
+                      }
+                    }}
+                  >
                     {item.url ? <img src={item.url} alt={item.caption || ''} loading="lazy" /> : <span className="editor-v2-missing-thumb"><AlertTriangle size={14} /></span>}
                     <div>
                       <b>{item.caption || 'بدون کپشن'}</b>
                       <small>صفحه چاپی: {item.printNumber || 'نامشخص'}{item.issue ? ` · ${item.issue}` : ''}</small>
                     </div>
-                    {item.blockId && <button type="button" onClick={() => onJumpToBlock(item.blockId!)}>محل</button>}
-                    <button type="button" onClick={() => onResolveMediaIssue(item)}><CheckCircle2 size={13} /></button>
+                    <button type="button" onClick={event => { event.stopPropagation(); onResolveMediaIssue(item) }}><CheckCircle2 size={13} /></button>
                   </article>
                 ))}
               </div>
@@ -1031,7 +1041,7 @@ function RightPanelV2({
 
             <div className="editor-v2-media-list">
               {filteredMediaRefs.length ? filteredMediaRefs.slice(0, 80).map(item => (
-                <button key={item.key} type="button" className={item.needsCheck ? 'has-issue' : ''} disabled={!item.url || (!item.blockId && !item.assetId)} onClick={() => item.blockId ? onJumpToBlock(item.blockId) : item.assetId && onInsertImage(item.assetId)}>
+                <button key={item.key} type="button" className={item.needsCheck ? 'has-issue' : ''} disabled={!item.url || !item.blockId} onClick={() => item.blockId && onJumpToBlock(item.blockId)}>
                   {item.url ? <img src={item.url} alt={item.caption || ''} loading="lazy" /> : <span className="editor-v2-missing-thumb"><ImageIcon size={16} /></span>}
                   <span>{item.caption || `تصویر صفحه ${item.printNumber || ''}`}</span>
                   <small>صفحه {item.printNumber || 'نامشخص'}</small>
@@ -1799,6 +1809,25 @@ export default function EditorV2Page() {
     window.setTimeout(() => { calloutActionLockRef.current = false }, 180)
   }, [selectedBlockIdFromEditorTarget, unwrapCalloutElement])
 
+  const insertBlockIntoEditorDom = useCallback((block: BookBlockV2, insertionBlockId?: string) => {
+    const root = editorSurfaceRef.current
+    if (!root) return
+    const template = window.document.createElement('template')
+    template.innerHTML = blockToEditorHtmlV2(block)
+    const element = template.content.firstElementChild as HTMLElement | null
+    if (!element) return
+    const safeId = insertionBlockId?.replace(/"/g, '\\"')
+    const target = safeId ? root.querySelector<HTMLElement>(`[data-block-id="${safeId}"]`) : null
+    if (target) {
+      target.insertAdjacentElement('afterend', element)
+    } else {
+      const page = root.querySelector<HTMLElement>('.editor-v2-flow-page') || root
+      page.appendChild(element)
+    }
+    skipNextSurfaceSyncRef.current = true
+    window.setTimeout(() => element.scrollIntoView({ behavior: 'smooth', block: 'center' }), 20)
+  }, [])
+
   const insertImageFromAsset = useCallback((assetId: string) => {
     const asset = document?.assets.find(item => item.id === assetId)
     if (!asset) return
@@ -1816,8 +1845,9 @@ export default function EditorV2Page() {
       issue: asset.issue,
     }
     commitDocument(current => insertBlockAfterV2(current, insertionBlockId, block))
+    insertBlockIntoEditorDom(block, insertionBlockId)
     setSelectedBlockId(block.id)
-  }, [commitDocument, document, selectedBlockId, selectedBlockIdFromEditorTarget])
+  }, [commitDocument, document, insertBlockIntoEditorDom, selectedBlockId, selectedBlockIdFromEditorTarget])
 
   const insertUploadedImage = useCallback(async (file: File) => {
     const insertionBlockId = selectedBlockIdFromEditorTarget() || selectedBlockId
@@ -1847,12 +1877,13 @@ export default function EditorV2Page() {
         const next = insertBlockAfterV2(current, insertionBlockId, block)
         return { ...next, assets: [...next.assets, asset] }
       })
+      insertBlockIntoEditorDom(block, insertionBlockId)
       setSelectedBlockId(block.id)
       setAiMessage('تصویر آپلود و در سند درج شد.')
     } catch (error) {
       setAiMessage(error instanceof Error ? error.message : 'آپلود تصویر ناموفق بود.')
     }
-  }, [commitDocument, document, selectedBlockId, selectedBlockIdFromEditorTarget])
+  }, [commitDocument, document, insertBlockIntoEditorDom, selectedBlockId, selectedBlockIdFromEditorTarget])
 
   const generateImageFromPrompt = useCallback(async (prompt: string) => {
     if (!prompt.trim()) return
@@ -1891,6 +1922,7 @@ export default function EditorV2Page() {
         const next = insertBlockAfterV2(current, insertionBlockId, block)
         return { ...next, assets: [...next.assets, asset] }
       })
+      insertBlockIntoEditorDom(block, insertionBlockId)
       recordAiUsage(result.usage)
       setSelectedBlockId(block.id)
       setAiMessage('تصویر تولید و درج شد.')
@@ -1899,7 +1931,7 @@ export default function EditorV2Page() {
     } finally {
       setAiBusy(false)
     }
-  }, [commitDocument, document, recordAiUsage, selectedBlockId, selectedBlockIdFromEditorTarget, user])
+  }, [commitDocument, document, insertBlockIntoEditorDom, recordAiUsage, selectedBlockId, selectedBlockIdFromEditorTarget, user])
 
   const resizeImageBlock = useCallback((blockId: string, widthPercent: number) => {
     commitDocument(current => updateBlockInDocumentV2(current, blockId, block => {
