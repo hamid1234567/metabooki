@@ -185,7 +185,8 @@ function blockToEditorHtmlV2(block: BookBlockV2): string {
     const width = block.widthPercent ? `${Math.max(12, Math.min(100, block.widthPercent))}%` : block.widthPx ? `${Math.max(80, block.widthPx)}px` : ''
     const sizePercent = Math.round(block.widthPercent ? Math.max(5, Math.min(100, block.widthPercent)) : 100)
     const autoSize = block.widthPercent ? 'false' : 'true'
-    return `<figure data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="image"${attrV2('data-image-id', block.imageId)}${attrV2('data-width-px', block.widthPx)}${attrV2('data-width-percent', block.widthPercent)}${attrV2('data-image-size-auto', autoSize)}${width ? ` style="max-width:${escapeHtmlV2(width)}"` : ''}><div class="editor-v2-image-controls" contenteditable="false"><button type="button" data-image-delete="true" title="حذف تصویر" aria-label="حذف تصویر">×</button></div>${block.url ? `<img contenteditable="false" src="${escapeHtmlV2(block.url)}" alt="${escapeHtmlV2(block.caption || '')}">` : '<div class="book-v2-missing-image" contenteditable="false">تصویر در دسترس نیست</div>'}<div class="editor-v2-image-size-control" contenteditable="false"><span>درصد از عرض متن</span><input type="range" min="5" max="100" step="1" value="${sizePercent}" data-image-size-range="true" aria-label="درصد اشغال عرض متن توسط تصویر"><b data-image-size-value="true">${sizePercent}%</b></div><figcaption contenteditable="true" data-image-caption="true" data-placeholder="کپشن تصویر را اینجا بنویسید">${inlineSpansToEditorHtmlV2(block.captionInline, block.caption || '')}</figcaption></figure>`
+    const wrap = block.wrap || 'top-bottom'
+    return `<figure data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="image"${attrV2('data-image-id', block.imageId)}${attrV2('data-width-px', block.widthPx)}${attrV2('data-width-percent', block.widthPercent)}${attrV2('data-image-size-auto', autoSize)} data-image-wrap="${escapeHtmlV2(wrap)}"${width ? ` style="max-width:${escapeHtmlV2(width)}"` : ''}><div class="editor-v2-image-controls" contenteditable="false"><button type="button" data-image-delete="true" title="حذف تصویر" aria-label="حذف تصویر">×</button></div>${block.url ? `<img contenteditable="false" src="${escapeHtmlV2(block.url)}" alt="${escapeHtmlV2(block.caption || '')}">` : '<div class="book-v2-missing-image" contenteditable="false">تصویر در دسترس نیست</div>'}<div class="editor-v2-image-size-control" contenteditable="false"><span>درصد از عرض متن</span><input type="range" min="5" max="100" step="1" value="${sizePercent}" data-image-size-range="true" aria-label="درصد اشغال عرض متن توسط تصویر"><b data-image-size-value="true">${sizePercent}%</b><select data-image-wrap-select="true" aria-label="حالت چیدمان تصویر"><option value="top-bottom"${wrap === 'top-bottom' ? ' selected' : ''}>بالا/پایین</option><option value="square-inline"${wrap === 'square-inline' ? ' selected' : ''}>مربعی</option><option value="tight-inline"${wrap === 'tight-inline' ? ' selected' : ''}>نزدیک متن</option></select></div><figcaption contenteditable="true" data-image-caption="true" data-placeholder="کپشن تصویر را اینجا بنویسید">${inlineSpansToEditorHtmlV2(block.captionInline, block.caption || '')}</figcaption></figure>`
   }
   if (block.type === 'table') {
     const headers = block.headers?.length ? `<thead><tr>${block.headers.map(cell => `<th>${escapeHtmlV2(cell)}</th>`).join('')}</tr></thead>` : ''
@@ -453,6 +454,7 @@ function elementToBlockV2(element: Element, page: BookDocumentV2['pages'][number
       imageId: (element as HTMLElement).dataset.imageId || (old?.type === 'image' ? old.imageId : undefined),
       widthPx: Number((element as HTMLElement).dataset.widthPx) || (old?.type === 'image' ? old.widthPx : undefined),
       widthPercent: Number((element as HTMLElement).dataset.widthPercent) || (old?.type === 'image' ? old.widthPercent : undefined),
+      wrap: ((element as HTMLElement).dataset.imageWrap as any) || (old?.type === 'image' ? old.wrap : undefined),
       anchor: old?.anchor || id,
       printNumber: page.printNumber,
       status: old?.type === 'image' ? old.status : undefined,
@@ -1449,6 +1451,19 @@ export default function EditorV2Page() {
   const handleEditorSurfaceInput = useCallback((event: any) => {
     const target = event.target as HTMLElement
     const sizeInput = target.closest<HTMLInputElement>('input[data-image-size-range="true"]')
+    const wrapSelect = target.closest<HTMLSelectElement>('select[data-image-wrap-select="true"]')
+    if (wrapSelect) {
+      const figure = wrapSelect.closest<HTMLElement>('figure[data-v2-type="image"][data-block-id]')
+      const blockId = figure?.dataset.blockId
+      if (!figure || !blockId) return
+      pushEditorHistory()
+      const wrap = ['tight-inline', 'square-inline', 'top-bottom'].includes(wrapSelect.value) ? wrapSelect.value : 'top-bottom'
+      figure.dataset.imageWrap = wrap
+      setSelectedBlockId(blockId)
+      markEditorDirty()
+      scheduleToolbarDocumentRefresh()
+      return
+    }
     if (sizeInput) {
       const figure = sizeInput.closest<HTMLElement>('figure[data-v2-type="image"][data-block-id]')
       const blockId = figure?.dataset.blockId
@@ -2400,6 +2415,7 @@ export default function EditorV2Page() {
               onPointerDown={handleImageResizePointerDown}
               onClick={handleEditorSurfaceClick}
               onInput={handleEditorSurfaceInput}
+              onChange={handleEditorSurfaceInput}
               onMouseUp={updateSelectedBlockFromDom}
               onKeyUp={updateSelectedBlockFromDom}
               onFocus={updateSelectedBlockFromDom}

@@ -38,6 +38,23 @@
   max-width: 100%;
 }
 
+.book-v2-figure.wrap-top-bottom {
+  clear: both;
+}
+
+.book-v2-figure.wrap-square-inline,
+.book-v2-figure.wrap-tight-inline {
+  float: inline-start;
+  width: fit-content;
+  margin-block: 0.35rem 0.85rem;
+  margin-inline: 0 1.25rem;
+}
+
+.book-v2-figure.wrap-tight-inline {
+  shape-outside: margin-box;
+  margin-inline-end: 0.85rem;
+}
+
 .book-v2-figure img {
   display: block;
   max-width: 100%;
