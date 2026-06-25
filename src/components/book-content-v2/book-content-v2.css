@@ -49,7 +49,6 @@
 
 .book-v2-figure figcaption,
 .book-v2-figure small {
-  color: #64748b;
   font-size: 0.78rem;
   line-height: 1.8;
   text-align: center;
@@ -59,6 +58,12 @@
   min-width: min(28rem, 100%);
   border-radius: 0.65rem;
   padding: 0.3rem 0.65rem;
+  color: #2563eb;
+  font-weight: 800;
+}
+
+.book-v2-figure small {
+  color: #64748b;
 }
 
 .book-v2-figure figcaption.is-placeholder {

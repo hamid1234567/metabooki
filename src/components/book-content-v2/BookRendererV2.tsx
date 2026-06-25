@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type ElementType, type FormEvent, type HTMLAttributes, type MouseEvent, type ReactNode } from 'react'
+﻿import { useState, type CSSProperties, type ElementType, type FormEvent, type HTMLAttributes, type MouseEvent, type ReactNode } from 'react'
 import { InlineTextV2 } from '@/components/book-content-v2/InlineTextV2'
 import { PageBreakV2 } from '@/components/book-content-v2/PageBreakV2'
 import { CalloutBlockV2 } from '@/components/book-content-v2/CalloutBlockV2'
@@ -102,8 +102,8 @@ export function renderBookBlockV2(block: BookBlockV2, renderChildren: (blocks: B
     const width = block.widthPercent ? `${Math.max(12, Math.min(100, block.widthPercent))}%` : block.widthPx ? `${Math.max(80, block.widthPx)}px` : undefined
     return (
       <figure key={block.id} id={block.anchor || block.id} className={`book-v2-figure${selectedClass(block, options)}`} data-block-id={block.id} style={{ maxWidth: width }}>
-        {block.url ? <img src={block.url} alt={block.caption || ''} loading="lazy" /> : <div className="book-v2-missing-image">تصویر در دسترس نیست</div>}
-        <figcaption className={block.caption?.trim() ? undefined : 'is-placeholder'}>{block.caption?.trim() ? normalizeBookTextV2(block.caption) : 'کپشن تصویر وارد نشده است'}</figcaption>
+        {block.url ? <img src={block.url} alt={block.caption || ''} loading="lazy" /> : <div className="book-v2-missing-image">ØªØµÙˆÛŒØ± Ø¯Ø± Ø¯Ø³ØªØ±Ø³ Ù†ÛŒØ³Øª</div>}
+        {block.caption?.trim() && <figcaption>{normalizeBookTextV2(block.caption)}</figcaption>}
         {block.issue && <small>{normalizeBookTextV2(block.issue)}</small>}
       </figure>
     )
@@ -164,11 +164,11 @@ export function BookRendererV2({ document, pages, blocks, compact = false, edita
   const zoomModal = zoomImage && (
     <div className="book-v2-image-modal" role="dialog" aria-modal="true" onClick={() => setZoomImage(null)}>
       <div className="book-v2-image-modal-card" onClick={event => event.stopPropagation()}>
-        <button type="button" onClick={() => setZoomImage(null)}>×</button>
-        <div className="book-v2-image-modal-toolbar" aria-label="ابزار بزرگ‌نمایی تصویر">
-          <button type="button" onClick={() => setZoomScale(scale => Math.min(3, Number((scale + 0.25).toFixed(2))))} aria-label="بزرگ‌نمایی">+</button>
-          <button type="button" onClick={() => setZoomScale(scale => Math.max(0.5, Number((scale - 0.25).toFixed(2))))} aria-label="کوچک‌نمایی">−</button>
-          <button type="button" onClick={() => setZoomScale(1)} aria-label="اندازه اصلی">۱۰۰٪</button>
+        <button type="button" onClick={() => setZoomImage(null)}>Ã—</button>
+        <div className="book-v2-image-modal-toolbar" aria-label="Ø§Ø¨Ø²Ø§Ø± Ø¨Ø²Ø±Ú¯â€ŒÙ†Ù…Ø§ÛŒÛŒ ØªØµÙˆÛŒØ±">
+          <button type="button" onClick={() => setZoomScale(scale => Math.min(3, Number((scale + 0.25).toFixed(2))))} aria-label="Ø¨Ø²Ø±Ú¯â€ŒÙ†Ù…Ø§ÛŒÛŒ">+</button>
+          <button type="button" onClick={() => setZoomScale(scale => Math.max(0.5, Number((scale - 0.25).toFixed(2))))} aria-label="Ú©ÙˆÚ†Ú©â€ŒÙ†Ù…Ø§ÛŒÛŒ">âˆ’</button>
+          <button type="button" onClick={() => setZoomScale(1)} aria-label="Ø§Ù†Ø¯Ø§Ø²Ù‡ Ø§ØµÙ„ÛŒ">Û±Û°Û°Ùª</button>
         </div>
         <div className="book-v2-image-modal-stage">
           <img src={zoomImage.src} alt={zoomImage.alt} style={{ width: `${zoomScale * 100}%`, maxWidth: zoomScale > 1 ? 'none' : '100%' }} />
@@ -191,3 +191,4 @@ export function BookRendererV2({ document, pages, blocks, compact = false, edita
     </article>
   )
 }
+

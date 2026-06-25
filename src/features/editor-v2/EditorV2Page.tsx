@@ -1450,12 +1450,48 @@ export default function EditorV2Page() {
     pushEditorHistory()
   }, [pushEditorHistory])
 
+  const cutEditorSelection = useCallback(async () => {
+    const root = editorSurfaceRef.current
+    const selection = window.getSelection()
+    if (!root || !selection?.rangeCount || selection.isCollapsed) return false
+    const range = selection.getRangeAt(0)
+    const container = range.commonAncestorContainer
+    if (!root.contains(container.nodeType === Node.ELEMENT_NODE ? container as Node : container.parentElement)) return false
+    pushEditorHistory()
+    root.focus()
+    try {
+      if (window.document.execCommand('cut')) {
+        window.setTimeout(() => {
+          markEditorDirty()
+          rememberEditorSelection()
+          scheduleToolbarDocumentRefresh()
+        }, 0)
+        return true
+      }
+    } catch {
+      // Fall back to a manual text cut below.
+    }
+    const text = selection.toString()
+    try {
+      await navigator.clipboard?.writeText(text)
+    } catch {
+      // Clipboard permission can be denied; still remove the selected text like a normal cut command.
+    }
+    range.deleteContents()
+    selection.removeAllRanges()
+    markEditorDirty()
+    rememberEditorSelection()
+    scheduleToolbarDocumentRefresh()
+    return true
+  }, [markEditorDirty, pushEditorHistory, rememberEditorSelection, scheduleToolbarDocumentRefresh])
+
   const handleEditorKeyDown = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
     const key = event.key.toLowerCase()
     const code = event.code
     const isModifierShortcut = event.ctrlKey || event.metaKey
     const isUndo = isModifierShortcut && (key === 'z' || code === 'KeyZ') && !event.shiftKey
     const isRedo = isModifierShortcut && (key === 'y' || code === 'KeyY' || ((key === 'z' || code === 'KeyZ') && event.shiftKey))
+    const isCut = isModifierShortcut && (key === 'x' || code === 'KeyX')
     if (isUndo) {
       event.preventDefault()
       undoEditorChange()
@@ -1464,8 +1500,13 @@ export default function EditorV2Page() {
     if (isRedo) {
       event.preventDefault()
       redoEditorChange()
+      return
     }
-  }, [redoEditorChange, undoEditorChange])
+    if (isCut) {
+      event.preventDefault()
+      void cutEditorSelection()
+    }
+  }, [cutEditorSelection, redoEditorChange, undoEditorChange])
 
   const handleEditorCopy = useCallback((_event: ReactClipboardEvent<HTMLDivElement>) => {
     rememberEditorSelection()
