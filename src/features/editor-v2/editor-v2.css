@@ -1480,6 +1480,25 @@
     border-radius: 1rem;
   }
 
+  .editor-v2-flow-editor figure[data-v2-type="image"][data-image-wrap="square-inline"] {
+    float: none;
+    clear: both;
+    display: grid;
+    width: auto;
+    max-width: 100% !important;
+    margin: 1.2rem auto;
+  }
+
+  .editor-v2-image-size-control {
+    grid-template-columns: 1fr auto;
+    border-radius: 1rem;
+  }
+
+  .editor-v2-image-size-control span,
+  .editor-v2-image-size-control select {
+    grid-column: 1 / -1;
+  }
+
   .editor-v2-metadata {
     grid-template-columns: 1fr;
   }
