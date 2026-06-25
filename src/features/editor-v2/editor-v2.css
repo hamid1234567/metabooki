@@ -1057,6 +1057,8 @@
   display: grid;
   justify-items: center;
   gap: 0.55rem;
+  width: fit-content;
+  max-width: 100%;
   border-radius: 1rem;
   padding: 0.55rem;
   transition: box-shadow 0.18s ease, background 0.18s ease;
@@ -1104,23 +1106,40 @@
 .editor-v2-image-resize-handle {
   position: absolute;
   z-index: 3;
-  inset-block: 1.2rem 2.6rem;
-  width: 0.55rem;
-  border-radius: 999px;
-  background: linear-gradient(180deg, #60a5fa, #2563eb);
-  box-shadow: 0 0 0 4px #2563eb18, 0 10px 24px #2563eb30;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid #2563eb;
+  border-radius: 0.25rem;
+  background: #fff;
+  box-shadow: 0 0 0 3px #2563eb18, 0 8px 18px #2563eb2e;
   opacity: 0;
   pointer-events: none;
-  cursor: ew-resize;
+  touch-action: none;
   transition: opacity 0.18s ease, transform 0.18s ease;
 }
 
-.editor-v2-image-resize-handle.is-start {
-  inset-inline-start: 0.15rem;
+.editor-v2-image-resize-handle.is-top-start {
+  inset-block-start: 0.35rem;
+  inset-inline-start: 0.35rem;
+  cursor: nwse-resize;
 }
 
-.editor-v2-image-resize-handle.is-end {
-  inset-inline-end: 0.15rem;
+.editor-v2-image-resize-handle.is-top-end {
+  inset-block-start: 0.35rem;
+  inset-inline-end: 0.35rem;
+  cursor: nesw-resize;
+}
+
+.editor-v2-image-resize-handle.is-bottom-start {
+  inset-block-end: 2.95rem;
+  inset-inline-start: 0.35rem;
+  cursor: nesw-resize;
+}
+
+.editor-v2-image-resize-handle.is-bottom-end {
+  inset-block-end: 2.95rem;
+  inset-inline-end: 0.35rem;
+  cursor: nwse-resize;
 }
 
 .editor-v2-flow-editor figure[data-v2-type="image"]:hover .editor-v2-image-resize-handle,
@@ -1130,10 +1149,11 @@
 }
 
 .editor-v2-image-resize-handle:hover {
-  transform: scaleX(1.35);
+  transform: scale(1.18);
 }
 
 .editor-v2-flow-editor figure[data-v2-type="image"] img {
+  width: 100%;
   max-width: 100%;
   height: auto;
   border-radius: 0.65rem;

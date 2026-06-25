@@ -183,7 +183,7 @@ function blockToEditorHtmlV2(block: BookBlockV2): string {
   }
   if (block.type === 'image') {
     const width = block.widthPercent ? `${Math.max(12, Math.min(100, block.widthPercent))}%` : block.widthPx ? `${Math.max(80, block.widthPx)}px` : ''
-    return `<figure data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="image"${attrV2('data-image-id', block.imageId)}${attrV2('data-width-px', block.widthPx)}${attrV2('data-width-percent', block.widthPercent)}><div class="editor-v2-image-controls" contenteditable="false"><button type="button" data-image-delete="true" title="حذف تصویر" aria-label="حذف تصویر">×</button></div><span class="editor-v2-image-resize-handle is-start" contenteditable="false" data-image-resize-handle="start" aria-hidden="true"></span><span class="editor-v2-image-resize-handle is-end" contenteditable="false" data-image-resize-handle="end" aria-hidden="true"></span>${block.url ? `<img contenteditable="false" src="${escapeHtmlV2(block.url)}" alt="${escapeHtmlV2(block.caption || '')}"${width ? ` style="max-width:${escapeHtmlV2(width)}"` : ''}>` : '<div class="book-v2-missing-image" contenteditable="false">تصویر در دسترس نیست</div>'}<figcaption contenteditable="true" data-image-caption="true" data-placeholder="کپشن تصویر را اینجا بنویسید">${escapeHtmlV2(block.caption || '')}</figcaption></figure>`
+    return `<figure data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="image"${attrV2('data-image-id', block.imageId)}${attrV2('data-width-px', block.widthPx)}${attrV2('data-width-percent', block.widthPercent)}${width ? ` style="max-width:${escapeHtmlV2(width)}"` : ''}><div class="editor-v2-image-controls" contenteditable="false"><button type="button" data-image-delete="true" title="حذف تصویر" aria-label="حذف تصویر">×</button></div><span class="editor-v2-image-resize-handle is-top-start" contenteditable="false" data-image-resize-handle="start" aria-hidden="true"></span><span class="editor-v2-image-resize-handle is-top-end" contenteditable="false" data-image-resize-handle="end" aria-hidden="true"></span><span class="editor-v2-image-resize-handle is-bottom-start" contenteditable="false" data-image-resize-handle="start" aria-hidden="true"></span><span class="editor-v2-image-resize-handle is-bottom-end" contenteditable="false" data-image-resize-handle="end" aria-hidden="true"></span>${block.url ? `<img contenteditable="false" src="${escapeHtmlV2(block.url)}" alt="${escapeHtmlV2(block.caption || '')}">` : '<div class="book-v2-missing-image" contenteditable="false">تصویر در دسترس نیست</div>'}<figcaption contenteditable="true" data-image-caption="true" data-placeholder="کپشن تصویر را اینجا بنویسید">${escapeHtmlV2(block.caption || '')}</figcaption></figure>`
   }
   if (block.type === 'table') {
     const headers = block.headers?.length ? `<thead><tr>${block.headers.map(cell => `<th>${escapeHtmlV2(cell)}</th>`).join('')}</tr></thead>` : ''
@@ -2034,7 +2034,8 @@ export default function EditorV2Page() {
       latestPercent = Math.max(20, Math.min(100, ((startWidth + delta) / containerWidth) * 100))
       figure.dataset.widthPercent = String(Math.round(latestPercent))
       figure.dataset.widthPx = ''
-      image.style.maxWidth = `${latestPercent}%`
+      figure.style.maxWidth = `${latestPercent}%`
+      image.style.maxWidth = '100%'
     }
     const up = () => {
       window.document.removeEventListener('pointermove', move)
@@ -2358,5 +2359,6 @@ export default function EditorV2Page() {
     </div>
   )
 }
+
 
 
