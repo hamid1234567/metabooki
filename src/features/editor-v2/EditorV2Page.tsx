@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+﻿import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent as ReactClipboardEvent, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { AlignCenter, AlignJustify, AlignLeft, AlignRight, AlertTriangle, ArrowLeft, ArrowRight, Bold, BookOpen, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Eraser, Eye, FileText, Image as ImageIcon, Info, Italic, Link2, List, ListOrdered, ListTree, Loader2, PanelRight, Redo2, Save, Search, Sparkles, Strikethrough, Subscript, Superscript, Table2, Type, Underline as UnderlineIcon, Undo2, Upload, Wand2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -1452,8 +1452,10 @@ export default function EditorV2Page() {
 
   const handleEditorKeyDown = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
     const key = event.key.toLowerCase()
-    const isUndo = (event.ctrlKey || event.metaKey) && key === 'z' && !event.shiftKey
-    const isRedo = (event.ctrlKey || event.metaKey) && (key === 'y' || (key === 'z' && event.shiftKey))
+    const code = event.code
+    const isModifierShortcut = event.ctrlKey || event.metaKey
+    const isUndo = isModifierShortcut && (key === 'z' || code === 'KeyZ') && !event.shiftKey
+    const isRedo = isModifierShortcut && (key === 'y' || code === 'KeyY' || ((key === 'z' || code === 'KeyZ') && event.shiftKey))
     if (isUndo) {
       event.preventDefault()
       undoEditorChange()
@@ -1464,6 +1466,28 @@ export default function EditorV2Page() {
       redoEditorChange()
     }
   }, [redoEditorChange, undoEditorChange])
+
+  const handleEditorCopy = useCallback((_event: ReactClipboardEvent<HTMLDivElement>) => {
+    rememberEditorSelection()
+  }, [rememberEditorSelection])
+
+  const handleEditorCut = useCallback((_event: ReactClipboardEvent<HTMLDivElement>) => {
+    pushEditorHistory()
+    window.setTimeout(() => {
+      markEditorDirty()
+      rememberEditorSelection()
+      scheduleToolbarDocumentRefresh()
+    }, 0)
+  }, [markEditorDirty, pushEditorHistory, rememberEditorSelection, scheduleToolbarDocumentRefresh])
+
+  const handleEditorPaste = useCallback((_event: ReactClipboardEvent<HTMLDivElement>) => {
+    pushEditorHistory()
+    window.setTimeout(() => {
+      markEditorDirty()
+      rememberEditorSelection()
+      scheduleToolbarDocumentRefresh()
+    }, 0)
+  }, [markEditorDirty, pushEditorHistory, rememberEditorSelection, scheduleToolbarDocumentRefresh])
 
   const applyInlineStyleToSelection = useCallback((style: Partial<CSSStyleDeclaration>) => {
     const keepInlineTargetSelected = (target: HTMLElement) => {
@@ -2277,6 +2301,9 @@ export default function EditorV2Page() {
               spellCheck={false}
               onBeforeInput={handleEditorBeforeInput}
               onKeyDown={handleEditorKeyDown}
+              onCopy={handleEditorCopy}
+              onCut={handleEditorCut}
+              onPaste={handleEditorPaste}
               onPointerDown={handleImageResizePointerDown}
               onClick={handleEditorSurfaceClick}
               onInput={markEditorDirty}
@@ -2331,4 +2358,5 @@ export default function EditorV2Page() {
     </div>
   )
 }
+
 
