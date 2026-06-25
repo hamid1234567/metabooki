@@ -1062,6 +1062,8 @@
   border-radius: 1rem;
   padding: 0.55rem;
   transition: box-shadow 0.18s ease, background 0.18s ease;
+  isolation: isolate;
+  background: transparent;
 }
 
 .editor-v2-flow-editor figure[data-v2-type="image"][data-image-wrap="top-bottom"] {
@@ -1070,8 +1072,11 @@
 
 .editor-v2-flow-editor figure[data-v2-type="image"][data-image-wrap="square-inline"] {
   float: inline-start;
+  display: block;
+  min-width: 8rem;
   margin-block: 0.35rem 0.85rem;
   margin-inline: 0 1.25rem;
+  overflow: visible;
 }
 
 .editor-v2-flow-editor figure[data-v2-type="image"].is-editor-selected {
