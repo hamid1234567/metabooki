@@ -100,7 +100,7 @@ export function renderBookBlockV2(block: BookBlockV2, renderChildren: (blocks: B
 
   if (block.type === 'image') {
     const width = block.widthPercent ? `${Math.max(12, Math.min(100, block.widthPercent))}%` : block.widthPx ? `${Math.max(80, block.widthPx)}px` : undefined
-    const wrapClass = ` wrap-${block.wrap || 'top-bottom'}`
+    const wrapClass = ` wrap-${block.wrap === 'square-inline' ? 'square-inline' : 'top-bottom'}`
     const figureStyle: CSSProperties = {
       maxWidth: width,
     }

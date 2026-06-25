@@ -1068,17 +1068,10 @@
   clear: both;
 }
 
-.editor-v2-flow-editor figure[data-v2-type="image"][data-image-wrap="square-inline"],
-.editor-v2-flow-editor figure[data-v2-type="image"][data-image-wrap="tight-inline"] {
+.editor-v2-flow-editor figure[data-v2-type="image"][data-image-wrap="square-inline"] {
   float: inline-start;
   margin-block: 0.35rem 0.85rem;
   margin-inline: 0 1.25rem;
-}
-
-.editor-v2-flow-editor figure[data-v2-type="image"][data-image-wrap="tight-inline"] {
-  shape-outside: margin-box;
-  shape-margin: 0.9rem;
-  margin-inline-end: 1rem;
 }
 
 .editor-v2-flow-editor figure[data-v2-type="image"].is-editor-selected {

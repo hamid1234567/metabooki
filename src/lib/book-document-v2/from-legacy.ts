@@ -111,7 +111,11 @@ function legacyBlockToV2(block: unknown, page: BookPageV2, pageIndex: number, bl
       imageId: item.imageId ? String(item.imageId) : undefined,
       widthPx: numberOf(item.widthPx ?? item.imageWidthPx),
       widthPercent: numberOf(item.widthPercent ?? item.imageWidthPercent),
-      wrap: ['tight-inline', 'square-inline', 'top-bottom'].includes(String(item.wrap)) ? String(item.wrap) as any : undefined,
+      wrap: String(item.wrap) === 'tight-inline'
+        ? 'square-inline'
+        : ['square-inline', 'top-bottom'].includes(String(item.wrap))
+          ? String(item.wrap) as any
+          : undefined,
       status: item.conversionStatus === 'failed' ? 'error' : textOf(item.url, item.src) ? 'ready' : 'missing',
       issue: textOf(item.conversionError, item.issue),
     }

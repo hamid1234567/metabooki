@@ -42,18 +42,11 @@
   clear: both;
 }
 
-.book-v2-figure.wrap-square-inline,
-.book-v2-figure.wrap-tight-inline {
+.book-v2-figure.wrap-square-inline {
   float: inline-start;
   width: fit-content;
   margin-block: 0.35rem 0.85rem;
   margin-inline: 0 1.25rem;
-}
-
-.book-v2-figure.wrap-tight-inline {
-  shape-outside: margin-box;
-  shape-margin: 0.9rem;
-  margin-inline-end: 1rem;
 }
 
 .book-v2-figure img {
