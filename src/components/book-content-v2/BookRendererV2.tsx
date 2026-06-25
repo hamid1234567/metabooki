@@ -153,17 +153,26 @@ function renderBlocks(blocks: BookBlockV2[], options: RenderOptionsV2 = {}): Rea
 export function BookRendererV2({ document, pages, blocks, compact = false, editable = false, selectedBlockId, onSelectBlock, onTextChange }: BookRendererV2Props) {
   const options = { editable, selectedBlockId, onSelectBlock, onTextChange }
   const [zoomImage, setZoomImage] = useState<{ src: string; alt: string } | null>(null)
+  const [zoomScale, setZoomScale] = useState(1)
   const handleImageClick = (event: MouseEvent<HTMLElement>) => {
     const target = event.target as HTMLElement
     const image = target.closest('img')
     if (!image?.src) return
     setZoomImage({ src: image.src, alt: image.alt || '' })
+    setZoomScale(1)
   }
   const zoomModal = zoomImage && (
     <div className="book-v2-image-modal" role="dialog" aria-modal="true" onClick={() => setZoomImage(null)}>
       <div className="book-v2-image-modal-card" onClick={event => event.stopPropagation()}>
         <button type="button" onClick={() => setZoomImage(null)}>×</button>
-        <img src={zoomImage.src} alt={zoomImage.alt} />
+        <div className="book-v2-image-modal-toolbar" aria-label="ابزار بزرگ‌نمایی تصویر">
+          <button type="button" onClick={() => setZoomScale(scale => Math.min(3, Number((scale + 0.25).toFixed(2))))} aria-label="بزرگ‌نمایی">+</button>
+          <button type="button" onClick={() => setZoomScale(scale => Math.max(0.5, Number((scale - 0.25).toFixed(2))))} aria-label="کوچک‌نمایی">−</button>
+          <button type="button" onClick={() => setZoomScale(1)} aria-label="اندازه اصلی">۱۰۰٪</button>
+        </div>
+        <div className="book-v2-image-modal-stage">
+          <img src={zoomImage.src} alt={zoomImage.alt} style={{ width: `${zoomScale * 100}%`, maxWidth: zoomScale > 1 ? 'none' : '100%' }} />
+        </div>
         {zoomImage.alt && <p>{normalizeBookTextV2(zoomImage.alt)}</p>}
       </div>
     </div>
