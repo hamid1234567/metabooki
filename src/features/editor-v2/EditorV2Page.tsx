@@ -1329,6 +1329,7 @@ export default function EditorV2Page() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
   const { user, loading: authLoading } = useAuthContext()
+  const userId = user?.id || ''
   const { balance: creditBalance } = useCredits(user)
   const [book, setBook] = useState<MockBook | null>(null)
   const [document, setDocument] = useState<BookDocumentV2 | null>(null)
@@ -1455,7 +1456,7 @@ export default function EditorV2Page() {
     return () => {
       alive = false
     }
-  }, [authLoading, id, user])
+  }, [authLoading, id, userId])
 
   const saveDocument = useCallback(async (options: { manual?: boolean } = {}) => {
     if (!book || !document) return
