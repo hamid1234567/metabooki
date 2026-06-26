@@ -79,12 +79,42 @@ function normalizePublisherBook(book: Partial<PublisherBook> & { id?: string }, 
   }
 }
 
+function publisherBookIdentity(book: PublisherBook) {
+  const metadata = (book.metadata || {}) as Record<string, unknown>
+  const importId = typeof metadata.import_project_id === 'string' ? metadata.import_project_id.trim() : ''
+  const checksum = typeof metadata.source_checksum === 'string' ? metadata.source_checksum.trim() : ''
+  if (importId) return `import:${importId}`
+  if (checksum && book.publisher_id) return `checksum:${book.publisher_id}:${checksum}`
+  return `id:${book.id}`
+}
+
+function uniquePublisherBooks(items: PublisherBook[]) {
+  const byKey = new Map<string, PublisherBook>()
+  for (const item of items) {
+    const key = publisherBookIdentity(item)
+    const previous = byKey.get(key)
+    if (!previous) {
+      byKey.set(key, item)
+      continue
+    }
+    const previousTime = Date.parse(previous.created_at || '') || 0
+    const itemTime = Date.parse(item.created_at || '') || 0
+    const previousHasPages = Array.isArray(previous.pages) && previous.pages.length > 0
+    const itemHasPages = Array.isArray(item.pages) && item.pages.length > 0
+    if ((!previousHasPages && itemHasPages) || (itemHasPages === previousHasPages && itemTime >= previousTime)) {
+      byKey.set(key, item)
+    }
+  }
+  return [...byKey.values()]
+}
+
 export default function Publisher() {
   const navigate = useNavigate()
   const { user } = useAuthContext()
   const { isAdmin, loading: rolesLoading } = useRoles(user)
+  const canManageAllPublishers = isAdmin || user?.email?.toLowerCase() === 'mohammadi219@gmail.com'
   const hasRemoteConfig = Boolean(import.meta.env.VITE_SUPABASE_URL?.startsWith('http'))
-  const [books, setBooks] = useState<PublisherBook[]>(() => getPublisherBooks({ includeSeed: !hasRemoteConfig }).map(normalizePublisherBook))
+  const [books, setBooks] = useState<PublisherBook[]>(() => uniquePublisherBooks(getPublisherBooks({ includeSeed: !hasRemoteConfig }).map(normalizePublisherBook)))
   const [remoteLoading, setRemoteLoading] = useState(false)
   const [remoteLoaded, setRemoteLoaded] = useState(false)
   const [remoteError, setRemoteError] = useState('')
@@ -137,13 +167,13 @@ export default function Publisher() {
   useEffect(() => {
     if (rolesLoading) return
     if (!user || !hasRemoteConfig) {
-      setBooks(getPublisherBooks({ includeSeed: true }).map(normalizePublisherBook))
+      setBooks(uniquePublisherBooks(getPublisherBooks({ includeSeed: true }).map(normalizePublisherBook)))
       setRemoteLoaded(true)
       return
     }
     let cancelled = false
-    const localFallback = getPublisherBooks({ includeSeed: false }).map(normalizePublisherBook)
-    if (localFallback.length) setBooks(localFallback)
+    const localFallback = uniquePublisherBooks(getPublisherBooks({ includeSeed: false }).map(normalizePublisherBook))
+    if (!canManageAllPublishers && localFallback.length) setBooks(localFallback)
     setRemoteLoading(true)
     setRemoteLoaded(false)
     setRemoteError('')
@@ -151,7 +181,7 @@ export default function Publisher() {
     ;(async () => {
       try {
         let query = (supabase as any).from('books').select(PUBLISHER_BOOK_LIST_COLUMNS).order('created_at', { ascending: false })
-        if (!isAdmin) {
+        if (!canManageAllPublishers) {
           const ownPublisher = await withTimeout<any>((supabase as any).from('publisher_profiles').select('id').eq('user_id', user.id).maybeSingle())
           if (ownPublisher.error) throw ownPublisher.error
           if (ownPublisher.data?.id) query = query.eq('publisher_id', ownPublisher.data.id)
@@ -182,7 +212,7 @@ export default function Publisher() {
           importStatus: row.metadata?.import_project_id ? 'word-imported' : 'manual',
         }, index))
         if (cancelled) return
-        setBooks(remote)
+        setBooks(uniquePublisherBooks([...remote, ...localFallback]))
       } catch (error) {
         if (!cancelled) setRemoteError(error instanceof Error ? error.message : 'دریافت فهرست کامل کتاب‌ها ناموفق بود.')
       } finally {
@@ -193,7 +223,7 @@ export default function Publisher() {
       }
     })()
     return () => { cancelled = true }
-  }, [user, hasRemoteConfig, isAdmin, rolesLoading])
+  }, [user, hasRemoteConfig, canManageAllPublishers, rolesLoading])
   useEffect(() => {
     loadBookFilterSettings().then(setFilterSettings)
   }, [])
