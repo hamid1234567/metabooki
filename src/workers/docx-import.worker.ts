@@ -4,6 +4,7 @@ import { XMLParser } from 'fast-xml-parser'
 import UTIF from 'utif'
 import { convertEmfToDataUrl, convertWmfToDataUrl } from 'emf-converter'
 import { BOOK_CONTENT_ZWNJ, formatPrintNumber, normalizeBookText, printPageLabel } from '@/lib/book-content'
+import { symbolFontCodeToUnicode } from '@/lib/symbol-font'
 import type { ImportFootnote, ImportImage, ImportInlineSpan, ImportIssue, ImportPage, ImportParagraph, TocEntry, WordImportAnalysis, WordStyleDefinition } from '@/lib/word-import-types'
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope
@@ -290,6 +291,8 @@ function wordSymbolText(node: unknown) {
   if (/^(00)?AC$/i.test(char)) return BOOK_CONTENT_ZWNJ
   const codePoint = Number.parseInt(char, 16)
   if (!Number.isFinite(codePoint) || codePoint <= 0 || codePoint > 0x10ffff) return ''
+  const font = String(directAttrs?.['@_w:font'] || directAttrs?.['@_font'] || elementAttribute(node, 'w:sym', '@_w:font', '@_font') || '')
+  if (/symbol/i.test(font) || (codePoint >= 0xf020 && codePoint <= 0xf0ff)) return symbolFontCodeToUnicode(codePoint)
   return String.fromCodePoint(codePoint)
 }
 

@@ -1,4 +1,5 @@
 import type { ImportInlineSpan, ImportPage, ImportParagraph, WordImportAnalysis } from '@/lib/word-import-types'
+import { normalizeSymbolFontText } from '@/lib/symbol-font'
 
 export type BookInlineSpan = ImportInlineSpan & {
   color?: string
@@ -15,7 +16,7 @@ export const BOOK_CONTENT_REFERENCE_RULES = [
     key: 'text-normalization',
     owner: 'normalizeBookText',
     surfaces: ['word import', 'word preview', 'editor', 'editor preview', 'reader', 'book cards', 'AI outputs', 'highlights', 'notes'],
-    includes: ['ZWS/ZWNJ', 'legacy not-sign separator', 'soft hyphen', 'Persian compound words'],
+    includes: ['ZWS/ZWNJ', 'legacy not-sign separator', 'soft hyphen', 'Persian compound words', 'Word Symbol font Greek/math characters'],
   },
   {
     key: 'inline-rich-content',
@@ -202,7 +203,7 @@ export function pageDividerHtml(next?: { printNumber?: PrintPageValue }) {
 }
 
 export function normalizeBookText(value = '') {
-  return String(value)
+  return normalizeSymbolFontText(String(value))
     .replace(LEGACY_ZWS_PATTERN, BOOK_CONTENT_ZWNJ)
     .replace(/\u00AD/g, BOOK_CONTENT_ZWNJ)
     .replace(WORD_SUFFIX_HAYE_PATTERN, `$1${BOOK_CONTENT_ZWNJ}$2`)
