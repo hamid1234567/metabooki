@@ -3,7 +3,7 @@ import { InlineTextV2 } from '@/components/book-content-v2/InlineTextV2'
 import { PageBreakV2 } from '@/components/book-content-v2/PageBreakV2'
 import { CalloutBlockV2 } from '@/components/book-content-v2/CalloutBlockV2'
 import { InteractiveBlockV2 } from '@/components/book-content-v2/InteractiveBlockV2'
-import { normalizeBookTextV2, textDirectionV2, type BookBlockV2, type BookDocumentV2, type BookPageV2 } from '@/lib/book-document-v2'
+import { cleanImageCaptionV2, normalizeBookTextV2, textDirectionV2, type BookBlockV2, type BookDocumentV2, type BookPageV2 } from '@/lib/book-document-v2'
 import './book-content-v2.css'
 
 type TextEditableBlockV2 = Extract<BookBlockV2, { type: 'heading' | 'paragraph' }>
@@ -99,14 +99,15 @@ export function renderBookBlockV2(block: BookBlockV2, renderChildren: (blocks: B
   }
 
   if (block.type === 'image') {
+    const cleanCaption = cleanImageCaptionV2(block.caption)
     const width = block.widthPercent ? `${Math.max(12, Math.min(100, block.widthPercent))}%` : block.widthPx ? `${Math.max(80, block.widthPx)}px` : undefined
     const figureStyle: CSSProperties = {
       '--book-v2-image-width': width,
     } as CSSProperties
     return (
       <figure key={block.id} id={block.anchor || block.id} className={`book-v2-figure${selectedClass(block, options)}`} data-block-id={block.id} style={figureStyle}>
-        {block.url ? <img src={block.url} alt={block.caption || ''} loading="lazy" /> : <div className="book-v2-missing-image">ØªØµÙˆÛŒØ± Ø¯Ø± Ø¯Ø³ØªØ±Ø³ Ù†ÛŒØ³Øª</div>}
-        {block.caption?.trim() && <figcaption><InlineTextV2 inline={block.captionInline} fallback={block.caption} /></figcaption>}
+        {block.url ? <img src={block.url} alt={cleanCaption} loading="lazy" /> : <div className="book-v2-missing-image">تصویر در دسترس نیست</div>}
+        {cleanCaption && <figcaption><InlineTextV2 inline={block.captionInline} fallback={cleanCaption} /></figcaption>}
         {block.issue && <small>{normalizeBookTextV2(block.issue)}</small>}
       </figure>
     )
@@ -192,7 +193,7 @@ export function BookRendererV2({ document, pages, blocks, compact = false, edita
   const [imageRefPreview, setImageRefPreview] = useState<{ block: Extract<BookBlockV2, { type: 'image' }>; x: number; y: number } | null>(null)
   const openZoomForImageBlock = (imageBlock: Extract<BookBlockV2, { type: 'image' }>, src = imageBlock.url) => {
     if (!src) return
-    const caption = imageBlock.caption || ''
+    const caption = cleanImageCaptionV2(imageBlock.caption)
     const initialScale = imageBlock.widthPercent
       ? Math.max(0.12, Math.min(1, imageBlock.widthPercent / 100))
       : 1
@@ -288,10 +289,10 @@ export function BookRendererV2({ document, pages, blocks, compact = false, edita
     <div
       className="book-v2-image-ref-preview"
       style={{ left: Math.min(window.innerWidth - 220, imageRefPreview.x + 14), top: Math.min(window.innerHeight - 170, imageRefPreview.y + 14) }}
-      dir={textDirectionV2(imageRefPreview.block.caption || '')}
+      dir={textDirectionV2(cleanImageCaptionV2(imageRefPreview.block.caption))}
     >
-      <img src={imageRefPreview.block.url} alt={imageRefPreview.block.caption || ''} />
-      {imageRefPreview.block.caption && <span>{normalizeBookTextV2(imageRefPreview.block.caption)}</span>}
+      <img src={imageRefPreview.block.url} alt={cleanImageCaptionV2(imageRefPreview.block.caption)} />
+      {cleanImageCaptionV2(imageRefPreview.block.caption) && <span>{cleanImageCaptionV2(imageRefPreview.block.caption)}</span>}
     </div>
   )
   if (blocks) return <div className={compact ? 'book-v2-renderer compact' : 'book-v2-renderer'} onClick={handleImageClick} onMouseMove={handleImageReferenceMove} onMouseOut={handleImageReferenceOut}>{renderBlocks(blocks, options)}{hoverPreview}{zoomModal}</div>
