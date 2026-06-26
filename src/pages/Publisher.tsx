@@ -2,7 +2,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { AlertTriangle, BarChart3, BookOpen, CheckCircle, Eye, FileText, Loader2, MessageSquare, Plus, RefreshCcw, Rocket, Settings, Share2, Sparkles, Store, Trash2, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { getPublisherBooks, updatePublisherBook, type PublisherBook } from '@/lib/publisher-books'
+import type { PublisherBook } from '@/lib/publisher-books'
 import { canDeletePublisherBook, deletePublisherBookCompletely } from '@/lib/publisher-delete'
 import { getAllComments } from '@/lib/mock-comments'
 import metabookiMark from '@/assets/metabooki-mark.png'
@@ -14,7 +14,6 @@ import { emptyFilterSettings, loadBookFilterSettings, mergeFilterOptions, type B
 import { resolveBookCoverArt } from '@/lib/ai-image-prompts'
 import { openReaderPreview, readerUrl } from '@/lib/app-routes'
 import { generateAndAttachBookCover } from '@/lib/book-cover-ai'
-import { syncLocalPublisherBooksToSupabase } from '@/lib/publisher-remote-sync'
 import { useRoles } from '@/hooks/useRoles'
 
 const stageMeta = {
@@ -113,12 +112,10 @@ export default function Publisher() {
   const { user } = useAuthContext()
   const { loading: rolesLoading } = useRoles(user)
   const hasRemoteConfig = Boolean(import.meta.env.VITE_SUPABASE_URL?.startsWith('http'))
-  const [books, setBooks] = useState<PublisherBook[]>(() => uniquePublisherBooks(getPublisherBooks({ includeSeed: !hasRemoteConfig }).map(normalizePublisherBook)))
+  const [books, setBooks] = useState<PublisherBook[]>([])
   const [remoteLoading, setRemoteLoading] = useState(false)
   const [remoteLoaded, setRemoteLoaded] = useState(false)
   const [remoteError, setRemoteError] = useState('')
-  const [localSyncMessage, setLocalSyncMessage] = useState('')
-  const [manualSyncBusy, setManualSyncBusy] = useState(false)
   const [deletingBookId, setDeletingBookId] = useState<string | null>(null)
   const [unpublishingBookId, setUnpublishingBookId] = useState<string | null>(null)
   const [coverGeneratingBookId, setCoverGeneratingBookId] = useState<string | null>(null)
@@ -143,7 +140,7 @@ export default function Publisher() {
       ? 'فهرست کامل دریافت نشد'
       : remoteLoaded && isRemoteConfigured
         ? 'فهرست کامل شد'
-        : 'فهرست محلی'
+        : 'در انتظار اتصال'
   const categories = useMemo(() => mergeFilterOptions(uniqueBookValues(books, book => book.category), filterSettings.categories), [books, filterSettings.categories])
   const bookTypes = useMemo(() => mergeFilterOptions(uniqueBookValues(books, book => normalizeBookType(book.book_type)), filterSettings.bookTypes), [books, filterSettings.bookTypes])
   const tags = useMemo(() => mergeFilterOptions(uniqueBookValues(books, book => book.tags?.join('|')).flatMap(value => value.split('|')).filter(Boolean), filterSettings.tags), [books, filterSettings.tags])
@@ -168,31 +165,27 @@ export default function Publisher() {
   useEffect(() => {
     if (rolesLoading) return
     if (!user || !hasRemoteConfig) {
-      setBooks(uniquePublisherBooks(getPublisherBooks({ includeSeed: true }).map(normalizePublisherBook)))
+      setBooks([])
       setRemoteLoaded(true)
+      setRemoteError(!hasRemoteConfig ? 'اتصال Supabase برای این نسخه تنظیم نشده است.' : '')
       return
     }
     let cancelled = false
-    const localFallback = uniquePublisherBooks(getPublisherBooks({ includeSeed: false }).map(normalizePublisherBook))
     setRemoteLoading(true)
     setRemoteLoaded(false)
     setRemoteError('')
-    setLocalSyncMessage('')
     ;(async () => {
       try {
         let query = (supabase as any).from('books').select(PUBLISHER_BOOK_LIST_COLUMNS).order('created_at', { ascending: false })
         const ownPublisher = await withTimeout<any>((supabase as any).from('publisher_profiles').select('id').eq('user_id', user.id).maybeSingle())
         if (ownPublisher.error) throw ownPublisher.error
-        const scopedLocalFallback = ownPublisher.data?.id
-          ? localFallback.filter(book => book.publisher_id === ownPublisher.data.id)
-          : []
-        if (scopedLocalFallback.length) setBooks(scopedLocalFallback)
         if (ownPublisher.data?.id) query = query.eq('publisher_id', ownPublisher.data.id)
         else {
           if (!cancelled) setBooks([])
+          if (!cancelled) setRemoteError('برای این حساب، پروفایل ناشر در Supabase ثبت نشده است.')
           return
         }
-        const result = await withTimeout<any>(query)
+        const result = await withTimeout<any>(query.range(0, 999))
         if (result.error) throw result.error
         const remote: PublisherBook[] = (result.data || []).map((row: any, index: number) => normalizePublisherBook({
           ...row,
@@ -214,7 +207,7 @@ export default function Publisher() {
           importStatus: row.metadata?.import_project_id ? 'word-imported' : 'manual',
         }, index))
         if (cancelled) return
-        const nextBooks = uniquePublisherBooks([...remote, ...scopedLocalFallback])
+        const nextBooks = uniquePublisherBooks(remote)
         setBooks(nextBooks)
         const bookIds = nextBooks.map(book => book.id).filter(id => UUID_RE.test(id))
         if (bookIds.length) {
@@ -226,7 +219,10 @@ export default function Publisher() {
           }
         }
       } catch (error) {
-        if (!cancelled) setRemoteError(error instanceof Error ? error.message : 'دریافت فهرست کامل کتاب‌ها ناموفق بود.')
+        if (!cancelled) {
+          setBooks([])
+          setRemoteError(error instanceof Error ? error.message : 'دریافت فهرست کامل کتاب‌ها از Supabase ناموفق بود.')
+        }
       } finally {
         if (!cancelled) {
           setRemoteLoading(false)
@@ -269,30 +265,11 @@ export default function Publisher() {
       const patch = { status: 'draft', review_status: 'pending', metadata } as Partial<PublisherBook>
       const result = await (supabase as any).from('books').update(patch).eq('id', book.id)
       if (result.error) throw result.error
-      updatePublisherBook(book.id, patch)
       setBooks(current => current.map(item => item.id === book.id ? normalizePublisherBook({ ...item, ...patch }) : item))
     } catch (error) {
       setRemoteError(error instanceof Error ? error.message : 'خروج کتاب از نشر ناموفق بود.')
     } finally {
       setUnpublishingBookId(null)
-    }
-  }
-
-  const syncThisBrowserLocalBooks = async () => {
-    if (!user || !hasRemoteConfig || manualSyncBusy) return
-    const confirmed = window.confirm('فقط وقتی این کار را انجام دهید که همین مرورگر، به‌روزترین نسخه کتاب‌های ناشر را دارد. این عملیات نسخه‌های محلی همین مرورگر را روی Supabase می‌نویسد.')
-    if (!confirmed) return
-    setManualSyncBusy(true)
-    setRemoteError('')
-    try {
-      const localSync = await syncLocalPublisherBooksToSupabase(user.id)
-      setLocalSyncMessage(`${localSync.synced.toLocaleString('fa-IR')} کتاب از همین مرورگر به سرور ارسال شد${localSync.skipped ? `، ${localSync.skipped.toLocaleString('fa-IR')} مورد ارسال نشد` : ''}.`)
-      if (localSync.errors.length) console.warn('Publisher manual local sync warnings:', localSync.errors)
-      window.location.reload()
-    } catch (error) {
-      setRemoteError(error instanceof Error ? error.message : 'همگام‌سازی دستی نسخه محلی با سرور ناموفق بود.')
-    } finally {
-      setManualSyncBusy(false)
     }
   }
 
@@ -351,7 +328,6 @@ export default function Publisher() {
             importStatus: metadata.import_project_id ? 'word-imported' : book.importStatus,
             metadata,
           }
-          updatePublisherBook(book.id, fullBook)
           setBooks(current => current.map(item => item.id === book.id ? fullBook : item))
         }
       }
@@ -398,7 +374,6 @@ export default function Publisher() {
         <div className="flex flex-wrap gap-3">
           <Button variant="outline" className="gap-2"><Share2 className="w-4 h-4" />ویترین عمومی</Button>
           <Link to="/publisher/me/settings"><Button variant="outline" className="gap-2"><Settings className="w-4 h-4" />تنظیمات</Button></Link>
-          {isRemoteConfigured && <Button variant="outline" disabled={manualSyncBusy} onClick={() => void syncThisBrowserLocalBooks()} className="gap-2"><RefreshCcw className={`w-4 h-4 ${manualSyncBusy ? 'animate-spin' : ''}`} />ارسال نسخه محلی به سرور</Button>}
           <Link to="/upload"><Button className="gap-2 shadow-glow"><Plus className="w-4 h-4" />کتاب جدید</Button></Link>
         </div>
       </section>
@@ -429,12 +404,11 @@ export default function Publisher() {
             </div>
             <p className="text-sm text-muted-foreground mt-1">
               {remoteLoading
-                ? 'فهرست اولیه سریع نمایش داده شده و سامانه هنوز کتاب‌های محلی و سروری را همگام و تکمیل می‌کند.'
+                ? 'سامانه در حال دریافت فهرست کتاب‌های همین ناشر از Supabase است.'
                 : remoteError
-                  ? 'اگر اینترنت یا اتصال Supabase کند باشد، فعلا همان فهرست محلی نمایش داده می‌شود. با رفرش صفحه، دریافت از ادامه دوباره تلاش می‌شود.'
-                  : 'همگام‌سازی فهرست انتشارات با دیتابیس کامل شد.'}
+                  ? 'تا زمانی که اتصال Supabase کامل نشود، هیچ فهرست محلی یا کش‌شده‌ای جایگزین داده واقعی نمی‌شود.'
+                  : 'فهرست انتشارات از دیتابیس Supabase دریافت شد.'}
             </p>
-            {localSyncMessage && <p className="text-sm text-primary mt-1">{localSyncMessage}</p>}
             {remoteLoading && <div className="publisher-sync-progress" role="progressbar" aria-label="در حال دریافت فهرست کامل کتاب‌ها"><span /></div>}
             {remoteError && <p className="publisher-sync-error">{remoteError}</p>}
           </div>

@@ -144,10 +144,8 @@ export async function getPopularBookIds(): Promise<string[]> {
 
 export async function getBook(bookId: string): Promise<MockBook | null> {
   if (hasSupabase && UUID_RE.test(bookId)) {
-    const localPublisherBook = findPublisherBook(bookId)
     const { data, error } = await supabase.from('books').select('*').eq('id', bookId).maybeSingle()
     if (data) return toBook(data as unknown as Record<string, unknown>)
-    if (localPublisherBook) return withResolvedCover(localPublisherBook)
     if (error) throw error
     return null
   }
