@@ -1,5 +1,6 @@
 import { Fragment, type ReactNode } from 'react'
 import { normalizeBookTextV2, textDirectionV2 } from '@/lib/book-document-v2'
+import { splitBookTextForDisplay } from '@/lib/book-content'
 import type { BookInlineV2 } from '@/lib/book-document-v2'
 
 function wrapWithMarks(node: ReactNode, span: BookInlineV2) {
@@ -21,6 +22,16 @@ function spanStyle(span: BookInlineV2) {
     fontFamily: span.style?.fontFamily,
     fontSize: span.style?.fontSize,
   }
+}
+
+export function BookPlainTextV2({ text = '' }: { text?: string }) {
+  return (
+    <>
+      {splitBookTextForDisplay(normalizeBookTextV2(text)).map((part, index) => part.numeric
+        ? <bdi key={index} className="book-number-run" dir="ltr">{part.text}</bdi>
+        : <Fragment key={index}>{part.text}</Fragment>)}
+    </>
+  )
 }
 
 function CitationTooltip({ span, children }: { span: BookInlineV2; children: ReactNode }) {
@@ -59,11 +70,11 @@ function ImageReference({ span, children }: { span: BookInlineV2; children: Reac
 }
 
 export function InlineTextV2({ inline, fallback = '' }: { inline?: BookInlineV2[]; fallback?: string }) {
-  if (!inline?.length) return <>{normalizeBookTextV2(fallback)}</>
+  if (!inline?.length) return <BookPlainTextV2 text={fallback} />
   return (
     <>
       {inline.map((span, index) => {
-        const content = wrapWithMarks(<span style={spanStyle(span)}>{normalizeBookTextV2(span.text)}</span>, span)
+        const content = wrapWithMarks(<span style={spanStyle(span)}><BookPlainTextV2 text={span.text} /></span>, span)
         const withCitation = span.footnoteText || span.referenceText || span.footnoteId
           ? <CitationTooltip span={span}>{content}</CitationTooltip>
           : content

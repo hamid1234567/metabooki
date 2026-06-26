@@ -19,6 +19,12 @@ export const BOOK_CONTENT_REFERENCE_RULES = [
     includes: ['ZWS/ZWNJ', 'legacy not-sign separator', 'soft hyphen', 'Persian compound words', 'Word Symbol font Greek/math characters'],
   },
   {
+    key: 'inline-number-bidi',
+    owner: 'splitBookTextForDisplay / bookDisplayTextHtml',
+    surfaces: ['word preview', 'editor', 'editor preview', 'reader', 'captions', 'tables', 'callouts', 'interactive blocks', 'AI outputs'],
+    includes: ['Persian and English digits are preserved', 'decimal/fraction-like runs keep visual order in RTL text', 'Persian slash decimals such as ۲/۴ are not flipped'],
+  },
+  {
     key: 'inline-rich-content',
     owner: 'inlineToHtml',
     surfaces: ['word import', 'word preview', 'editor', 'editor preview', 'reader', 'book snippets', 'AI outputs', 'highlights', 'notes'],
@@ -140,6 +146,7 @@ const LEGACY_ZWS_PATTERN = /\s*(?:Ãƒâ€šÃ‚Â¬|Ã‚Â¬|Ãƒâ€šÂ¬
 const WORD_SUFFIX_HAYE_PATTERN = /([\u0600-\u06FF]{2,})(\u0647\u0627\u064a|\u0647\u0627\u06cc|\u0647\u0627\u0649|\u0647\u0627\u06cc\u06cc|\u0647\u0627\u064a\u064a)(?=$|[\s\u060c\u061b,.!?\u061f])/g
 const SAMPLE_BARDARI_PATTERN = /(\u0646\u0645\u0648\u0646\u0647)(\u0628\u0631\u062f\u0627\u0631[\u0600-\u06FF]*)/g
 const RADON_KHAR_PATTERN = /(\u0631\u0627\u062f\u0648\u0646)(\u062e\u0648\u0627\u0631[\u0600-\u06FF]*)/g
+const BOOK_NUMERIC_SEQUENCE_PATTERN = /[0-9\u06F0-\u06F9\u0660-\u0669]+(?:\s*[./,\u066B\u066C\u060C:]\s*[0-9\u06F0-\u06F9\u0660-\u0669]+)+/g
 
 function romanNumber(value: number) {
   if (!Number.isFinite(value) || value <= 0 || value >= 4000) return String(value)
@@ -216,6 +223,27 @@ export function escapeHtml(text = '') {
   return normalizeBookText(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
+export function splitBookTextForDisplay(value = '') {
+  const text = normalizeBookText(value)
+  const parts: Array<{ text: string; numeric: boolean }> = []
+  let cursor = 0
+  for (const match of text.matchAll(BOOK_NUMERIC_SEQUENCE_PATTERN)) {
+    const index = match.index ?? 0
+    if (index > cursor) parts.push({ text: text.slice(cursor, index), numeric: false })
+    parts.push({ text: match[0], numeric: true })
+    cursor = index + match[0].length
+  }
+  if (cursor < text.length) parts.push({ text: text.slice(cursor), numeric: false })
+  return parts.length ? parts : [{ text, numeric: false }]
+}
+
+export function bookDisplayTextHtml(value = '') {
+  return splitBookTextForDisplay(value).map(part => {
+    const escaped = escapeHtml(part.text)
+    return part.numeric ? `<bdi class="book-number-run" dir="ltr">${escaped}</bdi>` : escaped
+  }).join('')
+}
+
 export function inlineText(inline?: Array<{ text?: string }>, fallback = '') {
   return inline?.length ? inline.map(span => normalizeBookText(span.text || '')).join('') : normalizeBookText(fallback)
 }
@@ -240,9 +268,9 @@ export function citationTooltipAttributes(text = '') {
 }
 
 export function inlineToHtml(inline?: BookInlineSpan[], fallback = '') {
-  if (!inline?.length) return escapeHtml(fallback)
+  if (!inline?.length) return bookDisplayTextHtml(fallback)
   return inline.map(span => {
-    let content = escapeHtml(span.text || '')
+    let content = bookDisplayTextHtml(span.text || '')
     const style = [
       span.color ? `color:${span.color}` : '',
       span.fontFamily ? `font-family:${span.fontFamily}` : '',
