@@ -748,6 +748,172 @@
   text-align: start;
 }
 
+.editor-v2-reference-panel {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.editor-v2-reference-box,
+.editor-v2-reference-accordion,
+.editor-v2-reference-item {
+  border: 1px solid #d4e1f4;
+  border-radius: 1rem;
+  background: hsl(0 0% 100% / 0.72);
+  box-shadow: 0 12px 30px hsl(214 80% 42% / 0.08);
+}
+
+.editor-v2-reference-box {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.7rem;
+}
+
+.editor-v2-reference-box h4 {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  color: #153a77;
+  font-size: 0.78rem;
+  font-weight: 950;
+}
+
+.editor-v2-reference-box input,
+.editor-v2-reference-item textarea {
+  width: 100%;
+  border: 1px solid #d5e2f3;
+  border-radius: 0.75rem;
+  background: hsl(0 0% 100% / 0.85);
+  color: #172033;
+  padding: 0.58rem 0.65rem;
+  font: inherit;
+  font-size: 0.72rem;
+  line-height: 1.7;
+}
+
+.editor-v2-reference-box small {
+  color: #64748b;
+  font-size: 0.67rem;
+  line-height: 1.8;
+}
+
+.editor-v2-reference-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+}
+
+.editor-v2-reference-actions button,
+.editor-v2-reference-item button {
+  border: 1px solid #cfe0f6;
+  border-radius: 0.75rem;
+  background: hsl(0 0% 100% / 0.82);
+  color: #174ea6;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.7rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.editor-v2-reference-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.editor-v2-reference-accordion {
+  overflow: hidden;
+}
+
+.editor-v2-reference-accordion > summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 0.65rem 0.75rem;
+  color: #172033;
+  font-size: 0.76rem;
+  font-weight: 950;
+}
+
+.editor-v2-reference-accordion > summary::-webkit-details-marker,
+.editor-v2-reference-item > summary::-webkit-details-marker {
+  display: none;
+}
+
+.editor-v2-reference-accordion > *:not(summary) {
+  margin-inline: 0.6rem;
+  margin-bottom: 0.6rem;
+}
+
+.editor-v2-media-list.compact button {
+  grid-template-columns: 2.8rem minmax(0, 1fr);
+}
+
+.editor-v2-media-list.compact img,
+.editor-v2-media-list.compact .editor-v2-missing-thumb {
+  width: 2.8rem;
+  height: 2.15rem;
+}
+
+.editor-v2-reference-list {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.editor-v2-reference-item {
+  padding: 0;
+}
+
+.editor-v2-reference-item > summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.18rem 0.45rem;
+  align-items: center;
+  cursor: pointer;
+  padding: 0.55rem 0.6rem;
+}
+
+.editor-v2-reference-item b {
+  border-radius: 999px;
+  background: #eaf2ff;
+  color: #174ea6;
+  padding: 0.1rem 0.45rem;
+  font-size: 0.62rem;
+  white-space: nowrap;
+}
+
+.editor-v2-reference-item span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #172033;
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.editor-v2-reference-item small {
+  grid-column: 2;
+  color: #64748b;
+  font-size: 0.64rem;
+}
+
+.editor-v2-reference-item > div {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0 0.6rem 0.65rem;
+}
+
+.editor-v2-reference-item label {
+  display: grid;
+  gap: 0.25rem;
+  color: #64748b;
+  font-size: 0.64rem;
+  font-weight: 850;
+}
+
+.editor-v2-reference-item textarea {
+  min-height: 3.3rem;
+  resize: vertical;
+}
+
 .editor-v2-media-modal {
   position: absolute;
   inset: 0;

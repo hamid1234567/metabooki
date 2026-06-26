@@ -2041,10 +2041,61 @@ export default function EditorV2Page() {
   }, [markEditorDirty, pushEditorHistory, readToolbarStateFromSelection, rememberEditorSelection, restoreEditorSelection, scheduleToolbarDocumentRefresh])
 
   const createLinkForSelection = useCallback(() => {
-    const href = window.prompt('آدرس لینک را وارد کنید')
-    if (!href?.trim()) return
-    execTextCommand('createLink', href.trim())
-  }, [execTextCommand])
+    rememberEditorSelection()
+    setActivePanel('references')
+  }, [rememberEditorSelection])
+
+  const applyTextLinkToSelection = useCallback((href: string) => {
+    if (!href.trim()) return false
+    restoreEditorSelection()
+    const selection = window.getSelection()
+    const root = editorSurfaceRef.current
+    const range = selection?.rangeCount ? selection.getRangeAt(0) : savedSelectionRef.current
+    if (!selection || !range || !root || selection.isCollapsed || !selection.toString().trim()) return false
+    const container = range.commonAncestorContainer
+    const selectionNode = container.nodeType === Node.ELEMENT_NODE ? container as Element : container.parentElement
+    if (!selectionNode || !root.contains(selectionNode)) return false
+    pushEditorHistory()
+    try {
+      window.document.execCommand('createLink', false, href.trim())
+    } catch {
+      const wrapper = window.document.createElement('a')
+      wrapper.href = href.trim()
+      const contents = range.extractContents()
+      wrapper.appendChild(contents)
+      range.insertNode(wrapper)
+    }
+    markEditorDirty()
+    rememberEditorSelection()
+    scheduleToolbarDocumentRefresh()
+    return true
+  }, [markEditorDirty, pushEditorHistory, rememberEditorSelection, restoreEditorSelection, scheduleToolbarDocumentRefresh])
+
+  const removeTextLinkFromSelection = useCallback(() => {
+    restoreEditorSelection()
+    const selection = window.getSelection()
+    const root = editorSurfaceRef.current
+    const range = selection?.rangeCount ? selection.getRangeAt(0) : savedSelectionRef.current
+    if (!range || !root) return false
+    const container = range.commonAncestorContainer
+    const element = container.nodeType === Node.ELEMENT_NODE ? container as Element : container.parentElement
+    if (!element || !root.contains(element)) return false
+    const link = element.closest<HTMLAnchorElement>('a')
+    pushEditorHistory()
+    if (link) {
+      link.replaceWith(...Array.from(link.childNodes))
+    } else {
+      try {
+        window.document.execCommand('unlink')
+      } catch {
+        return false
+      }
+    }
+    markEditorDirty()
+    rememberEditorSelection()
+    scheduleToolbarDocumentRefresh()
+    return true
+  }, [markEditorDirty, pushEditorHistory, rememberEditorSelection, restoreEditorSelection, scheduleToolbarDocumentRefresh])
 
   const insertSimpleTable = useCallback(() => {
     const tableId = createV2Id('table', Date.now())
@@ -2655,6 +2706,8 @@ export default function EditorV2Page() {
           onJumpToBlock={jumpToEditorBlock}
           canLinkImageRef={hasTextSelection}
           onLinkImageRef={applyImageReferenceToSelection}
+          onApplyTextLink={applyTextLinkToSelection}
+          onRemoveTextLink={removeTextLinkFromSelection}
           onInsertInteractive={insertInteractiveBlock}
           onApplyCallout={wrapSelectedCallout}
           onUnwrapCallout={unwrapSelectedCallout}
