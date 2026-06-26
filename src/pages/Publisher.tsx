@@ -26,6 +26,13 @@ const stageMeta = {
 const UUID_RE = /^[0-9a-f-]{36}$/i
 const PUBLISHER_BOOK_LIST_COLUMNS = 'id,title,subtitle,description,cover_url,back_cover_url,preview_pages,price,status,review_status,publisher_id,language,tags,metadata,series_id,series_order,created_at'
 
+function withTimeout<T>(promise: PromiseLike<T>, timeoutMs = 18000, message = 'اتصال به Supabase بیش از حد طول کشید.'): Promise<T> {
+  return Promise.race([
+    Promise.resolve(promise),
+    new Promise<T>((_, reject) => window.setTimeout(() => reject(new Error(message)), timeoutMs)),
+  ])
+}
+
 function resolvePublisherStage(book: Partial<PublisherBook>): PublisherBook['stage'] {
   if (book.stage && book.stage in stageMeta) return book.stage
   if (book.status === 'published' && book.review_status === 'approved') return 'published'
@@ -80,6 +87,7 @@ export default function Publisher() {
   const [remoteLoaded, setRemoteLoaded] = useState(false)
   const [remoteError, setRemoteError] = useState('')
   const [localSyncMessage, setLocalSyncMessage] = useState('')
+  const [manualSyncBusy, setManualSyncBusy] = useState(false)
   const [deletingBookId, setDeletingBookId] = useState<string | null>(null)
   const [coverGeneratingBookId, setCoverGeneratingBookId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
@@ -131,24 +139,19 @@ export default function Publisher() {
       return
     }
     let cancelled = false
-    setBooks(getPublisherBooks({ includeSeed: false }).map(normalizePublisherBook))
+    setBooks([])
     setRemoteLoading(true)
     setRemoteLoaded(false)
     setRemoteError('')
     setLocalSyncMessage('')
     ;(async () => {
       try {
-        const localSync = await syncLocalPublisherBooksToSupabase(user.id)
-        if (localSync.synced || localSync.skipped) {
-          setLocalSyncMessage(`${localSync.synced.toLocaleString('fa-IR')} کتاب محلی با سرور همگام شد${localSync.skipped ? `، ${localSync.skipped.toLocaleString('fa-IR')} مورد نیازمند بررسی است` : ''}.`)
-        }
-        if (localSync.errors.length) console.warn('Publisher local sync warnings:', localSync.errors)
-        const ownPublisher = await (supabase as any).from('publisher_profiles').select('id').eq('user_id', user.id).maybeSingle()
+        const ownPublisher = await withTimeout<any>((supabase as any).from('publisher_profiles').select('id').eq('user_id', user.id).maybeSingle())
         if (ownPublisher.error) throw ownPublisher.error
         let query = (supabase as any).from('books').select(PUBLISHER_BOOK_LIST_COLUMNS).order('created_at', { ascending: false })
         if (ownPublisher.data?.id) query = query.eq('publisher_id', ownPublisher.data.id)
         else {
-          const roles = await (supabase as any).from('user_roles').select('role').eq('user_id', user.id)
+          const roles = await withTimeout<any>((supabase as any).from('user_roles').select('role').eq('user_id', user.id))
           if (roles.error) throw roles.error
           const isAdmin = roles.data?.some((item: { role: string }) => item.role === 'admin' || item.role === 'super_admin')
           if (!isAdmin) {
@@ -156,7 +159,7 @@ export default function Publisher() {
             return
           }
         }
-        const result = await query
+        const result = await withTimeout<any>(query)
         if (result.error) throw result.error
         const remote: PublisherBook[] = (result.data || []).map((row: any, index: number) => normalizePublisherBook({
           ...row,
@@ -178,10 +181,7 @@ export default function Publisher() {
           importStatus: row.metadata?.import_project_id ? 'word-imported' : 'manual',
         }, index))
         if (cancelled) return
-        setBooks(current => {
-          const remoteIds = new Set(remote.map(item => item.id))
-          return [...remote, ...current.map(normalizePublisherBook).filter(item => !remoteIds.has(item.id))]
-        })
+        setBooks(remote)
       } catch (error) {
         if (!cancelled) setRemoteError(error instanceof Error ? error.message : 'دریافت فهرست کامل کتاب‌ها ناموفق بود.')
       } finally {
@@ -204,6 +204,24 @@ export default function Publisher() {
     if (reset.error) return
     await (supabase as any).from('book_import_projects').update({ status: 'queued', error_message: null }).eq('id', importId)
     setBooks(current => current.map(item => item.id === book.id ? { ...item, importStatus: 'needs-review' } : item))
+  }
+
+  const syncThisBrowserLocalBooks = async () => {
+    if (!user || !hasRemoteConfig || manualSyncBusy) return
+    const confirmed = window.confirm('فقط وقتی این کار را انجام دهید که همین مرورگر، به‌روزترین نسخه کتاب‌های ناشر را دارد. این عملیات نسخه‌های محلی همین مرورگر را روی Supabase می‌نویسد.')
+    if (!confirmed) return
+    setManualSyncBusy(true)
+    setRemoteError('')
+    try {
+      const localSync = await syncLocalPublisherBooksToSupabase(user.id)
+      setLocalSyncMessage(`${localSync.synced.toLocaleString('fa-IR')} کتاب از همین مرورگر به سرور ارسال شد${localSync.skipped ? `، ${localSync.skipped.toLocaleString('fa-IR')} مورد ارسال نشد` : ''}.`)
+      if (localSync.errors.length) console.warn('Publisher manual local sync warnings:', localSync.errors)
+      window.location.reload()
+    } catch (error) {
+      setRemoteError(error instanceof Error ? error.message : 'همگام‌سازی دستی نسخه محلی با سرور ناموفق بود.')
+    } finally {
+      setManualSyncBusy(false)
+    }
   }
 
   const generateCover = async (book: PublisherBook) => {
@@ -308,6 +326,7 @@ export default function Publisher() {
         <div className="flex flex-wrap gap-3">
           <Button variant="outline" className="gap-2"><Share2 className="w-4 h-4" />ویترین عمومی</Button>
           <Link to="/publisher/me/settings"><Button variant="outline" className="gap-2"><Settings className="w-4 h-4" />تنظیمات</Button></Link>
+          {isRemoteConfigured && <Button variant="outline" disabled={manualSyncBusy} onClick={() => void syncThisBrowserLocalBooks()} className="gap-2"><RefreshCcw className={`w-4 h-4 ${manualSyncBusy ? 'animate-spin' : ''}`} />ارسال نسخه محلی به سرور</Button>}
           <Link to="/upload"><Button className="gap-2 shadow-glow"><Plus className="w-4 h-4" />کتاب جدید</Button></Link>
         </div>
       </section>

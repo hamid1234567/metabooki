@@ -5,6 +5,7 @@ import type { MockBook } from '@/lib/mock-data'
 import { documentV2ToLegacyPages, type BookDocumentV2 } from '@/lib/book-document-v2'
 
 const hasSupabase = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_URL.startsWith('http'))
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const BOOK_LIST_COLUMNS = [
   'id',
@@ -142,6 +143,15 @@ export async function getPopularBookIds(): Promise<string[]> {
 }
 
 export async function getBook(bookId: string): Promise<MockBook | null> {
+  if (hasSupabase && UUID_RE.test(bookId)) {
+    const localPublisherBook = findPublisherBook(bookId)
+    const { data, error } = await supabase.from('books').select('*').eq('id', bookId).maybeSingle()
+    if (data) return toBook(data as unknown as Record<string, unknown>)
+    if (localPublisherBook) return withResolvedCover(localPublisherBook)
+    if (error) throw error
+    return null
+  }
+
   const localPublisherBook = findPublisherBook(bookId)
   if (localPublisherBook) return withResolvedCover(localPublisherBook)
 
@@ -154,6 +164,20 @@ export async function getBook(bookId: string): Promise<MockBook | null> {
   const { data, error } = await supabase.from('books').select('*').eq('id', bookId).maybeSingle()
   if (error) throw error
   return data ? toBook(data as unknown as Record<string, unknown>) : null
+}
+
+export async function getPublisherDraftBooks(userId: string): Promise<MockBook[]> {
+  if (!hasSupabase || !userId) return []
+  const ownPublisher = await (supabase as any).from('publisher_profiles').select('id').eq('user_id', userId).maybeSingle()
+  if (ownPublisher.error || !ownPublisher.data?.id) return []
+  const { data, error } = await (supabase as any)
+    .from('books')
+    .select(BOOK_LIST_COLUMNS)
+    .eq('publisher_id', ownPublisher.data.id)
+    .or('status.neq.published,review_status.neq.approved')
+    .order('created_at', { ascending: false })
+  if (error) return []
+  return (data || []).map((row: Record<string, unknown>) => toBook(row))
 }
 
 export async function getUserLibrary(userId: string): Promise<{ books: MockBook[]; progress: Record<string, { currentPage: number; totalPages: number; lastReadAt: string }> }> {

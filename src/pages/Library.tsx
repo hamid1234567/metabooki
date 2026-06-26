@@ -10,7 +10,7 @@ import { BOOK_LIST_PAGE_SIZE, filterByValue, normalizeBookType, pageNumbers, pag
 import { emptyFilterSettings, loadBookFilterSettings, mergeFilterOptions, type BookFilterSettings } from '@/lib/filter-settings'
 import { resolveBookCoverArt } from '@/lib/ai-image-prompts'
 import { ArrowLeft, BookOpen, CheckCircle, ChevronLeft, ChevronRight, Clock, PlayCircle, Search, ShoppingCart, Sparkles } from 'lucide-react'
-import { getPublishedBooks, getUserLibrary } from '@/lib/book-repository'
+import { getPublishedBooks, getPublisherDraftBooks, getUserLibrary } from '@/lib/book-repository'
 
 type ProgressMap = Record<string, { currentPage: number; totalPages: number; lastReadAt: string }>
 type ShelfItem = { book: MockBook; isPurchased: boolean }
@@ -73,6 +73,7 @@ export default function Library() {
   const { t } = useI18n()
   const [libraryBooks, setLibraryBooks] = useState<MockBook[]>([])
   const [freeBooks, setFreeBooks] = useState<MockBook[]>([])
+  const [publisherDraftBooks, setPublisherDraftBooks] = useState<MockBook[]>([])
   const [progress, setProgress] = useState<ProgressMap>({})
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -109,7 +110,9 @@ export default function Library() {
         setLibraryBooks([])
         setProgress({})
       }).finally(() => setLoading(false))
+      getPublisherDraftBooks(user.id).then(setPublisherDraftBooks).catch(() => setPublisherDraftBooks([]))
     } else {
+      setPublisherDraftBooks([])
       setLoading(false)
     }
   }, [user])
@@ -178,6 +181,37 @@ export default function Library() {
       <div className="flex justify-end">
         <Link to="/store"><Button variant="outline" className="gap-2 rounded-full px-5"><ShoppingCart className="w-4 h-4" /> کشف کتاب‌های بیشتر</Button></Link>
       </div>
+
+      {publisherDraftBooks.length > 0 && (
+        <section className="menu-glass-70 rounded-3xl p-5 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-black font-display">پیش‌نویس‌های ناشر برای تست</h2>
+              <p className="text-sm text-muted-foreground mt-1">این کتاب‌ها هنوز منتشر نشده‌اند و فقط برای خود ناشر جهت تست نمای فروشگاه و کتابخوان نمایش داده می‌شوند.</p>
+            </div>
+            <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700">{publisherDraftBooks.length.toLocaleString('fa-IR')} عنوان منتشرنشده</span>
+          </div>
+          <div className="library-book-grid">
+            {publisherDraftBooks.slice(0, 12).map((book, index) => (
+              <article key={`publisher-draft-${book.id}`} className="shelf-card group" style={{ animationDelay: `${Math.min(index, 8) * 45}ms` }}>
+                <Link to={`/b/${book.id}`} className="shelf-cover">
+                  <BookCover src={book.cover_url} title={book.title} category={book.category} loading={index < 6 ? 'eager' : 'lazy'} />
+                  <span className="book-pill book-pill-warning">منتشر نشده</span>
+                </Link>
+                <div className="shelf-content">
+                  <h3 className="book-card-title">{book.title}</h3>
+                  <p className="book-card-subtitle">{book.author || 'نویسنده نامشخص'}</p>
+                  <p className="book-card-description">تست ناشر · بدون هزینه</p>
+                  <div className="mt-auto grid grid-cols-[1fr_auto] gap-2">
+                    <Link to={`/read/${book.id}`}><Button className="w-full gap-2 rounded-xl"><PlayCircle className="w-4 h-4" />تست کتابخوان</Button></Link>
+                    <Link to={`/b/${book.id}`}><Button variant="outline" size="icon" className="rounded-xl" title="جزئیات کتاب"><ArrowLeft className="w-4 h-4" /></Button></Link>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="list-control-panel">
         <label className="is-wide"><span>جستجو</span><div className="relative"><Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="عنوان، نویسنده یا برچسب..." className="pr-9" /></div></label>
