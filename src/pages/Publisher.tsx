@@ -105,6 +105,10 @@ function uniquePublisherBooks(items: PublisherBook[]) {
   return [...byKey.values()]
 }
 
+function isBookInStore(book: PublisherBook) {
+  return book.stage === 'store' || book.stage === 'published' || book.status === 'published'
+}
+
 export default function Publisher() {
   const navigate = useNavigate()
   const { user } = useAuthContext()
@@ -128,8 +132,8 @@ export default function Publisher() {
   const [filterSettings, setFilterSettings] = useState<BookFilterSettings>(emptyFilterSettings)
   const comments = getAllComments()
   const totalReaders = books.reduce((sum, b) => sum + b.readers, 0)
-  const inStore = books.filter(b => b.stage === 'store' || b.stage === 'published').length
-  const ready = books.filter(b => b.stage === 'pricing').length
+  const inStore = books.filter(isBookInStore).length
+  const ready = books.filter(book => !isBookInStore(book)).length
   const revenue = books.reduce((sum, b) => sum + b.revenue, 0)
   const isRemoteConfigured = Boolean(user && hasRemoteConfig)
   const listStatusLabel = remoteLoading
@@ -144,9 +148,9 @@ export default function Publisher() {
   const tags = useMemo(() => mergeFilterOptions(uniqueBookValues(books, book => book.tags?.join('|')).flatMap(value => value.split('|')).filter(Boolean), filterSettings.tags), [books, filterSettings.tags])
   const filteredBooks = useMemo(() => {
     const byStage = stageFilter === 'published'
-      ? books.filter(book => book.stage === 'published' || book.stage === 'store' || book.status === 'published')
+      ? books.filter(isBookInStore)
       : stageFilter === 'unpublished'
-        ? books.filter(book => book.stage !== 'published' && book.stage !== 'store' && book.status !== 'published')
+        ? books.filter(book => !isBookInStore(book))
         : books
     const byCategory = filterByValue(byStage, categoryFilter, book => book.category)
     const byType = filterByValue(byCategory, typeFilter, book => normalizeBookType(book.book_type))
