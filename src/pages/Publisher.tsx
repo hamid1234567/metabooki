@@ -77,11 +77,6 @@ function normalizePublisherBook(book: Partial<PublisherBook> & { id?: string }, 
 }
 
 function publisherBookIdentity(book: PublisherBook) {
-  const metadata = (book.metadata || {}) as Record<string, unknown>
-  const importId = typeof metadata.import_project_id === 'string' ? metadata.import_project_id.trim() : ''
-  const checksum = typeof metadata.source_checksum === 'string' ? metadata.source_checksum.trim() : ''
-  if (importId) return `import:${importId}`
-  if (checksum && book.publisher_id) return `checksum:${book.publisher_id}:${checksum}`
   return `id:${book.id}`
 }
 
