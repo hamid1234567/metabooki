@@ -294,6 +294,26 @@ function restoreEditorPageBreaksV2(bookDocument: BookDocumentV2, root: HTMLEleme
   return changed
 }
 
+function selectionTouchesLockedPageBreakV2(root: HTMLElement | null, selection = window.getSelection()) {
+  if (!root || !selection?.rangeCount) return false
+  const pageBreaks = Array.from(root.querySelectorAll<HTMLElement>('[data-locked-page-break="true"], [data-page-break="true"], .editor-v2-flow-page-break'))
+  if (!pageBreaks.length) return false
+  for (let index = 0; index < selection.rangeCount; index += 1) {
+    const range = selection.getRangeAt(index)
+    const container = range.commonAncestorContainer
+    const element = container.nodeType === Node.ELEMENT_NODE ? container as Element : container.parentElement
+    if (element?.closest('[data-locked-page-break="true"], [data-page-break="true"], .editor-v2-flow-page-break')) return true
+    for (const pageBreak of pageBreaks) {
+      try {
+        if (range.intersectsNode(pageBreak)) return true
+      } catch {
+        // Some browser/range combinations can throw on detached nodes.
+      }
+    }
+  }
+  return false
+}
+
 function mergeInlineStyleFromElementV2(element: Element, inherited: BookInlineV2['style'] = {}) {
   const html = element as HTMLElement
   const tag = element.tagName.toLowerCase()
@@ -611,6 +631,7 @@ function editorNodesToBlocksV2(nodes: ChildNode[], page: BookDocumentV2['pages']
 
 function documentFromEditorDomV2(bookDocument: BookDocumentV2, root: HTMLElement | null): BookDocumentV2 {
   if (!root) return bookDocument
+  restoreEditorPageBreaksV2(bookDocument, root)
   const existing = existingBlocksV2(bookDocument)
   const pages = bookDocument.pages.map((page, pageIndex) => {
     const pageElement = root.querySelector<HTMLElement>(`.editor-v2-flow-page[data-page-index="${page.index}"]`) || root.querySelectorAll<HTMLElement>('.editor-v2-flow-page')[pageIndex]
@@ -1465,6 +1486,7 @@ export default function EditorV2Page() {
     if (editorSurfaceRef.current.matches(':focus-within')) return
     if (dirty) return
     editorSurfaceRef.current.innerHTML = documentToEditorHtmlV2(document)
+    restoreEditorPageBreaksV2(document, editorSurfaceRef.current)
   }, [dirty, document])
 
   useEffect(() => {
