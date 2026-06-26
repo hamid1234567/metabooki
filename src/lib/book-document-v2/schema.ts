@@ -26,6 +26,7 @@ export interface BookInlineV2 {
   text: string
   marks?: InlineMarkV2[]
   href?: string
+  imageRefId?: string
   footnoteId?: string
   footnoteText?: string
   referenceAnchor?: string

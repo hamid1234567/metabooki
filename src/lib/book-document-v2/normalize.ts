@@ -35,6 +35,7 @@ export function normalizeInlineV2(inline: unknown): BookInlineV2[] | undefined {
         text: normalizeBookTextV2(item.text),
         marks,
         href: item.href ? String(item.href) : undefined,
+        imageRefId: item.imageRefId ? String(item.imageRefId) : undefined,
         footnoteId: item.footnoteId ? String(item.footnoteId) : undefined,
         footnoteText: item.footnoteText ? normalizeBookTextV2(item.footnoteText) : undefined,
         referenceAnchor: item.referenceAnchor ? String(item.referenceAnchor) : undefined,
@@ -42,7 +43,7 @@ export function normalizeInlineV2(inline: unknown): BookInlineV2[] | undefined {
         style,
       } satisfies BookInlineV2
     })
-    .filter(span => span.text || span.footnoteId || span.referenceText)
+    .filter(span => span.text || span.footnoteId || span.referenceText || span.imageRefId)
   return spans.length ? spans : undefined
 }
 

@@ -164,6 +164,7 @@ function inlineSpansToEditorHtmlV2(inline?: BookInlineV2[], fallback = '') {
     if (marks.includes('strike')) html = `<s>${html}</s>`
     if (span.style) html = `<span${styleAttrFromInlineV2(span.style)}>${html}</span>`
     if (span.href) html = `<a href="${escapeHtmlV2(span.href)}">${html}</a>`
+    if (span.imageRefId) html = `<span class="book-image-reference editor-v2-image-reference" data-image-ref-id="${escapeHtmlV2(span.imageRefId)}">${html}</span>`
     if (span.footnoteText || span.referenceText || span.footnoteId) {
       const noteText = normalizeBookTextV2(span.footnoteText || span.referenceText || '')
       const dir = textDirectionV2(noteText || span.text)
@@ -256,11 +257,11 @@ function blockStyleFromElementV2(element: Element, _old?: BookBlockV2 | null) {
   return Object.keys(style).length ? style : undefined
 }
 
-function inlineFromDomV2(node: Node, marks: BookInlineV2['marks'] = [], href?: string, inheritedStyle: BookInlineV2['style'] = {}): BookInlineV2[] {
+function inlineFromDomV2(node: Node, marks: BookInlineV2['marks'] = [], href?: string, inheritedStyle: BookInlineV2['style'] = {}, imageRefId?: string): BookInlineV2[] {
   if (node.nodeType === Node.TEXT_NODE) {
     const text = normalizeBookTextV2(node.textContent || '')
     const style = Object.keys(inheritedStyle || {}).length ? { ...inheritedStyle } : undefined
-    return text ? [{ text, marks: marks.length ? [...marks] : undefined, href, style }] : []
+    return text ? [{ text, marks: marks.length ? [...marks] : undefined, href, imageRefId, style }] : []
   }
   if (!(node instanceof Element)) return []
   if (node.classList.contains('citation-tooltip')) return []
@@ -282,19 +283,20 @@ function inlineFromDomV2(node: Node, marks: BookInlineV2['marks'] = [], href?: s
   if ((html.style.verticalAlign === 'super' || html.style.verticalAlign === 'sup') && !nextMarks.includes('superscript')) nextMarks.push('superscript')
   if ((html.style.verticalAlign === 'sub' || html.style.verticalAlign === 'subscript') && !nextMarks.includes('subscript')) nextMarks.push('subscript')
   const nextHref = tag === 'a' ? node.getAttribute('href') || href : href
+  const nextImageRefId = (node as HTMLElement).dataset.imageRefId || imageRefId
   const nextStyle = mergeInlineStyleFromElementV2(node, inheritedStyle)
   const footnoteText = normalizeBookTextV2((node as HTMLElement).dataset.footnoteText || '')
   const referenceText = normalizeBookTextV2((node as HTMLElement).dataset.referenceText || '')
   const footnoteId = (node as HTMLElement).dataset.footnoteId
   const referenceAnchor = (node as HTMLElement).dataset.referenceAnchor
-  const children = Array.from(node.childNodes).flatMap(child => inlineFromDomV2(child, nextMarks, nextHref, nextStyle))
-  if (!footnoteText && !referenceText && !footnoteId && !referenceAnchor) return children
+  const children = Array.from(node.childNodes).flatMap(child => inlineFromDomV2(child, nextMarks, nextHref, nextStyle, nextImageRefId))
+  if (!footnoteText && !referenceText && !footnoteId && !referenceAnchor && !nextImageRefId) return children
   if (children.length) {
     return children.map((span, index) => index === 0
-      ? { ...span, footnoteId, footnoteText: footnoteText || undefined, referenceAnchor, referenceText: referenceText || undefined }
+      ? { ...span, imageRefId: nextImageRefId, footnoteId, footnoteText: footnoteText || undefined, referenceAnchor, referenceText: referenceText || undefined }
       : span)
   }
-  return [{ text: footnoteId || referenceAnchor || '', marks: nextMarks.length ? nextMarks : undefined, href: nextHref, style: Object.keys(nextStyle || {}).length ? nextStyle : undefined, footnoteId, footnoteText: footnoteText || undefined, referenceAnchor, referenceText: referenceText || undefined }]
+  return [{ text: footnoteId || referenceAnchor || '', marks: nextMarks.length ? nextMarks : undefined, href: nextHref, imageRefId: nextImageRefId, style: Object.keys(nextStyle || {}).length ? nextStyle : undefined, footnoteId, footnoteText: footnoteText || undefined, referenceAnchor, referenceText: referenceText || undefined }]
 }
 
 function inlineFromElementV2(element: Element) {
