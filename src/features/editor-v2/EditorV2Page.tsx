@@ -1482,13 +1482,11 @@ export default function EditorV2Page() {
         content_updated_at: nextDocument.updatedAt,
       } as Partial<PublisherBook>
       const nextBook = { ...book, ...patch } as MockBook
-      updatePublisherBook(book.id, nextBook as PublisherBook)
       if (isUuid(book.id)) {
-        void (supabase as any).from('books').update(patch).eq('id', book.id).then(({ error }: { error?: unknown }) => {
-          if (error) console.warn('Editor V2 remote sync failed; local save is preserved.', error)
-        }).catch((reason: unknown) => {
-          console.warn('Editor V2 remote sync failed; local save is preserved.', reason)
-        })
+        const { error } = await (supabase as any).from('books').update(patch).eq('id', book.id)
+        if (error) throw error
+      } else {
+        updatePublisherBook(book.id, nextBook as PublisherBook)
       }
       const remainingAnimationMs = 520 - (performance.now() - startedAt)
       if (remainingAnimationMs > 0) {
