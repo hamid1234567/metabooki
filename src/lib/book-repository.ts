@@ -165,16 +165,11 @@ export async function getBook(bookId: string): Promise<MockBook | null> {
 
 export async function getPublisherDraftBooks(userId: string): Promise<MockBook[]> {
   if (!hasSupabase || !userId) return []
-  const ownPublisher = await (supabase as any).from('publisher_profiles').select('id').eq('user_id', userId).maybeSingle()
-  if (ownPublisher.error || !ownPublisher.data?.id) return []
-  const { data, error } = await (supabase as any)
-    .from('books')
-    .select(BOOK_LIST_COLUMNS)
-    .eq('publisher_id', ownPublisher.data.id)
-    .or('status.neq.published,review_status.neq.approved')
-    .order('created_at', { ascending: false })
+  const { data, error } = await (supabase as any).rpc('get_my_publisher_books')
   if (error) return []
-  return (data || []).map((row: Record<string, unknown>) => toBook(row))
+  return (data || [])
+    .filter((row: Record<string, unknown>) => !(row.status === 'published' && row.review_status === 'approved'))
+    .map((row: Record<string, unknown>) => toBook(row))
 }
 
 export async function getUserLibrary(userId: string): Promise<{ books: MockBook[]; progress: Record<string, { currentPage: number; totalPages: number; lastReadAt: string }> }> {
