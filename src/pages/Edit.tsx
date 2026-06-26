@@ -727,6 +727,7 @@ function pagesToHtml(pages: any[] = []) {
 }
 
 type EditorSegment = { key: string; label: string; level?: number; start: number; end: number; startBlock?: number; endBlock?: number; page?: number; tocIndex?: number; isPrelude?: boolean }
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 type ConfirmedTocEntry = { id?: string; title: string; level: number; page?: number; styleId?: string }
 
 function pageIndexForPrintPage(pages: any[] = [], printPage?: number) {
@@ -1191,8 +1192,31 @@ export default function Edit() {
       setAccessError('این کتاب منتشر شده است و امکان ویرایش مستقیم ندارد. اگر هنوز خریداری نشده، ابتدا آن را از صفحه انتشارات از نشر خارج کنید.')
       return
     }
-    setAccessError('')
-  }, [book, localInitial])
+    if (!current || authLoading) return
+    if (!user) {
+      setAccessError('برای ویرایش کتاب باید وارد حساب ناشر شوید.')
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      if (UUID_RE.test(String(current.id || id))) {
+        const ownPublisher = await (supabase as any).from('publisher_profiles').select('id').eq('user_id', user.id).maybeSingle()
+        if (cancelled) return
+        if (ownPublisher.error) {
+          setAccessError(ownPublisher.error.message)
+          return
+        }
+        setAccessError(!ownPublisher.data?.id || ownPublisher.data.id !== current.publisher_id
+          ? 'شما مالک انتشارات این کتاب نیستید و اجازه ویرایش آن را ندارید.'
+          : '')
+        return
+      }
+      setAccessError(user.mockData?.id && current.publisher_id !== user.mockData.id
+        ? 'شما مالک انتشارات این کتاب نیستید و اجازه ویرایش آن را ندارید.'
+        : '')
+    })()
+    return () => { cancelled = true }
+  }, [authLoading, book, id, localInitial, user])
   const filteredBookImages = useMemo(() => {
     const q = mediaSearch.trim().toLowerCase()
     if (!q) return bookImages
