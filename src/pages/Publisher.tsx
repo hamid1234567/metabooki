@@ -27,7 +27,7 @@ const stageMeta = {
 const UUID_RE = /^[0-9a-f-]{36}$/i
 const PUBLISHER_BOOK_LIST_COLUMNS = 'id,title,subtitle,description,cover_url,back_cover_url,preview_pages,price,status,review_status,publisher_id,language,tags,metadata,series_id,series_order,created_at'
 
-function withTimeout<T>(promise: PromiseLike<T>, timeoutMs = 18000, message = 'اتصال به Supabase بیش از حد طول کشید.'): Promise<T> {
+function withTimeout<T>(promise: PromiseLike<T>, timeoutMs = 45000, message = 'اتصال به Supabase بیش از حد طول کشید.'): Promise<T> {
   return Promise.race([
     Promise.resolve(promise),
     new Promise<T>((_, reject) => window.setTimeout(() => reject(new Error(message)), timeoutMs)),
@@ -142,20 +142,21 @@ export default function Publisher() {
       return
     }
     let cancelled = false
-    setBooks([])
+    const localFallback = getPublisherBooks({ includeSeed: false }).map(normalizePublisherBook)
+    if (localFallback.length) setBooks(localFallback)
     setRemoteLoading(true)
     setRemoteLoaded(false)
     setRemoteError('')
     setLocalSyncMessage('')
     ;(async () => {
       try {
-        const ownPublisher = await withTimeout<any>((supabase as any).from('publisher_profiles').select('id').eq('user_id', user.id).maybeSingle())
-        if (ownPublisher.error) throw ownPublisher.error
         let query = (supabase as any).from('books').select(PUBLISHER_BOOK_LIST_COLUMNS).order('created_at', { ascending: false })
         if (!isAdmin) {
+          const ownPublisher = await withTimeout<any>((supabase as any).from('publisher_profiles').select('id').eq('user_id', user.id).maybeSingle())
+          if (ownPublisher.error) throw ownPublisher.error
           if (ownPublisher.data?.id) query = query.eq('publisher_id', ownPublisher.data.id)
           else {
-            if (!cancelled) setBooks([])
+            if (!cancelled && !localFallback.length) setBooks([])
             return
           }
         }
