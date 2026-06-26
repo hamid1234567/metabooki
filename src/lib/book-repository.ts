@@ -5,7 +5,6 @@ import type { MockBook } from '@/lib/mock-data'
 import { documentV2ToLegacyPages, type BookDocumentV2 } from '@/lib/book-document-v2'
 
 const hasSupabase = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_URL.startsWith('http'))
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const BOOK_LIST_COLUMNS = [
   'id',
