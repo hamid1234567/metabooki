@@ -1452,6 +1452,9 @@
   color: #7890ad;
   font-size: 0.72rem;
   font-weight: 900;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
 }
 
 .editor-v2-flow-page-break span {
@@ -1460,6 +1463,7 @@
   border-radius: 999px;
   background: #fff;
   padding: 0.12rem 0.6rem;
+  pointer-events: none;
 }
 
 .editor-v2-paper [contenteditable="true"] {

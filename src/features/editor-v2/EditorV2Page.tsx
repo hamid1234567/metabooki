@@ -1997,6 +1997,16 @@ export default function EditorV2Page() {
     }, 0)
   }, [document, markEditorDirty, pushEditorHistory, rememberEditorSelection, scheduleToolbarDocumentRefresh])
 
+  const handleEditorDrop = useCallback(() => {
+    pushEditorHistory()
+    window.setTimeout(() => {
+      document && restoreEditorPageBreaksV2(document, editorSurfaceRef.current)
+      markEditorDirty()
+      rememberEditorSelection()
+      scheduleToolbarDocumentRefresh()
+    }, 0)
+  }, [document, markEditorDirty, pushEditorHistory, rememberEditorSelection, scheduleToolbarDocumentRefresh])
+
   const applyInlineStyleToSelection = useCallback((style: Partial<CSSStyleDeclaration>) => {
     const keepInlineTargetSelected = (target: HTMLElement) => {
       const nextRange = window.document.createRange()
@@ -2911,6 +2921,7 @@ export default function EditorV2Page() {
               onCopy={handleEditorCopy}
               onCut={handleEditorCut}
               onPaste={handleEditorPaste}
+              onDrop={handleEditorDrop}
               onPointerDown={handleImageResizePointerDown}
               onClick={handleEditorSurfaceClick}
               onInput={handleEditorSurfaceInput}
