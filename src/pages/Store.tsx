@@ -5,9 +5,10 @@ import { BookCover } from '@/components/BookCover'
 import { useI18n } from '@/lib/i18n'
 import { type MockBook } from '@/lib/mock-data'
 import { getPublishedBooks } from '@/lib/book-repository'
-import { BOOK_LIST_PAGE_SIZE, filterByValue, normalizeBookType, pageNumbers, paginate, searchBooks, sortBooks, uniqueBookValues, type BookSortKey } from '@/lib/book-listing'
+import { filterByValue, normalizeBookType, pageNumbers, paginate, searchBooks, sortBooks, uniqueBookValues, type BookSortKey } from '@/lib/book-listing'
 import { loadBookFilterSettings, mergeFilterOptions, type BookFilterSettings, emptyFilterSettings } from '@/lib/filter-settings'
 import { ArrowLeft, BookOpen, ChevronLeft, ChevronRight, Eye, Search, ShoppingCart, Sparkles, Star } from 'lucide-react'
+import { useGridRowsPageSize } from '@/hooks/useGridRowsPageSize'
 
 function BookShowcaseCard({ book, index }: { book: MockBook; index: number }) {
   const isFree = book.price === 0
@@ -72,6 +73,7 @@ export default function Store() {
   const [allBooks, setAllBooks] = useState<MockBook[]>([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
+  const bookGrid = useGridRowsPageSize()
 
   useEffect(() => {
     setLoading(true)
@@ -99,7 +101,7 @@ export default function Store() {
 
   const featuredPool = filtered.length ? filtered : allBooks
   const featuredBook = featuredPool.length ? featuredPool[featuredSeed % featuredPool.length] : undefined
-  const paged = paginate(filtered, page, BOOK_LIST_PAGE_SIZE)
+  const paged = paginate(filtered, page, bookGrid.pageSize)
   const pageCount = paged.pageCount
   const visibleBooks = paged.items
 
@@ -173,13 +175,13 @@ export default function Store() {
         <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="text-2xl font-black font-display">کتاب‌های آماده خواندن</h2>
-            <p className="mt-1 text-sm text-muted-foreground">{filtered.length.toLocaleString('fa-IR')} کتاب؛ نمایش {paged.start.toLocaleString('fa-IR')} تا {paged.end.toLocaleString('fa-IR')} در صفحه ۵۰تایی</p>
+            <p className="mt-1 text-sm text-muted-foreground">{filtered.length.toLocaleString('fa-IR')} کتاب؛ نمایش {paged.start.toLocaleString('fa-IR')} تا {paged.end.toLocaleString('fa-IR')} در هر صفحه، حداکثر ۱۵ ردیف</p>
           </div>
           <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground"><Eye className="w-4 h-4" /> روی جلدها حرکت کنید</div>
         </div>
 
         {loading ? (
-          <div className="store-book-grid">{Array.from({ length: 12 }).map((_, index) => <div key={index} className="aspect-[3/5] animate-pulse rounded-xl bg-muted/70" />)}</div>
+          <div ref={bookGrid.gridRef} className="store-book-grid">{Array.from({ length: Math.min(bookGrid.pageSize, 15) }).map((_, index) => <div key={index} className="aspect-[3/5] animate-pulse rounded-xl bg-muted/70" />)}</div>
         ) : filtered.length === 0 ? (
           <div className="menu-glass-70 rounded-3xl py-20 text-center">
             <BookOpen className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
@@ -187,7 +189,7 @@ export default function Store() {
           </div>
         ) : (
           <>
-            <div className="store-book-grid">{visibleBooks.map((book, index) => <BookShowcaseCard key={book.id} book={book} index={index} />)}</div>
+            <div ref={bookGrid.gridRef} className="store-book-grid">{visibleBooks.map((book, index) => <BookShowcaseCard key={book.id} book={book} index={index} />)}</div>
             {pageCount > 1 && (
               <div className="book-pagination">
                 <Button variant="outline" size="icon" onClick={() => setPage(current => Math.max(1, current - 1))} disabled={page === 1} title="صفحه قبل"><ChevronRight className="h-4 w-4" /></Button>

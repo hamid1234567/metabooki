@@ -1,6 +1,7 @@
 import type { MockBook } from '@/lib/mock-data'
 
-export const BOOK_LIST_PAGE_SIZE = 50
+export const BOOK_LIST_MAX_ROWS = 15
+export const BOOK_LIST_PAGE_SIZE = BOOK_LIST_MAX_ROWS
 
 export type BookSortKey =
   | 'newest'

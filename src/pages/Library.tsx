@@ -6,11 +6,12 @@ import { useAuthContext } from '@/lib/auth-context'
 import { useI18n } from '@/lib/i18n'
 import { getAllReadingProgress, getMockLibraryEntries } from '@/lib/mock-library'
 import type { MockBook } from '@/lib/mock-data'
-import { BOOK_LIST_PAGE_SIZE, filterByValue, normalizeBookType, pageNumbers, paginate, searchBooks, sortBooks, uniqueBookValues, type BookSortKey } from '@/lib/book-listing'
+import { filterByValue, normalizeBookType, pageNumbers, paginate, searchBooks, sortBooks, uniqueBookValues, type BookSortKey } from '@/lib/book-listing'
 import { emptyFilterSettings, loadBookFilterSettings, mergeFilterOptions, type BookFilterSettings } from '@/lib/filter-settings'
 import { resolveBookCoverArt } from '@/lib/ai-image-prompts'
 import { ArrowLeft, BookOpen, CheckCircle, ChevronLeft, ChevronRight, Clock, PlayCircle, Search, ShoppingCart, Sparkles } from 'lucide-react'
 import { getPublishedBooks, getPublisherDraftBooks, getUserLibrary } from '@/lib/book-repository'
+import { useGridRowsPageSize } from '@/hooks/useGridRowsPageSize'
 
 type ProgressMap = Record<string, { currentPage: number; totalPages: number; lastReadAt: string }>
 type ShelfItem = { book: MockBook; isPurchased: boolean }
@@ -85,6 +86,8 @@ export default function Library() {
   const [sort, setSort] = useState<BookSortKey>('newest')
   const [page, setPage] = useState(1)
   const [filterSettings, setFilterSettings] = useState<BookFilterSettings>(emptyFilterSettings)
+  const shelfGrid = useGridRowsPageSize()
+  const publisherDraftGrid = useGridRowsPageSize()
 
   useEffect(() => {
     setLoading(true)
@@ -146,8 +149,8 @@ export default function Library() {
   const ids = new Set(searched.map(book => book.id))
   const sortedBooks = sortBooks(byTag.filter(item => ids.has(item.book.id)).map(item => item.book), sort)
   const filteredItems = sortedBooks.map(book => byTag.find(item => item.book.id === book.id)!).filter(Boolean)
-  const paged = paginate(filteredItems, page, BOOK_LIST_PAGE_SIZE)
-  const publisherDraftPaged = paginate(publisherDraftBooks, publisherDraftPage, BOOK_LIST_PAGE_SIZE)
+  const paged = paginate(filteredItems, page, shelfGrid.pageSize)
+  const publisherDraftPaged = paginate(publisherDraftBooks, publisherDraftPage, publisherDraftGrid.pageSize)
 
   useEffect(() => setPage(1), [categoryFilter, ownershipFilter, search, sort, tagFilter, typeFilter])
   useEffect(() => setPublisherDraftPage(1), [publisherDraftBooks.length])
@@ -197,7 +200,7 @@ export default function Library() {
             </div>
             <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700">{publisherDraftBooks.length.toLocaleString('fa-IR')} عنوان منتشرنشده</span>
           </div>
-          <div className="library-book-grid">
+          <div ref={publisherDraftGrid.gridRef} className="library-book-grid">
             {publisherDraftPaged.items.map((book, index) => (
               <article key={`publisher-draft-${book.id}`} className="shelf-card group" style={{ animationDelay: `${Math.min(index, 8) * 45}ms` }}>
                 <Link to={`/b/${book.id}`} className="shelf-cover">
@@ -236,7 +239,7 @@ export default function Library() {
       </section>
 
       {loading ? (
-        <div className="library-book-grid">{Array.from({ length: 8 }).map((_, index) => <div key={index} className="h-64 animate-pulse rounded-2xl bg-muted/70" />)}</div>
+        <div ref={shelfGrid.gridRef} className="library-book-grid">{Array.from({ length: Math.min(shelfGrid.pageSize, 15) }).map((_, index) => <div key={index} className="h-64 animate-pulse rounded-2xl bg-muted/70" />)}</div>
       ) : filteredItems.length === 0 ? (
         <div className="menu-glass-70 rounded-3xl p-12 text-center">
           <BookOpen className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
@@ -250,7 +253,7 @@ export default function Library() {
             <h2 className="text-2xl font-black font-display flex items-center gap-2"><CheckCircle className="w-5 h-5 text-success" /> قفسه من</h2>
             <span className="text-sm text-muted-foreground">{filteredItems.length.toLocaleString('fa-IR')} کتاب؛ نمایش {paged.start.toLocaleString('fa-IR')} تا {paged.end.toLocaleString('fa-IR')}</span>
           </div>
-          <div className="library-book-grid">{paged.items.map((item, index) => <ShelfBookCard key={`${item.book.id}-${item.isPurchased ? 'owned' : 'free'}`} book={item.book} isPurchased={item.isPurchased} progress={progress[item.book.id]} index={index} />)}</div>
+          <div ref={shelfGrid.gridRef} className="library-book-grid">{paged.items.map((item, index) => <ShelfBookCard key={`${item.book.id}-${item.isPurchased ? 'owned' : 'free'}`} book={item.book} isPurchased={item.isPurchased} progress={progress[item.book.id]} index={index} />)}</div>
           {paged.pageCount > 1 && (
             <div className="book-pagination">
               <Button variant="outline" size="icon" onClick={() => setPage(current => Math.max(1, current - 1))} disabled={paged.page === 1}><ChevronRight className="w-4 h-4" /></Button>

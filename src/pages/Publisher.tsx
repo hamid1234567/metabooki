@@ -9,7 +9,7 @@ import metabookiMark from '@/assets/metabooki-mark.png'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { useAuthContext } from '@/lib/auth-context'
-import { BOOK_LIST_PAGE_SIZE, filterByValue, normalizeBookType, pageNumbers, paginate, searchBooks, sortBooks, uniqueBookValues, type BookSortKey } from '@/lib/book-listing'
+import { BOOK_LIST_MAX_ROWS, filterByValue, normalizeBookType, pageNumbers, paginate, searchBooks, sortBooks, uniqueBookValues, type BookSortKey } from '@/lib/book-listing'
 import { emptyFilterSettings, loadBookFilterSettings, mergeFilterOptions, type BookFilterSettings } from '@/lib/filter-settings'
 import { resolveBookCoverArt } from '@/lib/ai-image-prompts'
 import { openReaderPreview, readerUrl } from '@/lib/app-routes'
@@ -152,7 +152,7 @@ export default function Publisher() {
     const byTag = tagFilter === 'all' ? byType : byType.filter(book => book.tags?.includes(tagFilter))
     return sortBooks(searchBooks(byTag, search), sort)
   }, [books, categoryFilter, search, sort, stageFilter, tagFilter, typeFilter])
-  const pagedBooks = paginate(filteredBooks, page, BOOK_LIST_PAGE_SIZE)
+  const pagedBooks = paginate(filteredBooks, page, BOOK_LIST_MAX_ROWS)
 
   useEffect(() => setPage(1), [categoryFilter, search, sort, stageFilter, tagFilter, typeFilter])
   useEffect(() => {
@@ -437,7 +437,7 @@ export default function Publisher() {
         </div>
 
         <div className="text-sm text-muted-foreground">
-          {filteredBooks.length.toLocaleString('fa-IR')} کتاب مطابق فیلترها؛ نمایش {pagedBooks.start.toLocaleString('fa-IR')} تا {pagedBooks.end.toLocaleString('fa-IR')} در صفحه ۵۰تایی
+          {filteredBooks.length.toLocaleString('fa-IR')} کتاب مطابق فیلترها؛ نمایش {pagedBooks.start.toLocaleString('fa-IR')} تا {pagedBooks.end.toLocaleString('fa-IR')} در هر صفحه، حداکثر ۱۵ ردیف
         </div>
 
         {pagedBooks.items.map(book => {
