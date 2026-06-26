@@ -82,6 +82,19 @@ function imageFigureStyleAttrV2(width: string) {
   return declarations.length ? ` style="${declarations.join(';')}"` : ''
 }
 
+function normalizeCaptionElementV2(caption: HTMLElement | null | undefined) {
+  if (!caption) return
+  caption.dataset.imageCaption = 'true'
+  if (!caption.dataset.placeholder) caption.dataset.placeholder = 'کپشن تصویر را اینجا بنویسید'
+  const text = normalizeBookTextV2(caption.innerText || caption.textContent || '')
+  if (text) {
+    caption.dataset.captionEmpty = 'false'
+    return
+  }
+  caption.innerHTML = ''
+  caption.dataset.captionEmpty = 'true'
+}
+
 const FONT_SIZE_MAP_V2: Record<string, string> = {
   '1': '0.72rem',
   '2': '0.86rem',
@@ -460,9 +473,10 @@ function elementToBlockV2(element: Element, page: BookDocumentV2['pages'][number
   }
   if (tag === 'figure') {
     const image = element.querySelector('img')
-    const captionElement = element.querySelector('figcaption')
+    const captionElement = element.querySelector<HTMLElement>('figcaption[data-image-caption], figcaption')
+    normalizeCaptionElementV2(captionElement)
     const captionInline = captionElement ? inlineFromElementV2(captionElement) : undefined
-    const caption = captionElement ? textFromElementV2(captionElement) : textFromElementV2(element)
+    const caption = captionElement ? textFromElementV2(captionElement) : ''
     return {
       ...(old && old.type === 'image' ? old : {}),
       id,
@@ -1741,6 +1755,7 @@ export default function EditorV2Page() {
 
   const handleEditorSurfaceInput = useCallback((event: any) => {
     const target = event.target as HTMLElement
+    normalizeCaptionElementV2(target.closest<HTMLElement>('figcaption[data-image-caption], figcaption'))
     const sizeInput = target.closest<HTMLInputElement>('input[data-image-size-range="true"]')
     if (sizeInput) {
       const figure = sizeInput.closest<HTMLElement>('figure[data-v2-type="image"][data-block-id]')

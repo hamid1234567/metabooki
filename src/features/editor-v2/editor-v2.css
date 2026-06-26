@@ -1429,11 +1429,13 @@
   justify-self: center;
 }
 
-.editor-v2-flow-editor figure[data-v2-type="image"] figcaption:empty::before {
+.editor-v2-flow-editor figure[data-v2-type="image"] figcaption:empty::before,
+.editor-v2-flow-editor figure[data-v2-type="image"] figcaption[data-caption-empty="true"]::before {
   content: attr(data-placeholder);
   color: #3b82f6;
   font-style: italic;
   opacity: 0.78;
+  pointer-events: none;
 }
 
 .editor-v2-flow-editor figure[data-v2-type="image"] figcaption:focus {
