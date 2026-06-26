@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { AlignCenter, AlignJustify, AlignLeft, AlignRight, AlertTriangle, ArrowLeft, ArrowRight, Bold, BookOpen, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Eraser, Eye, FileText, Image as ImageIcon, Info, Italic, Link2, List, ListOrdered, ListTree, Loader2, PanelRight, Redo2, Save, Search, Sparkles, Strikethrough, Subscript, Superscript, Table2, Type, Underline as UnderlineIcon, Undo2, Upload, Wand2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { getBook } from '@/lib/book-repository'
-import { updatePublisherBook, type PublisherBook } from '@/lib/publisher-books'
+import { notifyPublisherBookChanged, updatePublisherBook, type PublisherBook } from '@/lib/publisher-books'
 import { openReaderPreview } from '@/lib/app-routes'
 import { supabase } from '@/integrations/supabase/client'
 import { estimateAiTextUsage, generateAiImageThroughGateway, runAiThroughGateway, type RunAiResult } from '@/lib/ai-gateway'
@@ -1490,6 +1490,7 @@ export default function EditorV2Page() {
       } else {
         updatePublisherBook(book.id, nextBook as PublisherBook)
       }
+      notifyPublisherBookChanged(book.id)
       const remainingAnimationMs = 520 - (performance.now() - startedAt)
       if (remainingAnimationMs > 0) {
         await new Promise(resolve => window.setTimeout(resolve, remainingAnimationMs))
