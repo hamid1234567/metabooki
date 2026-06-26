@@ -1,9 +1,9 @@
 ﻿import { useState, type CSSProperties, type ElementType, type FormEvent, type HTMLAttributes, type MouseEvent, type ReactNode } from 'react'
-import { InlineTextV2 } from '@/components/book-content-v2/InlineTextV2'
+import { BookPlainTextV2, InlineTextV2 } from '@/components/book-content-v2/InlineTextV2'
 import { PageBreakV2 } from '@/components/book-content-v2/PageBreakV2'
 import { CalloutBlockV2 } from '@/components/book-content-v2/CalloutBlockV2'
 import { InteractiveBlockV2 } from '@/components/book-content-v2/InteractiveBlockV2'
-import { cleanImageCaptionV2, normalizeBookTextV2, textDirectionV2, type BookBlockV2, type BookDocumentV2, type BookPageV2 } from '@/lib/book-document-v2'
+import { cleanImageCaptionV2, textDirectionV2, type BookBlockV2, type BookDocumentV2, type BookPageV2 } from '@/lib/book-document-v2'
 import './book-content-v2.css'
 
 type TextEditableBlockV2 = Extract<BookBlockV2, { type: 'heading' | 'paragraph' }>
@@ -108,7 +108,7 @@ export function renderBookBlockV2(block: BookBlockV2, renderChildren: (blocks: B
       <figure key={block.id} id={block.anchor || block.id} className={`book-v2-figure${selectedClass(block, options)}`} data-block-id={block.id} style={figureStyle}>
         {block.url ? <img src={block.url} alt={cleanCaption} loading="lazy" /> : <div className="book-v2-missing-image">تصویر در دسترس نیست</div>}
         {cleanCaption && <figcaption><InlineTextV2 inline={block.captionInline} fallback={cleanCaption} /></figcaption>}
-        {block.issue && <small>{normalizeBookTextV2(block.issue)}</small>}
+        {block.issue && <small><BookPlainTextV2 text={block.issue} /></small>}
       </figure>
     )
   }
@@ -117,10 +117,10 @@ export function renderBookBlockV2(block: BookBlockV2, renderChildren: (blocks: B
     const { headers, bodyRows } = tableRows(block)
     return (
       <div key={block.id} id={block.anchor || block.id} className={`final-table book-v2-table${selectedClass(block, options)}`} data-block-id={block.id}>
-        {block.caption && <p className="reader-table-title">{normalizeBookTextV2(block.caption)}</p>}
+        {block.caption && <p className="reader-table-title"><BookPlainTextV2 text={block.caption} /></p>}
         <table>
-          {headers.length > 0 && <thead><tr>{headers.map((cell, index) => <th key={index}>{normalizeBookTextV2(cell)}</th>)}</tr></thead>}
-          <tbody>{bodyRows.map((row, rowIndex) => <tr key={rowIndex}>{row.map((cell, cellIndex) => <td key={cellIndex}>{normalizeBookTextV2(cell)}</td>)}</tr>)}</tbody>
+          {headers.length > 0 && <thead><tr>{headers.map((cell, index) => <th key={index}><BookPlainTextV2 text={cell} /></th>)}</tr></thead>}
+          <tbody>{bodyRows.map((row, rowIndex) => <tr key={rowIndex}>{row.map((cell, cellIndex) => <td key={cellIndex}><BookPlainTextV2 text={cell} /></td>)}</tr>)}</tbody>
         </table>
       </div>
     )
@@ -136,7 +136,7 @@ export function renderBookBlockV2(block: BookBlockV2, renderChildren: (blocks: B
   }
 
   if (block.type === 'math') {
-    return <p key={block.id} id={block.anchor || block.id} className={`book-v2-math${selectedClass(block, options)}`} data-block-id={block.id}>{normalizeBookTextV2(block.expression)}</p>
+    return <p key={block.id} id={block.anchor || block.id} className={`book-v2-math${selectedClass(block, options)}`} data-block-id={block.id}><BookPlainTextV2 text={block.expression} /></p>
   }
 
   if (block.type === 'callout') {
