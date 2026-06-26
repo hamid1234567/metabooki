@@ -1835,6 +1835,7 @@ export default function EditorV2Page() {
 
   const handleEditorSurfaceInput = useCallback((event: any) => {
     const target = event.target as HTMLElement
+    document && restoreEditorPageBreaksV2(document, editorSurfaceRef.current)
     normalizeCaptionElementV2(target.closest<HTMLElement>('figcaption[data-image-caption], figcaption'))
     const sizeInput = target.closest<HTMLInputElement>('input[data-image-size-range="true"]')
     if (sizeInput) {
@@ -1859,7 +1860,7 @@ export default function EditorV2Page() {
       return
     }
     markEditorDirty()
-  }, [markEditorDirty, pushEditorHistory, scheduleToolbarDocumentRefresh])
+  }, [document, markEditorDirty, pushEditorHistory, scheduleToolbarDocumentRefresh])
 
   const restoreEditorHtmlSnapshot = useCallback((html: string) => {
     if (!editorSurfaceRef.current) return
@@ -1885,14 +1886,23 @@ export default function EditorV2Page() {
     restoreEditorHtmlSnapshot(nextHtml)
   }, [restoreEditorHtmlSnapshot])
 
-  const handleEditorBeforeInput = useCallback(() => {
+  const handleEditorBeforeInput = useCallback((event: any) => {
+    if (selectionTouchesLockedPageBreakV2(editorSurfaceRef.current)) {
+      event.preventDefault()
+      document && restoreEditorPageBreaksV2(document, editorSurfaceRef.current)
+      return
+    }
     pushEditorHistory()
-  }, [pushEditorHistory])
+  }, [document, pushEditorHistory])
 
   const cutEditorSelection = useCallback(async () => {
     const root = editorSurfaceRef.current
     const selection = window.getSelection()
     if (!root || !selection?.rangeCount || selection.isCollapsed) return false
+    if (selectionTouchesLockedPageBreakV2(root, selection)) {
+      document && restoreEditorPageBreaksV2(document, root)
+      return false
+    }
     const range = selection.getRangeAt(0)
     const container = range.commonAncestorContainer
     if (!root.contains(container.nodeType === Node.ELEMENT_NODE ? container as Node : container.parentElement)) return false
@@ -1922,7 +1932,7 @@ export default function EditorV2Page() {
     rememberEditorSelection()
     scheduleToolbarDocumentRefresh()
     return true
-  }, [markEditorDirty, pushEditorHistory, rememberEditorSelection, scheduleToolbarDocumentRefresh])
+  }, [document, markEditorDirty, pushEditorHistory, rememberEditorSelection, scheduleToolbarDocumentRefresh])
 
   const handleEditorKeyDown = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
     const key = event.key.toLowerCase()
@@ -1931,6 +1941,12 @@ export default function EditorV2Page() {
     const isUndo = isModifierShortcut && (key === 'z' || code === 'KeyZ') && !event.shiftKey
     const isRedo = isModifierShortcut && (key === 'y' || code === 'KeyY' || ((key === 'z' || code === 'KeyZ') && event.shiftKey))
     const isCut = isModifierShortcut && (key === 'x' || code === 'KeyX')
+    const isDeleteCommand = key === 'backspace' || key === 'delete'
+    if (isDeleteCommand && selectionTouchesLockedPageBreakV2(editorSurfaceRef.current)) {
+      event.preventDefault()
+      document && restoreEditorPageBreaksV2(document, editorSurfaceRef.current)
+      return
+    }
     if (isUndo) {
       event.preventDefault()
       undoEditorChange()
@@ -1945,29 +1961,41 @@ export default function EditorV2Page() {
       event.preventDefault()
       void cutEditorSelection()
     }
-  }, [cutEditorSelection, redoEditorChange, undoEditorChange])
+  }, [cutEditorSelection, document, redoEditorChange, undoEditorChange])
 
   const handleEditorCopy = useCallback((_event: ReactClipboardEvent<HTMLDivElement>) => {
     rememberEditorSelection()
   }, [rememberEditorSelection])
 
-  const handleEditorCut = useCallback((_event: ReactClipboardEvent<HTMLDivElement>) => {
+  const handleEditorCut = useCallback((event: ReactClipboardEvent<HTMLDivElement>) => {
+    if (selectionTouchesLockedPageBreakV2(editorSurfaceRef.current)) {
+      event.preventDefault()
+      document && restoreEditorPageBreaksV2(document, editorSurfaceRef.current)
+      return
+    }
     pushEditorHistory()
     window.setTimeout(() => {
+      document && restoreEditorPageBreaksV2(document, editorSurfaceRef.current)
       markEditorDirty()
       rememberEditorSelection()
       scheduleToolbarDocumentRefresh()
     }, 0)
-  }, [markEditorDirty, pushEditorHistory, rememberEditorSelection, scheduleToolbarDocumentRefresh])
+  }, [document, markEditorDirty, pushEditorHistory, rememberEditorSelection, scheduleToolbarDocumentRefresh])
 
-  const handleEditorPaste = useCallback((_event: ReactClipboardEvent<HTMLDivElement>) => {
+  const handleEditorPaste = useCallback((event: ReactClipboardEvent<HTMLDivElement>) => {
+    if (selectionTouchesLockedPageBreakV2(editorSurfaceRef.current)) {
+      event.preventDefault()
+      document && restoreEditorPageBreaksV2(document, editorSurfaceRef.current)
+      return
+    }
     pushEditorHistory()
     window.setTimeout(() => {
+      document && restoreEditorPageBreaksV2(document, editorSurfaceRef.current)
       markEditorDirty()
       rememberEditorSelection()
       scheduleToolbarDocumentRefresh()
     }, 0)
-  }, [markEditorDirty, pushEditorHistory, rememberEditorSelection, scheduleToolbarDocumentRefresh])
+  }, [document, markEditorDirty, pushEditorHistory, rememberEditorSelection, scheduleToolbarDocumentRefresh])
 
   const applyInlineStyleToSelection = useCallback((style: Partial<CSSStyleDeclaration>) => {
     const keepInlineTargetSelected = (target: HTMLElement) => {
