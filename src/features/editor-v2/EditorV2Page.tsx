@@ -232,10 +232,66 @@ function blockToEditorHtmlV2(block: BookBlockV2): string {
 function documentToEditorHtmlV2(bookDocument: BookDocumentV2) {
   return bookDocument.pages.map((page, index) => {
     const pageBreak = index > 0
-      ? `<div contenteditable="false" class="editor-v2-flow-page-break" data-page-break="true"><span>${escapeHtmlV2(String(page.printNumber ?? index + 1))}</span></div>`
+      ? pageBreakHtmlV2(page, index)
       : ''
     return `<section class="editor-v2-flow-page" data-page-index="${page.index}"${attrV2('data-print-page', page.printNumber)}>${pageBreak}${page.blocks.map(blockToEditorHtmlV2).join('')}</section>`
   }).join('')
+}
+
+function pageBreakHtmlV2(page: BookDocumentV2['pages'][number], index: number) {
+  const label = String(page.printNumber ?? index + 1)
+  return `<div contenteditable="false" draggable="false" role="separator" aria-label="صفحه چاپی ${escapeHtmlV2(label)}" class="editor-v2-flow-page-break" data-page-break="true" data-locked-page-break="true"><span contenteditable="false">${escapeHtmlV2(label)}</span></div>`
+}
+
+function createPageBreakElementV2(page: BookDocumentV2['pages'][number], index: number) {
+  const template = window.document.createElement('template')
+  template.innerHTML = pageBreakHtmlV2(page, index)
+  return template.content.firstElementChild as HTMLElement
+}
+
+function normalizePageBreakElementV2(element: HTMLElement, page: BookDocumentV2['pages'][number], index: number) {
+  const label = String(page.printNumber ?? index + 1)
+  element.className = 'editor-v2-flow-page-break'
+  element.dataset.pageBreak = 'true'
+  element.dataset.lockedPageBreak = 'true'
+  element.contentEditable = 'false'
+  element.draggable = false
+  element.setAttribute('role', 'separator')
+  element.setAttribute('aria-label', `صفحه چاپی ${label}`)
+  let span = element.querySelector('span')
+  if (!span) {
+    span = window.document.createElement('span')
+    element.innerHTML = ''
+    element.appendChild(span)
+  }
+  span.contentEditable = 'false'
+  span.textContent = label
+}
+
+function restoreEditorPageBreaksV2(bookDocument: BookDocumentV2, root: HTMLElement | null) {
+  if (!root) return false
+  let changed = false
+  bookDocument.pages.forEach((page, pageIndex) => {
+    const pageElement = root.querySelector<HTMLElement>(`.editor-v2-flow-page[data-page-index="${page.index}"]`) || root.querySelectorAll<HTMLElement>('.editor-v2-flow-page')[pageIndex]
+    if (!pageElement || pageIndex === 0) return
+    const pageBreaks = Array.from(pageElement.querySelectorAll<HTMLElement>(':scope > [data-page-break="true"], :scope > .editor-v2-flow-page-break'))
+    let pageBreak = pageBreaks[0]
+    if (!pageBreak) {
+      pageBreak = createPageBreakElementV2(page, pageIndex)
+      pageElement.insertBefore(pageBreak, pageElement.firstChild)
+      changed = true
+    }
+    normalizePageBreakElementV2(pageBreak, page, pageIndex)
+    if (pageElement.firstElementChild !== pageBreak) {
+      pageElement.insertBefore(pageBreak, pageElement.firstChild)
+      changed = true
+    }
+    pageBreaks.slice(1).forEach(extra => {
+      extra.remove()
+      changed = true
+    })
+  })
+  return changed
 }
 
 function mergeInlineStyleFromElementV2(element: Element, inherited: BookInlineV2['style'] = {}) {
