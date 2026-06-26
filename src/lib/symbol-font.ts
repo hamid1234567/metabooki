@@ -195,3 +195,7 @@ export function symbolFontCodeToUnicode(codePoint: number) {
 export function normalizeSymbolFontText(value = '') {
   return String(value).replace(/[\uf020-\uf0ff]/g, char => symbolFontCodeToUnicode(char.codePointAt(0) || 0))
 }
+
+export function symbolFontTextToUnicode(value = '') {
+  return Array.from(String(value), char => symbolFontCodeToUnicode(char.codePointAt(0) || 0)).join('')
+}

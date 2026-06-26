@@ -4,7 +4,7 @@ import { XMLParser } from 'fast-xml-parser'
 import UTIF from 'utif'
 import { convertEmfToDataUrl, convertWmfToDataUrl } from 'emf-converter'
 import { BOOK_CONTENT_ZWNJ, formatPrintNumber, normalizeBookText, printPageLabel } from '@/lib/book-content'
-import { symbolFontCodeToUnicode } from '@/lib/symbol-font'
+import { symbolFontCodeToUnicode, symbolFontTextToUnicode } from '@/lib/symbol-font'
 import type { ImportFootnote, ImportImage, ImportInlineSpan, ImportIssue, ImportPage, ImportParagraph, TocEntry, WordImportAnalysis, WordStyleDefinition } from '@/lib/word-import-types'
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope
@@ -296,6 +296,21 @@ function wordSymbolText(node: unknown) {
   return String.fromCodePoint(codePoint)
 }
 
+function runUsesSymbolFont(run: unknown) {
+  const attrs = findElementAttributes(run, 'w:rFonts')[0]
+  if (!attrs) return false
+  return [
+    '@_w:ascii',
+    '@_ascii',
+    '@_w:hAnsi',
+    '@_hAnsi',
+    '@_w:cs',
+    '@_cs',
+    '@_w:eastAsia',
+    '@_eastAsia',
+  ].some(key => /symbol/i.test(String(attrs[key] || '')))
+}
+
 function hasPageBreak(node: unknown) {
   return findElementAttributes(node, 'w:br').some(attrs => attrs['@_w:type'] === 'page' || attrs['@_type'] === 'page')
     || deepFind(node, 'w:lastRenderedPageBreak').length > 0
@@ -359,6 +374,7 @@ function parseInline(node: unknown, hyperlinks: Map<string, string>, inheritedHr
       if (hasPageBreak(run)) pendingPageBreak = true
       const vertical = String(elementAttribute(run, 'w:vertAlign', '@_w:val') || '')
       const runHref = href
+      const symbolRun = runUsesSymbolFont(run)
       const textParts: string[] = []
       const footnoteId = String(elementAttribute(run, 'w:footnoteReference', '@_w:id', '@_id') || '')
       const collectVisible = (part: unknown) => {
@@ -368,7 +384,10 @@ function parseInline(node: unknown, hyperlinks: Map<string, string>, inheritedHr
         if ('w:instrText' in item || 'w:fldChar' in item || 'w:delText' in item) return
         for (const [key, child] of Object.entries(item)) {
           if (key === ':@') continue
-          if (key === 'w:t') textParts.push(collectText(child))
+          if (key === 'w:t') {
+            const text = collectText(child)
+            textParts.push(symbolRun ? symbolFontTextToUnicode(text) : text)
+          }
           else if (key === 'w:softHyphen') textParts.push(BOOK_CONTENT_ZWNJ)
           else if (key === 'w:sym') textParts.push(wordSymbolText({ [key]: child, ':@': item[':@'] }))
           else if (key === 'w:tab') textParts.push(' ')
