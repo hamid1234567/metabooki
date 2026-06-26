@@ -143,7 +143,7 @@ export async function getPopularBookIds(): Promise<string[]> {
 }
 
 export async function getBook(bookId: string): Promise<MockBook | null> {
-  if (hasSupabase && UUID_RE.test(bookId)) {
+  if (hasSupabase) {
     const { data, error } = await supabase.from('books').select('*').eq('id', bookId).maybeSingle()
     if (data) return toBook(data as unknown as Record<string, unknown>)
     if (error) throw error
