@@ -74,6 +74,7 @@ export default function Library() {
   const [libraryBooks, setLibraryBooks] = useState<MockBook[]>([])
   const [freeBooks, setFreeBooks] = useState<MockBook[]>([])
   const [publisherDraftBooks, setPublisherDraftBooks] = useState<MockBook[]>([])
+  const [publisherDraftPage, setPublisherDraftPage] = useState(1)
   const [progress, setProgress] = useState<ProgressMap>({})
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -146,11 +147,16 @@ export default function Library() {
   const sortedBooks = sortBooks(byTag.filter(item => ids.has(item.book.id)).map(item => item.book), sort)
   const filteredItems = sortedBooks.map(book => byTag.find(item => item.book.id === book.id)!).filter(Boolean)
   const paged = paginate(filteredItems, page, BOOK_LIST_PAGE_SIZE)
+  const publisherDraftPaged = paginate(publisherDraftBooks, publisherDraftPage, BOOK_LIST_PAGE_SIZE)
 
   useEffect(() => setPage(1), [categoryFilter, ownershipFilter, search, sort, tagFilter, typeFilter])
+  useEffect(() => setPublisherDraftPage(1), [publisherDraftBooks.length])
   useEffect(() => {
     if (page > paged.pageCount) setPage(paged.pageCount)
   }, [page, paged.pageCount])
+  useEffect(() => {
+    if (publisherDraftPage > publisherDraftPaged.pageCount) setPublisherDraftPage(publisherDraftPaged.pageCount)
+  }, [publisherDraftPage, publisherDraftPaged.pageCount])
 
   if (!user) {
     return (
@@ -192,7 +198,7 @@ export default function Library() {
             <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700">{publisherDraftBooks.length.toLocaleString('fa-IR')} عنوان منتشرنشده</span>
           </div>
           <div className="library-book-grid">
-            {publisherDraftBooks.slice(0, 12).map((book, index) => (
+            {publisherDraftPaged.items.map((book, index) => (
               <article key={`publisher-draft-${book.id}`} className="shelf-card group" style={{ animationDelay: `${Math.min(index, 8) * 45}ms` }}>
                 <Link to={`/b/${book.id}`} className="shelf-cover">
                   <BookCover src={book.cover_url} title={book.title} category={book.category} loading={index < 6 ? 'eager' : 'lazy'} />
@@ -210,6 +216,13 @@ export default function Library() {
               </article>
             ))}
           </div>
+          {publisherDraftPaged.pageCount > 1 && (
+            <div className="book-pagination">
+              <Button variant="outline" size="icon" onClick={() => setPublisherDraftPage(current => Math.max(1, current - 1))} disabled={publisherDraftPaged.page === 1}><ChevronRight className="w-4 h-4" /></Button>
+              {pageNumbers(publisherDraftPaged.page, publisherDraftPaged.pageCount).map(number => <Button key={number} variant={publisherDraftPaged.page === number ? 'default' : 'outline'} size="icon" onClick={() => setPublisherDraftPage(number)}>{number.toLocaleString('fa-IR')}</Button>)}
+              <Button variant="outline" size="icon" onClick={() => setPublisherDraftPage(current => Math.min(publisherDraftPaged.pageCount, current + 1))} disabled={publisherDraftPaged.page === publisherDraftPaged.pageCount}><ChevronLeft className="w-4 h-4" /></Button>
+            </div>
+          )}
         </section>
       )}
 
