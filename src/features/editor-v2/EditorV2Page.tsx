@@ -76,14 +76,9 @@ const attrV2 = (name: string, value: unknown) => value === undefined || value ==
 
 function imageFigureStyleAttrV2(width: string) {
   const declarations = [
-    width ? `max-width:${escapeHtmlV2(width)}` : '',
+    width ? `--editor-v2-image-width:${escapeHtmlV2(width)}` : '',
   ].filter(Boolean)
   return declarations.length ? ` style="${declarations.join(';')}"` : ''
-}
-
-function normalizeImageWrapV2(value?: string | null): 'square-inline' | 'top-bottom' {
-  if (value === 'square-inline' || value === 'tight-inline') return 'square-inline'
-  return 'top-bottom'
 }
 
 const FONT_SIZE_MAP_V2: Record<string, string> = {
@@ -197,8 +192,7 @@ function blockToEditorHtmlV2(block: BookBlockV2): string {
     const width = block.widthPercent ? `${Math.max(12, Math.min(100, block.widthPercent))}%` : block.widthPx ? `${Math.max(80, block.widthPx)}px` : ''
     const sizePercent = Math.round(block.widthPercent ? Math.max(5, Math.min(100, block.widthPercent)) : 100)
     const autoSize = block.widthPercent ? 'false' : 'true'
-    const wrap = normalizeImageWrapV2(block.wrap)
-    return `<figure data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="image"${attrV2('data-image-id', block.imageId)}${attrV2('data-width-px', block.widthPx)}${attrV2('data-width-percent', block.widthPercent)}${attrV2('data-image-size-auto', autoSize)} data-image-wrap="${escapeHtmlV2(wrap)}"${imageFigureStyleAttrV2(width)}><div class="editor-v2-image-controls" contenteditable="false"><button type="button" data-image-delete="true" title="حذف تصویر" aria-label="حذف تصویر">×</button></div>${block.url ? `<img contenteditable="false" src="${escapeHtmlV2(block.url)}" alt="${escapeHtmlV2(block.caption || '')}">` : '<div class="book-v2-missing-image" contenteditable="false">تصویر در دسترس نیست</div>'}<div class="editor-v2-image-size-control" contenteditable="false"><span>درصد از عرض متن</span><input type="range" min="5" max="100" step="1" value="${sizePercent}" data-image-size-range="true" aria-label="درصد اشغال عرض متن توسط تصویر"><b data-image-size-value="true">${sizePercent}%</b><select data-image-wrap-select="true" aria-label="حالت چیدمان تصویر"><option value="top-bottom"${wrap === 'top-bottom' ? ' selected' : ''}>بالا/پایین</option><option value="square-inline"${wrap === 'square-inline' ? ' selected' : ''}>مربعی</option></select></div><figcaption contenteditable="true" data-image-caption="true" data-placeholder="کپشن تصویر را اینجا بنویسید">${inlineSpansToEditorHtmlV2(block.captionInline, block.caption || '')}</figcaption></figure>`
+    return `<figure data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="image"${attrV2('data-image-id', block.imageId)}${attrV2('data-auto-caption', block.autoCaption ? 'true' : undefined)}${attrV2('data-width-px', block.widthPx)}${attrV2('data-width-percent', block.widthPercent)}${attrV2('data-image-size-auto', autoSize)}${imageFigureStyleAttrV2(width)}><div class="editor-v2-image-controls" contenteditable="false"><button type="button" data-image-delete="true" title="حذف تصویر" aria-label="حذف تصویر">×</button></div>${block.url ? `<img contenteditable="false" src="${escapeHtmlV2(block.url)}" alt="${escapeHtmlV2(block.caption || '')}">` : '<div class="book-v2-missing-image" contenteditable="false">تصویر در دسترس نیست</div>'}<div class="editor-v2-image-size-control" contenteditable="false"><span>درصد از عرض متن</span><input type="range" min="5" max="100" step="1" value="${sizePercent}" data-image-size-range="true" aria-label="درصد اشغال عرض متن توسط تصویر"><b data-image-size-value="true">${sizePercent}%</b></div><figcaption contenteditable="true" data-image-caption="true"${attrV2('data-auto-caption', block.autoCaption ? 'true' : undefined)} data-placeholder="کپشن تصویر را اینجا بنویسید">${inlineSpansToEditorHtmlV2(block.captionInline, block.caption || '')}</figcaption></figure>`
   }
   if (block.type === 'table') {
     const headers = block.headers?.length ? `<thead><tr>${block.headers.map(cell => `<th>${escapeHtmlV2(cell)}</th>`).join('')}</tr></thead>` : ''
@@ -311,6 +305,16 @@ function inlineFromElementV2(element: Element) {
 function textFromElementV2(element: Element) {
   const inline = inlineFromElementV2(element)
   return inline?.map(span => span.text).join('') || normalizeBookTextV2((element as HTMLElement).innerText || element.textContent || '')
+}
+
+function isAutoCaptionCandidateTextV2(value: string) {
+  const text = normalizeBookTextV2(value)
+    .replace(/^[\s\u200c\u200d\u200f\u202a-\u202e:：،,؛.;\-–—()（）[\]]+/g, '')
+    .trim()
+    .toLowerCase()
+  return text.startsWith('شکل')
+    || text.startsWith('تصویر')
+    || text.startsWith('figure')
 }
 
 function inlineOnlyElementV2(element: Element) {
@@ -463,10 +467,10 @@ function elementToBlockV2(element: Element, page: BookDocumentV2['pages'][number
       url: image?.getAttribute('src') || (old?.type === 'image' ? old.url : ''),
       caption,
       captionInline,
+      autoCaption: html.dataset.autoCaption === 'true' || captionElement?.getAttribute('data-auto-caption') === 'true' || (old?.type === 'image' ? old.autoCaption : undefined),
       imageId: (element as HTMLElement).dataset.imageId || (old?.type === 'image' ? old.imageId : undefined),
       widthPx: Number((element as HTMLElement).dataset.widthPx) || (old?.type === 'image' ? old.widthPx : undefined),
       widthPercent: Number((element as HTMLElement).dataset.widthPercent) || (old?.type === 'image' ? old.widthPercent : undefined),
-      wrap: normalizeImageWrapV2((element as HTMLElement).dataset.imageWrap || (old?.type === 'image' ? old.wrap : undefined)),
       anchor: old?.anchor || id,
       printNumber: page.printNumber,
       status: old?.type === 'image' ? old.status : undefined,
@@ -632,6 +636,7 @@ type EditorMediaReferenceV2 = {
   blockId?: string
   url: string
   caption?: string
+  autoCaption?: boolean
   printNumber?: PrintPageValue
   status?: Extract<BookBlockV2, { type: 'image' }>['status']
   issue?: string
@@ -663,6 +668,7 @@ function collectMediaReferencesV2(document: BookDocumentV2, selectedPrintNumber?
       blockId: block.id,
       url: block.url || asset?.url || '',
       caption,
+      autoCaption: block.autoCaption,
       printNumber: block.printNumber || asset?.printNumber,
       status,
       issue,
@@ -753,6 +759,7 @@ type TextToolbarV2Props = {
   setCurrentBlockDirection: (direction: 'rtl' | 'ltr') => void
   createLinkForSelection: () => void
   insertSimpleTable: () => void
+  onPreview: () => void
 }
 
 function TextToolbarV2({
@@ -766,6 +773,7 @@ function TextToolbarV2({
   setCurrentBlockDirection,
   createLinkForSelection,
   insertSimpleTable,
+  onPreview,
 }: TextToolbarV2Props) {
   return (
     <section
@@ -845,6 +853,8 @@ function TextToolbarV2({
       <Button variant="outline" size="icon" onClick={() => setCurrentBlockDirection('ltr')} title="جهت چپ به راست"><ArrowRight size={17} /></Button>
       <span className="editor-v2-toolbar-divider" />
       <Button variant="outline" size="icon" onClick={insertSimpleTable} title="جدول ساده"><Table2 size={17} /></Button>
+      <span className="editor-v2-toolbar-divider" />
+      <Button variant="outline" size="icon" onClick={onPreview} title="پیش‌نمایش"><Eye size={17} /></Button>
     </section>
   )
 }
@@ -902,6 +912,8 @@ function RightPanelV2({
   onInsertImage,
   onUploadImage,
   onGenerateImage,
+  onAutoCaption,
+  mediaMessage,
   onResolveMediaIssue,
   onJumpToBlock,
   onInsertInteractive,
@@ -921,6 +933,8 @@ function RightPanelV2({
   onInsertImage: (assetId: string) => void
   onUploadImage: (file: File) => void
   onGenerateImage: (prompt: string) => void
+  onAutoCaption: () => void
+  mediaMessage: string
   onResolveMediaIssue: (ref: EditorMediaReferenceV2) => void
   onJumpToBlock: (blockId: string) => void
   onInsertInteractive: (kind: string) => void
@@ -933,7 +947,8 @@ function RightPanelV2({
 }) {
   const tree = useMemo(() => resolveTocTreeV2(document.toc), [document.toc])
   const selectedPrintNumber = selectedBlock?.printNumber
-  const mediaRefs = useMemo(() => collectMediaReferencesV2(document, selectedPrintNumber), [document, selectedPrintNumber])
+  const mediaRefs = useMemo(() => collectMediaReferencesV2(document), [document])
+  const libraryMediaRefs = useMemo(() => collectMediaReferencesV2(document, selectedPrintNumber), [document, selectedPrintNumber])
   const mediaIssueCount = mediaRefs.filter(item => item.needsCheck).length
   const [mediaQuery, setMediaQuery] = useState('')
   const [libraryOpen, setLibraryOpen] = useState(false)
@@ -945,7 +960,13 @@ function RightPanelV2({
       return normalizeBookTextV2(`${item.caption || ''} ${item.issue || ''} ${item.printNumber || ''}`).toLowerCase().includes(query)
     })
   }, [mediaRefs, mediaQuery])
-  const selectedImageBlock = selectedBlock?.type === 'image' ? selectedBlock : null
+  const filteredLibraryMediaRefs = useMemo(() => {
+    const query = normalizeBookTextV2(mediaQuery).toLowerCase()
+    return libraryMediaRefs.filter(item => {
+      if (!query) return true
+      return normalizeBookTextV2(`${item.caption || ''} ${item.issue || ''} ${item.printNumber || ''}`).toLowerCase().includes(query)
+    })
+  }, [libraryMediaRefs, mediaQuery])
   const [openIds, setOpenIds] = useState<Set<string>>(() => new Set(tree.map(item => item.id)))
   useEffect(() => {
     setOpenIds(new Set(tree.map(item => item.id)))
@@ -1013,19 +1034,14 @@ function RightPanelV2({
                 <input type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" onChange={event => event.target.files?.[0] && onUploadImage(event.target.files[0])} />
               </label>
               <button type="button" onClick={() => setLibraryOpen(true)}><ImageIcon size={14} />انتخاب از کتاب</button>
+              <button type="button" className="editor-v2-media-auto-caption" onClick={onAutoCaption}><FileText size={14} />درج خودکار کپشن</button>
             </div>
+            {mediaMessage && <p className="editor-v2-media-message">{mediaMessage}</p>}
 
             <div className="editor-v2-media-ai">
               <textarea value={aiPrompt} onChange={event => setAiPrompt(event.target.value)} placeholder="پرامپت تولید تصویر با هوش مصنوعی..." />
               <button type="button" onClick={() => aiPrompt.trim() && onGenerateImage(aiPrompt.trim())}><Wand2 size={14} />تولید و درج</button>
             </div>
-
-            {selectedImageBlock && (
-              <div className="editor-v2-media-resize">
-                <strong>اندازه تصویر انتخاب‌شده</strong>
-                <span>{(selectedImageBlock.widthPercent || 100).toLocaleString('fa-IR')}٪ · برای تغییر اندازه، دستگیره‌های دو طرف تصویر را بکشید.</span>
-              </div>
-            )}
 
             <div className="editor-v2-media-search">
               <Search size={14} />
@@ -1052,6 +1068,7 @@ function RightPanelV2({
                     <div>
                       <b>{item.caption || 'بدون کپشن'}</b>
                       <small>صفحه چاپی: {item.printNumber || 'نامشخص'}{item.issue ? ` · ${item.issue}` : ''}</small>
+                      {item.autoCaption && <em className="editor-v2-media-auto-badge">اتوکپشن</em>}
                     </div>
                     <button type="button" onClick={event => { event.stopPropagation(); onResolveMediaIssue(item) }}><CheckCircle2 size={13} /></button>
                   </article>
@@ -1064,7 +1081,7 @@ function RightPanelV2({
                 <button key={item.key} type="button" className={item.needsCheck ? 'has-issue' : ''} disabled={!item.url || !item.blockId} onClick={() => item.blockId && onJumpToBlock(item.blockId)}>
                   {item.url ? <img src={item.url} alt={item.caption || ''} loading="lazy" /> : <span className="editor-v2-missing-thumb"><ImageIcon size={16} /></span>}
                   <span>{item.caption || `تصویر صفحه ${item.printNumber || ''}`}</span>
-                  <small>صفحه {item.printNumber || 'نامشخص'}</small>
+                  <small>صفحه {item.printNumber || 'نامشخص'}{item.autoCaption ? <><span> · </span><em className="editor-v2-media-auto-badge inline">اتوکپشن</em></> : ''}</small>
                 </button>
               )) : <p className="editor-v2-empty-panel">تصویری برای نمایش پیدا نشد.</p>}
             </div>
@@ -1081,11 +1098,11 @@ function RightPanelV2({
                     <input value={mediaQuery} onChange={event => setMediaQuery(event.target.value)} placeholder="جستجو..." autoFocus />
                   </div>
                   <div className="editor-v2-media-library">
-                    {filteredMediaRefs.map(item => (
+                    {filteredLibraryMediaRefs.map(item => (
                       <button key={item.key} type="button" className={item.needsCheck ? 'has-issue' : ''} disabled={!item.assetId || !item.url} onClick={() => { if (item.assetId) { onInsertImage(item.assetId); setLibraryOpen(false) } }}>
                         {item.url ? <img src={item.url} alt={item.caption || ''} loading="lazy" /> : <span className="editor-v2-missing-thumb"><ImageIcon size={18} /></span>}
                         <b>{item.caption || 'بدون کپشن'}</b>
-                        <small>صفحه چاپی: {item.printNumber || 'نامشخص'}</small>
+                        <small>صفحه چاپی: {item.printNumber || 'نامشخص'}{item.autoCaption ? ' · اتوکپشن' : ''}</small>
                       </button>
                     ))}
                   </div>
@@ -1142,6 +1159,7 @@ export default function EditorV2Page() {
   const [dirtyRevision, setDirtyRevision] = useState(0)
   const [aiBusy, setAiBusy] = useState(false)
   const [aiMessage, setAiMessage] = useState('')
+  const [mediaMessage, setMediaMessage] = useState('')
   const [aiApproval, setAiApproval] = useState<AiApprovalV2 | null>(null)
   const [metadataOpen, setMetadataOpen] = useState(false)
   const canvasRef = useRef<HTMLDivElement | null>(null)
@@ -1463,21 +1481,6 @@ export default function EditorV2Page() {
   const handleEditorSurfaceInput = useCallback((event: any) => {
     const target = event.target as HTMLElement
     const sizeInput = target.closest<HTMLInputElement>('input[data-image-size-range="true"]')
-    const wrapSelect = target.closest<HTMLSelectElement>('select[data-image-wrap-select="true"]')
-    if (wrapSelect) {
-      const figure = wrapSelect.closest<HTMLElement>('figure[data-v2-type="image"][data-block-id]')
-      const blockId = figure?.dataset.blockId
-      if (!figure || !blockId) return
-      pushEditorHistory()
-      const wrap = normalizeImageWrapV2(wrapSelect.value)
-      figure.dataset.imageWrap = wrap
-      figure.style.shapeOutside = ''
-      figure.style.shapeMargin = ''
-      setSelectedBlockId(blockId)
-      markEditorDirty()
-      scheduleToolbarDocumentRefresh()
-      return
-    }
     if (sizeInput) {
       const figure = sizeInput.closest<HTMLElement>('figure[data-v2-type="image"][data-block-id]')
       const blockId = figure?.dataset.blockId
@@ -1490,8 +1493,8 @@ export default function EditorV2Page() {
       figure.dataset.widthPercent = String(percent)
       figure.dataset.widthPx = ''
       figure.dataset.imageSizeAuto = 'false'
-      figure.style.maxWidth = `${percent}%`
-      figure.querySelector<HTMLImageElement>('img')?.style.setProperty('max-width', '100%')
+      figure.style.setProperty('--editor-v2-image-width', `${percent}%`)
+      figure.style.maxWidth = ''
       const valueLabel = figure.querySelector<HTMLElement>('[data-image-size-value="true"]')
       if (valueLabel) valueLabel.textContent = `${percent}%`
       setSelectedBlockId(blockId)
@@ -2183,6 +2186,46 @@ export default function EditorV2Page() {
     updateSelectedBlockFromDom()
   }, [deleteImageBlock, updateSelectedBlockFromDom])
 
+  const applyAutoCaptions = useCallback(() => {
+    const root = editorSurfaceRef.current
+    if (!root) return
+    const figures = Array.from(root.querySelectorAll<HTMLElement>('figure[data-v2-type="image"][data-block-id]'))
+    const changes: string[] = []
+    figures.forEach(figure => {
+      let caption = figure.querySelector<HTMLElement>('figcaption[data-image-caption], figcaption')
+      const existingCaption = normalizeBookTextV2(caption?.innerText || caption?.textContent || '')
+      if (existingCaption.trim()) return
+      const next = figure.nextElementSibling as HTMLElement | null
+      if (!next) return
+      const tag = next.tagName.toLowerCase()
+      if (!['p', 'div'].includes(tag)) return
+      if (next.matches('[data-page-break="true"], figure, table, ol, ul, h1, h2, h3, h4, h5, h6')) return
+      const candidateText = normalizeBookTextV2(next.innerText || next.textContent || '')
+      if (!isAutoCaptionCandidateTextV2(candidateText)) return
+      if (!caption) {
+        caption = window.document.createElement('figcaption')
+        caption.contentEditable = 'true'
+        caption.dataset.imageCaption = 'true'
+        caption.dataset.placeholder = 'کپشن تصویر را اینجا بنویسید'
+        figure.appendChild(caption)
+      }
+      if (!changes.length) pushEditorHistory()
+      caption.dataset.autoCaption = 'true'
+      figure.dataset.autoCaption = 'true'
+      while (next.firstChild) caption.appendChild(next.firstChild)
+      next.remove()
+      changes.push(figure.dataset.blockId || '')
+    })
+    if (!changes.length) {
+      setMediaMessage('کپشن تازه‌ای برای انتقال پیدا نشد.')
+      return
+    }
+    setSelectedBlockId(changes[0])
+    markEditorDirty()
+    scheduleToolbarDocumentRefresh()
+    setMediaMessage(`${changes.length.toLocaleString('fa-IR')} کپشن به‌صورت خودکار تشخیص داده شد.`)
+  }, [markEditorDirty, pushEditorHistory, scheduleToolbarDocumentRefresh])
+
   const resolveMediaIssue = useCallback((ref: EditorMediaReferenceV2) => {
     commitDocument(current => {
       const assets = current.assets.map(asset => asset.id === ref.assetId ? { ...asset, status: 'ready' as const, issue: undefined, caption: asset.caption || ref.caption || 'تصویر کتاب' } : asset)
@@ -2375,6 +2418,8 @@ export default function EditorV2Page() {
           onInsertImage={insertImageFromAsset}
           onUploadImage={insertUploadedImage}
           onGenerateImage={generateImageFromPrompt}
+          onAutoCaption={applyAutoCaptions}
+          mediaMessage={mediaMessage}
           onResolveMediaIssue={resolveMediaIssue}
           onJumpToBlock={jumpToEditorBlock}
           onInsertInteractive={insertInteractiveBlock}
@@ -2412,6 +2457,7 @@ export default function EditorV2Page() {
             setCurrentBlockDirection={setCurrentBlockDirection}
             createLinkForSelection={createLinkForSelection}
             insertSimpleTable={insertSimpleTable}
+            onPreview={() => openReaderPreview(book.id, `/edit-v2/${book.id}`)}
           />
 
           <div className="editor-v2-paper">

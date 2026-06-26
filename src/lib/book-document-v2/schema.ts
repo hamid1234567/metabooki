@@ -63,10 +63,10 @@ export interface ImageBlockV2 extends BookBlockBaseV2 {
   url: string
   caption?: string
   captionInline?: BookInlineV2[]
+  autoCaption?: boolean
   imageId?: string
   widthPx?: number
   widthPercent?: number
-  wrap?: 'square-inline' | 'top-bottom'
   status?: 'ready' | 'missing' | 'needs-conversion' | 'error'
   issue?: string
 }

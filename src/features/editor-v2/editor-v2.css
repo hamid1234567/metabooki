@@ -519,6 +519,10 @@
   gap: 0.45rem;
 }
 
+.editor-v2-media-actions .editor-v2-media-auto-caption {
+  grid-column: 1 / -1;
+}
+
 .editor-v2-media-actions button,
 .editor-v2-media-actions label,
 .editor-v2-media-ai button,
@@ -551,6 +555,18 @@
   display: none;
 }
 
+.editor-v2-media-message {
+  margin: 0;
+  border: 1px solid #cfe0f6;
+  border-radius: 0.8rem;
+  background: #eff6ff;
+  color: #174ea6;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 850;
+  line-height: 1.8;
+}
+
 .editor-v2-media-ai {
   display: grid;
   gap: 0.45rem;
@@ -571,33 +587,6 @@
   font: inherit;
   font-size: 0.76rem;
   line-height: 1.8;
-}
-
-.editor-v2-media-resize {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  gap: 0.45rem 0.65rem;
-  border: 1px solid #d7e4f7;
-  border-radius: 1rem;
-  padding: 0.65rem;
-  background: hsl(210 60% 98% / 0.72);
-}
-
-.editor-v2-media-resize strong {
-  grid-column: 1 / -1;
-  font-size: 0.75rem;
-  color: #20304a;
-}
-
-.editor-v2-media-resize input {
-  width: 100%;
-}
-
-.editor-v2-media-resize span {
-  font-size: 0.72rem;
-  color: #174ea6;
-  font-weight: 900;
 }
 
 .editor-v2-media-search {
@@ -690,6 +679,28 @@
 .editor-v2-media-library small {
   color: #64748b;
   font-size: 0.66rem;
+}
+
+.editor-v2-media-auto-badge {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 0.22rem;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  padding: 0.08rem 0.45rem;
+  font-size: 0.62rem;
+  font-style: normal;
+  font-weight: 950;
+}
+
+.editor-v2-media-list .editor-v2-media-auto-badge.inline {
+  display: inline;
+  margin: 0;
+  background: transparent;
+  color: #dc2626;
+  padding: 0;
+  font-size: inherit;
 }
 
 .editor-v2-media-list button {
@@ -1057,26 +1068,13 @@
   display: grid;
   justify-items: center;
   gap: 0.55rem;
-  width: fit-content;
+  width: 100%;
   max-width: 100%;
   border-radius: 1rem;
   padding: 0.55rem;
   transition: box-shadow 0.18s ease, background 0.18s ease;
   isolation: isolate;
   background: transparent;
-}
-
-.editor-v2-flow-editor figure[data-v2-type="image"][data-image-wrap="top-bottom"] {
-  clear: both;
-}
-
-.editor-v2-flow-editor figure[data-v2-type="image"][data-image-wrap="square-inline"] {
-  float: inline-start;
-  display: block;
-  min-width: 8rem;
-  margin-block: 0.35rem 0.85rem;
-  margin-inline: 0 1.25rem;
-  overflow: visible;
 }
 
 .editor-v2-flow-editor figure[data-v2-type="image"].is-editor-selected {
@@ -1147,7 +1145,7 @@
 }
 
 .editor-v2-flow-editor figure[data-v2-type="image"] img {
-  width: 100%;
+  width: min(var(--editor-v2-image-width, 100%), 100%);
   max-width: 100%;
   height: auto;
   border-radius: 0.65rem;
@@ -1156,7 +1154,7 @@
 
 .editor-v2-image-size-control {
   display: grid;
-  grid-template-columns: minmax(5.5rem, auto) minmax(7rem, 1fr) auto minmax(6rem, auto);
+  grid-template-columns: minmax(5.5rem, auto) minmax(7rem, 1fr) auto;
   align-items: center;
   gap: 0.55rem;
   width: min(100%, 24rem);
@@ -1200,19 +1198,9 @@
   text-align: end;
 }
 
-.editor-v2-image-size-control select {
-  min-width: 6rem;
-  border: 1px solid #c9dcf7;
-  border-radius: 999px;
-  background: #fff;
-  color: #34506f;
-  padding: 0.25rem 0.5rem;
-  font: inherit;
-  outline: none;
-}
-
 .editor-v2-flow-editor figure[data-v2-type="image"] figcaption {
-  min-width: min(28rem, 100%);
+  width: 100%;
+  max-width: 100%;
   min-height: 2.1rem;
   border: 1px dashed #adc4e8;
   border-radius: 0.65rem;
@@ -1222,6 +1210,7 @@
   font-size: 0.78rem;
   text-align: center;
   outline: none;
+  justify-self: center;
 }
 
 .editor-v2-flow-editor figure[data-v2-type="image"] figcaption:empty::before {
@@ -1480,22 +1469,12 @@
     border-radius: 1rem;
   }
 
-  .editor-v2-flow-editor figure[data-v2-type="image"][data-image-wrap="square-inline"] {
-    float: none;
-    clear: both;
-    display: grid;
-    width: auto;
-    max-width: 100% !important;
-    margin: 1.2rem auto;
-  }
-
   .editor-v2-image-size-control {
     grid-template-columns: 1fr auto;
     border-radius: 1rem;
   }
 
-  .editor-v2-image-size-control span,
-  .editor-v2-image-size-control select {
+  .editor-v2-image-size-control span {
     grid-column: 1 / -1;
   }
 

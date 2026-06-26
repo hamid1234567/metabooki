@@ -100,12 +100,11 @@ export function renderBookBlockV2(block: BookBlockV2, renderChildren: (blocks: B
 
   if (block.type === 'image') {
     const width = block.widthPercent ? `${Math.max(12, Math.min(100, block.widthPercent))}%` : block.widthPx ? `${Math.max(80, block.widthPx)}px` : undefined
-    const wrapClass = ` wrap-${block.wrap === 'square-inline' ? 'square-inline' : 'top-bottom'}`
     const figureStyle: CSSProperties = {
-      maxWidth: width,
-    }
+      '--book-v2-image-width': width,
+    } as CSSProperties
     return (
-      <figure key={block.id} id={block.anchor || block.id} className={`book-v2-figure${wrapClass}${selectedClass(block, options)}`} data-block-id={block.id} style={figureStyle}>
+      <figure key={block.id} id={block.anchor || block.id} className={`book-v2-figure${selectedClass(block, options)}`} data-block-id={block.id} style={figureStyle}>
         {block.url ? <img src={block.url} alt={block.caption || ''} loading="lazy" /> : <div className="book-v2-missing-image">ØªØµÙˆÛŒØ± Ø¯Ø± Ø¯Ø³ØªØ±Ø³ Ù†ÛŒØ³Øª</div>}
         {block.caption?.trim() && <figcaption><InlineTextV2 inline={block.captionInline} fallback={block.caption} /></figcaption>}
         {block.issue && <small>{normalizeBookTextV2(block.issue)}</small>}
@@ -154,35 +153,79 @@ function renderBlocks(blocks: BookBlockV2[], options: RenderOptionsV2 = {}): Rea
   return blocks.map(block => renderBookBlockV2(block, childBlocks => renderBlocks(childBlocks, options), options))
 }
 
+function findBookBlockV2(blocks: BookBlockV2[], blockId?: string): BookBlockV2 | null {
+  if (!blockId) return null
+  for (const block of blocks) {
+    if (block.id === blockId) return block
+    if (block.type === 'callout') {
+      const nested = findBookBlockV2(block.blocks, blockId)
+      if (nested) return nested
+    }
+  }
+  return null
+}
+
 export function BookRendererV2({ document, pages, blocks, compact = false, editable = false, selectedBlockId, onSelectBlock, onTextChange }: BookRendererV2Props) {
   const options = { editable, selectedBlockId, onSelectBlock, onTextChange }
-  const [zoomImage, setZoomImage] = useState<{ src: string; alt: string } | null>(null)
+  const visiblePages = pages || document?.pages || []
+  const rootBlocks = blocks || visiblePages.flatMap(page => page.blocks)
+  const [zoomImage, setZoomImage] = useState<{ src: string; alt: string; initialScale: number; captionInline?: Extract<BookBlockV2, { type: 'image' }>['captionInline'] } | null>(null)
   const [zoomScale, setZoomScale] = useState(1)
+  const [zoomCaptionVisible, setZoomCaptionVisible] = useState(true)
+  const [zoomCaptionExiting, setZoomCaptionExiting] = useState(false)
   const handleImageClick = (event: MouseEvent<HTMLElement>) => {
     const target = event.target as HTMLElement
     const image = target.closest('img')
     if (!image?.src) return
-    setZoomImage({ src: image.src, alt: image.alt || '' })
-    setZoomScale(1)
+    const figure = image.closest<HTMLElement>('figure[data-block-id]')
+    const imageBlock = findBookBlockV2(rootBlocks, figure?.dataset.blockId)
+    const caption = imageBlock?.type === 'image' ? imageBlock.caption || image.alt || '' : image.alt || ''
+    const captionInline = imageBlock?.type === 'image' ? imageBlock.captionInline : undefined
+    const initialScale = imageBlock?.type === 'image' && imageBlock.widthPercent
+      ? Math.max(0.12, Math.min(1, imageBlock.widthPercent / 100))
+      : 1
+    setZoomImage({ src: image.src, alt: caption, initialScale, captionInline })
+    setZoomScale(initialScale)
+    setZoomCaptionVisible(true)
+    setZoomCaptionExiting(false)
   }
+  const toggleZoomCaption = () => {
+    if (zoomCaptionVisible && !zoomCaptionExiting) {
+      setZoomCaptionExiting(true)
+      window.setTimeout(() => {
+        setZoomCaptionVisible(false)
+        setZoomCaptionExiting(false)
+      }, 320)
+      return
+    }
+    setZoomCaptionVisible(true)
+    setZoomCaptionExiting(false)
+  }
+  const showZoomCaption = Boolean(zoomImage?.alt && (zoomCaptionVisible || zoomCaptionExiting))
   const zoomModal = zoomImage && (
     <div className="book-v2-image-modal" role="dialog" aria-modal="true" onClick={() => setZoomImage(null)}>
       <div className="book-v2-image-modal-card" onClick={event => event.stopPropagation()}>
         <button type="button" onClick={() => setZoomImage(null)} aria-label="Close image preview" />
         <div className="book-v2-image-modal-toolbar" aria-label="Image zoom tools">
           <button type="button" onClick={() => setZoomScale(scale => Math.min(3, Number((scale + 0.25).toFixed(2))))} aria-label="Zoom in">+</button>
-          <button type="button" onClick={() => setZoomScale(scale => Math.max(0.5, Number((scale - 0.25).toFixed(2))))} aria-label="Zoom out">-</button>
-          <button type="button" onClick={() => setZoomScale(1)} aria-label="Reset zoom">100%</button>
+          <button type="button" onClick={() => setZoomScale(scale => Math.max(0.12, Number((scale - 0.25).toFixed(2))))} aria-label="Zoom out">-</button>
+          <button type="button" onClick={() => setZoomScale(zoomImage.initialScale)} aria-label="Reset zoom">{Math.round(zoomScale * 100)}%</button>
+          {zoomImage.alt && <button type="button" onClick={toggleZoomCaption} aria-label={zoomCaptionVisible && !zoomCaptionExiting ? 'Hide caption' : 'Show caption'}>{zoomCaptionVisible && !zoomCaptionExiting ? 'CC' : 'CC+'}</button>}
         </div>
-        <div className="book-v2-image-modal-stage">
-          <img src={zoomImage.src} alt={zoomImage.alt} style={{ width: `${zoomScale * 100}%`, maxWidth: zoomScale > 1 ? 'none' : '100%', maxHeight: zoomScale > 1 ? 'none' : '100%' }} />
+        <div className={`book-v2-image-modal-stage ${showZoomCaption ? 'has-caption' : ''} ${zoomCaptionExiting ? 'is-caption-exiting' : ''}`}>
+          <div className="book-v2-image-modal-scroll">
+            <img src={zoomImage.src} alt={zoomImage.alt} style={{ width: `${zoomScale * 100}%`, maxWidth: zoomScale > 1 ? 'none' : '100%', maxHeight: zoomScale > 1 ? 'none' : '100%' }} />
+          </div>
+          {showZoomCaption && (
+            <div className={`book-v2-image-modal-caption ${zoomCaptionExiting ? 'is-exiting' : ''}`} dir={textDirectionV2(zoomImage.alt)}>
+              <InlineTextV2 inline={zoomImage.captionInline} fallback={zoomImage.alt} />
+            </div>
+          )}
         </div>
-        {zoomImage.alt && <p>{normalizeBookTextV2(zoomImage.alt)}</p>}
       </div>
     </div>
   )
   if (blocks) return <div className={compact ? 'book-v2-renderer compact' : 'book-v2-renderer'} onClick={handleImageClick}>{renderBlocks(blocks, options)}{zoomModal}</div>
-  const visiblePages = pages || document?.pages || []
   return (
     <article className={compact ? 'book-v2-renderer compact' : 'book-v2-renderer'} dir={document?.direction === 'ltr' ? 'ltr' : 'rtl'} onClick={handleImageClick}>
       {visiblePages.map((page, index) => (
