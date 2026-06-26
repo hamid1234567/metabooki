@@ -16,6 +16,12 @@
   min-width: 0;
 }
 
+.book-number-run {
+  direction: ltr;
+  unicode-bidi: isolate;
+  white-space: nowrap;
+}
+
 .book-v2-paragraph {
   margin: 0.8rem 0;
   text-align: justify;

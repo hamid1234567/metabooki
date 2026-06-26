@@ -48,6 +48,12 @@
   --shadow-azki-card-hover: 0 18px 42px hsl(210 45% 35% / 0.14);
 }
 
+.book-number-run {
+  direction: ltr;
+  unicode-bidi: isolate;
+  white-space: nowrap;
+}
+
 [data-theme="sky"] {
   --color-background: hsl(210 40% 96%);
   --color-foreground: hsl(222 30% 14%);
