@@ -111,8 +111,7 @@ function uniquePublisherBooks(items: PublisherBook[]) {
 export default function Publisher() {
   const navigate = useNavigate()
   const { user } = useAuthContext()
-  const { isAdmin, loading: rolesLoading } = useRoles(user)
-  const canManageAllPublishers = isAdmin || user?.email?.toLowerCase() === 'mohammadi219@gmail.com'
+  const { loading: rolesLoading } = useRoles(user)
   const hasRemoteConfig = Boolean(import.meta.env.VITE_SUPABASE_URL?.startsWith('http'))
   const [books, setBooks] = useState<PublisherBook[]>(() => uniquePublisherBooks(getPublisherBooks({ includeSeed: !hasRemoteConfig }).map(normalizePublisherBook)))
   const [remoteLoading, setRemoteLoading] = useState(false)
@@ -173,7 +172,7 @@ export default function Publisher() {
     }
     let cancelled = false
     const localFallback = uniquePublisherBooks(getPublisherBooks({ includeSeed: false }).map(normalizePublisherBook))
-    if (!canManageAllPublishers && localFallback.length) setBooks(localFallback)
+    if (localFallback.length) setBooks(localFallback)
     setRemoteLoading(true)
     setRemoteLoaded(false)
     setRemoteError('')
@@ -181,14 +180,12 @@ export default function Publisher() {
     ;(async () => {
       try {
         let query = (supabase as any).from('books').select(PUBLISHER_BOOK_LIST_COLUMNS).order('created_at', { ascending: false })
-        if (!canManageAllPublishers) {
-          const ownPublisher = await withTimeout<any>((supabase as any).from('publisher_profiles').select('id').eq('user_id', user.id).maybeSingle())
-          if (ownPublisher.error) throw ownPublisher.error
-          if (ownPublisher.data?.id) query = query.eq('publisher_id', ownPublisher.data.id)
-          else {
-            if (!cancelled && !localFallback.length) setBooks([])
-            return
-          }
+        const ownPublisher = await withTimeout<any>((supabase as any).from('publisher_profiles').select('id').eq('user_id', user.id).maybeSingle())
+        if (ownPublisher.error) throw ownPublisher.error
+        if (ownPublisher.data?.id) query = query.eq('publisher_id', ownPublisher.data.id)
+        else {
+          if (!cancelled && !localFallback.length) setBooks([])
+          return
         }
         const result = await withTimeout<any>(query)
         if (result.error) throw result.error
@@ -223,7 +220,7 @@ export default function Publisher() {
       }
     })()
     return () => { cancelled = true }
-  }, [user, hasRemoteConfig, canManageAllPublishers, rolesLoading])
+  }, [user, hasRemoteConfig, rolesLoading])
   useEffect(() => {
     loadBookFilterSettings().then(setFilterSettings)
   }, [])

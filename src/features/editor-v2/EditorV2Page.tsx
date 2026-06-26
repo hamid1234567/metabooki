@@ -1328,7 +1328,7 @@ function RightPanelV2({
 export default function EditorV2Page() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
-  const { user } = useAuthContext()
+  const { user, loading: authLoading } = useAuthContext()
   const { balance: creditBalance } = useCredits(user)
   const [book, setBook] = useState<MockBook | null>(null)
   const [document, setDocument] = useState<BookDocumentV2 | null>(null)
@@ -1395,14 +1395,37 @@ export default function EditorV2Page() {
   }, [dirty, document])
 
   useEffect(() => {
+    if (authLoading) return
     let alive = true
     setLoading(true)
     setError('')
     void getBook(id)
-      .then(found => {
+      .then(async found => {
         if (!alive) return
         if (!found) {
           setError('کتاب پیدا نشد.')
+          setBook(null)
+          setDocument(null)
+          return
+        }
+        if (!user) {
+          setError('برای ویرایش کتاب باید وارد حساب ناشر شوید.')
+          setBook(null)
+          setDocument(null)
+          return
+        }
+        if (isUuid(found.id)) {
+          const ownPublisher = await (supabase as any).from('publisher_profiles').select('id').eq('user_id', user.id).maybeSingle()
+          if (!alive) return
+          if (ownPublisher.error) throw ownPublisher.error
+          if (!ownPublisher.data?.id || ownPublisher.data.id !== found.publisher_id) {
+            setError('شما مالک انتشارات این کتاب نیستید و اجازه ویرایش آن را ندارید.')
+            setBook(null)
+            setDocument(null)
+            return
+          }
+        } else if (user.mockData?.id && found.publisher_id !== user.mockData.id) {
+          setError('شما مالک انتشارات این کتاب نیستید و اجازه ویرایش آن را ندارید.')
           setBook(null)
           setDocument(null)
           return
@@ -1426,7 +1449,7 @@ export default function EditorV2Page() {
     return () => {
       alive = false
     }
-  }, [id])
+  }, [authLoading, id, user])
 
   const saveDocument = useCallback(async (options: { manual?: boolean } = {}) => {
     if (!book || !document) return
