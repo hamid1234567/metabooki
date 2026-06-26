@@ -14,6 +14,7 @@ import { emptyFilterSettings, loadBookFilterSettings, mergeFilterOptions, type B
 import { resolveBookCoverArt } from '@/lib/ai-image-prompts'
 import { openReaderPreview, readerUrl } from '@/lib/app-routes'
 import { generateAndAttachBookCover } from '@/lib/book-cover-ai'
+import { syncLocalPublisherBooksToSupabase } from '@/lib/publisher-remote-sync'
 
 const stageMeta = {
   editing: { label: 'در حال ویرایش', className: 'bg-blue-500 text-white', icon: FileText },
@@ -78,6 +79,7 @@ export default function Publisher() {
   const [remoteLoading, setRemoteLoading] = useState(false)
   const [remoteLoaded, setRemoteLoaded] = useState(false)
   const [remoteError, setRemoteError] = useState('')
+  const [localSyncMessage, setLocalSyncMessage] = useState('')
   const [deletingBookId, setDeletingBookId] = useState<string | null>(null)
   const [coverGeneratingBookId, setCoverGeneratingBookId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
@@ -133,8 +135,14 @@ export default function Publisher() {
     setRemoteLoading(true)
     setRemoteLoaded(false)
     setRemoteError('')
+    setLocalSyncMessage('')
     ;(async () => {
       try {
+        const localSync = await syncLocalPublisherBooksToSupabase(user.id)
+        if (localSync.synced || localSync.skipped) {
+          setLocalSyncMessage(`${localSync.synced.toLocaleString('fa-IR')} کتاب محلی با سرور همگام شد${localSync.skipped ? `، ${localSync.skipped.toLocaleString('fa-IR')} مورد نیازمند بررسی است` : ''}.`)
+        }
+        if (localSync.errors.length) console.warn('Publisher local sync warnings:', localSync.errors)
         const ownPublisher = await (supabase as any).from('publisher_profiles').select('id').eq('user_id', user.id).maybeSingle()
         if (ownPublisher.error) throw ownPublisher.error
         let query = (supabase as any).from('books').select(PUBLISHER_BOOK_LIST_COLUMNS).order('created_at', { ascending: false })
@@ -330,11 +338,12 @@ export default function Publisher() {
             </div>
             <p className="text-sm text-muted-foreground mt-1">
               {remoteLoading
-                ? 'فهرست اولیه سریع نمایش داده شده و سامانه هنوز کتاب‌ها و آمار کامل انتشارات را از دیتابیس دریافت می‌کند.'
+                ? 'فهرست اولیه سریع نمایش داده شده و سامانه هنوز کتاب‌های محلی و سروری را همگام و تکمیل می‌کند.'
                 : remoteError
                   ? 'اگر اینترنت یا اتصال Supabase کند باشد، فعلا همان فهرست محلی نمایش داده می‌شود. با رفرش صفحه، دریافت از ادامه دوباره تلاش می‌شود.'
                   : 'همگام‌سازی فهرست انتشارات با دیتابیس کامل شد.'}
             </p>
+            {localSyncMessage && <p className="text-sm text-primary mt-1">{localSyncMessage}</p>}
             {remoteLoading && <div className="publisher-sync-progress" role="progressbar" aria-label="در حال دریافت فهرست کامل کتاب‌ها"><span /></div>}
             {remoteError && <p className="publisher-sync-error">{remoteError}</p>}
           </div>
