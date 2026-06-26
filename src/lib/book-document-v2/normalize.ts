@@ -11,6 +11,23 @@ export function normalizeBookTextV2(value: unknown) {
     .replace(/\u200C{2,}/g, BOOK_V2_ZWNJ)
 }
 
+export function isGeneratedImageCaptionNoiseV2(value: unknown) {
+  const text = normalizeBookTextV2(value).replace(/\s+/g, ' ').trim()
+  if (!text) return false
+  const compact = text.replace(/[^\p{L}\p{N}%+-]+/gu, '').toLowerCase()
+  if (compact.includes('درصدازعرضمتن')) return true
+  if (compact.includes('اندازهتصویرانتخابشده')) return true
+  if (compact.includes('برای تغییر اندازه'.replace(/\s+/g, ''))) return true
+  if (/^\d{1,3}%$/.test(compact)) return true
+  if (/^(?:cc\+?|[+-]|\d{1,3}%)+$/i.test(compact) && /(?:cc|\d{1,3}%)/i.test(compact)) return true
+  return false
+}
+
+export function cleanImageCaptionV2(value: unknown) {
+  const text = normalizeBookTextV2(value)
+  return isGeneratedImageCaptionNoiseV2(text) ? '' : text
+}
+
 export function normalizeInlineV2(inline: unknown): BookInlineV2[] | undefined {
   if (!Array.isArray(inline)) return undefined
   const spans = inline

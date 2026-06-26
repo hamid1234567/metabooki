@@ -10,7 +10,7 @@ import { estimateAiTextUsage, generateAiImageThroughGateway, runAiThroughGateway
 import { useAuthContext } from '@/lib/auth-context'
 import { useCredits } from '@/hooks/useCredits'
 import { creditsBus } from '@/lib/credits-bus'
-import { buildTocFromHeadingsV2, createV2Id, documentV2ToConfirmedToc, documentV2ToLegacyPages, legacyBookToDocumentV2, normalizeBookTextV2, resolveTocTreeV2, textDirectionV2, tocAsFlatListV2, type BookBlockV2, type BookDocumentV2, type BookInlineV2, type BookTocItemV2, type CalloutBlockV2, type ParagraphBlockV2 } from '@/lib/book-document-v2'
+import { buildTocFromHeadingsV2, cleanImageCaptionV2, createV2Id, documentV2ToConfirmedToc, documentV2ToLegacyPages, legacyBookToDocumentV2, normalizeBookTextV2, resolveTocTreeV2, textDirectionV2, tocAsFlatListV2, type BookBlockV2, type BookDocumentV2, type BookInlineV2, type BookTocItemV2, type CalloutBlockV2, type ParagraphBlockV2 } from '@/lib/book-document-v2'
 import type { PrintPageValue } from '@/lib/book-content'
 import type { MockBook } from '@/lib/mock-data'
 import './editor-v2.css'
@@ -204,10 +204,11 @@ function blockToEditorHtmlV2(block: BookBlockV2): string {
     return `<${tag} data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="list"${attrV2('dir', block.direction)}${blockStyleAttrV2(block)}>${block.items.map(item => `<li data-item-id="${escapeHtmlV2(item.id)}">${inlineSpansToEditorHtmlV2(item.inline, item.text)}</li>`).join('')}</${tag}>`
   }
   if (block.type === 'image') {
+    const cleanCaption = cleanImageCaptionV2(block.caption)
     const width = block.widthPercent ? `${Math.max(12, Math.min(100, block.widthPercent))}%` : block.widthPx ? `${Math.max(80, block.widthPx)}px` : ''
     const sizePercent = Math.round(block.widthPercent ? Math.max(5, Math.min(100, block.widthPercent)) : 100)
     const autoSize = block.widthPercent ? 'false' : 'true'
-    return `<figure data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="image"${attrV2('data-image-id', block.imageId)}${attrV2('data-auto-caption', block.autoCaption ? 'true' : undefined)}${attrV2('data-width-px', block.widthPx)}${attrV2('data-width-percent', block.widthPercent)}${attrV2('data-image-size-auto', autoSize)}${imageFigureStyleAttrV2(width)}><div class="editor-v2-image-controls" contenteditable="false"><button type="button" data-image-delete="true" title="حذف تصویر" aria-label="حذف تصویر">×</button></div>${block.url ? `<img contenteditable="false" src="${escapeHtmlV2(block.url)}" alt="${escapeHtmlV2(block.caption || '')}">` : '<div class="book-v2-missing-image" contenteditable="false">تصویر در دسترس نیست</div>'}<div class="editor-v2-image-size-control" contenteditable="false"><span>درصد از عرض متن</span><input type="range" min="5" max="100" step="1" value="${sizePercent}" data-image-size-range="true" aria-label="درصد اشغال عرض متن توسط تصویر"><b data-image-size-value="true">${sizePercent}%</b></div><figcaption contenteditable="true" data-image-caption="true"${attrV2('data-auto-caption', block.autoCaption ? 'true' : undefined)} data-placeholder="کپشن تصویر را اینجا بنویسید">${inlineSpansToEditorHtmlV2(block.captionInline, block.caption || '')}</figcaption></figure>`
+    return `<figure data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="image"${attrV2('data-image-id', block.imageId)}${attrV2('data-auto-caption', block.autoCaption ? 'true' : undefined)}${attrV2('data-width-px', block.widthPx)}${attrV2('data-width-percent', block.widthPercent)}${attrV2('data-image-size-auto', autoSize)}${imageFigureStyleAttrV2(width)}><div class="editor-v2-image-controls" contenteditable="false"><button type="button" data-image-delete="true" title="حذف تصویر" aria-label="حذف تصویر">×</button></div>${block.url ? `<img contenteditable="false" src="${escapeHtmlV2(block.url)}" alt="${escapeHtmlV2(cleanCaption)}">` : '<div class="book-v2-missing-image" contenteditable="false">تصویر در دسترس نیست</div>'}<div class="editor-v2-image-size-control" contenteditable="false"><span>درصد از عرض متن</span><input type="range" min="5" max="100" step="1" value="${sizePercent}" data-image-size-range="true" aria-label="درصد اشغال عرض متن توسط تصویر"><b data-image-size-value="true">${sizePercent}%</b></div><figcaption contenteditable="true" data-image-caption="true"${attrV2('data-auto-caption', block.autoCaption ? 'true' : undefined)} data-placeholder="کپشن تصویر را اینجا بنویسید" data-caption-empty="${cleanCaption ? 'false' : 'true'}">${cleanCaption ? inlineSpansToEditorHtmlV2(block.captionInline, cleanCaption) : ''}</figcaption></figure>`
   }
   if (block.type === 'table') {
     const headers = block.headers?.length ? `<thead><tr>${block.headers.map(cell => `<th>${escapeHtmlV2(cell)}</th>`).join('')}</tr></thead>` : ''
@@ -475,8 +476,9 @@ function elementToBlockV2(element: Element, page: BookDocumentV2['pages'][number
     const image = element.querySelector('img')
     const captionElement = element.querySelector<HTMLElement>('figcaption[data-image-caption], figcaption')
     normalizeCaptionElementV2(captionElement)
-    const captionInline = captionElement ? inlineFromElementV2(captionElement) : undefined
-    const caption = captionElement ? textFromElementV2(captionElement) : ''
+    const rawCaption = captionElement ? textFromElementV2(captionElement) : ''
+    const caption = cleanImageCaptionV2(rawCaption)
+    const captionInline = caption && captionElement ? inlineFromElementV2(captionElement) : undefined
     return {
       ...(old && old.type === 'image' ? old : {}),
       id,
