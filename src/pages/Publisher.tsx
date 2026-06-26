@@ -172,7 +172,6 @@ export default function Publisher() {
     }
     let cancelled = false
     const localFallback = uniquePublisherBooks(getPublisherBooks({ includeSeed: false }).map(normalizePublisherBook))
-    if (localFallback.length) setBooks(localFallback)
     setRemoteLoading(true)
     setRemoteLoaded(false)
     setRemoteError('')
@@ -182,9 +181,13 @@ export default function Publisher() {
         let query = (supabase as any).from('books').select(PUBLISHER_BOOK_LIST_COLUMNS).order('created_at', { ascending: false })
         const ownPublisher = await withTimeout<any>((supabase as any).from('publisher_profiles').select('id').eq('user_id', user.id).maybeSingle())
         if (ownPublisher.error) throw ownPublisher.error
+        const scopedLocalFallback = ownPublisher.data?.id
+          ? localFallback.filter(book => book.publisher_id === ownPublisher.data.id)
+          : []
+        if (scopedLocalFallback.length) setBooks(scopedLocalFallback)
         if (ownPublisher.data?.id) query = query.eq('publisher_id', ownPublisher.data.id)
         else {
-          if (!cancelled && !localFallback.length) setBooks([])
+          if (!cancelled) setBooks([])
           return
         }
         const result = await withTimeout<any>(query)
@@ -209,7 +212,7 @@ export default function Publisher() {
           importStatus: row.metadata?.import_project_id ? 'word-imported' : 'manual',
         }, index))
         if (cancelled) return
-        setBooks(uniquePublisherBooks([...remote, ...localFallback]))
+        setBooks(uniquePublisherBooks([...remote, ...scopedLocalFallback]))
       } catch (error) {
         if (!cancelled) setRemoteError(error instanceof Error ? error.message : 'دریافت فهرست کامل کتاب‌ها ناموفق بود.')
       } finally {
