@@ -15,7 +15,7 @@ import type { PrintPageValue } from '@/lib/book-content'
 import type { MockBook } from '@/lib/mock-data'
 import './editor-v2.css'
 
-type EditorPanelV2 = 'toc' | 'upgrade' | 'media' | 'interactive' | 'ai'
+type EditorPanelV2 = 'toc' | 'upgrade' | 'media' | 'references' | 'interactive' | 'ai'
 type SaveStateV2 = 'idle' | 'saving' | 'saved' | 'error'
 type SaveVisualStateV2 = SaveStateV2 | 'dirty'
 type TextToolbarStateV2 = {
@@ -39,6 +39,7 @@ const PANEL_LABELS: Record<EditorPanelV2, { title: string; icon: typeof ListTree
   toc: { title: 'فهرست', icon: ListTree },
   upgrade: { title: 'ارتقا متن', icon: FileText },
   media: { title: 'رسانه', icon: ImageIcon },
+  references: { title: 'ارجاعات', icon: Link2 },
   interactive: { title: 'ابزار تعاملی', icon: PanelRight },
   ai: { title: 'هوش مصنوعی', icon: Sparkles },
 }
@@ -647,6 +648,16 @@ type EditorMediaReferenceV2 = {
   distance: number
 }
 
+type EditorInlineReferenceV2 = {
+  key: string
+  type: 'link' | 'footnote' | 'reference' | 'image'
+  label: string
+  text: string
+  target?: string
+  blockId?: string
+  printNumber?: PrintPageValue
+}
+
 function printNumberDistanceV2(value: PrintPageValue | undefined, selected: PrintPageValue | undefined) {
   const a = Number(String(value ?? '').replace(/[^\d.-]/g, ''))
   const b = Number(String(selected ?? '').replace(/[^\d.-]/g, ''))
@@ -703,6 +714,37 @@ function collectMediaReferencesV2(document: BookDocumentV2, selectedPrintNumber?
     })
   })
   return refs.sort((a, b) => a.distance - b.distance || Number(b.needsCheck) - Number(a.needsCheck) || String(a.printNumber || '').localeCompare(String(b.printNumber || ''), 'fa'))
+}
+
+function collectInlineReferencesV2(document: BookDocumentV2): EditorInlineReferenceV2[] {
+  const refs: EditorInlineReferenceV2[] = []
+  const visitInline = (inline: BookInlineV2[] | undefined, blockId: string, printNumber?: PrintPageValue) => {
+    inline?.forEach((span, index) => {
+      const text = normalizeBookTextV2(span.text || span.footnoteId || span.referenceAnchor || '')
+      if (span.href) {
+        refs.push({ key: `${blockId}-link-${index}`, type: 'link', label: 'لینک', text, target: span.href, blockId, printNumber })
+      }
+      if (span.footnoteId || span.footnoteText) {
+        refs.push({ key: `${blockId}-footnote-${index}`, type: 'footnote', label: `پاورقی ${span.footnoteId || ''}`.trim(), text, target: span.footnoteText, blockId, printNumber })
+      }
+      if (span.referenceText || span.referenceAnchor) {
+        refs.push({ key: `${blockId}-reference-${index}`, type: 'reference', label: 'رفرنس', text, target: span.referenceText || span.referenceAnchor, blockId, printNumber })
+      }
+      if (span.imageRefId) {
+        refs.push({ key: `${blockId}-image-${index}`, type: 'image', label: 'اتصال به تصویر', text, target: span.imageRefId, blockId, printNumber })
+      }
+    })
+  }
+  const visitBlocks = (blocks: BookBlockV2[], printNumber?: PrintPageValue) => {
+    blocks.forEach(block => {
+      if (block.type === 'paragraph' || block.type === 'heading') visitInline(block.inline, block.id, block.printNumber || printNumber)
+      if (block.type === 'list') block.items.forEach((item, index) => visitInline(item.inline, `${block.id}-item-${index}`, block.printNumber || printNumber))
+      if (block.type === 'image') visitInline(block.captionInline, block.id, block.printNumber || printNumber)
+      if (block.type === 'callout') visitBlocks(block.blocks, block.printNumber || printNumber)
+    })
+  }
+  document.pages.forEach(page => visitBlocks(page.blocks, page.printNumber))
+  return refs
 }
 
 function fileToDataUrlV2(file: File) {
@@ -920,6 +962,8 @@ function RightPanelV2({
   onJumpToBlock,
   canLinkImageRef,
   onLinkImageRef,
+  onApplyTextLink,
+  onRemoveTextLink,
   onInsertInteractive,
   onApplyCallout,
   onUnwrapCallout,
@@ -943,6 +987,8 @@ function RightPanelV2({
   onJumpToBlock: (blockId: string) => void
   canLinkImageRef: boolean
   onLinkImageRef: (ref: EditorMediaReferenceV2) => void
+  onApplyTextLink: (href: string) => boolean
+  onRemoveTextLink: () => boolean
   onInsertInteractive: (kind: string) => void
   onApplyCallout: (variant: (typeof CALLOUT_VARIANTS_V2)[number]) => void
   onUnwrapCallout: () => void
@@ -955,8 +1001,12 @@ function RightPanelV2({
   const selectedPrintNumber = selectedBlock?.printNumber
   const mediaRefs = useMemo(() => collectMediaReferencesV2(document), [document])
   const libraryMediaRefs = useMemo(() => collectMediaReferencesV2(document, selectedPrintNumber), [document, selectedPrintNumber])
+  const inlineRefs = useMemo(() => collectInlineReferencesV2(document), [document])
   const mediaIssueCount = mediaRefs.filter(item => item.needsCheck).length
   const [mediaQuery, setMediaQuery] = useState('')
+  const [referenceQuery, setReferenceQuery] = useState('')
+  const [linkHref, setLinkHref] = useState('')
+  const [referenceMessage, setReferenceMessage] = useState('')
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [aiPrompt, setAiPrompt] = useState('')
   const filteredMediaRefs = useMemo(() => {
@@ -973,13 +1023,27 @@ function RightPanelV2({
       return normalizeBookTextV2(`${item.caption || ''} ${item.issue || ''} ${item.printNumber || ''}`).toLowerCase().includes(query)
     })
   }, [libraryMediaRefs, mediaQuery])
+  const filteredReferenceMediaRefs = useMemo(() => {
+    const query = normalizeBookTextV2(referenceQuery).toLowerCase()
+    return libraryMediaRefs.filter(item => {
+      if (!query) return true
+      return normalizeBookTextV2(`${item.caption || ''} ${item.issue || ''} ${item.printNumber || ''}`).toLowerCase().includes(query)
+    })
+  }, [libraryMediaRefs, referenceQuery])
+  const filteredInlineRefs = useMemo(() => {
+    const query = normalizeBookTextV2(referenceQuery).toLowerCase()
+    return inlineRefs.filter(item => {
+      if (!query) return true
+      return normalizeBookTextV2(`${item.label} ${item.text} ${item.target || ''} ${item.printNumber || ''}`).toLowerCase().includes(query)
+    })
+  }, [inlineRefs, referenceQuery])
   const nearestMediaRef = useMemo(() => {
     if (!canLinkImageRef) return undefined
     return libraryMediaRefs.find(item => item.url && (item.blockId || item.assetId))
       || mediaRefs.find(item => item.url && (item.blockId || item.assetId))
   }, [canLinkImageRef, libraryMediaRefs, mediaRefs])
   useEffect(() => {
-    if (activePanel !== 'media' || !canLinkImageRef || !nearestMediaRef) return
+    if (activePanel !== 'references' || !canLinkImageRef || !nearestMediaRef) return
     const handle = window.setTimeout(() => {
       const safeKey = CSS.escape(nearestMediaRef.key)
       const target = window.document.querySelector<HTMLElement>(`[data-media-ref-key="${safeKey}"]`)
@@ -1067,12 +1131,6 @@ function RightPanelV2({
               <Search size={14} />
               <input value={mediaQuery} onChange={event => setMediaQuery(event.target.value)} placeholder="جستجو در تصاویر، کپشن یا شماره صفحه..." />
             </div>
-            {canLinkImageRef && (
-              <p className="editor-v2-media-link-hint">
-                متن انتخاب شده است؛ روی تصویر بزنید تا همان متن به تصویر وصل شود. تصاویر نزدیک به همین صفحه در اولویت هستند.
-              </p>
-            )}
-
             {mediaIssueCount > 0 && (
               <div className="editor-v2-media-issues">
                 <h4><AlertTriangle size={14} />نیازمند بررسی</h4>
@@ -1107,13 +1165,12 @@ function RightPanelV2({
                   key={item.key}
                   type="button"
                   data-media-ref-key={item.key}
-                  className={`${item.needsCheck ? 'has-issue' : ''} ${nearestMediaRef?.key === item.key ? 'is-nearest' : ''} ${canLinkImageRef ? 'is-link-target' : ''}`}
-                  disabled={!item.url || (!item.blockId && !canLinkImageRef)}
+                  className={`${item.needsCheck ? 'has-issue' : ''}`}
+                  disabled={!item.url || !item.blockId}
                   onClick={() => {
-                    if (canLinkImageRef) onLinkImageRef(item)
-                    else if (item.blockId) onJumpToBlock(item.blockId)
+                    if (item.blockId) onJumpToBlock(item.blockId)
                   }}
-                  title={canLinkImageRef ? 'اتصال متن انتخاب‌شده به این تصویر' : 'رفتن به محل تصویر'}
+                  title="رفتن به محل تصویر"
                 >
                   {item.url ? <img src={item.url} alt={item.caption || ''} loading="lazy" /> : <span className="editor-v2-missing-thumb"><ImageIcon size={16} /></span>}
                   <span>{item.caption || `تصویر صفحه ${item.printNumber || ''}`}</span>
@@ -1145,6 +1202,97 @@ function RightPanelV2({
                 </div>
               </div>
             )}
+          </div>
+        )}
+        {activePanel === 'references' && (
+          <div className="editor-v2-reference-panel">
+            <div className="editor-v2-reference-box">
+              <h4><Link2 size={14} />لینک متن انتخاب‌شده</h4>
+              <input value={linkHref} onChange={event => setLinkHref(event.target.value)} placeholder="https://... یا #bookmark" />
+              <div className="editor-v2-reference-actions">
+                <button
+                  type="button"
+                  disabled={!canLinkImageRef || !linkHref.trim()}
+                  onClick={() => {
+                    const ok = onApplyTextLink(linkHref.trim())
+                    setReferenceMessage(ok ? 'لینک روی متن انتخاب‌شده اعمال شد.' : 'اول متن مورد نظر را داخل سند انتخاب کنید.')
+                    if (ok) setLinkHref('')
+                  }}
+                >
+                  اعمال لینک
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReferenceMessage(onRemoveTextLink() ? 'لینک از متن انتخاب‌شده حذف شد.' : 'متنی که لینک داشته باشد انتخاب نشده است.')}
+                >
+                  حذف لینک
+                </button>
+              </div>
+              {!canLinkImageRef && <small>برای ایجاد لینک یا اتصال به تصویر، ابتدا متن داخل سند را انتخاب کنید.</small>}
+            </div>
+
+            <div className="editor-v2-media-search">
+              <Search size={14} />
+              <input value={referenceQuery} onChange={event => setReferenceQuery(event.target.value)} placeholder="جستجو در ارجاعات، پاورقی، رفرنس یا تصاویر..." />
+            </div>
+            {referenceMessage && <p className="editor-v2-media-message">{referenceMessage}</p>}
+
+            <details className="editor-v2-reference-accordion" open>
+              <summary>اتصال متن به تصویر</summary>
+              {canLinkImageRef && (
+                <p className="editor-v2-media-link-hint">
+                  متن انتخاب شده است؛ روی تصویر بزنید تا همان متن به تصویر وصل شود. تصاویر نزدیک به همین صفحه در اولویت هستند.
+                </p>
+              )}
+              <div className="editor-v2-media-list compact">
+                {filteredReferenceMediaRefs.slice(0, 50).map(item => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    data-media-ref-key={item.key}
+                    className={`${item.needsCheck ? 'has-issue' : ''} ${nearestMediaRef?.key === item.key ? 'is-nearest' : ''} ${canLinkImageRef ? 'is-link-target' : ''}`}
+                    disabled={!item.url || (!item.blockId && !item.assetId)}
+                    onClick={() => {
+                      if (canLinkImageRef) {
+                        onLinkImageRef(item)
+                        setReferenceMessage('متن انتخاب‌شده به تصویر وصل شد.')
+                      } else if (item.blockId) onJumpToBlock(item.blockId)
+                    }}
+                    title={canLinkImageRef ? 'اتصال متن انتخاب‌شده به این تصویر' : 'رفتن به محل تصویر'}
+                  >
+                    {item.url ? <img src={item.url} alt={item.caption || ''} loading="lazy" /> : <span className="editor-v2-missing-thumb"><ImageIcon size={16} /></span>}
+                    <span>{item.caption || `تصویر صفحه ${item.printNumber || ''}`}</span>
+                    <small>صفحه {item.printNumber || 'نامشخص'}</small>
+                  </button>
+                ))}
+              </div>
+            </details>
+
+            <details className="editor-v2-reference-accordion" open>
+              <summary>پاورقی‌ها، رفرنس‌ها و لینک‌های موجود</summary>
+              <div className="editor-v2-reference-list">
+                {filteredInlineRefs.length ? filteredInlineRefs.slice(0, 80).map(item => (
+                  <details key={item.key} className={`editor-v2-reference-item type-${item.type}`}>
+                    <summary>
+                      <b>{item.label}</b>
+                      <span>{item.text || item.target || 'بدون متن'}</span>
+                      <small>صفحه {item.printNumber || 'نامشخص'}</small>
+                    </summary>
+                    <div>
+                      <label>
+                        متن انتخاب‌شده
+                        <textarea readOnly value={item.text} />
+                      </label>
+                      <label>
+                        مقصد / متن ارجاع
+                        <textarea readOnly value={item.target || ''} />
+                      </label>
+                      {item.blockId && <button type="button" onClick={() => onJumpToBlock(item.blockId!)}>رفتن به محل ارجاع</button>}
+                    </div>
+                  </details>
+                )) : <p className="editor-v2-empty-panel">هنوز ارجاعی در این بخش پیدا نشد.</p>}
+              </div>
+            </details>
           </div>
         )}
         {activePanel === 'interactive' && (
