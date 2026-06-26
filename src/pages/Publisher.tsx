@@ -120,7 +120,9 @@ export default function Publisher() {
   const [localSyncMessage, setLocalSyncMessage] = useState('')
   const [manualSyncBusy, setManualSyncBusy] = useState(false)
   const [deletingBookId, setDeletingBookId] = useState<string | null>(null)
+  const [unpublishingBookId, setUnpublishingBookId] = useState<string | null>(null)
   const [coverGeneratingBookId, setCoverGeneratingBookId] = useState<string | null>(null)
+  const [purchaseCounts, setPurchaseCounts] = useState<Record<string, number>>({})
   const [search, setSearch] = useState('')
   const [stageFilter, setStageFilter] = useState('all')
   const [categoryFilter, setCategoryFilter] = useState('all')
@@ -212,7 +214,17 @@ export default function Publisher() {
           importStatus: row.metadata?.import_project_id ? 'word-imported' : 'manual',
         }, index))
         if (cancelled) return
-        setBooks(uniquePublisherBooks([...remote, ...scopedLocalFallback]))
+        const nextBooks = uniquePublisherBooks([...remote, ...scopedLocalFallback])
+        setBooks(nextBooks)
+        const bookIds = nextBooks.map(book => book.id).filter(id => UUID_RE.test(id))
+        if (bookIds.length) {
+          const purchases = await (supabase as any).from('user_books').select('book_id').in('book_id', bookIds)
+          if (!purchases.error) {
+            const counts: Record<string, number> = {}
+            ;(purchases.data || []).forEach((row: { book_id: string }) => { counts[row.book_id] = (counts[row.book_id] || 0) + 1 })
+            if (!cancelled) setPurchaseCounts(counts)
+          }
+        }
       } catch (error) {
         if (!cancelled) setRemoteError(error instanceof Error ? error.message : 'دریافت فهرست کامل کتاب‌ها ناموفق بود.')
       } finally {
@@ -235,6 +247,35 @@ export default function Publisher() {
     if (reset.error) return
     await (supabase as any).from('book_import_projects').update({ status: 'queued', error_message: null }).eq('id', importId)
     setBooks(current => current.map(item => item.id === book.id ? { ...item, importStatus: 'needs-review' } : item))
+  }
+
+  const unpublishBook = async (book: PublisherBook) => {
+    if (!UUID_RE.test(book.id) || unpublishingBookId) return
+    const purchaseCount = purchaseCounts[book.id] || 0
+    if (purchaseCount > 0) {
+      setRemoteError('این کتاب قبلاً خریداری شده و امکان خروج از نشر برای ویرایش ندارد.')
+      return
+    }
+    const confirmed = window.confirm('این کتاب از فروشگاه خارج و به حالت پیش‌نویس برمی‌گردد. بعد از آن امکان ویرایش دوباره فعال می‌شود. ادامه می‌دهید؟')
+    if (!confirmed) return
+    setUnpublishingBookId(book.id)
+    setRemoteError('')
+    try {
+      const metadata = {
+        ...(book.metadata || {}),
+        unpublished_reason: 'publisher_requested_edit',
+        unpublished_at: new Date().toISOString(),
+      }
+      const patch = { status: 'draft', review_status: 'pending', metadata } as Partial<PublisherBook>
+      const result = await (supabase as any).from('books').update(patch).eq('id', book.id)
+      if (result.error) throw result.error
+      updatePublisherBook(book.id, patch)
+      setBooks(current => current.map(item => item.id === book.id ? normalizePublisherBook({ ...item, ...patch }) : item))
+    } catch (error) {
+      setRemoteError(error instanceof Error ? error.message : 'خروج کتاب از نشر ناموفق بود.')
+    } finally {
+      setUnpublishingBookId(null)
+    }
   }
 
   const syncThisBrowserLocalBooks = async () => {
@@ -435,6 +476,9 @@ export default function Publisher() {
           const meta = stageMeta[safeBook.stage] || stageMeta.editing
           const commentsCount = comments.filter(c => c.bookId === book.id).length
           const canDelete = canDeletePublisherBook(safeBook)
+          const isPublished = safeBook.status === 'published' && safeBook.review_status === 'approved'
+          const purchaseCount = purchaseCounts[safeBook.id] || 0
+          const canUnpublish = isPublished && UUID_RE.test(safeBook.id) && purchaseCount === 0
           return (
             <div key={book.id} className="menu-glass-70 rounded-3xl overflow-hidden border border-primary/20">
               <div className="grid md:grid-cols-[140px_1fr] gap-5">
@@ -459,9 +503,10 @@ export default function Publisher() {
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 mt-auto">
-                    <Button onClick={() => navigate(`/edit/${safeBook.id}`)} className="gap-2 flex-1 sm:min-w-56"><FileText className="w-4 h-4" />ویرایش متن و محتوا</Button>
-                    <Button variant="outline" onClick={() => navigate(`/edit-legacy/${safeBook.id}`)} className="gap-2 flex-1 sm:min-w-56"><BookOpen className="w-4 h-4" />ادیتور قبلی</Button>
+                    <Button disabled={isPublished} title={isPublished ? 'کتاب منتشرشده قابل ویرایش مستقیم نیست.' : undefined} onClick={() => navigate(`/edit/${safeBook.id}`)} className="gap-2 flex-1 sm:min-w-56"><FileText className="w-4 h-4" />ویرایش متن و محتوا</Button>
+                    <Button variant="outline" disabled={isPublished} title={isPublished ? 'کتاب منتشرشده قابل ویرایش مستقیم نیست.' : undefined} onClick={() => navigate(`/edit-legacy/${safeBook.id}`)} className="gap-2 flex-1 sm:min-w-56"><BookOpen className="w-4 h-4" />ادیتور قبلی</Button>
                     <Button onClick={() => navigate(`/publish/${safeBook.id}`)} className="gap-2 bg-amber-500 hover:bg-amber-600 flex-1 sm:min-w-56"><Rocket className="w-4 h-4" />قیمت، سهام و انتشار</Button>
+                    {canUnpublish && <Button variant="outline" disabled={unpublishingBookId === safeBook.id} onClick={() => void unpublishBook(safeBook)} className="gap-2"><RefreshCcw className={`w-4 h-4 ${unpublishingBookId === safeBook.id ? 'animate-spin' : ''}`} />خروج از نشر برای ویرایش</Button>}
                     <Button variant="outline" onClick={() => void previewPublisherBook(safeBook)} className="gap-2"><Eye className="w-4 h-4" />پیش‌نمایش</Button>
                     <Button variant="outline" disabled={coverGeneratingBookId === safeBook.id} onClick={() => void generateCover(safeBook)} className="gap-2"><Sparkles className={`w-4 h-4 ${coverGeneratingBookId === safeBook.id ? 'animate-spin' : ''}`} />{coverGeneratingBookId === safeBook.id ? 'طراحی جلد...' : 'طراحی جلد AI'}</Button>
                     <Button variant="outline" className="gap-2"><MessageSquare className="w-4 h-4" />نظرات</Button>

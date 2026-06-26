@@ -1106,6 +1106,7 @@ export default function Edit() {
   const { balance: creditBalance } = useCredits(user)
   const localInitial = useMemo(() => findPublisherBook(id) || findBookById(id), [id])
   const [book, setBook] = useState<any>(localInitial)
+  const [accessError, setAccessError] = useState('')
   const [title, setTitle] = useState(localInitial?.title || '')
   const [subtitle, setSubtitle] = useState(localInitial?.subtitle || '')
   const [description, setDescription] = useState(localInitial?.description || '')
@@ -1183,6 +1184,15 @@ export default function Edit() {
       .map((image: any) => ({ ...image, sameSegment: Number(image.pageIndex ?? -1) >= start && Number(image.pageIndex ?? -1) < end }))
       .sort((a: any, b: any) => Number(b.sameSegment) - Number(a.sameSegment) || Number(a.pageIndex ?? 9999) - Number(b.pageIndex ?? 9999))
   }, [bookImages, activeSegment?.start, activeSegment?.end])
+
+  useEffect(() => {
+    const current = book || localInitial
+    if (current?.status === 'published' && current?.review_status === 'approved') {
+      setAccessError('این کتاب منتشر شده است و امکان ویرایش مستقیم ندارد. اگر هنوز خریداری نشده، ابتدا آن را از صفحه انتشارات از نشر خارج کنید.')
+      return
+    }
+    setAccessError('')
+  }, [book, localInitial])
   const filteredBookImages = useMemo(() => {
     const q = mediaSearch.trim().toLowerCase()
     if (!q) return bookImages
@@ -1341,6 +1351,7 @@ export default function Edit() {
   const selectedInteractiveKind = editor?.isActive('interactiveBlock') ? String(editor.getAttributes('interactiveBlock').kind || 'interactive') : ''
   const selectedInteractiveLabel = selectedInteractiveKind ? interactiveLabel(selectedInteractiveKind) : ''
 
+  if (accessError) return <div className="max-w-4xl mx-auto px-4 py-20 text-center"><h1 className="text-2xl font-bold">{accessError}</h1><RouterLink to="/publisher/me" className="mt-6 inline-flex rounded-xl bg-primary px-5 py-3 font-bold text-primary-foreground">بازگشت به انتشارات</RouterLink></div>
   if (!book && !localInitial) return <div className="max-w-4xl mx-auto px-4 py-20 text-center"><h1 className="text-2xl font-bold">در حال دریافت پیش‌نویس کتاب...</h1></div>
 
   const command = (action: (activeEditor: NonNullable<typeof editor>) => void) => {

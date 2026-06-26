@@ -1430,6 +1430,12 @@ export default function EditorV2Page() {
           setDocument(null)
           return
         }
+        if (found.status === 'published' && found.review_status === 'approved') {
+          setError('این کتاب منتشر شده است و امکان ویرایش مستقیم ندارد. اگر هنوز خریداری نشده، ابتدا آن را از صفحه انتشارات از نشر خارج کنید.')
+          setBook(null)
+          setDocument(null)
+          return
+        }
         const nextDocument = legacyBookToDocumentV2(found)
         setBook(found)
         setDocument(nextDocument)
