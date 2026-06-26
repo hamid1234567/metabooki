@@ -45,6 +45,19 @@ function CitationTooltip({ span, children }: { span: BookInlineV2; children: Rea
   )
 }
 
+function ImageReference({ span, children }: { span: BookInlineV2; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      className="book-image-reference"
+      data-image-ref-id={span.imageRefId}
+      title="مشاهده تصویر مرتبط"
+    >
+      {children}
+    </button>
+  )
+}
+
 export function InlineTextV2({ inline, fallback = '' }: { inline?: BookInlineV2[]; fallback?: string }) {
   if (!inline?.length) return <>{normalizeBookTextV2(fallback)}</>
   return (
@@ -54,9 +67,12 @@ export function InlineTextV2({ inline, fallback = '' }: { inline?: BookInlineV2[
         const withCitation = span.footnoteText || span.referenceText || span.footnoteId
           ? <CitationTooltip span={span}>{content}</CitationTooltip>
           : content
+        const withImageRef = span.imageRefId
+          ? <ImageReference span={span}>{withCitation}</ImageReference>
+          : withCitation
         return (
           <Fragment key={span.id || index}>
-            {span.href ? <a href={span.href} target="_blank" rel="noopener noreferrer">{withCitation}</a> : withCitation}
+            {span.href && !span.imageRefId ? <a href={span.href} target={span.href.startsWith('#') ? undefined : '_blank'} rel={span.href.startsWith('#') ? undefined : 'noopener noreferrer'}>{withImageRef}</a> : withImageRef}
           </Fragment>
         )
       })}

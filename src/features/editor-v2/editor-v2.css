@@ -479,6 +479,36 @@
   grid-template-columns: 4.4rem minmax(0, 1fr);
 }
 
+.editor-v2-media-list button.is-nearest {
+  border-color: #2563eb;
+  background: linear-gradient(135deg, #eef6ff, #fff 76%);
+  box-shadow: 0 14px 32px #2563eb24;
+}
+
+.editor-v2-media-list button.is-link-target::after {
+  content: "اتصال";
+  position: absolute;
+  inset-block-start: 0.35rem;
+  inset-inline-end: 0.35rem;
+  border-radius: 999px;
+  background: #2563eb;
+  color: #fff;
+  padding: 0.12rem 0.45rem;
+  font-size: 0.62rem;
+  font-weight: 800;
+}
+
+.editor-v2-media-link-hint {
+  margin: 0;
+  border: 1px solid #bfdbfe;
+  border-radius: 0.9rem;
+  background: linear-gradient(135deg, #eff6ff, #ffffff);
+  color: #1d4ed8;
+  padding: 0.55rem 0.7rem;
+  font-size: 0.75rem;
+  line-height: 1.8;
+}
+
 .editor-v2-media-list img {
   width: 4.4rem;
   height: 3.4rem;
@@ -1033,6 +1063,26 @@
 
 .editor-v2-citation-reference .citation-tooltip {
   pointer-events: none;
+}
+
+.editor-v2-image-reference,
+.editor-v2-flow-editor .book-image-reference {
+  display: inline;
+  border-bottom: 2px solid #38bdf8;
+  background: linear-gradient(180deg, transparent 45%, #bae6fd66 0);
+  color: #075985;
+  cursor: zoom-in;
+  border-radius: 0.15rem;
+}
+
+.editor-v2-image-reference::after,
+.editor-v2-flow-editor .book-image-reference::after {
+  content: " تصویر";
+  margin-inline: 0.15em;
+  color: #0284c7;
+  font-size: 0.72em;
+  font-weight: 800;
+  vertical-align: super;
 }
 
 .editor-v2-flow-editor table {

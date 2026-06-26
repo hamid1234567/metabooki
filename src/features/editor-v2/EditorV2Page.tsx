@@ -918,6 +918,8 @@ function RightPanelV2({
   mediaMessage,
   onResolveMediaIssue,
   onJumpToBlock,
+  canLinkImageRef,
+  onLinkImageRef,
   onInsertInteractive,
   onApplyCallout,
   onUnwrapCallout,
@@ -939,6 +941,8 @@ function RightPanelV2({
   mediaMessage: string
   onResolveMediaIssue: (ref: EditorMediaReferenceV2) => void
   onJumpToBlock: (blockId: string) => void
+  canLinkImageRef: boolean
+  onLinkImageRef: (ref: EditorMediaReferenceV2) => void
   onInsertInteractive: (kind: string) => void
   onApplyCallout: (variant: (typeof CALLOUT_VARIANTS_V2)[number]) => void
   onUnwrapCallout: () => void
@@ -969,6 +973,20 @@ function RightPanelV2({
       return normalizeBookTextV2(`${item.caption || ''} ${item.issue || ''} ${item.printNumber || ''}`).toLowerCase().includes(query)
     })
   }, [libraryMediaRefs, mediaQuery])
+  const nearestMediaRef = useMemo(() => {
+    if (!canLinkImageRef) return undefined
+    return libraryMediaRefs.find(item => item.url && (item.blockId || item.assetId))
+      || mediaRefs.find(item => item.url && (item.blockId || item.assetId))
+  }, [canLinkImageRef, libraryMediaRefs, mediaRefs])
+  useEffect(() => {
+    if (activePanel !== 'media' || !canLinkImageRef || !nearestMediaRef) return
+    const handle = window.setTimeout(() => {
+      const safeKey = CSS.escape(nearestMediaRef.key)
+      const target = window.document.querySelector<HTMLElement>(`[data-media-ref-key="${safeKey}"]`)
+      target?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    }, 90)
+    return () => window.clearTimeout(handle)
+  }, [activePanel, canLinkImageRef, nearestMediaRef])
   const [openIds, setOpenIds] = useState<Set<string>>(() => new Set(tree.map(item => item.id)))
   useEffect(() => {
     setOpenIds(new Set(tree.map(item => item.id)))
@@ -1049,6 +1067,11 @@ function RightPanelV2({
               <Search size={14} />
               <input value={mediaQuery} onChange={event => setMediaQuery(event.target.value)} placeholder="جستجو در تصاویر، کپشن یا شماره صفحه..." />
             </div>
+            {canLinkImageRef && (
+              <p className="editor-v2-media-link-hint">
+                متن انتخاب شده است؛ روی تصویر بزنید تا همان متن به تصویر وصل شود. تصاویر نزدیک به همین صفحه در اولویت هستند.
+              </p>
+            )}
 
             {mediaIssueCount > 0 && (
               <div className="editor-v2-media-issues">
@@ -1080,7 +1103,18 @@ function RightPanelV2({
 
             <div className="editor-v2-media-list">
               {filteredMediaRefs.length ? filteredMediaRefs.slice(0, 80).map(item => (
-                <button key={item.key} type="button" className={item.needsCheck ? 'has-issue' : ''} disabled={!item.url || !item.blockId} onClick={() => item.blockId && onJumpToBlock(item.blockId)}>
+                <button
+                  key={item.key}
+                  type="button"
+                  data-media-ref-key={item.key}
+                  className={`${item.needsCheck ? 'has-issue' : ''} ${nearestMediaRef?.key === item.key ? 'is-nearest' : ''} ${canLinkImageRef ? 'is-link-target' : ''}`}
+                  disabled={!item.url || (!item.blockId && !canLinkImageRef)}
+                  onClick={() => {
+                    if (canLinkImageRef) onLinkImageRef(item)
+                    else if (item.blockId) onJumpToBlock(item.blockId)
+                  }}
+                  title={canLinkImageRef ? 'اتصال متن انتخاب‌شده به این تصویر' : 'رفتن به محل تصویر'}
+                >
                   {item.url ? <img src={item.url} alt={item.caption || ''} loading="lazy" /> : <span className="editor-v2-missing-thumb"><ImageIcon size={16} /></span>}
                   <span>{item.caption || `تصویر صفحه ${item.printNumber || ''}`}</span>
                   <small>صفحه {item.printNumber || 'نامشخص'}{item.autoCaption ? <><span> · </span><em className="editor-v2-media-auto-badge inline">اتوکپشن</em></> : ''}</small>
@@ -1156,6 +1190,7 @@ export default function EditorV2Page() {
   const [activePanel, setActivePanel] = useState<EditorPanelV2>('toc')
   const [activeTocId, setActiveTocId] = useState<string>()
   const [selectedBlockId, setSelectedBlockId] = useState<string>()
+  const [hasTextSelection, setHasTextSelection] = useState(false)
   const [toolbarState, setToolbarState] = useState<TextToolbarStateV2>(EMPTY_TEXT_TOOLBAR_STATE_V2)
   const [dirty, setDirty] = useState(false)
   const [dirtyRevision, setDirtyRevision] = useState(0)
@@ -1332,13 +1367,19 @@ export default function EditorV2Page() {
 
   const rememberEditorSelection = useCallback(() => {
     const selection = window.getSelection()
-    if (!selection?.rangeCount || !editorSurfaceRef.current) return
+    if (!selection?.rangeCount || !editorSurfaceRef.current) {
+      setHasTextSelection(false)
+      return
+    }
     const range = selection.getRangeAt(0)
     const container = range.commonAncestorContainer
     const selectionNode = container.nodeType === Node.ELEMENT_NODE ? container as Element : container.parentElement
     if (selectionNode && editorSurfaceRef.current.contains(selectionNode)) {
       savedSelectionRef.current = range.cloneRange()
+      setHasTextSelection(!selection.isCollapsed && Boolean(selection.toString().trim()))
+      return
     }
+    setHasTextSelection(false)
   }, [])
 
   const restoreEditorSelection = useCallback(() => {
@@ -1479,6 +1520,46 @@ export default function EditorV2Page() {
     skipNextSurfaceSyncRef.current = true
     scheduleRefreshDocumentFromEditor()
   }, [scheduleRefreshDocumentFromEditor])
+
+  const applyImageReferenceToSelection = useCallback((ref: EditorMediaReferenceV2) => {
+    const imageRefId = ref.blockId || ref.assetId
+    if (!imageRefId) return
+    restoreEditorSelection()
+    const selection = window.getSelection()
+    const root = editorSurfaceRef.current
+    const range = selection?.rangeCount ? selection.getRangeAt(0) : savedSelectionRef.current
+    if (!selection || !range || !root || selection.isCollapsed || !selection.toString().trim()) {
+      setMediaMessage('برای اتصال تصویر، اول متن مورد نظر را انتخاب کنید.')
+      return
+    }
+    const container = range.commonAncestorContainer
+    const selectionNode = container.nodeType === Node.ELEMENT_NODE ? container as Element : container.parentElement
+    if (!selectionNode || !root.contains(selectionNode)) {
+      setMediaMessage('انتخاب متن داخل سند فعال نیست.')
+      return
+    }
+    pushEditorHistory()
+    const wrapper = window.document.createElement('span')
+    wrapper.className = 'book-image-reference editor-v2-image-reference'
+    wrapper.dataset.imageRefId = imageRefId
+    wrapper.title = ref.caption || 'مشاهده تصویر مرتبط'
+    try {
+      range.surroundContents(wrapper)
+    } catch {
+      const contents = range.extractContents()
+      wrapper.appendChild(contents)
+      range.insertNode(wrapper)
+    }
+    const nextRange = window.document.createRange()
+    nextRange.selectNodeContents(wrapper)
+    selection.removeAllRanges()
+    selection.addRange(nextRange)
+    savedSelectionRef.current = nextRange.cloneRange()
+    setHasTextSelection(true)
+    setMediaMessage('متن انتخاب‌شده به تصویر وصل شد.')
+    markEditorDirty()
+    scheduleToolbarDocumentRefresh()
+  }, [markEditorDirty, pushEditorHistory, restoreEditorSelection, scheduleToolbarDocumentRefresh])
 
   const handleEditorSurfaceInput = useCallback((event: any) => {
     const target = event.target as HTMLElement
@@ -2424,6 +2505,8 @@ export default function EditorV2Page() {
           mediaMessage={mediaMessage}
           onResolveMediaIssue={resolveMediaIssue}
           onJumpToBlock={jumpToEditorBlock}
+          canLinkImageRef={hasTextSelection}
+          onLinkImageRef={applyImageReferenceToSelection}
           onInsertInteractive={insertInteractiveBlock}
           onApplyCallout={wrapSelectedCallout}
           onUnwrapCallout={unwrapSelectedCallout}

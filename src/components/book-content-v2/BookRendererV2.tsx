@@ -165,6 +165,22 @@ function findBookBlockV2(blocks: BookBlockV2[], blockId?: string): BookBlockV2 |
   return null
 }
 
+function findImageBlockByRefV2(blocks: BookBlockV2[], refId?: string): Extract<BookBlockV2, { type: 'image' }> | null {
+  if (!refId) return null
+  const normalized = decodeURIComponent(String(refId).replace(/^#/, ''))
+  for (const block of blocks) {
+    if (block.type === 'image') {
+      const refs = [block.id, block.anchor, block.imageId, ...(block.anchors || [])].filter(Boolean).map(String)
+      if (refs.includes(normalized)) return block
+    }
+    if (block.type === 'callout') {
+      const nested = findImageBlockByRefV2(block.blocks, normalized)
+      if (nested) return nested
+    }
+  }
+  return null
+}
+
 export function BookRendererV2({ document, pages, blocks, compact = false, editable = false, selectedBlockId, onSelectBlock, onTextChange }: BookRendererV2Props) {
   const options = { editable, selectedBlockId, onSelectBlock, onTextChange }
   const visiblePages = pages || document?.pages || []
@@ -173,21 +189,64 @@ export function BookRendererV2({ document, pages, blocks, compact = false, edita
   const [zoomScale, setZoomScale] = useState(1)
   const [zoomCaptionVisible, setZoomCaptionVisible] = useState(true)
   const [zoomCaptionExiting, setZoomCaptionExiting] = useState(false)
+  const [imageRefPreview, setImageRefPreview] = useState<{ block: Extract<BookBlockV2, { type: 'image' }>; x: number; y: number } | null>(null)
+  const openZoomForImageBlock = (imageBlock: Extract<BookBlockV2, { type: 'image' }>, src = imageBlock.url) => {
+    if (!src) return
+    const caption = imageBlock.caption || ''
+    const initialScale = imageBlock.widthPercent
+      ? Math.max(0.12, Math.min(1, imageBlock.widthPercent / 100))
+      : 1
+    setZoomImage({ src, alt: caption, initialScale, captionInline: imageBlock.captionInline })
+    setZoomScale(initialScale)
+    setZoomCaptionVisible(true)
+    setZoomCaptionExiting(false)
+  }
   const handleImageClick = (event: MouseEvent<HTMLElement>) => {
     const target = event.target as HTMLElement
+    const imageReference = target.closest<HTMLElement>('[data-image-ref-id]')
+    if (imageReference?.dataset.imageRefId) {
+      const imageBlock = findImageBlockByRefV2(rootBlocks, imageReference.dataset.imageRefId)
+      if (imageBlock) {
+        event.preventDefault()
+        openZoomForImageBlock(imageBlock)
+        return
+      }
+    }
+    const localLink = target.closest<HTMLAnchorElement>('a[href^="#"]')
+    if (localLink) {
+      const imageBlock = findImageBlockByRefV2(rootBlocks, localLink.getAttribute('href') || '')
+      if (imageBlock) {
+        event.preventDefault()
+        openZoomForImageBlock(imageBlock)
+        return
+      }
+    }
     const image = target.closest('img')
     if (!image?.src) return
     const figure = image.closest<HTMLElement>('figure[data-block-id]')
     const imageBlock = findBookBlockV2(rootBlocks, figure?.dataset.blockId)
-    const caption = imageBlock?.type === 'image' ? imageBlock.caption || image.alt || '' : image.alt || ''
-    const captionInline = imageBlock?.type === 'image' ? imageBlock.captionInline : undefined
-    const initialScale = imageBlock?.type === 'image' && imageBlock.widthPercent
-      ? Math.max(0.12, Math.min(1, imageBlock.widthPercent / 100))
-      : 1
-    setZoomImage({ src: image.src, alt: caption, initialScale, captionInline })
-    setZoomScale(initialScale)
-    setZoomCaptionVisible(true)
-    setZoomCaptionExiting(false)
+    if (imageBlock?.type === 'image') openZoomForImageBlock(imageBlock, image.src)
+    else {
+      setZoomImage({ src: image.src, alt: image.alt || '', initialScale: 1 })
+      setZoomScale(1)
+      setZoomCaptionVisible(true)
+      setZoomCaptionExiting(false)
+    }
+  }
+  const handleImageReferenceMove = (event: MouseEvent<HTMLElement>) => {
+    const target = event.target as HTMLElement
+    const refTarget = target.closest<HTMLElement>('[data-image-ref-id], a[href^="#"]')
+    const refId = refTarget?.dataset.imageRefId || (refTarget instanceof HTMLAnchorElement ? refTarget.getAttribute('href') || '' : '')
+    const imageBlock = findImageBlockByRefV2(rootBlocks, refId || '')
+    if (!imageBlock?.url) {
+      if (imageRefPreview) setImageRefPreview(null)
+      return
+    }
+    setImageRefPreview({ block: imageBlock, x: event.clientX, y: event.clientY })
+  }
+  const handleImageReferenceOut = (event: MouseEvent<HTMLElement>) => {
+    const target = event.target as HTMLElement
+    if (target.closest('[data-image-ref-id], a[href^="#"]')) setImageRefPreview(null)
   }
   const toggleZoomCaption = () => {
     if (zoomCaptionVisible && !zoomCaptionExiting) {
@@ -225,15 +284,26 @@ export function BookRendererV2({ document, pages, blocks, compact = false, edita
       </div>
     </div>
   )
-  if (blocks) return <div className={compact ? 'book-v2-renderer compact' : 'book-v2-renderer'} onClick={handleImageClick}>{renderBlocks(blocks, options)}{zoomModal}</div>
+  const hoverPreview = imageRefPreview && (
+    <div
+      className="book-v2-image-ref-preview"
+      style={{ left: Math.min(window.innerWidth - 220, imageRefPreview.x + 14), top: Math.min(window.innerHeight - 170, imageRefPreview.y + 14) }}
+      dir={textDirectionV2(imageRefPreview.block.caption || '')}
+    >
+      <img src={imageRefPreview.block.url} alt={imageRefPreview.block.caption || ''} />
+      {imageRefPreview.block.caption && <span>{normalizeBookTextV2(imageRefPreview.block.caption)}</span>}
+    </div>
+  )
+  if (blocks) return <div className={compact ? 'book-v2-renderer compact' : 'book-v2-renderer'} onClick={handleImageClick} onMouseMove={handleImageReferenceMove} onMouseOut={handleImageReferenceOut}>{renderBlocks(blocks, options)}{hoverPreview}{zoomModal}</div>
   return (
-    <article className={compact ? 'book-v2-renderer compact' : 'book-v2-renderer'} dir={document?.direction === 'ltr' ? 'ltr' : 'rtl'} onClick={handleImageClick}>
+    <article className={compact ? 'book-v2-renderer compact' : 'book-v2-renderer'} dir={document?.direction === 'ltr' ? 'ltr' : 'rtl'} onClick={handleImageClick} onMouseMove={handleImageReferenceMove} onMouseOut={handleImageReferenceOut}>
       {visiblePages.map((page, index) => (
         <section key={page.id} className="book-v2-page" data-page-index={page.index} data-print-page={page.printNumber ?? ''}>
           {index > 0 && <PageBreakV2 previous={visiblePages[index - 1]} next={page} />}
           {renderBlocks(page.blocks, options)}
         </section>
       ))}
+      {hoverPreview}
       {zoomModal}
     </article>
   )

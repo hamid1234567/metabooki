@@ -90,6 +90,59 @@
   font-size: 0.86rem;
 }
 
+.book-image-reference {
+  display: inline;
+  border: 0;
+  border-bottom: 2px solid #38bdf8;
+  background: linear-gradient(180deg, transparent 45%, #bae6fd66 0);
+  color: #075985;
+  padding: 0 0.08em;
+  font: inherit;
+  line-height: inherit;
+  cursor: zoom-in;
+}
+
+.book-image-reference::after {
+  content: " تصویر";
+  margin-inline: 0.15em;
+  color: #0284c7;
+  font-size: 0.72em;
+  font-weight: 800;
+  vertical-align: super;
+}
+
+.book-v2-image-ref-preview {
+  position: fixed;
+  z-index: 10001;
+  width: 12.5rem;
+  max-width: calc(100vw - 2rem);
+  pointer-events: none;
+  border: 1px solid #c9dcf7;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(16px) saturate(145%);
+  -webkit-backdrop-filter: blur(16px) saturate(145%);
+  box-shadow: 0 22px 60px hsl(215 55% 22% / 0.22);
+  padding: 0.45rem;
+}
+
+.book-v2-image-ref-preview img {
+  display: block;
+  width: 100%;
+  max-height: 7.5rem;
+  object-fit: contain;
+  border-radius: 0.75rem;
+  background: #eef4ff;
+}
+
+.book-v2-image-ref-preview span {
+  display: block;
+  margin-top: 0.35rem;
+  color: #26364d;
+  font-size: 0.72rem;
+  line-height: 1.65;
+}
+
 .book-v2-image-modal {
   position: fixed;
   inset: 0;

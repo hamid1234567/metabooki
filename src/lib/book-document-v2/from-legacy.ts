@@ -293,6 +293,7 @@ function inlineV2ToLegacy(inline?: BookInlineV2[]) {
     superscript: span.marks?.includes('superscript') || undefined,
     subscript: span.marks?.includes('subscript') || undefined,
     href: span.href,
+    imageRefId: span.imageRefId,
     footnoteId: span.footnoteId,
     footnoteText: span.footnoteText,
     referenceAnchor: span.referenceAnchor,
