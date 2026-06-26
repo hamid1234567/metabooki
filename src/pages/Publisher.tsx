@@ -15,6 +15,7 @@ import { resolveBookCoverArt } from '@/lib/ai-image-prompts'
 import { openReaderPreview, readerUrl } from '@/lib/app-routes'
 import { generateAndAttachBookCover } from '@/lib/book-cover-ai'
 import { syncLocalPublisherBooksToSupabase } from '@/lib/publisher-remote-sync'
+import { useRoles } from '@/hooks/useRoles'
 
 const stageMeta = {
   editing: { label: 'در حال ویرایش', className: 'bg-blue-500 text-white', icon: FileText },
@@ -81,6 +82,7 @@ function normalizePublisherBook(book: Partial<PublisherBook> & { id?: string }, 
 export default function Publisher() {
   const navigate = useNavigate()
   const { user } = useAuthContext()
+  const { isAdmin, loading: rolesLoading } = useRoles(user)
   const hasRemoteConfig = Boolean(import.meta.env.VITE_SUPABASE_URL?.startsWith('http'))
   const [books, setBooks] = useState<PublisherBook[]>(() => getPublisherBooks({ includeSeed: !hasRemoteConfig }).map(normalizePublisherBook))
   const [remoteLoading, setRemoteLoading] = useState(false)
@@ -133,6 +135,7 @@ export default function Publisher() {
   }, [page, pagedBooks.pageCount])
 
   useEffect(() => {
+    if (rolesLoading) return
     if (!user || !hasRemoteConfig) {
       setBooks(getPublisherBooks({ includeSeed: true }).map(normalizePublisherBook))
       setRemoteLoaded(true)
@@ -149,12 +152,9 @@ export default function Publisher() {
         const ownPublisher = await withTimeout<any>((supabase as any).from('publisher_profiles').select('id').eq('user_id', user.id).maybeSingle())
         if (ownPublisher.error) throw ownPublisher.error
         let query = (supabase as any).from('books').select(PUBLISHER_BOOK_LIST_COLUMNS).order('created_at', { ascending: false })
-        if (ownPublisher.data?.id) query = query.eq('publisher_id', ownPublisher.data.id)
-        else {
-          const roles = await withTimeout<any>((supabase as any).from('user_roles').select('role').eq('user_id', user.id))
-          if (roles.error) throw roles.error
-          const isAdmin = roles.data?.some((item: { role: string }) => item.role === 'admin' || item.role === 'super_admin')
-          if (!isAdmin) {
+        if (!isAdmin) {
+          if (ownPublisher.data?.id) query = query.eq('publisher_id', ownPublisher.data.id)
+          else {
             if (!cancelled) setBooks([])
             return
           }
@@ -192,7 +192,7 @@ export default function Publisher() {
       }
     })()
     return () => { cancelled = true }
-  }, [user, hasRemoteConfig])
+  }, [user, hasRemoteConfig, isAdmin, rolesLoading])
   useEffect(() => {
     loadBookFilterSettings().then(setFilterSettings)
   }, [])
