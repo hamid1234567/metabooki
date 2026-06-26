@@ -1484,7 +1484,8 @@ export default function EditorV2Page() {
       } as Partial<PublisherBook>
       const nextBook = { ...book, ...patch } as MockBook
       if (isUuid(book.id)) {
-        const { error } = await (supabase as any).from('books').update(patch).eq('id', book.id)
+        const { page_count: _pageCount, ...remotePatch } = patch as Partial<PublisherBook> & { page_count?: number }
+        const { error } = await (supabase as any).from('books').update(remotePatch).eq('id', book.id)
         if (error) throw error
       } else {
         updatePublisherBook(book.id, nextBook as PublisherBook)
