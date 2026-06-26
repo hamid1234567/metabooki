@@ -24,8 +24,6 @@ const stageMeta = {
 }
 
 const UUID_RE = /^[0-9a-f-]{36}$/i
-const PUBLISHER_BOOK_LIST_COLUMNS = 'id,title,subtitle,description,cover_url,back_cover_url,preview_pages,price,status,review_status,publisher_id,language,tags,metadata,series_id,series_order,created_at'
-
 function withTimeout<T>(promise: PromiseLike<T>, timeoutMs = 45000, message = 'اتصال به Supabase بیش از حد طول کشید.'): Promise<T> {
   return Promise.race([
     Promise.resolve(promise),
@@ -176,16 +174,14 @@ export default function Publisher() {
     setRemoteError('')
     ;(async () => {
       try {
-        let query = (supabase as any).from('books').select(PUBLISHER_BOOK_LIST_COLUMNS).order('created_at', { ascending: false })
         const ownPublisher = await withTimeout<any>((supabase as any).from('publisher_profiles').select('id').eq('user_id', user.id).maybeSingle())
         if (ownPublisher.error) throw ownPublisher.error
-        if (ownPublisher.data?.id) query = query.eq('publisher_id', ownPublisher.data.id)
-        else {
+        if (!ownPublisher.data?.id) {
           if (!cancelled) setBooks([])
           if (!cancelled) setRemoteError('برای این حساب، پروفایل ناشر در Supabase ثبت نشده است.')
           return
         }
-        const result = await withTimeout<any>(query.range(0, 999))
+        const result = await withTimeout<any>((supabase as any).rpc('get_my_publisher_books'))
         if (result.error) throw result.error
         const remote: PublisherBook[] = (result.data || []).map((row: any, index: number) => normalizePublisherBook({
           ...row,
