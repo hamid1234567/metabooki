@@ -16,7 +16,8 @@
   min-width: 0;
 }
 
-.book-number-run {
+.book-number-run,
+.book-ltr-inline-run {
   direction: ltr;
   unicode-bidi: isolate;
   white-space: nowrap;

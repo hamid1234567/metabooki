@@ -11,7 +11,7 @@ import { useAuthContext } from '@/lib/auth-context'
 import { useCredits } from '@/hooks/useCredits'
 import { creditsBus } from '@/lib/credits-bus'
 import { buildTocFromHeadingsV2, cleanImageCaptionV2, createV2Id, documentV2ToConfirmedToc, documentV2ToLegacyPages, legacyBookToDocumentV2, normalizeBookTextV2, resolveTocTreeV2, textDirectionV2, tocAsFlatListV2, type BookBlockV2, type BookDocumentV2, type BookInlineV2, type BookTocItemV2, type CalloutBlockV2, type ParagraphBlockV2 } from '@/lib/book-document-v2'
-import { bookDisplayTextHtml, type PrintPageValue } from '@/lib/book-content'
+import { bookDisplayTextHtml, isBookLtrRunText, type PrintPageValue } from '@/lib/book-content'
 import type { MockBook } from '@/lib/mock-data'
 import './editor-v2.css'
 
@@ -165,26 +165,76 @@ function citationAttrsV2(span: BookInlineV2) {
   ].join('')
 }
 
+function canJoinLtrEditorRunV2(span: BookInlineV2) {
+  if (span.href || span.imageRefId || span.footnoteId || span.footnoteText || span.referenceText || span.referenceAnchor) return false
+  return isBookLtrRunText(span.text || '')
+}
+
+function isEditorInlineWhitespaceV2(span: BookInlineV2) {
+  return !span.href
+    && !span.imageRefId
+    && !span.footnoteId
+    && !span.footnoteText
+    && !span.referenceText
+    && !span.referenceAnchor
+    && !span.marks?.length
+    && /^\s+$/.test(normalizeBookTextV2(span.text || ''))
+}
+
+function nextNonSpaceEditorInlineV2(inline: BookInlineV2[], startIndex: number) {
+  return inline.slice(startIndex).find(span => !isEditorInlineWhitespaceV2(span))
+}
+
+function groupEditorInlineRunsV2(inline: BookInlineV2[]) {
+  const groups: Array<{ ltr: boolean; spans: BookInlineV2[] }> = []
+  let current: BookInlineV2[] = []
+
+  const flush = (ltr = false) => {
+    if (!current.length) return
+    groups.push({ ltr, spans: current })
+    current = []
+  }
+
+  inline.forEach((span, index) => {
+    const joins = canJoinLtrEditorRunV2(span)
+    const nextNonSpace = nextNonSpaceEditorInlineV2(inline, index + 1)
+    const joinsAsSpace = isEditorInlineWhitespaceV2(span) && current.length && Boolean(nextNonSpace && canJoinLtrEditorRunV2(nextNonSpace))
+    if (joins || joinsAsSpace) {
+      current.push(span)
+      return
+    }
+    flush(true)
+    groups.push({ ltr: false, spans: [span] })
+  })
+  flush(true)
+  return groups
+}
+
+function editorInlineSpanHtmlV2(span: BookInlineV2, isolated = false) {
+  let html = isolated ? escapeHtmlV2(normalizeBookTextV2(span.text)) : bookDisplayTextHtml(span.text)
+  const marks = span.marks || []
+  if (marks.includes('subscript')) html = `<sub>${html}</sub>`
+  if (marks.includes('superscript')) html = `<sup>${html}</sup>`
+  if (marks.includes('bold')) html = `<strong>${html}</strong>`
+  if (marks.includes('italic')) html = `<em>${html}</em>`
+  if (marks.includes('underline')) html = `<u>${html}</u>`
+  if (marks.includes('strike')) html = `<s>${html}</s>`
+  if (span.style) html = `<span${styleAttrFromInlineV2(span.style)}>${html}</span>`
+  if (span.href) html = `<a href="${escapeHtmlV2(span.href)}">${html}</a>`
+  if (span.imageRefId) html = `<span class="book-image-reference editor-v2-image-reference" data-image-ref-id="${escapeHtmlV2(span.imageRefId)}">${html}</span>`
+  if (span.footnoteText || span.referenceText || span.footnoteId) {
+    const noteText = normalizeBookTextV2(span.footnoteText || span.referenceText || '')
+    const dir = textDirectionV2(noteText || span.text)
+    html = `<span${citationAttrsV2(span)} dir="${dir}">${html}${noteText ? `<span contenteditable="false" class="citation-tooltip" dir="${dir}">${escapeHtmlV2(noteText)}</span>` : ''}</span>`
+  }
+  return html
+}
+
 function inlineSpansToEditorHtmlV2(inline?: BookInlineV2[], fallback = '') {
   if (!inline?.length) return bookDisplayTextHtml(fallback)
-  return inline.map(span => {
-    let html = bookDisplayTextHtml(span.text)
-    const marks = span.marks || []
-    if (marks.includes('subscript')) html = `<sub>${html}</sub>`
-    if (marks.includes('superscript')) html = `<sup>${html}</sup>`
-    if (marks.includes('bold')) html = `<strong>${html}</strong>`
-    if (marks.includes('italic')) html = `<em>${html}</em>`
-    if (marks.includes('underline')) html = `<u>${html}</u>`
-    if (marks.includes('strike')) html = `<s>${html}</s>`
-    if (span.style) html = `<span${styleAttrFromInlineV2(span.style)}>${html}</span>`
-    if (span.href) html = `<a href="${escapeHtmlV2(span.href)}">${html}</a>`
-    if (span.imageRefId) html = `<span class="book-image-reference editor-v2-image-reference" data-image-ref-id="${escapeHtmlV2(span.imageRefId)}">${html}</span>`
-    if (span.footnoteText || span.referenceText || span.footnoteId) {
-      const noteText = normalizeBookTextV2(span.footnoteText || span.referenceText || '')
-      const dir = textDirectionV2(noteText || span.text)
-      html = `<span${citationAttrsV2(span)} dir="${dir}">${html}${noteText ? `<span contenteditable="false" class="citation-tooltip" dir="${dir}">${escapeHtmlV2(noteText)}</span>` : ''}</span>`
-    }
-    return html
+  return groupEditorInlineRunsV2(inline).map(group => {
+    const html = group.spans.map(span => editorInlineSpanHtmlV2(span, group.ltr)).join('')
+    return group.ltr ? `<bdi class="book-ltr-inline-run" dir="ltr">${html}</bdi>` : html
   }).join('')
 }
 

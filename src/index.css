@@ -48,7 +48,8 @@
   --shadow-azki-card-hover: 0 18px 42px hsl(210 45% 35% / 0.14);
 }
 
-.book-number-run {
+.book-number-run,
+.book-ltr-inline-run {
   direction: ltr;
   unicode-bidi: isolate;
   white-space: nowrap;
