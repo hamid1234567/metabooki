@@ -146,7 +146,7 @@ const LEGACY_ZWS_PATTERN = /\s*(?:Ãƒâ€šÃ‚Â¬|Ã‚Â¬|Ãƒâ€šÂ¬
 const WORD_SUFFIX_HAYE_PATTERN = /([\u0600-\u06FF]{2,})(\u0647\u0627\u064a|\u0647\u0627\u06cc|\u0647\u0627\u0649|\u0647\u0627\u06cc\u06cc|\u0647\u0627\u064a\u064a)(?=$|[\s\u060c\u061b,.!?\u061f])/g
 const SAMPLE_BARDARI_PATTERN = /(\u0646\u0645\u0648\u0646\u0647)(\u0628\u0631\u062f\u0627\u0631[\u0600-\u06FF]*)/g
 const RADON_KHAR_PATTERN = /(\u0631\u0627\u062f\u0648\u0646)(\u062e\u0648\u0627\u0631[\u0600-\u06FF]*)/g
-const BOOK_LTR_RUN_PATTERN = /[A-Za-z\u0370-\u03FF\u00B5\u00B0\u00B9\u00B2\u00B3\u2070-\u2079\u2080-\u20890-9\u06F0-\u06F9\u0660-\u0669](?:[A-Za-z\u0370-\u03FF\u00B5\u00B0\u00B9\u00B2\u00B3\u2070-\u2079\u2080-\u20890-9\u06F0-\u06F9\u0660-\u0669./,\u066B\u066C\u060C:%٪+\-−–—^(){}\[\]\s]*[A-Za-z\u0370-\u03FF\u00B5\u00B0\u00B9\u00B2\u00B3\u2070-\u2079\u2080-\u20890-9\u06F0-\u06F9\u0660-\u0669%٪°)])?/g
+const BOOK_LTR_RUN_PATTERN = /[%٪]?[A-Za-z\u0370-\u03FF\u00B5\u00B0\u00B9\u00B2\u00B3\u2070-\u2079\u2080-\u20890-9\u06F0-\u06F9\u0660-\u0669](?:[A-Za-z\u0370-\u03FF\u00B5\u00B0\u00B9\u00B2\u00B3\u2070-\u2079\u2080-\u20890-9\u06F0-\u06F9\u0660-\u0669./,\u066B\u066C\u060C:%٪+\-−–—^(){}\[\]\s]*[A-Za-z\u0370-\u03FF\u00B5\u00B0\u00B9\u00B2\u00B3\u2070-\u2079\u2080-\u20890-9\u06F0-\u06F9\u0660-\u0669%٪°)])?/g
 
 function romanNumber(value: number) {
   if (!Number.isFinite(value) || value <= 0 || value >= 4000) return String(value)
