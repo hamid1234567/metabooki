@@ -11,7 +11,7 @@ import { useAuthContext } from '@/lib/auth-context'
 import { useCredits } from '@/hooks/useCredits'
 import { creditsBus } from '@/lib/credits-bus'
 import { buildTocFromHeadingsV2, cleanImageCaptionV2, createV2Id, documentV2ToConfirmedToc, documentV2ToLegacyPages, legacyBookToDocumentV2, normalizeBookTextV2, resolveTocTreeV2, textDirectionV2, tocAsFlatListV2, type BookBlockV2, type BookDocumentV2, type BookInlineV2, type BookTocItemV2, type CalloutBlockV2, type ParagraphBlockV2 } from '@/lib/book-document-v2'
-import type { PrintPageValue } from '@/lib/book-content'
+import { bookDisplayTextHtml, type PrintPageValue } from '@/lib/book-content'
 import type { MockBook } from '@/lib/mock-data'
 import './editor-v2.css'
 
@@ -166,9 +166,9 @@ function citationAttrsV2(span: BookInlineV2) {
 }
 
 function inlineSpansToEditorHtmlV2(inline?: BookInlineV2[], fallback = '') {
-  if (!inline?.length) return escapeHtmlV2(fallback)
+  if (!inline?.length) return bookDisplayTextHtml(fallback)
   return inline.map(span => {
-    let html = escapeHtmlV2(span.text)
+    let html = bookDisplayTextHtml(span.text)
     const marks = span.marks || []
     if (marks.includes('subscript')) html = `<sub>${html}</sub>`
     if (marks.includes('superscript')) html = `<sup>${html}</sup>`
