@@ -5,6 +5,7 @@ import { OfflineBanner } from '@/components/offline/OfflineBanner'
 import { RoleGuard } from '@/components/ui/role-guard'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
 import { ScrollToTop } from '@/components/navigation/ScrollToTop'
+import { recoverFromDynamicImportError } from '@/lib/version-cache'
 
 const loadLanding = () => import('@/pages/Landing')
 const loadAuth = () => import('@/pages/Auth')
@@ -56,7 +57,7 @@ function preloadRoutesWhenIdle(loaders: Array<() => Promise<unknown>>) {
     requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number
     cancelIdleCallback?: (handle: number) => void
   }
-  const run = () => loaders.forEach(loader => void loader())
+  const run = () => loaders.forEach(loader => void loader().catch(error => recoverFromDynamicImportError(error)))
   if (idleWindow.requestIdleCallback) {
     const handle = idleWindow.requestIdleCallback(run, { timeout: 2400 })
     return () => idleWindow.cancelIdleCallback?.(handle)

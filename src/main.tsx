@@ -8,8 +8,10 @@ import { I18nProvider } from './lib/i18n'
 import { ThemeProvider } from './lib/theme'
 import { AuthProvider } from './lib/auth-context'
 import App from './App'
-import { ensureLatestOnlineVersion, refreshVersionedCaches } from './lib/version-cache'
+import { ensureLatestOnlineVersion, installDynamicImportRecovery, refreshVersionedCaches } from './lib/version-cache'
 import { APP_VERSION } from './lib/version'
+
+installDynamicImportRecovery()
 
 const queryClient = new QueryClient({
   defaultOptions: {

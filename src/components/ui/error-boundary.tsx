@@ -1,4 +1,5 @@
 import React from 'react'
+import { recoverFromDynamicImportError } from '@/lib/version-cache'
 
 interface State { hasError: boolean; error: Error | null }
 
@@ -11,6 +12,7 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.error('ErrorBoundary caught:', error, info)
+    void recoverFromDynamicImportError(error)
   }
 
   render() {

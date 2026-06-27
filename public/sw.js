@@ -1,4 +1,4 @@
-const APP_VERSION = '1.0.495'
+const APP_VERSION = '1.0.496'
 const CACHE_NAME = `metabooki-${APP_VERSION}`
 
 const PRECACHE_URLS = [
@@ -30,12 +30,31 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url)
   if (url.origin !== self.location.origin) return
+  const isAppAsset = url.pathname.includes('/assets/')
+    || event.request.destination === 'script'
+    || event.request.destination === 'style'
+    || event.request.destination === 'worker'
 
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request, { cache: 'no-store' })
         .then((response) => response.ok ? response : caches.match('index.html'))
         .catch(() => caches.match('index.html'))
+    )
+    return
+  }
+
+  if (isAppAsset) {
+    event.respondWith(
+      fetch(event.request, { cache: 'no-store' })
+        .then((response) => {
+          if (response.ok) {
+            const copy = response.clone()
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy))
+          }
+          return response
+        })
+        .catch(() => caches.match(event.request).then((cached) => cached || Response.error()))
     )
     return
   }
@@ -49,6 +68,6 @@ self.addEventListener('fetch', (event) => {
         }
         return response
       })
-      .catch(() => caches.match(event.request).then((cached) => cached || caches.match('index.html')))
+      .catch(() => caches.match(event.request).then((cached) => cached || Response.error()))
   )
 })
