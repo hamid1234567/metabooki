@@ -921,11 +921,11 @@ function jsonBytesV2(value: unknown) {
 }
 
 function formatBytesV2(value: number) {
-  if (!Number.isFinite(value) || value <= 0) return '۰ بایت'
-  if (value < 1024) return `${Math.round(value).toLocaleString('fa-IR')} بایت`
+  if (!Number.isFinite(value) || value <= 0) return '0 B'
+  if (value < 1024) return `${Math.round(value).toLocaleString('en-US')} B`
   const kb = value / 1024
-  if (kb < 1024) return `${kb.toLocaleString('fa-IR', { maximumFractionDigits: 1 })} کیلوبایت`
-  return `${(kb / 1024).toLocaleString('fa-IR', { maximumFractionDigits: 2 })} مگابایت`
+  if (kb < 1024) return `${kb.toLocaleString('en-US', { maximumFractionDigits: 1 })} KB`
+  return `${(kb / 1024).toLocaleString('en-US', { maximumFractionDigits: 2 })} MB`
 }
 
 function formatMsV2(value: number) {
