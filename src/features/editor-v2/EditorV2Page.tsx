@@ -1708,6 +1708,7 @@ export default function EditorV2Page() {
       editor_v2_document: nextDocument,
       editor_v2_saved_at: nextDocument.updatedAt,
     }
+    let saveReport: Parameters<typeof showSaveTrafficToastV2>[0] | null = null
     try {
       const patch = {
         metadata,
@@ -1719,9 +1720,41 @@ export default function EditorV2Page() {
       const nextBook = { ...book, ...patch } as MockBook
       if (isUuid(book.id)) {
         const { page_count: _pageCount, ...remotePatch } = patch as Partial<PublisherBook> & { page_count?: number }
-        const { error } = await (supabase as any).from('books').update(remotePatch).eq('id', book.id)
+        const requestBytes = jsonBytesV2(remotePatch)
+        const networkStartedAt = performance.now()
+        const result = await (supabase as any).from('books').update(remotePatch).eq('id', book.id)
+        const networkMs = performance.now() - networkStartedAt
+        const responseBytes = jsonBytesV2({
+          data: result.data ?? null,
+          count: result.count ?? null,
+          status: result.status ?? null,
+          statusText: result.statusText ?? null,
+          error: result.error ? {
+            code: result.error.code,
+            message: result.error.message,
+            details: result.error.details,
+            hint: result.error.hint,
+          } : null,
+        })
+        saveReport = {
+          mode: 'supabase',
+          manual: options.manual,
+          totalMs: performance.now() - startedAt,
+          networkMs,
+          requestBytes,
+          responseBytes,
+        }
+        const { error } = result
         if (error) throw error
       } else {
+        saveReport = {
+          mode: 'local',
+          manual: options.manual,
+          totalMs: performance.now() - startedAt,
+          networkMs: 0,
+          requestBytes: jsonBytesV2(patch),
+          responseBytes: 0,
+        }
         updatePublisherBook(book.id, nextBook as PublisherBook)
       }
       notifyPublisherBookChanged(book.id)
@@ -1741,12 +1774,23 @@ export default function EditorV2Page() {
       }
       if (saveIdleTimerRef.current) window.clearTimeout(saveIdleTimerRef.current)
       saveIdleTimerRef.current = window.setTimeout(() => setSaveState(current => current === 'saved' ? 'idle' : current), 2200)
+      if (saveReport) showSaveTrafficToastV2(saveReport)
     } catch {
       const remainingAnimationMs = 360 - (performance.now() - startedAt)
       if (remainingAnimationMs > 0) {
         await new Promise(resolve => window.setTimeout(resolve, remainingAnimationMs))
       }
       setSaveState('error')
+      if (saveReport) {
+        toast.error('ذخیره ناموفق بود', {
+          description: [
+            `زمان Supabase: ${formatMsV2(saveReport.networkMs)}`,
+            `ارسال به Supabase: ${formatBytesV2(saveReport.requestBytes)}`,
+            `egress پاسخ Supabase: ${formatBytesV2(saveReport.responseBytes)}`,
+          ].join('\n'),
+          duration: 10_000,
+        })
+      }
     }
   }, [book, clearAutoSaveSchedule, dirty, document])
 
