@@ -1564,6 +1564,12 @@
   color: #15803d;
 }
 
+.editor-v2-floating-save:hover::after,
+.editor-v2-floating-save:focus-visible::after {
+  display: none;
+  content: none;
+}
+
 .editor-v2-floating-save.is-saving {
   border-color: #bfdbfe;
   color: #1d4ed8;
@@ -1584,19 +1590,23 @@
 
 .editor-v2-floating-save-countdown {
   position: absolute;
-  inset-block-end: -0.42rem;
-  inset-inline-start: 50%;
+  inset-block-end: 0.17rem;
+  left: 50%;
   transform: translateX(-50%);
-  min-width: 2.25rem;
-  border: 1px solid hsl(24 95% 76% / 0.78);
+  min-width: 1.55rem;
+  border: 0;
   border-radius: 999px;
-  background: hsl(0 0% 100% / 0.92);
+  background: hsl(24 95% 53% / 0.12);
   color: #c2410c;
-  font-size: 0.62rem;
+  font-size: 0.58rem;
   font-weight: 950;
   line-height: 1;
-  padding: 0.16rem 0.28rem;
-  box-shadow: 0 8px 20px hsl(24 95% 50% / 0.14);
+  padding: 0.1rem 0.22rem;
+  box-shadow: none;
+}
+
+.editor-v2-floating-save.is-dirty .editor-v2-save-icon {
+  transform: translateY(-0.28rem);
 }
 
 .editor-v2-modal-backdrop {
