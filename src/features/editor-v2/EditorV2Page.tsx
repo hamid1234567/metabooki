@@ -929,9 +929,9 @@ function formatBytesV2(value: number) {
 }
 
 function formatMsV2(value: number) {
-  if (!Number.isFinite(value)) return 'نامشخص'
-  if (value < 1000) return `${Math.round(value).toLocaleString('fa-IR')} میلی‌ثانیه`
-  return `${(value / 1000).toLocaleString('fa-IR', { maximumFractionDigits: 2 })} ثانیه`
+  if (!Number.isFinite(value)) return 'unknown'
+  if (value < 1000) return `${Math.round(value).toLocaleString('en-US')} ms`
+  return `${(value / 1000).toLocaleString('en-US', { maximumFractionDigits: 2 })} s`
 }
 
 function showSaveTrafficToastV2(report: {
@@ -943,22 +943,22 @@ function showSaveTrafficToastV2(report: {
   responseBytes: number
 }) {
   const title = report.mode === 'supabase'
-    ? `گزارش ${report.manual ? 'ذخیره دستی' : 'ذخیره خودکار'}`
-    : 'گزارش ذخیره محلی'
+    ? `${report.manual ? 'Manual' : 'Auto'} save traffic report`
+    : 'Local save report'
   const description = report.mode === 'supabase'
     ? [
-        `زمان Supabase: ${formatMsV2(report.networkMs)}`,
-        `زمان کل: ${formatMsV2(report.totalMs)}`,
-        `ارسال به Supabase: ${formatBytesV2(report.requestBytes)}`,
-        `egress پاسخ Supabase: ${formatBytesV2(report.responseBytes)}`,
-        `ترافیک تقریبی همین ذخیره: ${formatBytesV2(report.requestBytes + report.responseBytes)}`,
+        `• Supabase time: ${formatMsV2(report.networkMs)}`,
+        `• Total save time: ${formatMsV2(report.totalMs)}`,
+        `• Upload payload: ${formatBytesV2(report.requestBytes)}`,
+        `• Supabase response egress: ${formatBytesV2(report.responseBytes)}`,
+        `• Approx. total traffic: ${formatBytesV2(report.requestBytes + report.responseBytes)}`,
       ].join('\n')
     : [
-        `زمان کل: ${formatMsV2(report.totalMs)}`,
-        `حجم داده آماده‌شده: ${formatBytesV2(report.requestBytes)}`,
-        'این ذخیره روی Supabase انجام نشد، پس egress سرور ندارد.',
+        `• Total save time: ${formatMsV2(report.totalMs)}`,
+        `• Prepared payload size: ${formatBytesV2(report.requestBytes)}`,
+        '• Saved locally; no Supabase egress was used.',
       ].join('\n')
-  toast.info(title, { description, duration: 10_000 })
+  toast.info(title, { description, duration: 20_000 })
 }
 
 function SaveIndicator({ state, floating = false }: { state: SaveVisualStateV2; floating?: boolean }) {
@@ -1782,13 +1782,13 @@ export default function EditorV2Page() {
       }
       setSaveState('error')
       if (saveReport) {
-        toast.error('ذخیره ناموفق بود', {
+        toast.error('Save failed', {
           description: [
-            `زمان Supabase: ${formatMsV2(saveReport.networkMs)}`,
-            `ارسال به Supabase: ${formatBytesV2(saveReport.requestBytes)}`,
-            `egress پاسخ Supabase: ${formatBytesV2(saveReport.responseBytes)}`,
+            `• Supabase time: ${formatMsV2(saveReport.networkMs)}`,
+            `• Upload payload: ${formatBytesV2(saveReport.requestBytes)}`,
+            `• Supabase response egress: ${formatBytesV2(saveReport.responseBytes)}`,
           ].join('\n'),
-          duration: 10_000,
+          duration: 20_000,
         })
       }
     }
