@@ -172,6 +172,19 @@
   gap: 0.4rem;
 }
 
+.editor-v2-save-countdown {
+  display: inline-grid;
+  min-width: 2.6rem;
+  place-items: center;
+  border-radius: 999px;
+  background: hsl(24 95% 53% / 0.11);
+  color: #c2410c;
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0;
+  padding: 0.12rem 0.42rem;
+}
+
 .editor-v2-save-state.saving .editor-v2-save-icon > svg,
 .editor-v2-manual-save.is-saving .editor-v2-save-button-icon > svg,
 .editor-v2-floating-save.is-saving .editor-v2-save-icon > svg {
@@ -1499,6 +1512,7 @@
 }
 
 .editor-v2-floating button {
+  position: relative;
   display: grid;
   width: 2.58rem;
   height: 2.58rem;
@@ -1533,6 +1547,23 @@
   border-color: #fecaca;
   color: #b91c1c;
   box-shadow: 0 16px 34px hsl(0 84% 60% / 0.16);
+}
+
+.editor-v2-floating-save-countdown {
+  position: absolute;
+  inset-block-end: -0.42rem;
+  inset-inline-start: 50%;
+  transform: translateX(-50%);
+  min-width: 2.25rem;
+  border: 1px solid hsl(24 95% 76% / 0.78);
+  border-radius: 999px;
+  background: hsl(0 0% 100% / 0.92);
+  color: #c2410c;
+  font-size: 0.62rem;
+  font-weight: 950;
+  line-height: 1;
+  padding: 0.16rem 0.28rem;
+  box-shadow: 0 8px 20px hsl(24 95% 50% / 0.14);
 }
 
 .editor-v2-modal-backdrop {
