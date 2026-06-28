@@ -35,6 +35,8 @@ type AiApprovalV2 = {
   pageText: string
 }
 
+const EDITOR_V2_AUTOSAVE_DELAY_MS = 60_000
+
 const PANEL_LABELS: Record<EditorPanelV2, { title: string; icon: typeof ListTree }> = {
   toc: { title: 'فهرست', icon: ListTree },
   upgrade: { title: 'ارتقا متن', icon: FileText },
@@ -903,6 +905,14 @@ function isUuid(value = '') {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
 }
 
+function formatAutosaveCountdownV2(value: number | null) {
+  if (value === null) return ''
+  const seconds = Math.max(0, Math.ceil(value))
+  const minutesPart = Math.floor(seconds / 60).toLocaleString('fa-IR', { minimumIntegerDigits: 2, useGrouping: false })
+  const secondsPart = (seconds % 60).toLocaleString('fa-IR', { minimumIntegerDigits: 2, useGrouping: false })
+  return `${minutesPart}:${secondsPart}`
+}
+
 function SaveIndicator({ state, floating = false }: { state: SaveVisualStateV2; floating?: boolean }) {
   const label = state === 'saving'
     ? 'در حال ذخیره'
@@ -1479,6 +1489,7 @@ export default function EditorV2Page() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [saveState, setSaveState] = useState<SaveStateV2>('idle')
+  const [autoSaveRemainingSeconds, setAutoSaveRemainingSeconds] = useState<number | null>(null)
   const [activePanel, setActivePanel] = useState<EditorPanelV2>('toc')
   const [activeTocId, setActiveTocId] = useState<string>()
   const [selectedBlockId, setSelectedBlockId] = useState<string>()
@@ -1501,7 +1512,11 @@ export default function EditorV2Page() {
   const skipNextSurfaceSyncRef = useRef(false)
   const editRevisionRef = useRef(0)
   const saveIdleTimerRef = useRef<number | null>(null)
+  const autoSaveDueAtRef = useRef<number | null>(null)
+  const autoSaveTimeoutRef = useRef<number | null>(null)
+  const autoSaveTickerRef = useRef<number | null>(null)
   const selectedBlock = useMemo(() => document ? findBlockInDocumentV2(document, selectedBlockId) : null, [document, selectedBlockId])
+  const autoSaveCountdownLabel = formatAutosaveCountdownV2(autoSaveRemainingSeconds)
   const visualSaveState: SaveVisualStateV2 = saveState === 'saving'
     ? 'saving'
     : saveState === 'error'
@@ -1514,7 +1529,9 @@ export default function EditorV2Page() {
     : visualSaveState === 'error'
       ? 'تلاش دوباره برای ذخیره'
       : visualSaveState === 'dirty'
-        ? 'تغییرات ذخیره‌نشده'
+        ? autoSaveCountdownLabel
+          ? `ذخیره خودکار تا ${autoSaveCountdownLabel}`
+          : 'تغییرات ذخیره‌نشده'
         : 'ذخیره شد'
   const saveButtonClass = `${visualSaveState === 'saving' ? 'is-saving' : ''} ${visualSaveState === 'saved' ? 'is-saved' : ''} ${visualSaveState === 'dirty' ? 'is-dirty' : ''} ${visualSaveState === 'error' ? 'is-error' : ''}`
   const recordAiUsage = useCallback((usage: RunAiResult['usage']) => {
@@ -1523,9 +1540,25 @@ export default function EditorV2Page() {
     creditsBus.emit(after)
   }, [creditBalance])
 
+  const clearAutoSaveSchedule = useCallback((clearDeadline = true) => {
+    if (autoSaveTimeoutRef.current) {
+      window.clearTimeout(autoSaveTimeoutRef.current)
+      autoSaveTimeoutRef.current = null
+    }
+    if (autoSaveTickerRef.current) {
+      window.clearInterval(autoSaveTickerRef.current)
+      autoSaveTickerRef.current = null
+    }
+    if (clearDeadline) {
+      autoSaveDueAtRef.current = null
+      setAutoSaveRemainingSeconds(null)
+    }
+  }, [])
+
   useEffect(() => () => {
     if (saveIdleTimerRef.current) window.clearTimeout(saveIdleTimerRef.current)
-  }, [])
+    clearAutoSaveSchedule()
+  }, [clearAutoSaveSchedule])
 
   useEffect(() => {
     if (!document || !editorSurfaceRef.current) return
