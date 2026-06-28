@@ -1528,8 +1528,8 @@ export default function EditorV2Page() {
       ? 'تلاش دوباره برای ذخیره'
       : visualSaveState === 'dirty'
         ? autoSaveCountdownLabel
-          ? `ذخیره خودکار تا ${autoSaveCountdownLabel} ثانیه دیگر. برای ذخیره فوری کلیک کنید.`
-          : 'تغییرات ذخیره‌نشده؛ برای ذخیره فوری کلیک کنید.'
+          ? `ذخیره خودکار تا پایان زمان سنج انجام می شود. برای ذخیره بلادرنگ کلیک کنید.`
+          : 'ذخیره خودکار تا پایان زمان سنج انجام می شود. برای ذخیره بلادرنگ کلیک کنید.'
         : 'ذخیره شد'
   const saveButtonClass = `${visualSaveState === 'saving' ? 'is-saving' : ''} ${visualSaveState === 'saved' ? 'is-saved' : ''} ${visualSaveState === 'dirty' ? 'is-dirty' : ''} ${visualSaveState === 'error' ? 'is-error' : ''}`
   const recordAiUsage = useCallback((usage: RunAiResult['usage']) => {
