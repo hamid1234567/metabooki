@@ -1637,7 +1637,16 @@ export default function EditorV2Page() {
 
   const saveDocument = useCallback(async (options: { manual?: boolean } = {}) => {
     if (!book || !document) return
-    if (!options.manual && !dirty) return
+    if (!dirty) {
+      clearAutoSaveSchedule()
+      if (options.manual) {
+        setSaveState('saved')
+        if (saveIdleTimerRef.current) window.clearTimeout(saveIdleTimerRef.current)
+        saveIdleTimerRef.current = window.setTimeout(() => setSaveState(current => current === 'saved' ? 'idle' : current), 1200)
+      }
+      return
+    }
+    clearAutoSaveSchedule()
     const startedAt = performance.now()
     const capturedRevision = editRevisionRef.current
     setSaveState('saving')
@@ -1691,13 +1700,30 @@ export default function EditorV2Page() {
       }
       setSaveState('error')
     }
-  }, [book, dirty, document])
+  }, [book, clearAutoSaveSchedule, dirty, document])
 
   useEffect(() => {
-    if (!dirty || !book || !document || saveState === 'saving' || saveState === 'error') return
-    const handle = window.setTimeout(() => void saveDocument(), 1800)
-    return () => window.clearTimeout(handle)
-  }, [book, dirty, dirtyRevision, document, saveDocument, saveState])
+    if (!dirty || !book || !document || saveState === 'saving' || saveState === 'error') {
+      if (!dirty || saveState === 'error') clearAutoSaveSchedule()
+      return
+    }
+    if (!autoSaveDueAtRef.current) {
+      autoSaveDueAtRef.current = Date.now() + EDITOR_V2_AUTOSAVE_DELAY_MS
+    }
+    clearAutoSaveSchedule(false)
+    const updateRemaining = () => {
+      const dueAt = autoSaveDueAtRef.current
+      setAutoSaveRemainingSeconds(dueAt ? Math.max(0, Math.ceil((dueAt - Date.now()) / 1000)) : null)
+    }
+    updateRemaining()
+    autoSaveTickerRef.current = window.setInterval(updateRemaining, 1000)
+    autoSaveTimeoutRef.current = window.setTimeout(() => {
+      autoSaveDueAtRef.current = null
+      setAutoSaveRemainingSeconds(null)
+      void saveDocument()
+    }, Math.max(0, autoSaveDueAtRef.current - Date.now()))
+    return () => clearAutoSaveSchedule(false)
+  }, [book, clearAutoSaveSchedule, dirty, dirtyRevision, document, saveDocument, saveState])
 
   const pushEditorHistory = useCallback(() => {
     const html = editorSurfaceRef.current?.innerHTML
@@ -2921,6 +2947,7 @@ export default function EditorV2Page() {
               {visualSaveState === 'saved' && <Check size={10} className="editor-v2-save-button-check" />}
             </span>
             ذخیره دستی
+            {visualSaveState === 'dirty' && autoSaveCountdownLabel && <span className="editor-v2-save-countdown" dir="ltr">{autoSaveCountdownLabel}</span>}
           </Button>
         </div>
       </header>
@@ -3033,6 +3060,7 @@ export default function EditorV2Page() {
             {visualSaveState === 'saving' ? <Loader2 size={17} /> : <Save size={17} />}
             {visualSaveState === 'saved' && <Check size={11} className="editor-v2-save-check" />}
           </span>
+          {visualSaveState === 'dirty' && autoSaveCountdownLabel && <span className="editor-v2-floating-save-countdown" dir="ltr">{autoSaveCountdownLabel}</span>}
         </button>
       </div>
 
