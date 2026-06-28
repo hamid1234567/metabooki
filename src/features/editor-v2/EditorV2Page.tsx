@@ -1,5 +1,6 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent as ReactClipboardEvent, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { toast } from 'sonner'
 import { AlignCenter, AlignJustify, AlignLeft, AlignRight, AlertTriangle, ArrowLeft, ArrowRight, Bold, BookOpen, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Eraser, Eye, FileText, Image as ImageIcon, Info, Italic, Link2, List, ListOrdered, ListTree, Loader2, PanelRight, Redo2, Save, Search, Sparkles, Strikethrough, Subscript, Superscript, Table2, Type, Underline as UnderlineIcon, Undo2, Upload, Wand2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { getBook } from '@/lib/book-repository'
@@ -909,6 +910,55 @@ function formatAutosaveCountdownV2(value: number | null) {
   if (value === null) return ''
   const seconds = Math.max(0, Math.ceil(value))
   return seconds.toLocaleString('fa-IR', { useGrouping: false })
+}
+
+function jsonBytesV2(value: unknown) {
+  try {
+    return new TextEncoder().encode(JSON.stringify(value ?? null)).length
+  } catch {
+    return 0
+  }
+}
+
+function formatBytesV2(value: number) {
+  if (!Number.isFinite(value) || value <= 0) return '۰ بایت'
+  if (value < 1024) return `${Math.round(value).toLocaleString('fa-IR')} بایت`
+  const kb = value / 1024
+  if (kb < 1024) return `${kb.toLocaleString('fa-IR', { maximumFractionDigits: 1 })} کیلوبایت`
+  return `${(kb / 1024).toLocaleString('fa-IR', { maximumFractionDigits: 2 })} مگابایت`
+}
+
+function formatMsV2(value: number) {
+  if (!Number.isFinite(value)) return 'نامشخص'
+  if (value < 1000) return `${Math.round(value).toLocaleString('fa-IR')} میلی‌ثانیه`
+  return `${(value / 1000).toLocaleString('fa-IR', { maximumFractionDigits: 2 })} ثانیه`
+}
+
+function showSaveTrafficToastV2(report: {
+  mode: 'supabase' | 'local'
+  manual?: boolean
+  totalMs: number
+  networkMs: number
+  requestBytes: number
+  responseBytes: number
+}) {
+  const title = report.mode === 'supabase'
+    ? `گزارش ${report.manual ? 'ذخیره دستی' : 'ذخیره خودکار'}`
+    : 'گزارش ذخیره محلی'
+  const description = report.mode === 'supabase'
+    ? [
+        `زمان Supabase: ${formatMsV2(report.networkMs)}`,
+        `زمان کل: ${formatMsV2(report.totalMs)}`,
+        `ارسال به Supabase: ${formatBytesV2(report.requestBytes)}`,
+        `egress پاسخ Supabase: ${formatBytesV2(report.responseBytes)}`,
+        `ترافیک تقریبی همین ذخیره: ${formatBytesV2(report.requestBytes + report.responseBytes)}`,
+      ].join('\n')
+    : [
+        `زمان کل: ${formatMsV2(report.totalMs)}`,
+        `حجم داده آماده‌شده: ${formatBytesV2(report.requestBytes)}`,
+        'این ذخیره روی Supabase انجام نشد، پس egress سرور ندارد.',
+      ].join('\n')
+  toast.info(title, { description, duration: 10_000 })
 }
 
 function SaveIndicator({ state, floating = false }: { state: SaveVisualStateV2; floating?: boolean }) {
