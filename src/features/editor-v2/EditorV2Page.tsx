@@ -3058,7 +3058,7 @@ export default function EditorV2Page() {
             {visualSaveState === 'saving' ? <Loader2 size={17} /> : <Save size={17} />}
             {visualSaveState === 'saved' && <Check size={11} className="editor-v2-save-check" />}
           </span>
-          {visualSaveState === 'dirty' && autoSaveCountdownLabel && <span className="editor-v2-floating-save-countdown">{autoSaveCountdownLabel}s</span>}
+          {visualSaveState === 'dirty' && autoSaveCountdownLabel && <span className="editor-v2-floating-save-countdown">{autoSaveCountdownLabel}</span>}
         </button>
       </div>
 
