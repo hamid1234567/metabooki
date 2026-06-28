@@ -908,9 +908,7 @@ function isUuid(value = '') {
 function formatAutosaveCountdownV2(value: number | null) {
   if (value === null) return ''
   const seconds = Math.max(0, Math.ceil(value))
-  const minutesPart = Math.floor(seconds / 60).toLocaleString('fa-IR', { minimumIntegerDigits: 2, useGrouping: false })
-  const secondsPart = (seconds % 60).toLocaleString('fa-IR', { minimumIntegerDigits: 2, useGrouping: false })
-  return `${minutesPart}:${secondsPart}`
+  return seconds.toLocaleString('fa-IR', { useGrouping: false })
 }
 
 function SaveIndicator({ state, floating = false }: { state: SaveVisualStateV2; floating?: boolean }) {
@@ -1530,8 +1528,8 @@ export default function EditorV2Page() {
       ? 'تلاش دوباره برای ذخیره'
       : visualSaveState === 'dirty'
         ? autoSaveCountdownLabel
-          ? `ذخیره خودکار تا ${autoSaveCountdownLabel}`
-          : 'تغییرات ذخیره‌نشده'
+          ? `ذخیره خودکار تا ${autoSaveCountdownLabel} ثانیه دیگر. برای ذخیره فوری کلیک کنید.`
+          : 'تغییرات ذخیره‌نشده؛ برای ذخیره فوری کلیک کنید.'
         : 'ذخیره شد'
   const saveButtonClass = `${visualSaveState === 'saving' ? 'is-saving' : ''} ${visualSaveState === 'saved' ? 'is-saved' : ''} ${visualSaveState === 'dirty' ? 'is-dirty' : ''} ${visualSaveState === 'error' ? 'is-error' : ''}`
   const recordAiUsage = useCallback((usage: RunAiResult['usage']) => {
@@ -2947,7 +2945,7 @@ export default function EditorV2Page() {
               {visualSaveState === 'saved' && <Check size={10} className="editor-v2-save-button-check" />}
             </span>
             ذخیره دستی
-            {visualSaveState === 'dirty' && autoSaveCountdownLabel && <span className="editor-v2-save-countdown" dir="ltr">{autoSaveCountdownLabel}</span>}
+            {visualSaveState === 'dirty' && autoSaveCountdownLabel && <span className="editor-v2-save-countdown">{autoSaveCountdownLabel} ثانیه</span>}
           </Button>
         </div>
       </header>
@@ -3060,7 +3058,7 @@ export default function EditorV2Page() {
             {visualSaveState === 'saving' ? <Loader2 size={17} /> : <Save size={17} />}
             {visualSaveState === 'saved' && <Check size={11} className="editor-v2-save-check" />}
           </span>
-          {visualSaveState === 'dirty' && autoSaveCountdownLabel && <span className="editor-v2-floating-save-countdown" dir="ltr">{autoSaveCountdownLabel}</span>}
+          {visualSaveState === 'dirty' && autoSaveCountdownLabel && <span className="editor-v2-floating-save-countdown">{autoSaveCountdownLabel}s</span>}
         </button>
       </div>
 
