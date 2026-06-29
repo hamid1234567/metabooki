@@ -170,6 +170,7 @@
 }
 
 .editor-v2-manual-save {
+  position: relative;
   gap: 0.4rem;
 }
 
