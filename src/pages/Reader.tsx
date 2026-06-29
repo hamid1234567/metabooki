@@ -34,6 +34,15 @@ type TocPosition = { pageIndex: number; blockIndex: number }
 type HighlightDraft = { blockKey: string; startOffset: number; endOffset: number; color: HighlightColor }
 type HighlightIndicator = { x: number; y: number; pointerType: string }
 type ReaderTocItem = { key: string; title: string; level: number; pageIndex: number; targetId?: string }
+type ReaderConfirmedTocItem = {
+  id?: string
+  title?: string
+  level?: number
+  page?: number
+  pageIndex?: number
+  blockId?: string
+  anchor?: string
+}
 
 const highlightColors: Record<HighlightColor, { label: string; className: string; swatch: string }> = {
   yellow: { label: 'زرد', className: 'bg-yellow-200 text-yellow-950', swatch: 'bg-yellow-300' },
