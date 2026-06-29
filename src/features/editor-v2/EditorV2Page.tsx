@@ -693,7 +693,8 @@ function documentFromEditorDomV2(bookDocument: BookDocumentV2, root: HTMLElement
     const blocks = editorNodesToBlocksV2(Array.from(pageElement.childNodes), page, existing)
     return { ...page, blocks }
   })
-  return rebuildDocumentTocV2({ ...bookDocument, pages, updatedAt: new Date().toISOString() })
+  const nextDocument = { ...bookDocument, pages, updatedAt: new Date().toISOString() }
+  return bookDocument.toc.length > pages.length ? nextDocument : rebuildDocumentTocV2(nextDocument)
 }
 
 function mapBlocksV2(blocks: BookBlockV2[], mapper: (block: BookBlockV2) => BookBlockV2 | BookBlockV2[] | null): BookBlockV2[] {
@@ -1737,7 +1738,6 @@ export default function EditorV2Page() {
     setSaveState('saving')
     setSaveProgress(6)
     const nextDocument = { ...documentFromEditorDomV2(document, editorSurfaceRef.current), updatedAt: new Date().toISOString() }
-    const confirmedToc = documentV2ToConfirmedToc(nextDocument)
     const previewPages = nextDocument.pages.slice(0, 3).map((_, index) => index)
     const dirtyPageIndexes = dirtyPageIndexesRef.current.size
       ? new Set(dirtyPageIndexesRef.current)
@@ -1748,6 +1748,7 @@ export default function EditorV2Page() {
         pageEngineResult = await savePageEngineDocument(book.id, nextDocument, dirtyPageIndexes, {
           pageCount: Number(book.page_count || book.metadata?.editor_v2_page_count || book.metadata?.page_count || 0) || nextDocument.pages.length,
           assetsSummary: nextDocument.assets,
+          updateManifest: false,
         })
         setSaveProgress(68)
       } catch {
@@ -1756,16 +1757,22 @@ export default function EditorV2Page() {
       }
     }
     const usePageEngine = Boolean(pageEngineResult)
+    const confirmedToc = usePageEngine ? [] : documentV2ToConfirmedToc(nextDocument)
     const metadata = {
       ...(book.metadata || {}),
-      confirmed_toc: confirmedToc,
+      ...(usePageEngine ? {} : { confirmed_toc: confirmedToc }),
       editor_v2_schema_version: usePageEngine ? '2.0-page' : '2.0',
       editor_v2_page_engine: usePageEngine || undefined,
-      editor_v2_page_count: nextDocument.pages.length,
+      editor_v2_page_count: usePageEngine
+        ? Number(book.page_count || book.metadata?.editor_v2_page_count || book.metadata?.page_count || nextDocument.pages.length)
+        : nextDocument.pages.length,
       ...(usePageEngine ? {} : { editor_v2_document: nextDocument }),
       editor_v2_saved_at: nextDocument.updatedAt,
     } as Record<string, unknown>
-    if (usePageEngine) delete metadata.editor_v2_document
+    if (usePageEngine) {
+      delete metadata.editor_v2_document
+      delete metadata.confirmed_toc
+    }
     let saveReport: Parameters<typeof showSaveTrafficToastV2>[0] | null = null
     try {
       const legacyPages = usePageEngine ? undefined : documentV2ToLegacyPages(nextDocument)
