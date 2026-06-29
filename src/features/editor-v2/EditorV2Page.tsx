@@ -1933,7 +1933,7 @@ export default function EditorV2Page() {
     }
   }, [book, dirty, document, saveDocument])
 
-  const handleEditorPaperScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
+  const handleEditorPaperScroll = useCallback((event: { currentTarget: HTMLDivElement }) => {
     const target = event.currentTarget
     if (target.scrollTop < 360) {
       void loadAdjacentEditorWindow('previous')
@@ -3307,7 +3307,7 @@ export default function EditorV2Page() {
             onPreview={() => openReaderPreview(book.id, `/edit-v2/${book.id}`)}
           />
 
-          <div className="editor-v2-paper">
+          <div className="editor-v2-paper" ref={editorPaperRef} onScroll={handleEditorPaperScroll}>
             <div
               ref={editorSurfaceRef}
               className="editor-v2-flow-editor"
