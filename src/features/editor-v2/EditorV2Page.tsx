@@ -1737,8 +1737,8 @@ export default function EditorV2Page() {
     setSaveState('saving')
     setSaveProgress(6)
     const nextDocument = { ...documentFromEditorDomV2(document, editorSurfaceRef.current), updatedAt: new Date().toISOString() }
-    const pages = documentV2ToLegacyPages(nextDocument)
     const confirmedToc = documentV2ToConfirmedToc(nextDocument)
+    const previewPages = nextDocument.pages.slice(0, 3).map((_, index) => index)
     const dirtyPageIndexes = dirtyPageIndexesRef.current.size
       ? new Set(dirtyPageIndexesRef.current)
       : new Set(nextDocument.pages.map(page => page.index))
@@ -1765,20 +1765,21 @@ export default function EditorV2Page() {
     if (usePageEngine) delete metadata.editor_v2_document
     let saveReport: Parameters<typeof showSaveTrafficToastV2>[0] | null = null
     try {
+      const legacyPages = usePageEngine ? undefined : documentV2ToLegacyPages(nextDocument)
       const patch = (usePageEngine
         ? {
           metadata,
-          preview_pages: pages.slice(0, 3).map((_, index) => index),
+          preview_pages: previewPages,
           content_updated_at: nextDocument.updatedAt,
         }
         : {
           metadata,
-          pages,
-          preview_pages: pages.slice(0, 3).map((_, index) => index),
-          page_count: pages.length,
+          pages: legacyPages,
+          preview_pages: previewPages,
+          page_count: legacyPages?.length || nextDocument.pages.length,
           content_updated_at: nextDocument.updatedAt,
         }) as unknown as Partial<PublisherBook>
-      const nextBook = { ...book, ...patch, pages } as MockBook
+      const nextBook = { ...book, ...patch, pages: legacyPages || book.pages } as MockBook
       if (isUuid(book.id)) {
         const { page_count: _pageCount, ...remotePatch } = patch as Partial<PublisherBook> & { page_count?: number }
         const requestBytes = jsonBytesV2(remotePatch) + (pageEngineResult?.requestBytes || 0)
@@ -1896,13 +1897,18 @@ export default function EditorV2Page() {
     }
   }, [])
 
-  const commitDocument = useCallback((updater: (current: BookDocumentV2) => BookDocumentV2, options: { recordHistory?: boolean } = {}) => {
+  const commitDocument = useCallback((updater: (current: BookDocumentV2) => BookDocumentV2, options: { recordHistory?: boolean; dirtyPageIndexes?: Iterable<number | undefined> } = {}) => {
     if (options.recordHistory) pushEditorHistory()
     setDocument(current => {
       if (!current) return current
       const base = documentFromEditorDomV2(current, editorSurfaceRef.current)
       const next = updater(base)
-      dirtyPageIndexesRef.current = new Set(next.pages.map(page => page.index))
+      const explicitDirty = options.dirtyPageIndexes
+        ? [...options.dirtyPageIndexes].map(Number).filter(Number.isFinite)
+        : []
+      dirtyPageIndexesRef.current = explicitDirty.length
+        ? new Set([...dirtyPageIndexesRef.current, ...explicitDirty])
+        : new Set(next.pages.map(page => page.index))
       setDirty(true)
       return next
     })
