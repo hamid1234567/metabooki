@@ -413,7 +413,7 @@ export default function Reader() {
   const editorV2Document = editorV2DocumentSource && (editorV2DocumentSource as BookDocumentV2).schemaVersion === '2.0'
     ? editorV2DocumentSource as BookDocumentV2
     : null
-  const editorV2Page = editorV2Document?.pages?.[currentPage]
+  const editorV2Page = editorV2Document?.pages?.find(item => item.index === currentPage) || editorV2Document?.pages?.[currentPage]
   const dir = book.language === 'fa' ? 'rtl' : 'ltr'
   const pageBackgroundUrl = page.background_url || book.metadata?.page_background_url
   const pageBackgroundAlpha = Number(page.background_alpha ?? book.metadata?.page_background_alpha ?? 0)
@@ -805,8 +805,33 @@ export default function Reader() {
   }
 
   // Search
-  const doSearch = (query = searchQuery) => {
+  const doSearch = async (query = searchQuery) => {
     if (!query.trim()) { setSearchResults([]); return }
+    if (book.metadata?.editor_v2_page_engine) {
+      const { data, error } = await (supabase as any)
+        .from('book_search_index')
+        .select('page_index,plain_text')
+        .eq('book_id', book.id)
+        .ilike('plain_text', `%${query.trim()}%`)
+        .order('page_index', { ascending: true })
+        .limit(60)
+      if (!error && Array.isArray(data)) {
+        const engineResults = data.map((row: any) => {
+          const text = String(row.plain_text || '')
+          const idx = text.indexOf(query)
+          const offset = idx >= 0 ? idx : 0
+          const start = Math.max(0, offset - 34)
+          return {
+            page: Number(row.page_index || 0),
+            text: '...' + text.slice(start, offset + query.length + 42) + '...',
+            blockKey: `page-engine:${row.page_index}`,
+            offset,
+          } satisfies SearchResult
+        })
+        setSearchResults(engineResults)
+        return
+      }
+    }
     const results: SearchResult[] = []
     book.pages.forEach((p, i) => {
       const thumbnail = p.blocks.find((block: any) => block.type === 'image' && block.url)?.url
@@ -1386,7 +1411,7 @@ export default function Reader() {
       {/* Search Panel */}
       {showSearch && (
         <div className={sidePanelClass}>
-          <div className="flex items-center gap-2 mb-3"><Search className="w-4 h-4 text-muted-foreground"/><input value={searchQuery} onChange={e=>{const query=e.target.value;setSearchQuery(query);doSearch(query)}} placeholder="جستجو در کتاب..." className="flex-1 bg-transparent border-none outline-none text-sm"/><button title="بستن جستجو" onClick={()=>setShowSearch(false)} className="p-1 rounded hover:bg-muted"><X className="w-4 h-4"/></button></div>
+                <div className="flex items-center gap-2 mb-3"><Search className="w-4 h-4 text-muted-foreground"/><input value={searchQuery} onChange={e=>{const query=e.target.value;setSearchQuery(query);void doSearch(query)}} placeholder="جستجو در کتاب..." className="flex-1 bg-transparent border-none outline-none text-sm"/><button title="بستن جستجو" onClick={()=>setShowSearch(false)} className="p-1 rounded hover:bg-muted"><X className="w-4 h-4"/></button></div>
           {searchResults.length > 0 ? (
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {searchResults.map((r,i)=>(<button key={i} onClick={()=>openSearchResult(r)} className="reader-search-result w-full text-right p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors text-sm">{r.thumbnail && <img src={r.thumbnail} alt="" loading="lazy"/>}<span className="min-w-0"><p className="text-xs text-primary font-bold mb-1">صفحه {r.page+1}</p><p className="text-xs">{r.text}</p></span></button>))}
