@@ -1596,6 +1596,7 @@ export default function EditorV2Page() {
   const [aiApproval, setAiApproval] = useState<AiApprovalV2 | null>(null)
   const [metadataOpen, setMetadataOpen] = useState(false)
   const canvasRef = useRef<HTMLDivElement | null>(null)
+  const editorPaperRef = useRef<HTMLDivElement | null>(null)
   const editorSurfaceRef = useRef<HTMLDivElement | null>(null)
   const dirtyPageIndexesRef = useRef<Set<number>>(new Set())
   const savedSelectionRef = useRef<Range | null>(null)
@@ -1604,11 +1605,13 @@ export default function EditorV2Page() {
   const undoStackRef = useRef<string[]>([])
   const redoStackRef = useRef<string[]>([])
   const skipNextSurfaceSyncRef = useRef(false)
+  const forceNextSurfaceSyncRef = useRef(false)
   const editRevisionRef = useRef(0)
   const saveIdleTimerRef = useRef<number | null>(null)
   const autoSaveDueAtRef = useRef<number | null>(null)
   const autoSaveTimeoutRef = useRef<number | null>(null)
   const autoSaveTickerRef = useRef<number | null>(null)
+  const loadingEditorWindowRef = useRef(false)
   const selectedBlock = useMemo(() => document ? findBlockInDocumentV2(document, selectedBlockId) : null, [document, selectedBlockId])
   const autoSaveCountdownLabel = formatAutosaveCountdownV2(autoSaveRemainingSeconds)
   const visualSaveState: SaveVisualStateV2 = saveState === 'saving'
@@ -1660,8 +1663,10 @@ export default function EditorV2Page() {
       skipNextSurfaceSyncRef.current = false
       return
     }
-    if (editorSurfaceRef.current.matches(':focus-within')) return
-    if (dirty) return
+    const forceSync = forceNextSurfaceSyncRef.current
+    forceNextSurfaceSyncRef.current = false
+    if (!forceSync && editorSurfaceRef.current.matches(':focus-within')) return
+    if (!forceSync && dirty) return
     editorSurfaceRef.current.innerHTML = documentToEditorHtmlV2(document)
     restoreEditorPageBreaksV2(document, editorSurfaceRef.current)
   }, [dirty, document])
