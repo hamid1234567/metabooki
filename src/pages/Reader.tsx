@@ -383,16 +383,18 @@ export default function Reader() {
         ? root.querySelector<HTMLElement>(`#${CSS.escape(tocTarget.targetId)}, [data-reader-anchor="${CSS.escape(tocTarget.targetId)}"]`)
         : null
       const fallback = tocTarget.title
-        ? [...root.querySelectorAll<HTMLElement>('[data-reader-heading="true"]')]
+        ? [...root.querySelectorAll<HTMLElement>('[data-reader-heading="true"], [data-book-heading="true"]')]
             .find(element => element.textContent?.trim() === tocTarget.title?.trim())
         : null
+      const pageCandidate = book?.pages?.[currentPage] as any
+      if (!target && !fallback && (pageCandidate?.pageEnginePlaceholder || !(pageCandidate?.blocks || []).length)) return
       const element = target || fallback || root
       const top = element.getBoundingClientRect().top + window.scrollY - 72
       window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })
       window.setTimeout(() => setTocTarget(current => current === tocTarget ? null : current), 900)
     })
     return () => cancelAnimationFrame(frame)
-  }, [tocTarget, currentPage])
+  }, [tocTarget, currentPage, book])
 
   // Auto scroll - must be before any early returns (Rules of Hooks)
   useEffect(() => {
