@@ -244,10 +244,9 @@ export async function savePageEngineDocument(
   bookId: string,
   document: BookDocumentV2,
   dirtyPageIndexes: Iterable<number> | null,
-  options: { pageCount?: number; assetsSummary?: BookAssetV2[] } = {},
+  options: { pageCount?: number; assetsSummary?: BookAssetV2[]; updateManifest?: boolean } = {},
 ): Promise<PageEngineSaveResult | null> {
   if (!hasSupabase || !isUuidV2(bookId)) return null
-  const manifest = manifestFromDocumentV2(document, options)
   const dirtySet = dirtyPageIndexes ? new Set([...dirtyPageIndexes].map(Number).filter(Number.isFinite)) : new Set(document.pages.map(page => page.index))
   const dirtyPages = document.pages.filter(page => dirtySet.has(page.index))
   if (!dirtyPages.length) return {
@@ -296,21 +295,25 @@ export async function savePageEngineDocument(
     metadata: { printNumber: asset.printNumber ?? null },
     updated_at: document.updatedAt,
   })))
+  const shouldUpdateManifest = options.updateManifest !== false
+  const manifest = shouldUpdateManifest ? manifestFromDocumentV2(document, options) : null
   const manifestRow = {
     book_id: bookId,
     schema_version: PAGE_ENGINE_SCHEMA_VERSION,
-    page_count: manifest.pageCount,
-    toc: manifest.toc,
-    assets_summary: manifest.assetsSummary,
+    page_count: manifest?.pageCount || Math.max(document.pages.length, Number(options.pageCount || 0) || 0),
+    toc: manifest?.toc || [],
+    assets_summary: manifest?.assetsSummary || [],
     search_ready: true,
-    content_hash: String(jsonBytesV2(manifest)),
+    content_hash: manifest ? String(jsonBytesV2(manifest)) : '',
     updated_at: document.updatedAt,
   }
 
-  const requestBytes = jsonBytesV2({ manifestRow, pageRows, searchRows, assetRows })
+  const requestBytes = jsonBytesV2({ manifestRow: shouldUpdateManifest ? manifestRow : null, pageRows, searchRows, assetRows })
   const started = performance.now()
   const [manifestResult, pagesResult, searchResult, assetsResult] = await Promise.all([
-    (supabase as any).from('book_content_manifests').upsert(manifestRow, { onConflict: 'book_id' }),
+    shouldUpdateManifest
+      ? (supabase as any).from('book_content_manifests').upsert(manifestRow, { onConflict: 'book_id' })
+      : Promise.resolve({ data: null, error: null, status: 204 }),
     (supabase as any).from('book_pages').upsert(pageRows, { onConflict: 'book_id,page_index' }),
     (supabase as any).from('book_search_index').upsert(searchRows, { onConflict: 'book_id,page_index' }),
     assetRows.length
