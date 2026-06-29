@@ -1892,6 +1892,58 @@ export default function EditorV2Page() {
     }
   }, [book, clearAutoSaveSchedule, dirty, document])
 
+  const loadAdjacentEditorWindow = useCallback(async (direction: 'previous' | 'next') => {
+    if (!book?.metadata?.editor_v2_page_engine || !document || loadingEditorWindowRef.current) return
+    const totalPages = Number(book.page_count || book.metadata?.editor_v2_page_count || book.metadata?.page_count || 0) || document.pages.length
+    const loadedIndexes = document.pages.map(page => page.index).filter(Number.isFinite).sort((a, b) => a - b)
+    const firstIndex = loadedIndexes[0] ?? 0
+    const lastIndex = loadedIndexes[loadedIndexes.length - 1] ?? 0
+    const targetPage = direction === 'next' ? lastIndex + 1 : firstIndex - 1
+    if (targetPage < 0 || targetPage >= totalPages) return
+    loadingEditorWindowRef.current = true
+    const paper = editorPaperRef.current
+    const previousScrollHeight = paper?.scrollHeight || 0
+    try {
+      if (dirty) await saveDocument({ manual: true })
+      const loaded = await loadPageEngineWindow(book, targetPage, direction === 'previous' ? 49 : 0, direction === 'next' ? 49 : 0)
+      if (!loaded.pageEngine || !loaded.document.pages.length) return
+      forceNextSurfaceSyncRef.current = true
+      skipNextSurfaceSyncRef.current = false
+      setDocument(current => current ? mergeEditorWindowDocumentV2(current, loaded.document) : loaded.document)
+      setBook(current => current ? {
+        ...current,
+        page_count: loaded.manifest.pageCount || current.page_count,
+        metadata: {
+          ...(current.metadata || {}),
+          confirmed_toc: loaded.manifest.toc,
+          editor_v2_page_engine: true,
+          editor_v2_page_count: loaded.manifest.pageCount,
+        },
+      } : current)
+      if (direction === 'previous' && paper) {
+        window.setTimeout(() => {
+          const nextHeight = paper.scrollHeight
+          paper.scrollTop += Math.max(0, nextHeight - previousScrollHeight)
+        }, 40)
+      }
+    } catch (error) {
+      toast.error('لود ادامه صفحات ناموفق بود', { description: error instanceof Error ? error.message : 'اتصال به Supabase کامل نشد.' })
+    } finally {
+      window.setTimeout(() => { loadingEditorWindowRef.current = false }, 180)
+    }
+  }, [book, dirty, document, saveDocument])
+
+  const handleEditorPaperScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
+    const target = event.currentTarget
+    if (target.scrollTop < 360) {
+      void loadAdjacentEditorWindow('previous')
+      return
+    }
+    if (target.scrollHeight - target.scrollTop - target.clientHeight < 720) {
+      void loadAdjacentEditorWindow('next')
+    }
+  }, [loadAdjacentEditorWindow])
+
   useEffect(() => {
     if (!dirty || !book || !document || saveState === 'saving' || saveState === 'error') {
       if (!dirty || saveState === 'error') clearAutoSaveSchedule()
