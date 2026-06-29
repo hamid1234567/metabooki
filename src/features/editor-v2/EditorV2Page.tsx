@@ -3169,7 +3169,7 @@ export default function EditorV2Page() {
           <div><span>ناشر</span><strong>{document.metadata.publisherName || 'ثبت نشده'}</strong></div>
           <div><span>نوع کتاب</span><strong>{document.metadata.bookType || 'ثبت نشده'}</strong></div>
           <div><span>دسته‌بندی</span><strong>{document.metadata.category || 'ثبت نشده'}</strong></div>
-          <div><span>صفحات</span><strong>{document.pages.length.toLocaleString('fa-IR')}</strong></div>
+          <div><span>صفحات</span><strong>{Number(book.page_count || document.pages.length).toLocaleString('fa-IR')}</strong></div>
         </section>
       )}
 
