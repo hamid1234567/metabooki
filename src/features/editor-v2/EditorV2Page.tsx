@@ -697,6 +697,19 @@ function documentFromEditorDomV2(bookDocument: BookDocumentV2, root: HTMLElement
   return bookDocument.toc.length > pages.length ? nextDocument : rebuildDocumentTocV2(nextDocument)
 }
 
+function mergeEditorWindowDocumentV2(current: BookDocumentV2, loaded: BookDocumentV2): BookDocumentV2 {
+  const byIndex = new Map<number, BookDocumentV2['pages'][number]>()
+  current.pages.forEach(page => byIndex.set(page.index, page))
+  loaded.pages.forEach(page => byIndex.set(page.index, page))
+  return {
+    ...current,
+    pages: [...byIndex.values()].sort((a, b) => a.index - b.index),
+    toc: loaded.toc.length ? loaded.toc : current.toc,
+    assets: loaded.assets.length ? loaded.assets : current.assets,
+    updatedAt: loaded.updatedAt || current.updatedAt,
+  }
+}
+
 function mapBlocksV2(blocks: BookBlockV2[], mapper: (block: BookBlockV2) => BookBlockV2 | BookBlockV2[] | null): BookBlockV2[] {
   return blocks.flatMap(block => {
     const nextBlock = block.type === 'callout' ? { ...block, blocks: mapBlocksV2(block.blocks, mapper) } : block
