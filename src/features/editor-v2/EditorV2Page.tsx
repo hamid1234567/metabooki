@@ -1747,7 +1747,7 @@ export default function EditorV2Page() {
       try {
         pageEngineResult = await savePageEngineDocument(book.id, nextDocument, dirtyPageIndexes, {
           pageCount: Number(book.page_count || book.metadata?.editor_v2_page_count || book.metadata?.page_count || 0) || nextDocument.pages.length,
-          assetsSummary: Array.isArray(book.metadata?.editor_v2_page_engine) ? undefined : nextDocument.assets,
+          assetsSummary: nextDocument.assets,
         })
         setSaveProgress(68)
       } catch {
@@ -3070,14 +3070,33 @@ export default function EditorV2Page() {
     }
   }, [aiApproval, commitDocument, document, recordAiUsage, selectedBlock?.printNumber, selectedBlockId, user])
 
-  const jumpToToc = useCallback((item: BookTocItemV2) => {
+  const jumpToToc = useCallback(async (item: BookTocItemV2) => {
     setActiveTocId(item.id)
+    if (book?.metadata?.editor_v2_page_engine && document && !document.pages.some(page => page.index === item.pageIndex)) {
+      if (dirty) await saveDocument({ manual: true })
+      const loaded = await loadPageEngineWindow(book, item.pageIndex, 10, 40)
+      if (loaded.pageEngine) {
+        setDocument(loaded.document)
+        setBook(current => current ? {
+          ...current,
+          page_count: loaded.manifest.pageCount || current.page_count,
+          metadata: {
+            ...(current.metadata || {}),
+            confirmed_toc: loaded.manifest.toc,
+            editor_v2_page_engine: true,
+            editor_v2_page_count: loaded.manifest.pageCount,
+          },
+        } : current)
+        dirtyPageIndexesRef.current = new Set()
+        setDirty(false)
+      }
+    }
     window.setTimeout(() => {
       const target = window.document.getElementById(item.anchor || item.blockId || '')
       if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' })
       else canvasRef.current?.querySelector<HTMLElement>(`[data-page-index="${item.pageIndex}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }, 40)
-  }, [])
+  }, [book, dirty, document, saveDocument])
 
   const scrollToTop = useCallback(() => {
     canvasRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
