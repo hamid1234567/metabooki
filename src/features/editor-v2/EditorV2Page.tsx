@@ -1551,6 +1551,7 @@ export default function EditorV2Page() {
   const [metadataOpen, setMetadataOpen] = useState(false)
   const canvasRef = useRef<HTMLDivElement | null>(null)
   const editorSurfaceRef = useRef<HTMLDivElement | null>(null)
+  const dirtyPageIndexesRef = useRef<Set<number>>(new Set())
   const savedSelectionRef = useRef<Range | null>(null)
   const lastInlineStyleTargetRef = useRef<HTMLElement | null>(null)
   const calloutActionLockRef = useRef(false)
