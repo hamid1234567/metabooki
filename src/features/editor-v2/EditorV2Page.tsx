@@ -2717,6 +2717,7 @@ export default function EditorV2Page() {
     if (!asset) return
     const insertionBlockId = selectedBlockIdFromEditorTarget() || selectedBlockId
     const anchorBlock = document ? findBlockInDocumentV2(document, insertionBlockId) : null
+    const dirtyPageIndex = findBlockPageIndexV2(document, insertionBlockId) ?? 0
     const block: BookBlockV2 = {
       id: createV2Id('image', asset.id, Date.now()),
       type: 'image',
@@ -2728,7 +2729,7 @@ export default function EditorV2Page() {
       status: asset.status,
       issue: asset.issue,
     }
-    commitDocument(current => insertBlockAfterV2(current, insertionBlockId, block))
+    commitDocument(current => insertBlockAfterV2(current, insertionBlockId, block), { dirtyPageIndexes: [dirtyPageIndex] })
     insertBlockIntoEditorDom(block, insertionBlockId)
     setSelectedBlockId(block.id)
   }, [commitDocument, document, insertBlockIntoEditorDom, selectedBlockId, selectedBlockIdFromEditorTarget])
@@ -2736,10 +2737,12 @@ export default function EditorV2Page() {
   const insertUploadedImage = useCallback(async (file: File) => {
     const insertionBlockId = selectedBlockIdFromEditorTarget() || selectedBlockId
     const anchorBlock = document ? findBlockInDocumentV2(document, insertionBlockId) : null
+    const dirtyPageIndex = findBlockPageIndexV2(document, insertionBlockId) ?? 0
     try {
-      const url = await fileToDataUrlV2(file)
+      const assetId = createV2Id('asset-upload', Date.now(), file.name)
+      const url = await uploadEditorImageFileV2(user?.id, document?.sourceBookId || id || '', assetId, file)
       const asset = {
-        id: createV2Id('asset-upload', Date.now(), file.name),
+        id: assetId,
         type: 'image' as const,
         url,
         caption: file.name.replace(/\.[^.]+$/, ''),
@@ -2760,19 +2763,20 @@ export default function EditorV2Page() {
       commitDocument(current => {
         const next = insertBlockAfterV2(current, insertionBlockId, block)
         return { ...next, assets: [...next.assets, asset] }
-      })
+      }, { dirtyPageIndexes: [dirtyPageIndex] })
       insertBlockIntoEditorDom(block, insertionBlockId)
       setSelectedBlockId(block.id)
       setAiMessage('تصویر آپلود و در سند درج شد.')
     } catch (error) {
       setAiMessage(error instanceof Error ? error.message : 'آپلود تصویر ناموفق بود.')
     }
-  }, [commitDocument, document, insertBlockIntoEditorDom, selectedBlockId, selectedBlockIdFromEditorTarget])
+  }, [commitDocument, document, id, insertBlockIntoEditorDom, selectedBlockId, selectedBlockIdFromEditorTarget, user?.id])
 
   const generateImageFromPrompt = useCallback(async (prompt: string) => {
     if (!prompt.trim()) return
     const insertionBlockId = selectedBlockIdFromEditorTarget() || selectedBlockId
     const anchorBlock = document ? findBlockInDocumentV2(document, insertionBlockId) : null
+    const dirtyPageIndex = findBlockPageIndexV2(document, insertionBlockId) ?? 0
     setAiBusy(true)
     setAiMessage('در حال تولید تصویر...')
     try {
@@ -2805,7 +2809,7 @@ export default function EditorV2Page() {
       commitDocument(current => {
         const next = insertBlockAfterV2(current, insertionBlockId, block)
         return { ...next, assets: [...next.assets, asset] }
-      })
+      }, { dirtyPageIndexes: [dirtyPageIndex] })
       insertBlockIntoEditorDom(block, insertionBlockId)
       recordAiUsage(result.usage)
       setSelectedBlockId(block.id)
@@ -2818,13 +2822,15 @@ export default function EditorV2Page() {
   }, [commitDocument, document, insertBlockIntoEditorDom, recordAiUsage, selectedBlockId, selectedBlockIdFromEditorTarget, user])
 
   const resizeImageBlock = useCallback((blockId: string, widthPercent: number) => {
+    const dirtyPageIndex = findBlockPageIndexV2(document, blockId)
     commitDocument(current => updateBlockInDocumentV2(current, blockId, block => {
       if (block.type !== 'image') return block
       return { ...block, widthPercent, widthPx: undefined }
-    }))
-  }, [commitDocument])
+    }), { dirtyPageIndexes: [dirtyPageIndex] })
+  }, [commitDocument, document])
 
   const deleteImageBlock = useCallback((blockId: string) => {
+    const dirtyPageIndex = findBlockPageIndexV2(document, blockId)
     const figure = editorSurfaceRef.current?.querySelector<HTMLElement>(`figure[data-v2-type="image"][data-block-id="${blockId.replace(/"/g, '\\"')}"]`)
     const domAssetId = figure?.dataset.imageId
     if (figure) {
@@ -2855,10 +2861,10 @@ export default function EditorV2Page() {
       })
       const assets = current.assets.filter(asset => !removedAssetIds.has(asset.id) || usedAssetIds.has(asset.id))
       return rebuildDocumentTocV2({ ...current, pages, assets })
-    }, { recordHistory: true })
+    }, { recordHistory: true, dirtyPageIndexes: [dirtyPageIndex] })
     setSelectedBlockId(current => current === blockId ? undefined : current)
     scheduleRefreshDocumentFromEditor()
-  }, [commitDocument, pushEditorHistory, scheduleRefreshDocumentFromEditor])
+  }, [commitDocument, document, pushEditorHistory, scheduleRefreshDocumentFromEditor])
 
   const handleImageResizePointerDown = useCallback((event: any) => {
     const target = event.target as HTMLElement
