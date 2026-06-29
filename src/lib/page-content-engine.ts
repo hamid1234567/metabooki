@@ -222,6 +222,24 @@ export async function loadPageEngineWindow(book: MockBook, centerPage = 0, befor
   return { document: documentWithPages(base, pages, manifest), manifest, records, pageEngine: true }
 }
 
+export async function loadPageEngineDocument(book: MockBook) {
+  const base = legacyBookToDocumentV2(book)
+  const manifest = await loadPageEngineManifest(book.id)
+  if (!manifest || !isUuidV2(book.id)) {
+    return { document: base, manifest: manifest || manifestFromDocumentV2(base), records: recordsFromDocumentV2(base), pageEngine: false }
+  }
+  const { data, error } = await (supabase as any)
+    .from('book_pages')
+    .select('page_index,page_id,print_number,title,blocks,plain_text,asset_ids,updated_at')
+    .eq('book_id', book.id)
+    .order('page_index', { ascending: true })
+  if (error || !Array.isArray(data) || !data.length) {
+    return { document: base, manifest, records: recordsFromDocumentV2(base), pageEngine: false }
+  }
+  const records = data.map((row: UnknownRecord) => pageRecordFromRemote(row, book.id))
+  return { document: documentWithPages(base, records.map(pageFromRecordV2), manifest), manifest, records, pageEngine: true }
+}
+
 export async function savePageEngineDocument(
   bookId: string,
   document: BookDocumentV2,

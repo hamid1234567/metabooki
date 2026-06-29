@@ -12,7 +12,7 @@ import { useAuthContext } from '@/lib/auth-context'
 import { useCredits } from '@/hooks/useCredits'
 import { creditsBus } from '@/lib/credits-bus'
 import { buildTocFromHeadingsV2, cleanImageCaptionV2, createV2Id, documentV2ToConfirmedToc, documentV2ToLegacyPages, legacyBookToDocumentV2, normalizeBookTextV2, resolveTocTreeV2, textDirectionV2, tocAsFlatListV2, type BookBlockV2, type BookDocumentV2, type BookInlineV2, type BookTocItemV2, type CalloutBlockV2, type ParagraphBlockV2 } from '@/lib/book-document-v2'
-import { backfillPageEngineForBook, isUuidV2, loadPageEngineWindow, savePageEngineDocument } from '@/lib/page-content-engine'
+import { backfillPageEngineForBook, isUuidV2, loadPageEngineDocument, savePageEngineDocument } from '@/lib/page-content-engine'
 import { bookDisplayTextHtml, isBookLtrRunText, type PrintPageValue } from '@/lib/book-content'
 import type { MockBook } from '@/lib/mock-data'
 import './editor-v2.css'
@@ -934,18 +934,19 @@ function formatMsV2(value: number) {
 }
 
 function showSaveTrafficToastV2(report: {
-  mode: 'supabase' | 'local'
+  mode: 'supabase' | 'supabase/page-engine' | 'local'
   manual?: boolean
   totalMs: number
   networkMs: number
   requestBytes: number
   responseBytes: number
 }) {
-  const title = report.mode === 'supabase'
+  const title = report.mode === 'supabase' || report.mode === 'supabase/page-engine'
     ? `${report.manual ? 'Manual' : 'Auto'} save traffic report`
     : 'Local save report'
-  const description = report.mode === 'supabase'
+  const description = report.mode === 'supabase' || report.mode === 'supabase/page-engine'
     ? [
+        `• Storage mode: ${report.mode === 'supabase/page-engine' ? 'page-based content engine' : 'legacy full book row'}`,
         `• Supabase time: ${formatMsV2(report.networkMs)}`,
         `• Total save time: ${formatMsV2(report.totalMs)}`,
         `• Upload payload: ${formatBytesV2(report.requestBytes)}`,
@@ -1662,13 +1663,14 @@ export default function EditorV2Page() {
           setDocument(null)
           return
         }
-        const loaded = await loadPageEngineWindow(found, 0, 0, 49)
+        const loaded = await loadPageEngineDocument(found)
         const nextDocument = loaded.document || legacyBookToDocumentV2(found)
         setBook(found)
         setDocument(nextDocument)
         setActiveTocId(nextDocument.toc[0]?.id)
         setSelectedBlockId(undefined)
         editRevisionRef.current = 0
+        dirtyPageIndexesRef.current = new Set()
         setDirtyRevision(0)
         setDirty(false)
         if (!loaded.pageEngine && isUuid(found.id)) {
@@ -1705,29 +1707,50 @@ export default function EditorV2Page() {
     const nextDocument = { ...documentFromEditorDomV2(document, editorSurfaceRef.current), updatedAt: new Date().toISOString() }
     const pages = documentV2ToLegacyPages(nextDocument)
     const confirmedToc = documentV2ToConfirmedToc(nextDocument)
+    const dirtyPageIndexes = dirtyPageIndexesRef.current.size
+      ? new Set(dirtyPageIndexesRef.current)
+      : new Set(nextDocument.pages.map(page => page.index))
+    let pageEngineResult: Awaited<ReturnType<typeof savePageEngineDocument>> | null = null
+    if (isUuid(book.id)) {
+      try {
+        pageEngineResult = await savePageEngineDocument(book.id, nextDocument, dirtyPageIndexes)
+      } catch {
+        pageEngineResult = null
+      }
+    }
+    const usePageEngine = Boolean(pageEngineResult)
     const metadata = {
       ...(book.metadata || {}),
       confirmed_toc: confirmedToc,
-      editor_v2_schema_version: '2.0',
-      editor_v2_document: nextDocument,
+      editor_v2_schema_version: usePageEngine ? '2.0-page' : '2.0',
+      editor_v2_page_engine: usePageEngine || undefined,
+      editor_v2_page_count: nextDocument.pages.length,
+      ...(usePageEngine ? {} : { editor_v2_document: nextDocument }),
       editor_v2_saved_at: nextDocument.updatedAt,
-    }
+    } as Record<string, unknown>
+    if (usePageEngine) delete metadata.editor_v2_document
     let saveReport: Parameters<typeof showSaveTrafficToastV2>[0] | null = null
     try {
-      const patch = {
-        metadata,
-        pages,
-        preview_pages: pages.slice(0, 3).map((_, index) => index),
-        page_count: pages.length,
-        content_updated_at: nextDocument.updatedAt,
-      } as Partial<PublisherBook>
-      const nextBook = { ...book, ...patch } as MockBook
+      const patch = (usePageEngine
+        ? {
+          metadata,
+          preview_pages: pages.slice(0, 3).map((_, index) => index),
+          content_updated_at: nextDocument.updatedAt,
+        }
+        : {
+          metadata,
+          pages,
+          preview_pages: pages.slice(0, 3).map((_, index) => index),
+          page_count: pages.length,
+          content_updated_at: nextDocument.updatedAt,
+        }) as unknown as Partial<PublisherBook>
+      const nextBook = { ...book, ...patch, pages } as MockBook
       if (isUuid(book.id)) {
         const { page_count: _pageCount, ...remotePatch } = patch as Partial<PublisherBook> & { page_count?: number }
-        const requestBytes = jsonBytesV2(remotePatch)
+        const requestBytes = jsonBytesV2(remotePatch) + (pageEngineResult?.requestBytes || 0)
         const networkStartedAt = performance.now()
         const result = await (supabase as any).from('books').update(remotePatch).eq('id', book.id)
-        const networkMs = performance.now() - networkStartedAt
+        const networkMs = performance.now() - networkStartedAt + (pageEngineResult?.networkMs || 0)
         const responseBytes = jsonBytesV2({
           data: result.data ?? null,
           count: result.count ?? null,
@@ -1739,9 +1762,9 @@ export default function EditorV2Page() {
             details: result.error.details,
             hint: result.error.hint,
           } : null,
-        })
+        }) + (pageEngineResult?.responseBytes || 0)
         saveReport = {
-          mode: 'supabase',
+          mode: pageEngineResult ? 'supabase/page-engine' : 'supabase',
           manual: options.manual,
           totalMs: performance.now() - startedAt,
           networkMs,
@@ -1771,6 +1794,7 @@ export default function EditorV2Page() {
         setDocument(nextDocument)
         setBook(nextBook)
         setDirty(false)
+        dirtyPageIndexesRef.current = new Set()
         setSaveState('saved')
       } else {
         setDirty(true)
@@ -1837,6 +1861,7 @@ export default function EditorV2Page() {
       if (!current) return current
       const base = documentFromEditorDomV2(current, editorSurfaceRef.current)
       const next = updater(base)
+      dirtyPageIndexesRef.current = new Set(next.pages.map(page => page.index))
       setDirty(true)
       return next
     })
@@ -1978,12 +2003,26 @@ export default function EditorV2Page() {
     setToolbarState(readToolbarStateFromSelection())
   }, [readToolbarStateFromSelection, rememberEditorSelection, syncImageSizeControl])
 
-  const markEditorDirty = useCallback(() => {
+  const markDirtyPageFromNode = useCallback((source?: EventTarget | Node | null) => {
+    const root = editorSurfaceRef.current
+    const selection = window.getSelection()
+    const sourceNode = source instanceof Node
+      ? source
+      : selection?.anchorNode || savedSelectionRef.current?.commonAncestorContainer || null
+    const element = sourceNode instanceof Element ? sourceNode : sourceNode?.parentElement
+    const pageElement = element?.closest<HTMLElement>('.editor-v2-flow-page')
+      || (selectedBlockId ? root?.querySelector<HTMLElement>(`[data-block-id="${selectedBlockId.replace(/"/g, '\\"')}"]`)?.closest<HTMLElement>('.editor-v2-flow-page') : null)
+    const pageIndex = Number(pageElement?.dataset.pageIndex)
+    if (Number.isFinite(pageIndex)) dirtyPageIndexesRef.current.add(pageIndex)
+  }, [selectedBlockId])
+
+  const markEditorDirty = useCallback((source?: EventTarget | Node | null) => {
+    markDirtyPageFromNode(source)
     editRevisionRef.current += 1
     setDirtyRevision(editRevisionRef.current)
     setDirty(true)
     window.setTimeout(updateSelectedBlockFromDom, 0)
-  }, [updateSelectedBlockFromDom])
+  }, [markDirtyPageFromNode, updateSelectedBlockFromDom])
 
   const refreshDocumentFromEditor = useCallback(() => {
     setDocument(current => current ? documentFromEditorDomV2(current, editorSurfaceRef.current) : current)
@@ -2060,11 +2099,11 @@ export default function EditorV2Page() {
       const valueLabel = figure.querySelector<HTMLElement>('[data-image-size-value="true"]')
       if (valueLabel) valueLabel.textContent = `${percent}%`
       setSelectedBlockId(blockId)
-      markEditorDirty()
+      markEditorDirty(target)
       scheduleToolbarDocumentRefresh()
       return
     }
-    markEditorDirty()
+    markEditorDirty(target)
   }, [document, markEditorDirty, pushEditorHistory, scheduleToolbarDocumentRefresh])
 
   const restoreEditorHtmlSnapshot = useCallback((html: string) => {

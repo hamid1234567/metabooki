@@ -3,6 +3,7 @@ import { buildBookCoverImagePrompt, resolveBookCoverArt } from '@/lib/ai-image-p
 import { findPublisherBook } from '@/lib/publisher-books'
 import type { MockBook } from '@/lib/mock-data'
 import { documentV2ToLegacyPages, type BookDocumentV2 } from '@/lib/book-document-v2'
+import { loadPageEngineDocument } from '@/lib/page-content-engine'
 
 const hasSupabase = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_URL.startsWith('http'))
 
@@ -144,7 +145,25 @@ export async function getPopularBookIds(): Promise<string[]> {
 export async function getBook(bookId: string): Promise<MockBook | null> {
   if (hasSupabase) {
     const { data, error } = await supabase.from('books').select('*').eq('id', bookId).maybeSingle()
-    if (data) return toBook(data as unknown as Record<string, unknown>)
+    if (data) {
+      const book = toBook(data as unknown as Record<string, unknown>)
+      const loaded = await loadPageEngineDocument(book)
+      if (loaded.pageEngine) {
+        return {
+          ...book,
+          pages: documentV2ToLegacyPages(loaded.document),
+          page_count: loaded.manifest.pageCount || loaded.document.pages.length || book.page_count,
+          metadata: {
+            ...(book.metadata || {}),
+            confirmed_toc: loaded.manifest.toc,
+            editor_v2_page_engine: true,
+            editor_v2_document: loaded.document,
+            page_count: loaded.manifest.pageCount,
+          },
+        }
+      }
+      return book
+    }
     if (error) throw error
     return null
   }
