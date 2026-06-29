@@ -1538,6 +1538,7 @@ export default function EditorV2Page() {
   const [error, setError] = useState('')
   const [saveState, setSaveState] = useState<SaveStateV2>('idle')
   const [autoSaveRemainingSeconds, setAutoSaveRemainingSeconds] = useState<number | null>(null)
+  const [saveProgress, setSaveProgress] = useState<number | null>(null)
   const [activePanel, setActivePanel] = useState<EditorPanelV2>('toc')
   const [activeTocId, setActiveTocId] = useState<string>()
   const [selectedBlockId, setSelectedBlockId] = useState<string>()
@@ -1704,6 +1705,7 @@ export default function EditorV2Page() {
     const startedAt = performance.now()
     const capturedRevision = editRevisionRef.current
     setSaveState('saving')
+    setSaveProgress(6)
     const nextDocument = { ...documentFromEditorDomV2(document, editorSurfaceRef.current), updatedAt: new Date().toISOString() }
     const pages = documentV2ToLegacyPages(nextDocument)
     const confirmedToc = documentV2ToConfirmedToc(nextDocument)
@@ -1714,8 +1716,10 @@ export default function EditorV2Page() {
     if (isUuid(book.id)) {
       try {
         pageEngineResult = await savePageEngineDocument(book.id, nextDocument, dirtyPageIndexes)
+        setSaveProgress(68)
       } catch {
         pageEngineResult = null
+        setSaveProgress(24)
       }
     }
     const usePageEngine = Boolean(pageEngineResult)
@@ -1750,6 +1754,7 @@ export default function EditorV2Page() {
         const requestBytes = jsonBytesV2(remotePatch) + (pageEngineResult?.requestBytes || 0)
         const networkStartedAt = performance.now()
         const result = await (supabase as any).from('books').update(remotePatch).eq('id', book.id)
+        setSaveProgress(92)
         const networkMs = performance.now() - networkStartedAt + (pageEngineResult?.networkMs || 0)
         const responseBytes = jsonBytesV2({
           data: result.data ?? null,
@@ -1783,6 +1788,7 @@ export default function EditorV2Page() {
           responseBytes: 0,
         }
         updatePublisherBook(book.id, nextBook as PublisherBook)
+        setSaveProgress(92)
       }
       notifyPublisherBookChanged(book.id)
       const remainingAnimationMs = 520 - (performance.now() - startedAt)
@@ -1795,13 +1801,17 @@ export default function EditorV2Page() {
         setBook(nextBook)
         setDirty(false)
         dirtyPageIndexesRef.current = new Set()
+        setSaveProgress(100)
         setSaveState('saved')
       } else {
         setDirty(true)
         setSaveState('idle')
       }
       if (saveIdleTimerRef.current) window.clearTimeout(saveIdleTimerRef.current)
-      saveIdleTimerRef.current = window.setTimeout(() => setSaveState(current => current === 'saved' ? 'idle' : current), 2200)
+      saveIdleTimerRef.current = window.setTimeout(() => {
+        setSaveState(current => current === 'saved' ? 'idle' : current)
+        setSaveProgress(null)
+      }, 2200)
       if (saveReport) showSaveTrafficToastV2(saveReport)
     } catch {
       const remainingAnimationMs = 360 - (performance.now() - startedAt)
@@ -1809,6 +1819,7 @@ export default function EditorV2Page() {
         await new Promise(resolve => window.setTimeout(resolve, remainingAnimationMs))
       }
       setSaveState('error')
+      setSaveProgress(null)
       if (saveReport) {
         toast.error('Save failed', {
           description: [
