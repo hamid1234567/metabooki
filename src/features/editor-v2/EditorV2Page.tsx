@@ -12,7 +12,7 @@ import { useAuthContext } from '@/lib/auth-context'
 import { useCredits } from '@/hooks/useCredits'
 import { creditsBus } from '@/lib/credits-bus'
 import { buildTocFromHeadingsV2, cleanImageCaptionV2, createV2Id, documentV2ToConfirmedToc, documentV2ToLegacyPages, legacyBookToDocumentV2, normalizeBookTextV2, resolveTocTreeV2, textDirectionV2, tocAsFlatListV2, type BookBlockV2, type BookDocumentV2, type BookInlineV2, type BookTocItemV2, type CalloutBlockV2, type ParagraphBlockV2 } from '@/lib/book-document-v2'
-import { backfillPageEngineForBook, isUuidV2, loadPageEngineDocument, savePageEngineDocument } from '@/lib/page-content-engine'
+import { backfillPageEngineForBook, isUuidV2, loadPageEngineWindow, savePageEngineDocument } from '@/lib/page-content-engine'
 import { bookDisplayTextHtml, isBookLtrRunText, type PrintPageValue } from '@/lib/book-content'
 import type { MockBook } from '@/lib/mock-data'
 import './editor-v2.css'
@@ -1694,7 +1694,7 @@ export default function EditorV2Page() {
           setDocument(null)
           return
         }
-        const loaded = await loadPageEngineDocument(found)
+        const loaded = await loadPageEngineWindow(found, 0, 0, 49)
         const nextDocument = loaded.document || legacyBookToDocumentV2(found)
         setBook(found)
         setDocument(nextDocument)
@@ -1745,7 +1745,10 @@ export default function EditorV2Page() {
     let pageEngineResult: Awaited<ReturnType<typeof savePageEngineDocument>> | null = null
     if (isUuid(book.id)) {
       try {
-        pageEngineResult = await savePageEngineDocument(book.id, nextDocument, dirtyPageIndexes)
+        pageEngineResult = await savePageEngineDocument(book.id, nextDocument, dirtyPageIndexes, {
+          pageCount: Number(book.page_count || book.metadata?.editor_v2_page_count || book.metadata?.page_count || 0) || nextDocument.pages.length,
+          assetsSummary: Array.isArray(book.metadata?.editor_v2_page_engine) ? undefined : nextDocument.assets,
+        })
         setSaveProgress(68)
       } catch {
         pageEngineResult = null

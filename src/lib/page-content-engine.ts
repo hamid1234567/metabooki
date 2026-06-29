@@ -145,14 +145,14 @@ export function assetsFromDocumentV2(document: BookDocumentV2) {
   return [...byId.values()]
 }
 
-export function manifestFromDocumentV2(document: BookDocumentV2): PageEngineManifest {
+export function manifestFromDocumentV2(document: BookDocumentV2, options: { pageCount?: number; assetsSummary?: BookAssetV2[] } = {}): PageEngineManifest {
   const toc = document.toc.length ? document.toc : buildTocFromHeadingsV2(document.pages)
   return {
     bookId: document.sourceBookId,
     schemaVersion: PAGE_ENGINE_SCHEMA_VERSION,
-    pageCount: document.pages.length,
+    pageCount: Math.max(document.pages.length, Number(options.pageCount || 0) || 0),
     toc,
-    assetsSummary: assetsFromDocumentV2(document),
+    assetsSummary: options.assetsSummary || assetsFromDocumentV2(document),
     searchReady: true,
     updatedAt: document.updatedAt,
   }
@@ -244,9 +244,10 @@ export async function savePageEngineDocument(
   bookId: string,
   document: BookDocumentV2,
   dirtyPageIndexes: Iterable<number> | null,
+  options: { pageCount?: number; assetsSummary?: BookAssetV2[] } = {},
 ): Promise<PageEngineSaveResult | null> {
   if (!hasSupabase || !isUuidV2(bookId)) return null
-  const manifest = manifestFromDocumentV2(document)
+  const manifest = manifestFromDocumentV2(document, options)
   const dirtySet = dirtyPageIndexes ? new Set([...dirtyPageIndexes].map(Number).filter(Number.isFinite)) : new Set(document.pages.map(page => page.index))
   const dirtyPages = document.pages.filter(page => dirtySet.has(page.index))
   if (!dirtyPages.length) return {
