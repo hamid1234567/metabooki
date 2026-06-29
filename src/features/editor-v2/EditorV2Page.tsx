@@ -725,6 +725,14 @@ function findBlockInDocumentV2(document: BookDocumentV2, id?: string) {
   return null
 }
 
+function findBlockPageIndexV2(document: BookDocumentV2 | null | undefined, id?: string) {
+  if (!document || !id) return undefined
+  for (const page of document.pages) {
+    if (findBlockV2(page.blocks, id)) return page.index
+  }
+  return undefined
+}
+
 function rebuildDocumentTocV2(document: BookDocumentV2): BookDocumentV2 {
   return { ...document, toc: buildTocFromHeadingsV2(document.pages), updatedAt: new Date().toISOString() }
 }
@@ -901,6 +909,28 @@ function fileToDataUrlV2(file: File) {
     reader.onerror = () => reject(reader.error || new Error('خواندن فایل ناموفق بود.'))
     reader.readAsDataURL(file)
   })
+}
+
+function extensionFromImageFileV2(file: File) {
+  if (file.type.includes('png')) return 'png'
+  if (file.type.includes('webp')) return 'webp'
+  if (file.type.includes('gif')) return 'gif'
+  if (file.type.includes('svg')) return 'svg'
+  return 'jpg'
+}
+
+async function uploadEditorImageFileV2(userId: string | undefined, bookId: string, assetId: string, file: File) {
+  if (!userId || !isUuidV2(bookId) || !import.meta.env.VITE_SUPABASE_URL?.startsWith('http')) {
+    return fileToDataUrlV2(file)
+  }
+  const safeAssetId = assetId.replace(/[^\w.-]+/g, '-')
+  const path = `${userId}/editor-v2/${bookId}/${safeAssetId}.${extensionFromImageFileV2(file)}`
+  const storage = (supabase as any).storage.from('book-imports')
+  const uploaded = await storage.upload(path, file, { upsert: true, contentType: file.type || 'image/jpeg' })
+  if (uploaded.error) throw uploaded.error
+  const signed = await storage.createSignedUrl(path, 60 * 60 * 24 * 365)
+  if (signed.error) throw signed.error
+  return signed.data?.signedUrl || fileToDataUrlV2(file)
 }
 
 const isUuid = isUuidV2
