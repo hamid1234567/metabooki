@@ -427,15 +427,19 @@ export default function Reader() {
   const dir = book.language === 'fa' ? 'rtl' : 'ltr'
   const pageBackgroundUrl = page.background_url || book.metadata?.page_background_url
   const pageBackgroundAlpha = Number(page.background_alpha ?? book.metadata?.page_background_alpha ?? 0)
-  const confirmedToc = Array.isArray(book.metadata?.confirmed_toc) ? book.metadata.confirmed_toc as Array<{ id?: string; title?: string; level?: number; page?: number }> : []
+  const confirmedToc = Array.isArray(book.metadata?.confirmed_toc) ? book.metadata.confirmed_toc as ReaderConfirmedTocItem[] : []
   const preludeTitle = String(book.metadata?.prelude_title || 'ابتدای کتاب')
   const currentPrintNumber = page.printNumber
   const currentPrintLabel = currentPrintNumber === undefined || currentPrintNumber === null || currentPrintNumber === ''
     ? 'بدون شماره چاپی'
     : printPageLabel(currentPrintNumber)
-  const findTocPosition = (item: { id?: string; title?: string; page?: number }) => {
-    if (item.id) {
-      const byId = tocLookup?.byId.get(String(item.id))
+  const findTocPosition = (item: ReaderConfirmedTocItem) => {
+    if (Number.isFinite(Number(item.pageIndex))) {
+      return { pageIndex: Math.max(0, Math.min(readerTotalPages - 1, Number(item.pageIndex))), blockIndex: 0 }
+    }
+    const targetIds = [item.blockId, item.anchor, item.id].filter(Boolean).map(String)
+    for (const targetId of targetIds) {
+      const byId = tocLookup?.byId.get(targetId)
       if (byId) return byId
     }
     const title = normalizeBookText(String(item.title || '')).trim()
@@ -448,7 +452,7 @@ export default function Reader() {
     if (byPrint) return byPrint
     return { pageIndex: Math.max(0, Math.min(readerTotalPages - 1, targetPrint - 1)), blockIndex: 0 }
   }
-  const findTocPageIndex = (item: { id?: string; title?: string; page?: number }) => {
+  const findTocPageIndex = (item: ReaderConfirmedTocItem) => {
     return findTocPosition(item).pageIndex
   }
   const firstTocPosition = confirmedToc.length ? findTocPosition(confirmedToc[0]) : null
@@ -461,7 +465,7 @@ export default function Reader() {
         title: item.title || `بخش ${index + 1}`,
         level: Math.max(1, Math.min(6, Number(item.level || 1))),
         pageIndex: findTocPageIndex(item),
-        targetId: item.id,
+        targetId: item.anchor || item.blockId || item.id,
       })),
     ]
     : book.pages.map((p: any, i: number) => ({
