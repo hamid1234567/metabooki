@@ -13,7 +13,8 @@ import { bookTextDirection, normalizeBookText, printPageLabel } from '@/lib/book
 import { BookContentBlock, resolveSharedBookContentBlock } from '@/components/book/BookContentBlocks'
 import { subscribePublisherBookUpdates } from '@/lib/publisher-books'
 import { BookRendererV2 } from '@/components/book-content-v2'
-import type { BookDocumentV2 } from '@/lib/book-document-v2'
+import { documentV2ToLegacyPages, type BookDocumentV2 } from '@/lib/book-document-v2'
+import { loadPageEngineWindow } from '@/lib/page-content-engine'
 
 type HighlightColor = 'yellow' | 'green' | 'red'
 type HighlightEntry = {
@@ -285,6 +286,39 @@ export default function Reader() {
     return () => cancelAnimationFrame(frame)
   }, [currentPage, book?.id])
 
+  useEffect(() => {
+    if (!book?.metadata?.editor_v2_page_engine) return
+    const candidatePage = book.pages[currentPage] as any
+    if (!candidatePage?.pageEnginePlaceholder) return
+    let alive = true
+    loadPageEngineWindow(book, currentPage, 10, 40).then(loaded => {
+      if (!alive || !loaded.pageEngine) return
+      const convertedPages = documentV2ToLegacyPages(loaded.document)
+      setBook(current => {
+        if (!current || current.id !== book.id) return current
+        const pages = [...current.pages]
+        loaded.document.pages.forEach((page, index) => {
+          pages[page.index] = convertedPages[index]
+        })
+        return {
+          ...current,
+          pages,
+          metadata: {
+            ...(current.metadata || {}),
+            confirmed_toc: loaded.manifest.toc,
+            editor_v2_page_engine: true,
+            editor_v2_loaded_pages: [...new Set([...(Array.isArray(current.metadata?.editor_v2_loaded_pages) ? current.metadata.editor_v2_loaded_pages as number[] : []), ...loaded.document.pages.map(page => page.index)])],
+            editor_v2_window_document: loaded.document,
+            page_count: loaded.manifest.pageCount,
+          },
+        }
+      })
+    }).catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [book?.id, book?.metadata?.editor_v2_page_engine, currentPage])
+
   const readerReturnTo = useMemo(() => {
     const raw = new URLSearchParams(location.search).get('returnTo') || ''
     return raw.startsWith('/') && !raw.startsWith('//') ? raw : ''
@@ -375,8 +409,9 @@ export default function Reader() {
   const canReadFull = isFree || isOwner
   const isPreview = book.preview_pages.includes(currentPage)
   const page = book.pages[currentPage] || { title: '', blocks: [] }
-  const editorV2Document = book.metadata?.editor_v2_document && (book.metadata.editor_v2_document as BookDocumentV2).schemaVersion === '2.0'
-    ? book.metadata.editor_v2_document as BookDocumentV2
+  const editorV2DocumentSource = book.metadata?.editor_v2_document || book.metadata?.editor_v2_window_document
+  const editorV2Document = editorV2DocumentSource && (editorV2DocumentSource as BookDocumentV2).schemaVersion === '2.0'
+    ? editorV2DocumentSource as BookDocumentV2
     : null
   const editorV2Page = editorV2Document?.pages?.[currentPage]
   const dir = book.language === 'fa' ? 'rtl' : 'ltr'

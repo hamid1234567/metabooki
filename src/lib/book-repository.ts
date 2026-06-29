@@ -3,7 +3,7 @@ import { buildBookCoverImagePrompt, resolveBookCoverArt } from '@/lib/ai-image-p
 import { findPublisherBook } from '@/lib/publisher-books'
 import type { MockBook } from '@/lib/mock-data'
 import { documentV2ToLegacyPages, type BookDocumentV2 } from '@/lib/book-document-v2'
-import { loadPageEngineDocument } from '@/lib/page-content-engine'
+import { loadPageEngineWindow } from '@/lib/page-content-engine'
 
 const hasSupabase = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_URL.startsWith('http'))
 
@@ -56,6 +56,11 @@ function toBook(row: Record<string, unknown>): MockBook {
     : Array.isArray(row.pages) ? row.pages : []
   const metadataPageCount = Number(metadata.page_count || metadata.print_page_count || metadata.total_pages || metadata.total_source_pages || 0)
   const pageCount = pages.length || metadataPageCount || Number(row.page_count || 0) || 0
+  const resolvedPages = pages.length
+    ? pages
+    : pageCount > 0
+      ? Array.from({ length: pageCount }, (_, index) => ({ id: `placeholder-page-${index + 1}`, title: `صفحه ${index + 1}`, printNumber: index + 1, blocks: [], pageEnginePlaceholder: true }))
+      : []
   const title = stringValue(row.title)
   const description = stringValue(row.description)
   const category = metadataString(metadata, 'category', 'Ø¹Ù…ÙˆÙ…ÛŒ')
@@ -73,7 +78,7 @@ function toBook(row: Record<string, unknown>): MockBook {
     description,
     cover_url: resolveBookCoverArt({ ...coverContext, coverUrl: stringValue(row.cover_url) }),
     back_cover_url: row.back_cover_url ? stringValue(row.back_cover_url) : null,
-    pages: pages as MockBook['pages'],
+    pages: resolvedPages as MockBook['pages'],
     preview_pages: Array.isArray(row.preview_pages) ? row.preview_pages as number[] : [],
     price: Number(row.price || 0),
     status: row.status as MockBook['status'],
@@ -147,17 +152,24 @@ export async function getBook(bookId: string): Promise<MockBook | null> {
     const { data, error } = await supabase.from('books').select('*').eq('id', bookId).maybeSingle()
     if (data) {
       const book = toBook(data as unknown as Record<string, unknown>)
-      const loaded = await loadPageEngineDocument(book)
+      const loaded = await loadPageEngineWindow(book, 0, 0, 49)
       if (loaded.pageEngine) {
+        const convertedPages = documentV2ToLegacyPages(loaded.document)
+        const pageCount = loaded.manifest.pageCount || book.page_count || convertedPages.length
+        const pages = Array.from({ length: pageCount }, (_, index) => book.pages[index] || ({ id: `placeholder-page-${index + 1}`, title: `صفحه ${index + 1}`, printNumber: index + 1, blocks: [], pageEnginePlaceholder: true } as any))
+        loaded.document.pages.forEach((page, index) => {
+          pages[page.index] = convertedPages[index]
+        })
         return {
           ...book,
-          pages: documentV2ToLegacyPages(loaded.document),
-          page_count: loaded.manifest.pageCount || loaded.document.pages.length || book.page_count,
+          pages: pages as MockBook['pages'],
+          page_count: pageCount,
           metadata: {
             ...(book.metadata || {}),
             confirmed_toc: loaded.manifest.toc,
             editor_v2_page_engine: true,
-            editor_v2_document: loaded.document,
+            editor_v2_loaded_pages: loaded.document.pages.map(page => page.index),
+            editor_v2_window_document: loaded.document,
             page_count: loaded.manifest.pageCount,
           },
         }
