@@ -903,9 +903,7 @@ function fileToDataUrlV2(file: File) {
   })
 }
 
-function isUuid(value = '') {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
-}
+const isUuid = isUuidV2
 
 function formatAutosaveCountdownV2(value: number | null) {
   if (value === null) return ''
@@ -1663,7 +1661,8 @@ export default function EditorV2Page() {
           setDocument(null)
           return
         }
-        const nextDocument = legacyBookToDocumentV2(found)
+        const loaded = await loadPageEngineWindow(found, 0, 0, 49)
+        const nextDocument = loaded.document || legacyBookToDocumentV2(found)
         setBook(found)
         setDocument(nextDocument)
         setActiveTocId(nextDocument.toc[0]?.id)
@@ -1671,6 +1670,9 @@ export default function EditorV2Page() {
         editRevisionRef.current = 0
         setDirtyRevision(0)
         setDirty(false)
+        if (!loaded.pageEngine && isUuid(found.id)) {
+          void backfillPageEngineForBook(found).catch(() => {})
+        }
       })
       .catch(reason => {
         if (!alive) return
