@@ -3092,6 +3092,7 @@ export default function EditorV2Page() {
               {visualSaveState === 'saving' ? <Loader2 size={17} /> : <Save size={17} />}
               {visualSaveState === 'saved' && <Check size={10} className="editor-v2-save-button-check" />}
             </span>
+            {visualSaveState === 'saving' && saveProgress !== null && <span className="editor-v2-save-progress" style={{ '--save-progress': `${saveProgress}%` } as CSSProperties} />}
             ذخیره دستی
             {visualSaveState === 'dirty' && autoSaveCountdownLabel && <span className="editor-v2-save-countdown">{autoSaveCountdownLabel} ثانیه</span>}
           </Button>
@@ -3206,6 +3207,7 @@ export default function EditorV2Page() {
             {visualSaveState === 'saving' ? <Loader2 size={17} /> : <Save size={17} />}
             {visualSaveState === 'saved' && <Check size={11} className="editor-v2-save-check" />}
           </span>
+          {visualSaveState === 'saving' && saveProgress !== null && <span className="editor-v2-floating-save-progress" style={{ '--save-progress': `${saveProgress}%` } as CSSProperties} />}
           {visualSaveState === 'dirty' && autoSaveCountdownLabel && <span className="editor-v2-floating-save-countdown">{autoSaveCountdownLabel}</span>}
         </button>
       </div>
