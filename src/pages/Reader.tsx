@@ -408,6 +408,7 @@ export default function Reader() {
   const isOwner = user?.mockData ? isInMockLibrary(user.mockData.id, book.id) : realOwner
   const canReadFull = isFree || isOwner
   const isPreview = book.preview_pages.includes(currentPage)
+  const readerTotalPages = Math.max(1, Number(book.page_count || 0) || book.pages.length)
   const page = book.pages[currentPage] || { title: '', blocks: [] }
   const editorV2DocumentSource = book.metadata?.editor_v2_document || book.metadata?.editor_v2_window_document
   const editorV2Document = editorV2DocumentSource && (editorV2DocumentSource as BookDocumentV2).schemaVersion === '2.0'
@@ -436,7 +437,7 @@ export default function Reader() {
     const targetPrint = Number(item.page || 1)
     const byPrint = tocLookup?.byPrint.get(targetPrint)
     if (byPrint) return byPrint
-    return { pageIndex: Math.max(0, Math.min(book.pages.length - 1, targetPrint - 1)), blockIndex: 0 }
+    return { pageIndex: Math.max(0, Math.min(readerTotalPages - 1, targetPrint - 1)), blockIndex: 0 }
   }
   const findTocPageIndex = (item: { id?: string; title?: string; page?: number }) => {
     return findTocPosition(item).pageIndex
@@ -503,8 +504,8 @@ export default function Reader() {
   }
 
   const saveProgress = (pg: number) => {
-    if (user?.mockData && canReadFull) saveReadingProgress(user.mockData.id, book.id, pg, book.pages.length)
-    else if (user) (supabase as any).from('reader_states').upsert({ user_id: user.id, book_key: book.id, current_page: pg, total_pages: book.pages.length, background: readerBackground, highlight_color: selectedHighlightColor, updated_at: new Date().toISOString() }).then(() => {})
+    if (user?.mockData && canReadFull) saveReadingProgress(user.mockData.id, book.id, pg, readerTotalPages)
+    else if (user) (supabase as any).from('reader_states').upsert({ user_id: user.id, book_key: book.id, current_page: pg, total_pages: readerTotalPages, background: readerBackground, highlight_color: selectedHighlightColor, updated_at: new Date().toISOString() }).then(() => {})
   }
 
   const goPage = (pg: number, target?: TocTarget) => {
@@ -513,7 +514,7 @@ export default function Reader() {
       if (liveBookRefreshTimerRef.current) window.clearTimeout(liveBookRefreshTimerRef.current)
       void refreshBook()
     }
-    const next = Math.max(0, Math.min(book.pages.length - 1, pg))
+    const next = Math.max(0, Math.min(readerTotalPages - 1, pg))
     if (canReadFull || book.preview_pages.includes(next)) {
       if (target) setTocTarget({ ...target, page: next })
       markReaderTocForPage(next, target)
@@ -727,7 +728,7 @@ export default function Reader() {
     setSelectedHighlightColor(color)
     localStorage.setItem(`metabooki_highlight_color_${user?.id || user?.mockData?.id || 'guest'}_${book.id}`, color)
     if (user?.mockData) return setShowHighlightMenu(false)
-    else if (user) (supabase as any).from('reader_states').upsert({ user_id: user.id, book_key: book.id, current_page: currentPage, total_pages: book.pages.length, background: readerBackground, highlight_color: color, updated_at: new Date().toISOString() }).then(() => {})
+    else if (user) (supabase as any).from('reader_states').upsert({ user_id: user.id, book_key: book.id, current_page: currentPage, total_pages: readerTotalPages, background: readerBackground, highlight_color: color, updated_at: new Date().toISOString() }).then(() => {})
     setShowHighlightMenu(false)
   }
 
@@ -736,7 +737,7 @@ export default function Reader() {
     setReaderBackground(next)
     localStorage.setItem(`metabooki_reader_bg_${book.id}`, next)
     if (user?.mockData) return
-    else if (user) (supabase as any).from('reader_states').upsert({ user_id: user.id, book_key: book.id, current_page: currentPage, total_pages: book.pages.length, background: next, highlight_color: selectedHighlightColor, updated_at: new Date().toISOString() }).then(() => {})
+    else if (user) (supabase as any).from('reader_states').upsert({ user_id: user.id, book_key: book.id, current_page: currentPage, total_pages: readerTotalPages, background: next, highlight_color: selectedHighlightColor, updated_at: new Date().toISOString() }).then(() => {})
   }
 
   const addHighlight = (color: HighlightColor, text: string, source: 'selection' | 'ai' = 'selection', blockKey?: string, startOffset?: number, endOffset?: number) => {
@@ -1310,8 +1311,8 @@ export default function Reader() {
           {/* Page Nav */}
           <div className="flex items-center justify-between">
             <Button variant="outline" onClick={()=>goPage(currentPage-1)} disabled={currentPage===0}><ChevronRight className="w-4 h-4"/>قبلی</Button>
-            <span className="text-sm text-muted-foreground">صفحه چاپی {currentPrintLabel} <span className="text-xs opacity-70">({currentPage + 1} از {editorV2Document?.pages.length || book.pages.length})</span></span>
-            <Button variant="outline" onClick={()=>goPage(currentPage+1)} disabled={currentPage>=(editorV2Document?.pages.length || book.pages.length)-1||!canReadFull}>بعدی<ChevronLeft className="w-4 h-4"/></Button>
+            <span className="text-sm text-muted-foreground">صفحه چاپی {currentPrintLabel} <span className="text-xs opacity-70">({currentPage + 1} از {readerTotalPages})</span></span>
+            <Button variant="outline" onClick={()=>goPage(currentPage+1)} disabled={currentPage >= readerTotalPages - 1 || !canReadFull}>بعدی<ChevronLeft className="w-4 h-4"/></Button>
           </div>
         </div>
       </div>
