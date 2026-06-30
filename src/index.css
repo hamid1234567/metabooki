@@ -881,6 +881,17 @@ body {
   background: color-mix(in srgb,var(--primary) 10%,transparent);
 }
 
+.reader-toc-tools button span,
+.reader-toc-status button span {
+  display: grid;
+  place-items: center;
+  width: 1rem;
+  height: 1rem;
+  font-size: 1rem;
+  font-weight: 950;
+  line-height: 1;
+}
+
 .reader-search-flash {
   background: hsl(48 100% 62%);
   color: hsl(35 90% 18%);

@@ -408,6 +408,16 @@
   color: #64748b;
 }
 
+.editor-v2-toc-toggle span {
+  display: grid;
+  place-items: center;
+  width: 1rem;
+  height: 1rem;
+  font-size: 1rem;
+  font-weight: 950;
+  line-height: 1;
+}
+
 .editor-v2-empty-panel {
   margin: 0;
   border: 1px dashed #c5d5eb;
