@@ -1402,7 +1402,7 @@ export default function Reader() {
         {showToc && (
           <div className={`reader-toc-panel fixed top-0 ${dir==='rtl'?'right-0 border-l':'left-0 border-r'} z-[70] h-full w-80 frosted-menu-surface p-5 overflow-y-auto animate-slide-in-right shadow-glass`} style={{paddingTop:'4rem'}}>
             <div className="flex items-center justify-between mb-5"><h2 className="font-bold font-display text-lg">📑 فهرست</h2><button title="بستن فهرست" onClick={()=>setShowToc(false)} className="p-1.5 rounded-lg hover:bg-muted"><X className="w-4 h-4"/></button></div>
-            <div className="relative mb-4"><Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"/><input placeholder="جستجو در عناوین..." className="w-full pr-10 pl-3 py-2 rounded-xl border bg-background text-sm" onChange={e=>setSearchQuery(e.target.value)}/></div>
+            <div className="reader-panel-search relative mb-4"><Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"/><input value={tocSearchQuery} placeholder="جستجو در عناوین..." className="w-full pr-10 pl-9 py-2 rounded-xl border bg-background text-sm" onChange={e=>setTocSearchQuery(e.target.value)}/>{tocSearchQuery && <button type="button" title="پاک کردن جستجوی فهرست" onClick={() => setTocSearchQuery('')} className="reader-panel-search-clear"><X className="w-3.5 h-3.5"/></button>}</div>
             <div className="reader-toc-tools">
               <button title="باز کردن همه شاخه‌ها" onClick={expandReaderToc}><ChevronRight /></button>
               <button title="جمع کردن شاخه‌ها" onClick={collapseReaderToc}><ChevronLeft /></button>
@@ -1551,9 +1551,9 @@ export default function Reader() {
       {/* Search Panel */}
       {showSearch && (
         <div className={sidePanelClass}>
-                <div className="flex items-center gap-2 mb-3"><Search className="w-4 h-4 text-muted-foreground"/><input value={searchQuery} onChange={e=>{const query=e.target.value;setSearchQuery(query);void doSearch(query)}} placeholder="جستجو در کتاب..." className="flex-1 bg-transparent border-none outline-none text-sm"/><button title="بستن جستجو" onClick={()=>setShowSearch(false)} className="p-1 rounded hover:bg-muted"><X className="w-4 h-4"/></button></div>
+                <div className="flex items-center gap-2 mb-3"><Search className="w-4 h-4 text-muted-foreground"/><input value={searchQuery} onChange={e=>{const query=e.target.value;setSearchQuery(query);void doSearch(query)}} placeholder="جستجو در کتاب..." className="flex-1 bg-transparent border-none outline-none text-sm"/>{searchQuery && <button title="پاک کردن جستجو" onClick={()=>{setSearchQuery('');setSearchResults([]);setSearchTarget(null)}} className="p-1 rounded hover:bg-muted"><XIcon className="w-4 h-4"/></button>}<button title="بستن جستجو" onClick={()=>{setShowSearch(false);setSearchQuery('');setSearchResults([]);setSearchTarget(null)}} className="p-1 rounded hover:bg-muted"><X className="w-4 h-4"/></button></div>
           {searchResults.length > 0 ? (
-            <div className="space-y-2 max-h-64 overflow-y-auto">
+            <div className="reader-search-results space-y-2 overflow-y-auto">
               {searchResults.map((r,i)=>(<button key={i} onClick={()=>openSearchResult(r)} className="reader-search-result w-full text-right p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors text-sm">{r.thumbnail && <img src={r.thumbnail} alt="" loading="lazy"/>}<span className="min-w-0"><p className="text-xs text-primary font-bold mb-1">صفحه {r.page+1}</p><p className="text-xs">{r.text}</p></span></button>))}
             </div>
           ) : searchQuery ? <p className="text-sm text-muted-foreground text-center py-4">نتیجه‌ای یافت نشد</p> : <p className="text-sm text-muted-foreground text-center py-4">عبارت مورد نظر را جستجو کنید</p>}
