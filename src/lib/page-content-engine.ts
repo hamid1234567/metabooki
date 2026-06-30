@@ -146,7 +146,8 @@ export function assetsFromDocumentV2(document: BookDocumentV2) {
 }
 
 export function manifestFromDocumentV2(document: BookDocumentV2, options: { pageCount?: number; assetsSummary?: BookAssetV2[] } = {}): PageEngineManifest {
-  const toc = document.toc.length ? document.toc : buildTocFromHeadingsV2(document.pages)
+  const headingToc = buildTocFromHeadingsV2(document.pages)
+  const toc = document.toc.length >= headingToc.length ? document.toc : headingToc
   return {
     bookId: document.sourceBookId,
     schemaVersion: PAGE_ENGINE_SCHEMA_VERSION,

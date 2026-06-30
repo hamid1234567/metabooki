@@ -43,6 +43,12 @@ export const BOOK_CONTENT_REFERENCE_RULES = [
     includes: ['footnote tooltip', 'reference tooltip', 'RTL/LTR direction', 'viewport-safe placement'],
   },
   {
+    key: 'search-normalization',
+    owner: 'normalizeBookSearchText / compactBookSearchText / bookSearchMatches / bookSearchIncludes',
+    surfaces: ['store', 'library', 'publisher', 'admin', 'reader search', 'reader TOC', 'editor media', 'editor references', 'image picker'],
+    includes: ['Persian/Arabic character normalization', 'ZWS/ZWNJ-insensitive search', 'caption search', 'image and reference list filtering'],
+  },
+  {
     key: 'callout-and-interactive-blocks',
     owner: 'CALLOUT_PRESETS / INTERACTIVE_TYPES / interactiveTemplate / interactivePreview / BookContentBlock',
     surfaces: ['editor', 'editor preview', 'reader', 'book detail previews', 'chapter previews', 'book snippets'],
