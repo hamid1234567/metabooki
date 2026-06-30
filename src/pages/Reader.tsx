@@ -908,10 +908,12 @@ export default function Reader() {
       blocks.forEach((block: any, blockIndex: number) => {
         const entries = readerBlockSearchEntries(block)
         const thumbnail = block?.type === 'image' && block.url ? block.url : fallbackThumbnail
+        const legacyText = String(block?.content || block?.text || block?.caption || '')
+        const legacyBlockKey = `p:${blockIndex}:${legacyText.length}:${legacyText.slice(0, 16)}`
         entries.forEach(entry => {
           const match = readerTextMatches(entry.text, trimmedQuery)
           if (!match.matched) return
-          const blockKey = entry.blockKey || String(block.id || block.anchor || `p:${blockIndex}`)
+          const blockKey = String(block.id || block.anchor || legacyBlockKey || entry.blockKey)
           results.push({
             page: pageIndex,
             text: snippetForReaderSearch(entry.text, trimmedQuery, match.offset),
