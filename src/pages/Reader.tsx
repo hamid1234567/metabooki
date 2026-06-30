@@ -438,8 +438,11 @@ export default function Reader() {
   useEffect(() => {
     if (!searchTarget || searchTarget.page !== currentPage) return
     const frame = requestAnimationFrame(() => {
-      const target = contentRef.current?.querySelector<HTMLElement>(`[data-reader-block="${CSS.escape(searchTarget.blockKey)}"]`)
+      const safeKey = CSS.escape(searchTarget.blockKey)
+      const target = contentRef.current?.querySelector<HTMLElement>(`[data-reader-block="${safeKey}"], [data-block-id="${safeKey}"]`)
       target?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      target?.classList.add('reader-search-target-block')
+      window.setTimeout(() => target?.classList.remove('reader-search-target-block'), 2600)
       window.setTimeout(() => setSearchTarget(current => current === searchTarget ? null : current), 3200)
     })
     return () => cancelAnimationFrame(frame)
