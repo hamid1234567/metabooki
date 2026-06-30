@@ -9,7 +9,7 @@ import { ArrowLeft, BookOpen, Lock, Eye, List, Menu, Minus, Plus, X, Sparkles, F
 import { toast } from 'sonner'
 import { runAiThroughGateway, type AiStructuredContent, type ReaderAiAction, type RunAiResult } from '@/lib/ai-gateway'
 import { supabase } from '@/integrations/supabase/client'
-import { bookSearchMatches, compactBookSearchText, normalizeBookSearchText, bookTextDirection, normalizeBookText, printPageLabel } from '@/lib/book-content'
+import { bookSearchIncludes, bookSearchMatches, compactBookSearchText, normalizeBookSearchText, bookTextDirection, normalizeBookText, printPageLabel } from '@/lib/book-content'
 import { BookContentBlock, resolveSharedBookContentBlock } from '@/components/book/BookContentBlocks'
 import { subscribePublisherBookUpdates } from '@/lib/publisher-books'
 import { BookRendererV2 } from '@/components/book-content-v2'
@@ -1385,7 +1385,7 @@ export default function Reader() {
             <div className="reader-toc-tree">
               {readerTocTreeRows
                 .filter(row => !row.hidden || tocSearchQuery.trim())
-                .filter(row => !tocSearchQuery.trim() || normalizeBookSearchText(row.item.title).includes(normalizeBookSearchText(tocSearchQuery)))
+                .filter(row => !tocSearchQuery.trim() || bookSearchIncludes(row.item.title, tocSearchQuery))
                 .map(({ item, level, hasChildren, collapsed, h1Counter }) => {
                   const seen = seenReaderTocKeys.has(item.key)
                   const locked = !canReadFull && !book.preview_pages.includes(item.pageIndex)
