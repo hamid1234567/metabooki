@@ -748,7 +748,42 @@ function findBlockPageIndexV2(document: BookDocumentV2 | null | undefined, id?: 
 }
 
 function rebuildDocumentTocV2(document: BookDocumentV2): BookDocumentV2 {
-  return { ...document, toc: buildTocFromHeadingsV2(document.pages), updatedAt: new Date().toISOString() }
+  const totalPageCount = Number((document.metadata as Record<string, unknown> | undefined)?.editor_v2_page_count || (document.metadata as Record<string, unknown> | undefined)?.page_count || document.pages.length)
+  const toc = totalPageCount > document.pages.length ? mergeLoadedPagesTocV2(document.toc, document.pages) : buildTocFromHeadingsV2(document.pages)
+  return { ...document, toc, updatedAt: new Date().toISOString() }
+}
+
+function tocSignatureV2(items: BookTocItemV2[]) {
+  return JSON.stringify(items.map(item => [
+    item.id,
+    item.title,
+    item.level,
+    item.blockId,
+    item.anchor,
+    item.pageIndex,
+    item.printNumber,
+  ]))
+}
+
+function mergeLoadedPagesTocV2(currentToc: BookTocItemV2[], loadedPages: BookDocumentV2['pages']): BookTocItemV2[] {
+  const loadedPageIndexes = new Set(loadedPages.map(page => page.index))
+  const loadedToc = buildTocFromHeadingsV2(loadedPages)
+  const insertionOrder = new Map<string, number>()
+  loadedToc.forEach((item, index) => insertionOrder.set(item.id, index))
+  const merged = [
+    ...currentToc.filter(item => !loadedPageIndexes.has(Number(item.pageIndex))),
+    ...loadedToc,
+  ]
+  return merged.sort((a, b) => {
+    const pageDelta = Number(a.pageIndex || 0) - Number(b.pageIndex || 0)
+    if (pageDelta) return pageDelta
+    const aLoadedOrder = insertionOrder.get(a.id)
+    const bLoadedOrder = insertionOrder.get(b.id)
+    if (aLoadedOrder !== undefined || bLoadedOrder !== undefined) {
+      return (aLoadedOrder ?? Number.MAX_SAFE_INTEGER) - (bLoadedOrder ?? Number.MAX_SAFE_INTEGER)
+    }
+    return 0
+  })
 }
 
 function updateBlockInDocumentV2(document: BookDocumentV2, blockId: string, mapper: (block: BookBlockV2) => BookBlockV2 | BookBlockV2[] | null) {

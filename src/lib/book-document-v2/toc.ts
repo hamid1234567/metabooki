@@ -6,10 +6,10 @@ export function flattenTocV2(items: BookTocItemV2[]): BookTocItemV2[] {
 }
 
 export function headingBlocksFromPagesV2(pages: BookPageV2[]) {
-  return pages.flatMap((page, pageIndex) =>
+  return pages.flatMap((page, fallbackPageIndex) =>
     page.blocks
       .filter((block): block is HeadingBlockV2 => block.type === 'heading')
-      .map(block => ({ block, page, pageIndex })),
+      .map(block => ({ block, page, pageIndex: Number.isFinite(page.index) ? page.index : fallbackPageIndex })),
   )
 }
 
