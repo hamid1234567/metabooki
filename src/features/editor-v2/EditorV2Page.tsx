@@ -1648,6 +1648,7 @@ export default function EditorV2Page() {
   const autoSaveTimeoutRef = useRef<number | null>(null)
   const autoSaveTickerRef = useRef<number | null>(null)
   const loadingEditorWindowRef = useRef(false)
+  const persistedTocSignatureRef = useRef('')
   const selectedBlock = useMemo(() => document ? findBlockInDocumentV2(document, selectedBlockId) : null, [document, selectedBlockId])
   const autoSaveCountdownLabel = formatAutosaveCountdownV2(autoSaveRemainingSeconds)
   const visualSaveState: SaveVisualStateV2 = saveState === 'saving'
@@ -1753,6 +1754,7 @@ export default function EditorV2Page() {
         const nextDocument = loaded.document || legacyBookToDocumentV2(found)
         setBook(found)
         setDocument(nextDocument)
+        persistedTocSignatureRef.current = tocSignatureV2(nextDocument.toc)
         setActiveTocId(nextDocument.toc[0]?.id)
         setSelectedBlockId(undefined)
         editRevisionRef.current = 0
@@ -1792,7 +1794,8 @@ export default function EditorV2Page() {
     setSaveState('saving')
     setSaveProgress(6)
     const nextDocument = { ...documentFromEditorDomV2(document, editorSurfaceRef.current), updatedAt: new Date().toISOString() }
-    const tocChanged = tocSignatureV2(document.toc) !== tocSignatureV2(nextDocument.toc)
+    const nextTocSignature = tocSignatureV2(nextDocument.toc)
+    const tocChanged = persistedTocSignatureRef.current !== nextTocSignature
     const previewPages = nextDocument.pages.slice(0, 3).map((_, index) => index)
     const dirtyPageIndexes = dirtyPageIndexesRef.current.size
       ? new Set(dirtyPageIndexesRef.current)
@@ -1895,6 +1898,7 @@ export default function EditorV2Page() {
         skipNextSurfaceSyncRef.current = true
         setDocument(nextDocument)
         setBook(nextBook)
+        persistedTocSignatureRef.current = nextTocSignature
         setDirty(false)
         dirtyPageIndexesRef.current = new Set()
         setSaveProgress(100)
