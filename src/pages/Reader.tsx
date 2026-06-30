@@ -1409,8 +1409,8 @@ export default function Reader() {
             </div>
             <div className="reader-toc-tree">
               {readerTocTreeRows
-                .filter(row => !row.hidden || searchQuery.trim())
-                .filter(row => !searchQuery.trim() || row.item.title.toLowerCase().includes(searchQuery.trim().toLowerCase()))
+                .filter(row => !row.hidden || tocSearchQuery.trim())
+                .filter(row => !tocSearchQuery.trim() || normalizeReaderSearchText(row.item.title).includes(normalizeReaderSearchText(tocSearchQuery)))
                 .map(({ item, level, hasChildren, collapsed, h1Counter }) => {
                   const seen = seenReaderTocKeys.has(item.key)
                   const locked = !canReadFull && !book.preview_pages.includes(item.pageIndex)
