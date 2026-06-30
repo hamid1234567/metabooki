@@ -149,6 +149,7 @@ export interface BookAssetV2 {
   type: 'image' | 'audio' | 'video' | 'file'
   url: string
   caption?: string
+  pageIndex?: number
   printNumber?: PrintPageValue
   status?: ImageBlockV2['status']
   issue?: string

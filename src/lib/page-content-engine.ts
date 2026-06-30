@@ -97,6 +97,7 @@ function collectPageAssets(bookId: string, page: BookPageV2) {
           type: 'image',
           url: block.url,
           caption: cleanImageCaptionV2(block.caption),
+          pageIndex: page.index,
           printNumber: page.printNumber,
           status: block.status,
           issue: block.issue,
@@ -159,6 +160,13 @@ export function manifestFromDocumentV2(document: BookDocumentV2, options: { page
   }
 }
 
+function shouldRecoverPageEngineToc(manifest: PageEngineManifest) {
+  if (manifest.pageCount <= PAGE_ENGINE_INITIAL_LOAD_COUNT) return false
+  if (manifest.toc.length <= 1) return true
+  const maxTocPage = manifest.toc.reduce((max, item) => Math.max(max, Number(item.pageIndex || 0)), 0)
+  return maxTocPage < manifest.pageCount - 1 && maxTocPage < PAGE_ENGINE_INITIAL_LOAD_COUNT
+}
+
 function pageRecordFromRemote(row: UnknownRecord, bookId: string): PageEnginePageRecord {
   return {
     bookId,
@@ -211,7 +219,7 @@ function tocFromPageRowsV2(rows: UnknownRecord[]) {
 
 async function recoverPageEngineTocFromPages(bookId: string, manifest: PageEngineManifest) {
   if (!hasSupabase || !isUuidV2(bookId)) return manifest
-  if (manifest.toc.length > 1 || manifest.pageCount <= PAGE_ENGINE_INITIAL_LOAD_COUNT) return manifest
+  if (!shouldRecoverPageEngineToc(manifest)) return manifest
   const { data, error } = await (supabase as any)
     .from('book_pages')
     .select('page_index,print_number,blocks')
@@ -225,6 +233,25 @@ async function recoverPageEngineTocFromPages(bookId: string, manifest: PageEngin
     .from('book_content_manifests')
     .update({ toc: recoveredToc, updated_at: manifest.updatedAt || new Date().toISOString() })
     .eq('book_id', bookId)
+  return nextManifest
+}
+
+export async function rebuildPageEngineToc(bookId: string) {
+  const manifest = await loadPageEngineManifest(bookId)
+  if (!manifest || !hasSupabase || !isUuidV2(bookId)) return null
+  const { data, error } = await (supabase as any)
+    .from('book_pages')
+    .select('page_index,print_number,blocks')
+    .eq('book_id', bookId)
+    .order('page_index', { ascending: true })
+  if (error || !Array.isArray(data)) throw error || new Error('Page list is not available.')
+  const toc = tocFromPageRowsV2(data as UnknownRecord[])
+  const nextManifest = { ...manifest, toc, updatedAt: new Date().toISOString() }
+  const { error: updateError } = await (supabase as any)
+    .from('book_content_manifests')
+    .update({ toc, updated_at: nextManifest.updatedAt })
+    .eq('book_id', bookId)
+  if (updateError) throw updateError
   return nextManifest
 }
 

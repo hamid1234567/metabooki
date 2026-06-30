@@ -12,7 +12,7 @@ import { useAuthContext } from '@/lib/auth-context'
 import { useCredits } from '@/hooks/useCredits'
 import { creditsBus } from '@/lib/credits-bus'
 import { buildTocFromHeadingsV2, cleanImageCaptionV2, createV2Id, documentV2ToConfirmedToc, documentV2ToLegacyPages, legacyBookToDocumentV2, normalizeBookTextV2, resolveTocTreeV2, textDirectionV2, tocAsFlatListV2, type BookBlockV2, type BookDocumentV2, type BookInlineV2, type BookTocItemV2, type CalloutBlockV2, type ParagraphBlockV2 } from '@/lib/book-document-v2'
-import { backfillPageEngineForBook, isUuidV2, loadPageEngineWindow, savePageEngineDocument } from '@/lib/page-content-engine'
+import { backfillPageEngineForBook, isUuidV2, loadPageEngineWindow, rebuildPageEngineToc, savePageEngineDocument } from '@/lib/page-content-engine'
 import { bookDisplayTextHtml, bookSearchIncludes, isBookLtrRunText, type PrintPageValue } from '@/lib/book-content'
 import type { MockBook } from '@/lib/mock-data'
 import './editor-v2.css'
@@ -842,6 +842,7 @@ type EditorMediaReferenceV2 = {
   key: string
   assetId?: string
   blockId?: string
+  pageIndex?: number
   url: string
   caption?: string
   autoCaption?: boolean
@@ -873,24 +874,29 @@ function printNumberDistanceV2(value: PrintPageValue | undefined, selected: Prin
 function collectMediaReferencesV2(document: BookDocumentV2, selectedPrintNumber?: PrintPageValue): EditorMediaReferenceV2[] {
   const assetMap = new Map(document.assets.map(asset => [asset.id, asset]))
   const assetBlockPrintNumbers = new Map<string, PrintPageValue>()
+  const assetBlockPageIndexes = new Map<string, number>()
   const refs: EditorMediaReferenceV2[] = []
   const seenAssetIds = new Set<string>()
-  const pushImageBlock = (block: Extract<BookBlockV2, { type: 'image' }>) => {
+  const pushImageBlock = (block: Extract<BookBlockV2, { type: 'image' }>, pageIndex?: number, pagePrintNumber?: PrintPageValue) => {
     const asset = block.imageId ? assetMap.get(block.imageId) : undefined
     if (block.imageId) {
       seenAssetIds.add(block.imageId)
       if (block.printNumber !== undefined && block.printNumber !== null && !assetBlockPrintNumbers.has(block.imageId)) {
         assetBlockPrintNumbers.set(block.imageId, block.printNumber)
       }
+      if (Number.isFinite(pageIndex) && !assetBlockPageIndexes.has(block.imageId)) {
+        assetBlockPageIndexes.set(block.imageId, Number(pageIndex))
+      }
     }
     const caption = block.caption || asset?.caption || ''
     const status = block.status || asset?.status
     const issue = block.issue || asset?.issue
-    const printNumber = block.printNumber ?? asset?.printNumber
+    const printNumber = block.printNumber ?? pagePrintNumber ?? asset?.printNumber
     refs.push({
       key: `block-${block.id}`,
       assetId: block.imageId,
       blockId: block.id,
+      pageIndex,
       url: block.url || asset?.url || '',
       caption,
       autoCaption: block.autoCaption,
@@ -902,27 +908,30 @@ function collectMediaReferencesV2(document: BookDocumentV2, selectedPrintNumber?
       distance: printNumberDistanceV2(printNumber, selectedPrintNumber),
     })
   }
-  const visit = (blocks: BookBlockV2[]) => {
+  const visit = (blocks: BookBlockV2[], pageIndex?: number, pagePrintNumber?: PrintPageValue) => {
     blocks.forEach(block => {
-      if (block.type === 'image') pushImageBlock(block)
-      if (block.type === 'callout') visit(block.blocks)
+      if (block.type === 'image') pushImageBlock(block, pageIndex, pagePrintNumber)
+      if (block.type === 'callout') visit(block.blocks, pageIndex, pagePrintNumber)
     })
   }
-  document.pages.forEach(page => visit(page.blocks))
+  document.pages.forEach(page => visit(page.blocks, page.index, page.printNumber))
   document.assets.forEach(asset => {
     if (seenAssetIds.has(asset.id)) return
     const caption = asset.caption || ''
+    const pageIndex = assetBlockPageIndexes.get(asset.id) ?? asset.pageIndex
+    const printNumber = assetBlockPrintNumbers.get(asset.id) ?? asset.printNumber
     refs.push({
       key: `asset-${asset.id}`,
       assetId: asset.id,
+      pageIndex,
       url: asset.url,
       caption,
-      printNumber: assetBlockPrintNumbers.get(asset.id) ?? asset.printNumber,
+      printNumber,
       status: asset.status,
       issue: asset.issue,
       needsCheck: !caption.trim() || Boolean(asset.issue) || ['missing', 'needs-conversion', 'error'].includes(String(asset.status || '')),
       source: 'asset',
-      distance: printNumberDistanceV2(assetBlockPrintNumbers.get(asset.id) ?? asset.printNumber, selectedPrintNumber),
+      distance: printNumberDistanceV2(printNumber, selectedPrintNumber),
     })
   })
   return refs.sort((a, b) => a.distance - b.distance || Number(b.needsCheck) - Number(a.needsCheck) || String(a.printNumber || '').localeCompare(String(b.printNumber || ''), 'fa'))
