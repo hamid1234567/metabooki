@@ -694,7 +694,8 @@ function documentFromEditorDomV2(bookDocument: BookDocumentV2, root: HTMLElement
     return { ...page, blocks }
   })
   const nextDocument = { ...bookDocument, pages, updatedAt: new Date().toISOString() }
-  return bookDocument.toc.length > pages.length ? nextDocument : rebuildDocumentTocV2(nextDocument)
+  const totalPageCount = Number((bookDocument.metadata as Record<string, unknown> | undefined)?.editor_v2_page_count || (bookDocument.metadata as Record<string, unknown> | undefined)?.page_count || pages.length)
+  return totalPageCount > pages.length ? { ...nextDocument, toc: mergeLoadedPagesTocV2(bookDocument.toc, pages) } : rebuildDocumentTocV2(nextDocument)
 }
 
 function mergeEditorWindowDocumentV2(current: BookDocumentV2, loaded: BookDocumentV2): BookDocumentV2 {
@@ -1791,6 +1792,7 @@ export default function EditorV2Page() {
     setSaveState('saving')
     setSaveProgress(6)
     const nextDocument = { ...documentFromEditorDomV2(document, editorSurfaceRef.current), updatedAt: new Date().toISOString() }
+    const tocChanged = tocSignatureV2(document.toc) !== tocSignatureV2(nextDocument.toc)
     const previewPages = nextDocument.pages.slice(0, 3).map((_, index) => index)
     const dirtyPageIndexes = dirtyPageIndexesRef.current.size
       ? new Set(dirtyPageIndexesRef.current)
@@ -1801,7 +1803,7 @@ export default function EditorV2Page() {
         pageEngineResult = await savePageEngineDocument(book.id, nextDocument, dirtyPageIndexes, {
           pageCount: Number(book.page_count || book.metadata?.editor_v2_page_count || book.metadata?.page_count || 0) || nextDocument.pages.length,
           assetsSummary: nextDocument.assets,
-          updateManifest: false,
+          updateManifest: tocChanged,
         })
         setSaveProgress(68)
       } catch {
