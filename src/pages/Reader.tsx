@@ -87,6 +87,76 @@ function buildReaderTocTreeRows(items: ReaderTocItem[], collapsedKeys: Set<strin
   })
 }
 
+function normalizeReaderSearchText(value = '') {
+  return normalizeBookText(String(value))
+    .replace(/[\u064B-\u065F\u0670\u06D6-\u06ED]/g, '')
+    .replace(/[يى]/g, 'ی')
+    .replace(/ك/g, 'ک')
+    .replace(/[‌\u200B\u200C\u200D\u00AC\u00AD]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
+}
+
+function compactReaderSearchText(value = '') {
+  return normalizeReaderSearchText(value).replace(/[\s._\-–—:؛،,()[\]{}«»"'`]+/g, '')
+}
+
+function readerTextMatches(text: string, query: string) {
+  const raw = String(text || '')
+  const cleanQuery = normalizeReaderSearchText(query)
+  if (!cleanQuery) return { matched: false, offset: -1 }
+  const exactOffset = raw.toLowerCase().indexOf(query.toLowerCase())
+  if (exactOffset >= 0) return { matched: true, offset: exactOffset }
+  const normalizedOffset = normalizeReaderSearchText(raw).indexOf(cleanQuery)
+  if (normalizedOffset >= 0) return { matched: true, offset: Math.min(normalizedOffset, raw.length) }
+  const compactOffset = compactReaderSearchText(raw).indexOf(compactReaderSearchText(query))
+  return { matched: compactOffset >= 0, offset: compactOffset >= 0 ? Math.min(compactOffset, raw.length) : -1 }
+}
+
+function snippetForReaderSearch(text: string, query: string, offset: number) {
+  const safeOffset = Math.max(0, offset)
+  const start = Math.max(0, safeOffset - 38)
+  return `...${String(text || '').slice(start, safeOffset + query.length + 54)}...`
+}
+
+function readerBlockSearchEntries(block: any): Array<{ text: string; blockKey: string; thumbnail?: string }> {
+  if (!block) return []
+  const blockId = String(block.id || block.anchor || '')
+  const key = blockId || `legacy:${String(block.content || block.text || block.caption || '').slice(0, 24)}`
+  const values: Array<{ text: string; blockKey: string; thumbnail?: string }> = []
+  const push = (text: unknown, thumbnail?: string) => {
+    const normalized = normalizeBookText(String(text || '')).trim()
+    if (normalized) values.push({ text: normalized, blockKey: key, thumbnail })
+  }
+  push(block.title)
+  push(block.subtitle)
+  push(block.content)
+  push(block.text)
+  push(block.caption, block.url)
+  push(block.question)
+  push(block.answer)
+  push(block.description)
+  if (Array.isArray(block.items)) block.items.forEach((item: any) => push(typeof item === 'string' ? item : `${item?.text || ''} ${item?.title || ''}`))
+  if (Array.isArray(block.rows)) block.rows.flat().forEach((cell: unknown) => push(cell))
+  if (Array.isArray(block.blocks)) block.blocks.forEach((child: any) => values.push(...readerBlockSearchEntries(child)))
+  const payload = block.payload || block.data
+  if (payload && typeof payload === 'object') {
+    const stack = [payload]
+    while (stack.length) {
+      const item: any = stack.pop()
+      if (!item || typeof item !== 'object') continue
+      Object.entries(item).forEach(([entryKey, entryValue]) => {
+        if (entryKey === 'url' || entryKey === 'image') return
+        if (typeof entryValue === 'string' || typeof entryValue === 'number') push(entryValue, typeof item.image === 'string' ? item.image : undefined)
+        else if (Array.isArray(entryValue)) stack.push(...entryValue)
+        else if (entryValue && typeof entryValue === 'object') stack.push(entryValue)
+      })
+    }
+  }
+  return values
+}
+
 export default function Reader() {
   const { id } = useParams<{ id: string }>()
   const location = useLocation()
@@ -112,6 +182,7 @@ export default function Reader() {
   const [highlightActive, setHighlightActive] = useState(false)
   const [selectedHighlightColor, setSelectedHighlightColor] = useState<HighlightColor>('yellow')
   const [searchQuery, setSearchQuery] = useState('')
+  const [tocSearchQuery, setTocSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [searchTarget, setSearchTarget] = useState<SearchTarget | null>(null)
   const [tocTarget, setTocTarget] = useState<TocTarget | null>(null)
