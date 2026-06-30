@@ -1406,8 +1406,8 @@ export default function Reader() {
             <div className="flex items-center justify-between mb-5"><h2 className="font-bold font-display text-lg">📑 فهرست</h2><button title="بستن فهرست" onClick={()=>setShowToc(false)} className="p-1.5 rounded-lg hover:bg-muted"><X className="w-4 h-4"/></button></div>
             <div className="reader-panel-search relative mb-4"><Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"/><input value={tocSearchQuery} placeholder="جستجو در عناوین..." className="w-full pr-10 pl-9 py-2 rounded-xl border bg-background text-sm" onChange={e=>setTocSearchQuery(e.target.value)}/>{tocSearchQuery && <button type="button" title="پاک کردن جستجوی فهرست" onClick={() => setTocSearchQuery('')} className="reader-panel-search-clear"><X className="w-3.5 h-3.5"/></button>}</div>
             <div className="reader-toc-tools">
-              <button title="باز کردن همه شاخه‌ها" onClick={expandReaderToc}><ChevronRight /></button>
-              <button title="جمع کردن شاخه‌ها" onClick={collapseReaderToc}><ChevronLeft /></button>
+              <button title="??? ???? ??? ???????" onClick={expandReaderToc}><span aria-hidden="true">+</span></button>
+              <button title="??? ???? ???????" onClick={collapseReaderToc}><span aria-hidden="true">-</span></button>
             </div>
             <div className="reader-toc-tree">
               {readerTocTreeRows
@@ -1425,7 +1425,7 @@ export default function Reader() {
                       <span className="reader-toc-status">
                         {seen && <Check className="reader-toc-seen" />}
                         {locked && <Lock className="reader-toc-lock" />}
-                        {hasChildren && <button title={collapsed ? 'باز کردن شاخه' : 'جمع کردن شاخه'} onClick={() => toggleReaderTocBranch(item.key)}>{collapsed ? <ChevronLeft /> : <ChevronRight />}</button>}
+                        {hasChildren && <button title={collapsed ? '??? ???? ????' : '??? ???? ????'} onClick={() => toggleReaderTocBranch(item.key)}><span aria-hidden="true">{collapsed ? '+' : '-'}</span></button>}
                       </span>
                     </div>
                   )
