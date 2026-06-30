@@ -20,7 +20,7 @@ import { findPublisherBook, updatePublisherBook } from '@/lib/publisher-books'
 import { findBookById } from '@/lib/mock-data'
 import { supabase } from '@/integrations/supabase/client'
 import { useAuthContext } from '@/lib/auth-context'
-import { bookTextDirection, calloutPreset as sharedCalloutPreset, CALLOUT_PRESETS as SHARED_CALLOUT_PRESETS, inlineToHtml as sharedInlineToHtml, interactiveLabel as sharedInteractiveLabel, interactivePreview as sharedInteractivePreview, interactiveTemplate as sharedInteractiveTemplate, INTERACTIVE_TYPES as SHARED_INTERACTIVE_TYPES, normalizeBookText, pageBreakHtml } from '@/lib/book-content'
+import { bookSearchIncludes, bookTextDirection, calloutPreset as sharedCalloutPreset, CALLOUT_PRESETS as SHARED_CALLOUT_PRESETS, inlineToHtml as sharedInlineToHtml, interactiveLabel as sharedInteractiveLabel, interactivePreview as sharedInteractivePreview, interactiveTemplate as sharedInteractiveTemplate, INTERACTIVE_TYPES as SHARED_INTERACTIVE_TYPES, normalizeBookText, pageBreakHtml } from '@/lib/book-content'
 import { estimateAiImageGeneration, estimateAiTextUsage, generateAiImageThroughGateway, runAiThroughGateway, type AiStructuredContent, type RunAiResult } from '@/lib/ai-gateway'
 import type { AiImagePurpose } from '@/lib/ai-image-prompts'
 import { useCredits } from '@/hooks/useCredits'
@@ -193,12 +193,12 @@ function InlineMediaPicker({ label, value, defaultPrompt = '', onChange, stopEdi
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState('')
   const visibleImages = useMemo(() => {
-    const q = search.trim().toLowerCase()
+    const q = search.trim()
     return media.bookImages
       .filter((image: any) => image.url)
       .filter((image: any) => {
         if (!q) return true
-        return `${image.caption || ''} ${image.originalName || ''} ${image.name || ''} ${image.printPage || ''}`.toLowerCase().includes(q)
+        return bookSearchIncludes(`${image.caption || ''} ${image.originalName || ''} ${image.name || ''} ${image.printPage || ''}`, q)
       })
       .slice(0, 80)
   }, [media.bookImages, search])
@@ -1218,9 +1218,9 @@ export default function Edit() {
     return () => { cancelled = true }
   }, [authLoading, book, id, localInitial, user])
   const filteredBookImages = useMemo(() => {
-    const q = mediaSearch.trim().toLowerCase()
+    const q = mediaSearch.trim()
     if (!q) return bookImages
-    return bookImages.filter((image: any) => `${image.caption || ''} ${image.originalName || ''} ${image.name || ''} ${image.printPage || ''} ${image.issue || ''}`.toLowerCase().includes(q))
+    return bookImages.filter((image: any) => bookSearchIncludes(`${image.caption || ''} ${image.originalName || ''} ${image.name || ''} ${image.printPage || ''} ${image.issue || ''}`, q))
   }, [bookImages, mediaSearch])
 
   useEffect(() => {

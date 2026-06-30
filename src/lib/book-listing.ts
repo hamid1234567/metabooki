@@ -1,4 +1,5 @@
 import type { MockBook } from '@/lib/mock-data'
+import { bookSearchIncludes } from '@/lib/book-content'
 
 export const BOOK_LIST_MAX_ROWS = 15
 export const BOOK_LIST_PAGE_SIZE = BOOK_LIST_MAX_ROWS
@@ -23,7 +24,7 @@ export type BookLike = Pick<MockBook, 'title' | 'subtitle' | 'description' | 'au
 }
 
 export function searchBooks<T extends BookLike>(books: T[], query: string) {
-  const q = query.trim().toLowerCase()
+  const q = query.trim()
   if (!q) return books
   return books.filter(book => [
     book.title,
@@ -34,7 +35,7 @@ export function searchBooks<T extends BookLike>(books: T[], query: string) {
     book.book_type || '',
     book.category || '',
     ...(book.tags || []),
-  ].some(value => String(value).toLowerCase().includes(q)))
+  ].some(value => bookSearchIncludes(String(value), q)))
 }
 
 export function normalizeBookType(value?: string | null) {

@@ -13,7 +13,7 @@ import { useCredits } from '@/hooks/useCredits'
 import { creditsBus } from '@/lib/credits-bus'
 import { buildTocFromHeadingsV2, cleanImageCaptionV2, createV2Id, documentV2ToConfirmedToc, documentV2ToLegacyPages, legacyBookToDocumentV2, normalizeBookTextV2, resolveTocTreeV2, textDirectionV2, tocAsFlatListV2, type BookBlockV2, type BookDocumentV2, type BookInlineV2, type BookTocItemV2, type CalloutBlockV2, type ParagraphBlockV2 } from '@/lib/book-document-v2'
 import { backfillPageEngineForBook, isUuidV2, loadPageEngineWindow, savePageEngineDocument } from '@/lib/page-content-engine'
-import { bookDisplayTextHtml, isBookLtrRunText, type PrintPageValue } from '@/lib/book-content'
+import { bookDisplayTextHtml, bookSearchIncludes, isBookLtrRunText, type PrintPageValue } from '@/lib/book-content'
 import type { MockBook } from '@/lib/mock-data'
 import './editor-v2.css'
 
@@ -872,14 +872,21 @@ function printNumberDistanceV2(value: PrintPageValue | undefined, selected: Prin
 
 function collectMediaReferencesV2(document: BookDocumentV2, selectedPrintNumber?: PrintPageValue): EditorMediaReferenceV2[] {
   const assetMap = new Map(document.assets.map(asset => [asset.id, asset]))
+  const assetBlockPrintNumbers = new Map<string, PrintPageValue>()
   const refs: EditorMediaReferenceV2[] = []
   const seenAssetIds = new Set<string>()
   const pushImageBlock = (block: Extract<BookBlockV2, { type: 'image' }>) => {
     const asset = block.imageId ? assetMap.get(block.imageId) : undefined
-    if (block.imageId) seenAssetIds.add(block.imageId)
+    if (block.imageId) {
+      seenAssetIds.add(block.imageId)
+      if (block.printNumber !== undefined && block.printNumber !== null && !assetBlockPrintNumbers.has(block.imageId)) {
+        assetBlockPrintNumbers.set(block.imageId, block.printNumber)
+      }
+    }
     const caption = block.caption || asset?.caption || ''
     const status = block.status || asset?.status
     const issue = block.issue || asset?.issue
+    const printNumber = block.printNumber ?? asset?.printNumber
     refs.push({
       key: `block-${block.id}`,
       assetId: block.imageId,
@@ -887,12 +894,12 @@ function collectMediaReferencesV2(document: BookDocumentV2, selectedPrintNumber?
       url: block.url || asset?.url || '',
       caption,
       autoCaption: block.autoCaption,
-      printNumber: block.printNumber || asset?.printNumber,
+      printNumber,
       status,
       issue,
       needsCheck: !caption.trim() || Boolean(issue) || ['missing', 'needs-conversion', 'error'].includes(String(status || '')),
       source: 'block',
-      distance: printNumberDistanceV2(block.printNumber || asset?.printNumber, selectedPrintNumber),
+      distance: printNumberDistanceV2(printNumber, selectedPrintNumber),
     })
   }
   const visit = (blocks: BookBlockV2[]) => {
@@ -910,12 +917,12 @@ function collectMediaReferencesV2(document: BookDocumentV2, selectedPrintNumber?
       assetId: asset.id,
       url: asset.url,
       caption,
-      printNumber: asset.printNumber,
+      printNumber: assetBlockPrintNumbers.get(asset.id) ?? asset.printNumber,
       status: asset.status,
       issue: asset.issue,
       needsCheck: !caption.trim() || Boolean(asset.issue) || ['missing', 'needs-conversion', 'error'].includes(String(asset.status || '')),
       source: 'asset',
-      distance: printNumberDistanceV2(asset.printNumber, selectedPrintNumber),
+      distance: printNumberDistanceV2(assetBlockPrintNumbers.get(asset.id) ?? asset.printNumber, selectedPrintNumber),
     })
   })
   return refs.sort((a, b) => a.distance - b.distance || Number(b.needsCheck) - Number(a.needsCheck) || String(a.printNumber || '').localeCompare(String(b.printNumber || ''), 'fa'))
@@ -1291,31 +1298,31 @@ function RightPanelV2({
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [aiPrompt, setAiPrompt] = useState('')
   const filteredMediaRefs = useMemo(() => {
-    const query = normalizeBookTextV2(mediaQuery).toLowerCase()
+    const query = mediaQuery.trim()
     return mediaRefs.filter(item => {
       if (!query) return true
-      return normalizeBookTextV2(`${item.caption || ''} ${item.issue || ''} ${item.printNumber || ''}`).toLowerCase().includes(query)
+      return bookSearchIncludes(`${item.caption || ''} ${item.issue || ''} ${item.printNumber || ''}`, query)
     })
   }, [mediaRefs, mediaQuery])
   const filteredLibraryMediaRefs = useMemo(() => {
-    const query = normalizeBookTextV2(mediaQuery).toLowerCase()
+    const query = mediaQuery.trim()
     return libraryMediaRefs.filter(item => {
       if (!query) return true
-      return normalizeBookTextV2(`${item.caption || ''} ${item.issue || ''} ${item.printNumber || ''}`).toLowerCase().includes(query)
+      return bookSearchIncludes(`${item.caption || ''} ${item.issue || ''} ${item.printNumber || ''}`, query)
     })
   }, [libraryMediaRefs, mediaQuery])
   const filteredReferenceMediaRefs = useMemo(() => {
-    const query = normalizeBookTextV2(referenceQuery).toLowerCase()
+    const query = referenceQuery.trim()
     return libraryMediaRefs.filter(item => {
       if (!query) return true
-      return normalizeBookTextV2(`${item.caption || ''} ${item.issue || ''} ${item.printNumber || ''}`).toLowerCase().includes(query)
+      return bookSearchIncludes(`${item.caption || ''} ${item.issue || ''} ${item.printNumber || ''}`, query)
     })
   }, [libraryMediaRefs, referenceQuery])
   const filteredInlineRefs = useMemo(() => {
-    const query = normalizeBookTextV2(referenceQuery).toLowerCase()
+    const query = referenceQuery.trim()
     return inlineRefs.filter(item => {
       if (!query) return true
-      return normalizeBookTextV2(`${item.label} ${item.text} ${item.target || ''} ${item.printNumber || ''}`).toLowerCase().includes(query)
+      return bookSearchIncludes(`${item.label} ${item.text} ${item.target || ''} ${item.printNumber || ''}`, query)
     })
   }, [inlineRefs, referenceQuery])
   const nearestMediaRef = useMemo(() => {
