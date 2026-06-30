@@ -182,6 +182,51 @@ function documentWithPages(base: BookDocumentV2, pages: BookPageV2[], manifest?:
   }
 }
 
+function tocFromPageRowsV2(rows: UnknownRecord[]) {
+  const toc: BookTocItemV2[] = []
+  rows.forEach(row => {
+    const pageIndex = Number(row.page_index || 0)
+    const printNumber = row.print_number === null || row.print_number === undefined ? undefined : String(row.print_number)
+    const visit = (blocks: BookBlockV2[]) => {
+      blocks.forEach(block => {
+        if (block.type === 'heading') {
+          toc.push({
+            id: `toc-${block.id || `${pageIndex}-${toc.length}`}`,
+            title: normalizeBookTextV2(block.text),
+            level: block.level,
+            blockId: block.id,
+            anchor: block.anchor,
+            pageIndex,
+            printNumber,
+          })
+        }
+        if (block.type === 'callout') visit(block.blocks)
+      })
+    }
+    if (Array.isArray(row.blocks)) visit(row.blocks as BookBlockV2[])
+  })
+  return toc
+}
+
+async function recoverPageEngineTocFromPages(bookId: string, manifest: PageEngineManifest) {
+  if (!hasSupabase || !isUuidV2(bookId)) return manifest
+  if (manifest.toc.length > 1 || manifest.pageCount <= PAGE_ENGINE_INITIAL_LOAD_COUNT) return manifest
+  const { data, error } = await (supabase as any)
+    .from('book_pages')
+    .select('page_index,print_number,blocks')
+    .eq('book_id', bookId)
+    .order('page_index', { ascending: true })
+  if (error || !Array.isArray(data) || !data.length) return manifest
+  const recoveredToc = tocFromPageRowsV2(data as UnknownRecord[])
+  if (recoveredToc.length <= manifest.toc.length) return manifest
+  const nextManifest = { ...manifest, toc: recoveredToc }
+  void (supabase as any)
+    .from('book_content_manifests')
+    .update({ toc: recoveredToc, updated_at: manifest.updatedAt || new Date().toISOString() })
+    .eq('book_id', bookId)
+  return nextManifest
+}
+
 export async function loadPageEngineManifest(bookId: string): Promise<PageEngineManifest | null> {
   if (!hasSupabase || !isUuidV2(bookId)) return null
   const { data, error } = await (supabase as any)
@@ -204,7 +249,8 @@ export async function loadPageEngineManifest(bookId: string): Promise<PageEngine
 
 export async function loadPageEngineWindow(book: MockBook, centerPage = 0, beforeCount = PAGE_ENGINE_WINDOW_BEFORE, afterCount = PAGE_ENGINE_WINDOW_AFTER) {
   const base = legacyBookToDocumentV2(book)
-  const manifest = await loadPageEngineManifest(book.id)
+  const loadedManifest = await loadPageEngineManifest(book.id)
+  const manifest = loadedManifest ? await recoverPageEngineTocFromPages(book.id, loadedManifest) : null
   if (!manifest || !isUuidV2(book.id)) {
     return { document: base, manifest: manifest || manifestFromDocumentV2(base), records: recordsFromDocumentV2(base), pageEngine: false }
   }
@@ -224,7 +270,8 @@ export async function loadPageEngineWindow(book: MockBook, centerPage = 0, befor
 
 export async function loadPageEngineDocument(book: MockBook) {
   const base = legacyBookToDocumentV2(book)
-  const manifest = await loadPageEngineManifest(book.id)
+  const loadedManifest = await loadPageEngineManifest(book.id)
+  const manifest = loadedManifest ? await recoverPageEngineTocFromPages(book.id, loadedManifest) : null
   if (!manifest || !isUuidV2(book.id)) {
     return { document: base, manifest: manifest || manifestFromDocumentV2(base), records: recordsFromDocumentV2(base), pageEngine: false }
   }
