@@ -268,6 +268,37 @@ export function bookTextDirection(value = ''): 'rtl' | 'ltr' {
   return rtlMatches >= latinMatches ? 'rtl' : 'ltr'
 }
 
+export function normalizeBookSearchText(value = '') {
+  return normalizeBookText(String(value))
+    .replace(/[\u064B-\u065F\u0670\u06D6-\u06ED]/g, '')
+    .replace(/[يى]/g, 'ی')
+    .replace(/ك/g, 'ک')
+    .replace(/[‌\u200B\u200C\u200D\u00AC\u00AD]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
+}
+
+export function compactBookSearchText(value = '') {
+  return normalizeBookSearchText(value).replace(/[\s._\-–—:؛،,()[\]{}«»"'`]+/g, '')
+}
+
+export function bookSearchMatches(text: string, query: string) {
+  const raw = String(text || '')
+  const cleanQuery = normalizeBookSearchText(query)
+  if (!cleanQuery) return { matched: false, offset: -1 }
+  const exactOffset = raw.toLowerCase().indexOf(String(query || '').toLowerCase())
+  if (exactOffset >= 0) return { matched: true, offset: exactOffset }
+  const normalizedOffset = normalizeBookSearchText(raw).indexOf(cleanQuery)
+  if (normalizedOffset >= 0) return { matched: true, offset: Math.min(normalizedOffset, raw.length) }
+  const compactOffset = compactBookSearchText(raw).indexOf(compactBookSearchText(query))
+  return { matched: compactOffset >= 0, offset: compactOffset >= 0 ? Math.min(compactOffset, raw.length) : -1 }
+}
+
+export function bookSearchIncludes(text: string, query: string) {
+  return bookSearchMatches(text, query).matched
+}
+
 export function citationTooltipAttributes(text = '') {
   const normalized = normalizeBookText(text)
   const escaped = escapeHtml(normalized)

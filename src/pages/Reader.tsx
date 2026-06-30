@@ -9,7 +9,7 @@ import { ArrowLeft, BookOpen, Lock, Eye, List, Menu, Minus, Plus, X, Sparkles, F
 import { toast } from 'sonner'
 import { runAiThroughGateway, type AiStructuredContent, type ReaderAiAction, type RunAiResult } from '@/lib/ai-gateway'
 import { supabase } from '@/integrations/supabase/client'
-import { bookTextDirection, normalizeBookText, printPageLabel } from '@/lib/book-content'
+import { bookSearchMatches, compactBookSearchText, normalizeBookSearchText, bookTextDirection, normalizeBookText, printPageLabel } from '@/lib/book-content'
 import { BookContentBlock, resolveSharedBookContentBlock } from '@/components/book/BookContentBlocks'
 import { subscribePublisherBookUpdates } from '@/lib/publisher-books'
 import { BookRendererV2 } from '@/components/book-content-v2'
@@ -85,33 +85,6 @@ function buildReaderTocTreeRows(items: ReaderTocItem[], collapsedKeys: Set<strin
     if (level === 1) h1Counter += 1
     return { item, index, level, hidden, hasChildren, collapsed, h1Counter }
   })
-}
-
-function normalizeReaderSearchText(value = '') {
-  return normalizeBookText(String(value))
-    .replace(/[\u064B-\u065F\u0670\u06D6-\u06ED]/g, '')
-    .replace(/[يى]/g, 'ی')
-    .replace(/ك/g, 'ک')
-    .replace(/[‌\u200B\u200C\u200D\u00AC\u00AD]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .toLowerCase()
-}
-
-function compactReaderSearchText(value = '') {
-  return normalizeReaderSearchText(value).replace(/[\s._\-–—:؛،,()[\]{}«»"'`]+/g, '')
-}
-
-function readerTextMatches(text: string, query: string) {
-  const raw = String(text || '')
-  const cleanQuery = normalizeReaderSearchText(query)
-  if (!cleanQuery) return { matched: false, offset: -1 }
-  const exactOffset = raw.toLowerCase().indexOf(query.toLowerCase())
-  if (exactOffset >= 0) return { matched: true, offset: exactOffset }
-  const normalizedOffset = normalizeReaderSearchText(raw).indexOf(cleanQuery)
-  if (normalizedOffset >= 0) return { matched: true, offset: Math.min(normalizedOffset, raw.length) }
-  const compactOffset = compactReaderSearchText(raw).indexOf(compactReaderSearchText(query))
-  return { matched: compactOffset >= 0, offset: compactOffset >= 0 ? Math.min(compactOffset, raw.length) : -1 }
 }
 
 function snippetForReaderSearch(text: string, query: string, offset: number) {
@@ -911,7 +884,7 @@ export default function Reader() {
         const legacyText = String(block?.content || block?.text || block?.caption || '')
         const legacyBlockKey = `p:${blockIndex}:${legacyText.length}:${legacyText.slice(0, 16)}`
         entries.forEach(entry => {
-          const match = readerTextMatches(entry.text, trimmedQuery)
+          const match = bookSearchMatches(entry.text, trimmedQuery)
           if (!match.matched) return
           const blockKey = String(block.id || block.anchor || legacyBlockKey || entry.blockKey)
           results.push({
@@ -934,9 +907,9 @@ export default function Reader() {
         .order('page_index', { ascending: true })
         .limit(limit)
       let { data, error } = await fetchSearchRows(trimmedQuery, 80)
-      if ((!Array.isArray(data) || !data.length) && compactReaderSearchText(trimmedQuery).length >= 4) {
-        const fallbackNeedle = normalizeReaderSearchText(trimmedQuery).split(/\s+/).sort((a, b) => b.length - a.length)[0]?.slice(0, 5)
-          || compactReaderSearchText(trimmedQuery).slice(0, 5)
+      if ((!Array.isArray(data) || !data.length) && compactBookSearchText(trimmedQuery).length >= 4) {
+        const fallbackNeedle = normalizeBookSearchText(trimmedQuery).split(/\s+/).sort((a, b) => b.length - a.length)[0]?.slice(0, 5)
+          || compactBookSearchText(trimmedQuery).slice(0, 5)
         if (fallbackNeedle) {
           const fallback = await fetchSearchRows(fallbackNeedle, 160)
           data = fallback.data
@@ -944,7 +917,7 @@ export default function Reader() {
         }
       }
       if (!error && Array.isArray(data)) {
-        const matchedRows = data.filter((row: any) => readerTextMatches(String(row.plain_text || ''), trimmedQuery).matched)
+        const matchedRows = data.filter((row: any) => bookSearchMatches(String(row.plain_text || ''), trimmedQuery).matched)
         const pageIndexes = matchedRows.map((row: any) => Number(row.page_index || 0)).filter(Number.isFinite)
         if (pageIndexes.length) {
           const { data: pageRows } = await (supabase as any)
@@ -968,7 +941,7 @@ export default function Reader() {
         }
         const engineResults = matchedRows.map((row: any) => {
           const text = String(row.plain_text || '')
-          const idx = readerTextMatches(text, trimmedQuery).offset
+          const idx = bookSearchMatches(text, trimmedQuery).offset
           const offset = idx >= 0 ? idx : 0
           return {
             page: Number(row.page_index || 0),
@@ -1412,7 +1385,7 @@ export default function Reader() {
             <div className="reader-toc-tree">
               {readerTocTreeRows
                 .filter(row => !row.hidden || tocSearchQuery.trim())
-                .filter(row => !tocSearchQuery.trim() || normalizeReaderSearchText(row.item.title).includes(normalizeReaderSearchText(tocSearchQuery)))
+                .filter(row => !tocSearchQuery.trim() || normalizeBookSearchText(row.item.title).includes(normalizeBookSearchText(tocSearchQuery)))
                 .map(({ item, level, hasChildren, collapsed, h1Counter }) => {
                   const seen = seenReaderTocKeys.has(item.key)
                   const locked = !canReadFull && !book.preview_pages.includes(item.pageIndex)
