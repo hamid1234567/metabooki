@@ -893,24 +893,81 @@ export default function Reader() {
 
   // Search
   const doSearch = async (query = searchQuery) => {
-    if (!query.trim()) { setSearchResults([]); return }
+    const trimmedQuery = query.trim()
+    if (!trimmedQuery) {
+      setSearchQuery('')
+      setSearchResults([])
+      setSearchTarget(null)
+      return
+    }
+    const resultsFromBlocks = (blocks: any[], pageIndex: number, fallbackThumbnail?: string) => {
+      const results: SearchResult[] = []
+      blocks.forEach((block: any, blockIndex: number) => {
+        const entries = readerBlockSearchEntries(block)
+        const thumbnail = block?.type === 'image' && block.url ? block.url : fallbackThumbnail
+        entries.forEach(entry => {
+          const match = readerTextMatches(entry.text, trimmedQuery)
+          if (!match.matched) return
+          const blockKey = entry.blockKey || String(block.id || block.anchor || `p:${blockIndex}`)
+          results.push({
+            page: pageIndex,
+            text: snippetForReaderSearch(entry.text, trimmedQuery, match.offset),
+            blockKey,
+            offset: Math.max(0, match.offset),
+            thumbnail: entry.thumbnail || thumbnail,
+          })
+        })
+      })
+      return results
+    }
     if (book.metadata?.editor_v2_page_engine) {
-      const { data, error } = await (supabase as any)
+      const fetchSearchRows = async (needle: string, limit = 80) => (supabase as any)
         .from('book_search_index')
         .select('page_index,plain_text')
         .eq('book_id', book.id)
-        .ilike('plain_text', `%${query.trim()}%`)
+        .ilike('plain_text', `%${needle}%`)
         .order('page_index', { ascending: true })
-        .limit(60)
+        .limit(limit)
+      let { data, error } = await fetchSearchRows(trimmedQuery, 80)
+      if ((!Array.isArray(data) || !data.length) && compactReaderSearchText(trimmedQuery).length >= 4) {
+        const fallbackNeedle = normalizeReaderSearchText(trimmedQuery).split(/\s+/).sort((a, b) => b.length - a.length)[0]?.slice(0, 5)
+          || compactReaderSearchText(trimmedQuery).slice(0, 5)
+        if (fallbackNeedle) {
+          const fallback = await fetchSearchRows(fallbackNeedle, 160)
+          data = fallback.data
+          error = fallback.error
+        }
+      }
       if (!error && Array.isArray(data)) {
-        const engineResults = data.map((row: any) => {
+        const matchedRows = data.filter((row: any) => readerTextMatches(String(row.plain_text || ''), trimmedQuery).matched)
+        const pageIndexes = matchedRows.map((row: any) => Number(row.page_index || 0)).filter(Number.isFinite)
+        if (pageIndexes.length) {
+          const { data: pageRows } = await (supabase as any)
+            .from('book_pages')
+            .select('page_index,blocks')
+            .eq('book_id', book.id)
+            .in('page_index', pageIndexes)
+          if (Array.isArray(pageRows) && pageRows.length) {
+            const blockResults = pageRows
+              .sort((a: any, b: any) => Number(a.page_index || 0) - Number(b.page_index || 0))
+              .flatMap((row: any) => {
+                const blocks = Array.isArray(row.blocks) ? row.blocks : []
+                const fallbackThumbnail = blocks.find((block: any) => block.type === 'image' && block.url)?.url
+                return resultsFromBlocks(blocks, Number(row.page_index || 0), fallbackThumbnail)
+              })
+            if (blockResults.length) {
+              setSearchResults(blockResults.slice(0, 80))
+              return
+            }
+          }
+        }
+        const engineResults = matchedRows.map((row: any) => {
           const text = String(row.plain_text || '')
-          const idx = text.indexOf(query)
+          const idx = readerTextMatches(text, trimmedQuery).offset
           const offset = idx >= 0 ? idx : 0
-          const start = Math.max(0, offset - 34)
           return {
             page: Number(row.page_index || 0),
-            text: '...' + text.slice(start, offset + query.length + 42) + '...',
+            text: snippetForReaderSearch(text, trimmedQuery, offset),
             blockKey: `page-engine:${row.page_index}`,
             offset,
           } satisfies SearchResult
@@ -922,16 +979,9 @@ export default function Reader() {
     const results: SearchResult[] = []
     book.pages.forEach((p, i) => {
       const thumbnail = p.blocks.find((block: any) => block.type === 'image' && block.url)?.url
-      p.blocks.forEach((b: any, blockIndex: number) => {
-        if (b.content && b.content.includes(query)) {
-          const idx = b.content.indexOf(query)
-          const start = Math.max(0, idx - 30)
-          const blockKey = `p:${blockIndex}:${b.content.length}:${b.content.slice(0, 16)}`
-          results.push({page: i, text: '...' + b.content.slice(start, idx + query.length + 30) + '...', blockKey, offset: idx, thumbnail})
-        }
-      })
+      results.push(...resultsFromBlocks(p.blocks || [], i, thumbnail))
     })
-    setSearchResults(results)
+    setSearchResults(results.slice(0, 80))
   }
 
   const openSearchResult = (result: SearchResult) => {
