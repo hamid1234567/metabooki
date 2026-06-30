@@ -12,6 +12,7 @@ import { emptyFilterSettings, loadBookFilterSettings, parseFilterLines, saveBook
 import { listAdminUsers, sendAdminPasswordReset, setAdminUserPassword, type AdminUserRow } from '@/lib/admin-users'
 import { getAllReadingProgress, getMockLibraryEntries } from '@/lib/mock-library'
 import { AiGatewaySettingsPanel } from '@/components/admin/AiGatewaySettingsPanel'
+import { bookSearchIncludes } from '@/lib/book-content'
 
 export default function Admin() {
   const { t } = useI18n()
@@ -269,9 +270,9 @@ export default function Admin() {
   const configuredAiProviders = aiSettings.providers.filter(provider => provider.apiKey || provider.id === aiSettings.activeProvider).length
   const filteredBookMetrics = bookMetrics
     .filter(item => adminBookStatusFilter === 'all' ? true : adminBookStatusFilter === 'pending' ? item.book.review_status === 'pending' : item.book.status === adminBookStatusFilter)
-    .filter(item => !adminBookQuery.trim() || `${item.book.title} ${item.book.author || ''} ${item.book.publisher_name || ''} ${item.book.category || ''}`.toLowerCase().includes(adminBookQuery.trim().toLowerCase()))
+    .filter(item => !adminBookQuery.trim() || bookSearchIncludes(`${item.book.title} ${item.book.author || ''} ${item.book.publisher_name || ''} ${item.book.category || ''}`, adminBookQuery))
     .sort((a, b) => adminBookSort === 'sales' ? b.sales - a.sales : adminBookSort === 'revenue' ? b.revenueCredits - a.revenueCredits : adminBookSort === 'date' ? +new Date(b.book.created_at) - +new Date(a.book.created_at) : a.book.title.localeCompare(b.book.title, 'fa'))
-  const filteredUsers = adminUserRows.filter(row => !adminUserQuery.trim() || `${row.displayName || ''} ${row.email || ''} ${(row.roles || []).join(' ')}`.toLowerCase().includes(adminUserQuery.trim().toLowerCase()))
+  const filteredUsers = adminUserRows.filter(row => !adminUserQuery.trim() || bookSearchIncludes(`${row.displayName || ''} ${row.email || ''} ${(row.roles || []).join(' ')}`, adminUserQuery))
   const transactionRows = [
     ...purchaseRows.map(row => ({ id: `purchase-${row.userId}-${row.bookId}`, type: 'purchase' as const, title: 'خرید کتاب', user: row.userName, detail: row.book?.title || row.bookId, amount: -Number(row.price || 0), date: row.purchasedAt })),
     ...comments.slice(0, 8).map(comment => ({ id: `comment-${comment.id}`, type: 'comment' as const, title: 'دیدگاه کاربر', user: comment.displayName, detail: commentBookTitle(comment.bookId), amount: 0, date: comment.createdAt })),
