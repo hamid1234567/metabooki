@@ -85,12 +85,13 @@ function legacyBlockToV2(block: unknown, page: BookPageV2, pageIndex: number, bl
   const id = String(item.id || createV2Id('block', pageIndex, blockIndex, legacyType))
   const inline = normalizeInlineV2(item.inline)
   const anchor = item.anchor ? String(item.anchor) : id
+  const blockPrintNumber = printValueOf(item.printNumber ?? item.printPage ?? page.printNumber)
   const base = {
     id,
     sourceId: item.id ? String(item.id) : undefined,
     anchor,
     anchors: Array.isArray(item.anchors) ? item.anchors.map(String) : undefined,
-    printNumber: page.printNumber,
+    printNumber: blockPrintNumber,
     direction: item.format ? textDirectionV2(textOf(item.text, item.content)) : undefined,
     style: asRecord(item.format),
   }

@@ -34,6 +34,7 @@ export interface ImportParagraph {
   }
   imageWidthPercent?: number
   imageWidthPx?: number
+  printNumber?: number | string
   pageBreakBefore?: boolean
 }
 

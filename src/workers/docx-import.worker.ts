@@ -651,7 +651,10 @@ async function analyze(file: File): Promise<WordImportAnalysis> {
     }
   }
   const pageForBlockId = new Map<string, ImportPage>()
-  contentPages.forEach(page => page.blocks.forEach(block => pageForBlockId.set(block.id, page)))
+  contentPages.forEach(page => page.blocks.forEach(block => {
+    block.printNumber = page.printNumber ?? page.number
+    pageForBlockId.set(block.id, page)
+  }))
   toc.forEach(item => {
     const page = pageForBlockId.get(item.id)
     if (!page) return
