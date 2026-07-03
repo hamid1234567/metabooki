@@ -10,6 +10,10 @@ export const PAGE_ENGINE_WINDOW_BEFORE = 10
 export const PAGE_ENGINE_WINDOW_AFTER = 40
 export const PAGE_ENGINE_SCHEMA_VERSION = '2.0-page'
 
+// v1.0.57x: the editor and reader moved from whole-book payloads to page windows.
+// Manifests keep global TOC/assets/search metadata; saves send only dirty pages
+// unless a TOC/assets change requires a manifest refresh.
+
 export type PageEngineManifest = {
   bookId: string
   schemaVersion: string
