@@ -14,15 +14,17 @@ export function headingBlocksFromPagesV2(pages: BookPageV2[]) {
 }
 
 export function buildTocFromHeadingsV2(pages: BookPageV2[]): BookTocItemV2[] {
-  return headingBlocksFromPagesV2(pages).map(({ block, page, pageIndex }, index) => ({
-    id: `toc-${block.id || index}`,
-    title: normalizeBookTextV2(block.text),
-    level: block.level,
-    blockId: block.id,
-    anchor: block.anchor,
-    pageIndex,
-    printNumber: page.printNumber,
-  }))
+  return headingBlocksFromPagesV2(pages)
+    .map(({ block, page, pageIndex }, index) => ({
+      id: `toc-${block.id || index}`,
+      title: normalizeBookTextV2(block.text),
+      level: block.level,
+      blockId: block.id,
+      anchor: block.anchor,
+      pageIndex,
+      printNumber: page.printNumber,
+    }))
+    .filter(item => item.title)
 }
 
 export function resolveTocTreeV2(flatItems: BookTocItemV2[]) {
