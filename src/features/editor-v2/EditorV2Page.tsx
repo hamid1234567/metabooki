@@ -288,8 +288,15 @@ function documentToEditorHtmlV2(bookDocument: BookDocumentV2) {
     const pageBreak = index > 0
       ? pageBreakHtmlV2(page, index)
       : ''
-    return `<section class="editor-v2-flow-page" data-page-index="${page.index}"${attrV2('data-print-page', page.printNumber)}>${pageBreak}${page.blocks.map(blockToEditorHtmlV2).join('')}</section>`
+    const body = page.blocks.length
+      ? page.blocks.map(blockToEditorHtmlV2).join('')
+      : emptyPagePlaceholderHtmlV2(page)
+    return `<section class="editor-v2-flow-page" data-page-index="${page.index}"${attrV2('data-print-page', page.printNumber)}>${pageBreak}${body}</section>`
   }).join('')
+}
+
+function emptyPagePlaceholderHtmlV2(page: BookDocumentV2['pages'][number]) {
+  return `<p data-block-id="${escapeHtmlV2(createV2Id('empty-page', page.index))}" data-v2-type="paragraph" data-empty-page-placeholder="true" data-placeholder="برای وارد کردن متن در این صفحه کلیک کنید."><br></p>`
 }
 
 function pageBreakHtmlV2(page: BookDocumentV2['pages'][number], index: number) {
