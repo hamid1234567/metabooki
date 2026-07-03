@@ -989,6 +989,14 @@ export default function Reader() {
   }
 
   const currentPageText = () => page.blocks.map((block: any) => blockToPlainText(block)).filter(Boolean).join('\n\n')
+  const pageHasVisibleLegacyContent = (blocks: any[] = []): boolean => blocks.some(block => {
+    if (!block || typeof block !== 'object') return false
+    if (block.type === 'paragraph' || block.type === 'heading') return Boolean(normalizeBookText(block.content || block.text || '').trim())
+    if (block.type === 'list') return (block.items || []).some((item: any) => Boolean(normalizeBookText(item?.text || item || '').trim()))
+    if (block.type === 'image') return Boolean(block.url || normalizeBookText(block.caption || '').trim())
+    if (block.type === 'callout') return Boolean(normalizeBookText(block.title || '').trim() || pageHasVisibleLegacyContent(block.blocks || []))
+    return true
+  })
 
   // AI
   const runAi = async (action: ReaderAiAction) => {
@@ -1430,7 +1438,7 @@ export default function Reader() {
           >
             {editorV2Page
               ? <BookRendererV2 pages={[editorV2Page]} compact />
-              : page.blocks.length
+              : pageHasVisibleLegacyContent(page.blocks)
                 ? page.blocks.map((block:any,i:number)=>renderBlock(block,i))
                 : <div className="reader-empty-page-placeholder"><span>این صفحه عمداً خالی گذاشته شده است.</span></div>}
           </div>

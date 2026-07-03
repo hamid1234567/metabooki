@@ -154,6 +154,21 @@ function renderBlocks(blocks: BookBlockV2[], options: RenderOptionsV2 = {}): Rea
   return blocks.map(block => renderBookBlockV2(block, childBlocks => renderBlocks(childBlocks, options), options))
 }
 
+function blockHasVisibleContentV2(block: BookBlockV2): boolean {
+  if (block.type === 'paragraph' || block.type === 'heading') return Boolean((block.text || '').trim())
+  if (block.type === 'list') return block.items.some(item => Boolean((item.text || '').trim()))
+  if (block.type === 'image') return Boolean(block.url || cleanImageCaptionV2(block.caption))
+  if (block.type === 'table') return Boolean(block.caption || block.headers?.some(Boolean) || block.rows.some(row => row.some(cell => Boolean(String(cell || '').trim()))))
+  if (block.type === 'math') return Boolean((block.expression || '').trim())
+  if (block.type === 'callout') return Boolean((block.title || '').trim() || block.blocks.some(blockHasVisibleContentV2))
+  if (block.type === 'interactive') return Boolean((block.title || '').trim() || JSON.stringify(block.payload || {}) !== '{}')
+  return false
+}
+
+function pageHasVisibleContentV2(page: BookPageV2) {
+  return page.blocks.some(blockHasVisibleContentV2)
+}
+
 function EmptyBookPageV2() {
   return (
     <div className="book-v2-empty-page" aria-label="صفحه خالی">
@@ -309,7 +324,7 @@ export function BookRendererV2({ document, pages, blocks, compact = false, edita
       {visiblePages.map((page, index) => (
         <section key={page.id} className="book-v2-page" data-page-index={page.index} data-print-page={page.printNumber ?? ''}>
           {index > 0 && <PageBreakV2 previous={visiblePages[index - 1]} next={page} />}
-          {page.blocks.length ? renderBlocks(page.blocks, options) : <EmptyBookPageV2 />}
+          {pageHasVisibleContentV2(page) ? renderBlocks(page.blocks, options) : <EmptyBookPageV2 />}
         </section>
       ))}
       {hoverPreview}

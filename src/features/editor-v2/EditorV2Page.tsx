@@ -283,12 +283,27 @@ function blockToEditorHtmlV2(block: BookBlockV2): string {
   return ''
 }
 
+function blockHasVisibleEditorContentV2(block: BookBlockV2): boolean {
+  if (block.type === 'paragraph' || block.type === 'heading') return Boolean(normalizeBookTextV2(block.text))
+  if (block.type === 'list') return block.items.some(item => Boolean(normalizeBookTextV2(item.text)))
+  if (block.type === 'image') return Boolean(block.url || cleanImageCaptionV2(block.caption))
+  if (block.type === 'table') return Boolean(block.caption || block.headers?.some(Boolean) || block.rows.some(row => row.some(cell => Boolean(normalizeBookTextV2(cell)))))
+  if (block.type === 'math') return Boolean(normalizeBookTextV2(block.expression))
+  if (block.type === 'callout') return Boolean(normalizeBookTextV2(block.title) || block.blocks.some(blockHasVisibleEditorContentV2))
+  if (block.type === 'interactive') return Boolean(normalizeBookTextV2(block.title || JSON.stringify(block.payload || {})))
+  return false
+}
+
+function pageHasVisibleEditorContentV2(page: BookDocumentV2['pages'][number]) {
+  return page.blocks.some(blockHasVisibleEditorContentV2)
+}
+
 function documentToEditorHtmlV2(bookDocument: BookDocumentV2) {
   return bookDocument.pages.map((page, index) => {
     const pageBreak = index > 0
       ? pageBreakHtmlV2(page, index)
       : ''
-    const body = page.blocks.length
+    const body = pageHasVisibleEditorContentV2(page)
       ? page.blocks.map(blockToEditorHtmlV2).join('')
       : emptyPagePlaceholderHtmlV2(page)
     return `<section class="editor-v2-flow-page" data-page-index="${page.index}"${attrV2('data-print-page', page.printNumber)}>${pageBreak}${body}</section>`
