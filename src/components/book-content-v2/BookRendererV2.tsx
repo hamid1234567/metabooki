@@ -154,6 +154,14 @@ function renderBlocks(blocks: BookBlockV2[], options: RenderOptionsV2 = {}): Rea
   return blocks.map(block => renderBookBlockV2(block, childBlocks => renderBlocks(childBlocks, options), options))
 }
 
+function EmptyBookPageV2() {
+  return (
+    <div className="book-v2-empty-page" aria-label="صفحه خالی">
+      <span>این صفحه عمداً خالی گذاشته شده است.</span>
+    </div>
+  )
+}
+
 function findBookBlockV2(blocks: BookBlockV2[], blockId?: string): BookBlockV2 | null {
   if (!blockId) return null
   for (const block of blocks) {
@@ -301,7 +309,7 @@ export function BookRendererV2({ document, pages, blocks, compact = false, edita
       {visiblePages.map((page, index) => (
         <section key={page.id} className="book-v2-page" data-page-index={page.index} data-print-page={page.printNumber ?? ''}>
           {index > 0 && <PageBreakV2 previous={visiblePages[index - 1]} next={page} />}
-          {renderBlocks(page.blocks, options)}
+          {page.blocks.length ? renderBlocks(page.blocks, options) : <EmptyBookPageV2 />}
         </section>
       ))}
       {hoverPreview}

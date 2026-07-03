@@ -1428,7 +1428,11 @@ export default function Reader() {
             onPointerCancel={cancelHighlightStroke}
             onContextMenu={e => e.preventDefault()}
           >
-            {editorV2Page ? <BookRendererV2 pages={[editorV2Page]} compact /> : page.blocks.map((block:any,i:number)=>renderBlock(block,i))}
+            {editorV2Page
+              ? <BookRendererV2 pages={[editorV2Page]} compact />
+              : page.blocks.length
+                ? page.blocks.map((block:any,i:number)=>renderBlock(block,i))
+                : <div className="reader-empty-page-placeholder"><span>این صفحه عمداً خالی گذاشته شده است.</span></div>}
           </div>
 
           {/* Page Nav */}
