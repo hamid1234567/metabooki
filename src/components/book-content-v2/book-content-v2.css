@@ -16,6 +16,24 @@
   min-width: 0;
 }
 
+.book-v2-empty-page {
+  min-height: 48vh;
+  display: grid;
+  place-items: center;
+  border: 1px dashed hsl(214 45% 78% / 0.72);
+  border-radius: 1.25rem;
+  background:
+    radial-gradient(circle at 50% 15%, hsl(212 90% 92% / 0.55), transparent 42%),
+    linear-gradient(180deg, hsl(210 80% 99% / 0.7), hsl(216 65% 96% / 0.45));
+  color: hsl(215 24% 52% / 0.74);
+  text-align: center;
+}
+
+.book-v2-empty-page span {
+  font-weight: 850;
+  letter-spacing: 0;
+}
+
 .book-number-run,
 .book-ltr-inline-run {
   direction: ltr;
