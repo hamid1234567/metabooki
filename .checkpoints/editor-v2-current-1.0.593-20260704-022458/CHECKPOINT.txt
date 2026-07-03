@@ -1,0 +1,15 @@
+﻿Metabooki Editor V2 Checkpoint
+Version: 1.0.593
+Created: 2026-07-04 02:24:58 +03:30
+
+Reason:
+- Current stable Editor V2 state after empty-page placeholder, undo/redo save, heading/TOC cleanup, and shared Reader/renderer empty-content behavior.
+- Use this checkpoint before continuing with the next editor workstream.
+
+Included:
+- Editor V2 page and CSS
+- Shared BookRenderer V2 and CSS
+- Reader integration
+- TOC heading rules
+- Global CSS used by editor/reader placeholders
+- Current system/version/DFD reference docs
