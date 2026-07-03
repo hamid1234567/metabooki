@@ -1207,6 +1207,33 @@
   margin: 0.35rem 0;
 }
 
+.editor-v2-flow-editor [data-empty-page-placeholder="true"] {
+  display: grid;
+  min-height: 12rem;
+  place-items: center;
+  border: 1px dashed #c7d8ef;
+  border-radius: 1rem;
+  background:
+    radial-gradient(circle at 50% 0%, #eaf4ff 0, transparent 44%),
+    linear-gradient(180deg, #fbfdff, #f6faff);
+  color: #7a90ad;
+  text-align: center;
+}
+
+.editor-v2-flow-editor [data-empty-page-placeholder="true"]::before {
+  content: attr(data-placeholder);
+  color: #7a90ad;
+  font-size: 0.92rem;
+  font-weight: 800;
+  opacity: 0.82;
+  pointer-events: none;
+}
+
+.editor-v2-flow-editor [data-empty-page-placeholder="true"]:focus::before,
+.editor-v2-flow-editor [data-empty-page-placeholder="true"]:not(:empty)::before {
+  content: '';
+}
+
 .editor-v2-flow-editor h1,
 .editor-v2-flow-editor h2,
 .editor-v2-flow-editor h3 {

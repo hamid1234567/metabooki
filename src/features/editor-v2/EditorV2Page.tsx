@@ -296,7 +296,7 @@ function documentToEditorHtmlV2(bookDocument: BookDocumentV2) {
 }
 
 function emptyPagePlaceholderHtmlV2(page: BookDocumentV2['pages'][number]) {
-  return `<p data-block-id="${escapeHtmlV2(createV2Id('empty-page', page.index))}" data-v2-type="paragraph" data-empty-page-placeholder="true" data-placeholder="برای وارد کردن متن در این صفحه کلیک کنید."><br></p>`
+  return `<p data-block-id="${escapeHtmlV2(createV2Id('empty-page', page.index))}" data-v2-type="paragraph" data-empty-page-placeholder="true" data-placeholder="برای وارد کردن متن در این صفحه کلیک کنید."></p>`
 }
 
 function pageBreakHtmlV2(page: BookDocumentV2['pages'][number], index: number) {
@@ -351,6 +351,19 @@ function restoreEditorPageBreaksV2(bookDocument: BookDocumentV2, root: HTMLEleme
       extra.remove()
       changed = true
     })
+    const editableChildren = Array.from(pageElement.children).filter(child => {
+      const element = child as HTMLElement
+      return !element.dataset.pageBreak && !element.matches('.editor-v2-flow-page-break')
+    })
+    if (!editableChildren.length) {
+      const template = window.document.createElement('template')
+      template.innerHTML = emptyPagePlaceholderHtmlV2(page)
+      const placeholder = template.content.firstElementChild
+      if (placeholder) {
+        pageElement.appendChild(placeholder)
+        changed = true
+      }
+    }
   })
   return changed
 }
@@ -2304,15 +2317,29 @@ export default function EditorV2Page() {
       return
     }
     markEditorDirty(target)
+    const selectionNode = window.getSelection()?.anchorNode
+    const selectionElement = selectionNode instanceof Element ? selectionNode : selectionNode?.parentElement
+    if (target.closest('h1,h2,h3,h4,h5,h6,[data-v2-type="heading"]') || selectionElement?.closest('h1,h2,h3,h4,h5,h6,[data-v2-type="heading"]')) {
+      scheduleToolbarDocumentRefresh()
+    }
   }, [document, markEditorDirty, pushEditorHistory, scheduleToolbarDocumentRefresh])
 
   const restoreEditorHtmlSnapshot = useCallback((html: string) => {
     if (!editorSurfaceRef.current) return
     editorSurfaceRef.current.innerHTML = html
-    markEditorDirty()
+    if (document) restoreEditorPageBreaksV2(document, editorSurfaceRef.current)
+    setDocument(current => {
+      if (!current) return current
+      const next = documentFromEditorDomV2(current, editorSurfaceRef.current)
+      dirtyPageIndexesRef.current = new Set(next.pages.map(page => page.index))
+      return next
+    })
+    editRevisionRef.current += 1
+    setDirtyRevision(editRevisionRef.current)
+    setDirty(true)
     skipNextSurfaceSyncRef.current = true
-    scheduleRefreshDocumentFromEditor()
-  }, [markEditorDirty, scheduleRefreshDocumentFromEditor])
+    window.setTimeout(updateSelectedBlockFromDom, 0)
+  }, [document, updateSelectedBlockFromDom])
 
   const undoEditorChange = useCallback(() => {
     const currentHtml = editorSurfaceRef.current?.innerHTML
