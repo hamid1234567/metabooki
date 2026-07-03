@@ -20,6 +20,9 @@ function requestInfoMethod(input: RequestInfo | URL, init?: RequestInit) {
 function shouldRetrySupabaseRequest(input: RequestInfo | URL, init?: RequestInit) {
   const method = requestInfoMethod(input, init)
   const url = requestInfoUrl(input)
+  // v1.0.578: direct Supabase access from some Iran networks can time out on
+  // read/auth handshakes. Retry only idempotent reads and auth entrypoints; never
+  // retry editor writes here because page saves must stay single-shot.
   if (['GET', 'HEAD', 'OPTIONS'].includes(method)) return true
   if (method === 'POST' && url.includes('/auth/v1/token')) return true
   if (method === 'POST' && url.includes('/auth/v1/signup')) return true
