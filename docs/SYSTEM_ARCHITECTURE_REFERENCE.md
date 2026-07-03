@@ -1,6 +1,6 @@
 # Metabooki System Architecture Reference
 
-نسخه مرجع: `APP_VERSION = 1.0.597`  
+نسخه مرجع: `APP_VERSION = 1.0.599`  
 تاریخ بازبینی: 2026-07-03  
 هدف سند: هر برنامه‌نویس یا عامل هوش مصنوعی بتواند بدون خواندن کل تاریخچه چت، ساختار فعلی متابوکی را بفهمد و تغییر بعدی را از محل درست شروع کند.
 
@@ -90,7 +90,7 @@ docs/
 - `BookPageV2`: یک صفحه چاپی/منطقی با `index`, `printNumber`, `blocks`.
 - `BookBlockV2`: انواع `paragraph`, `heading`, `image`, `table`, `list`, `math`, `callout`, `interactive`, `pageBreak`.
 - `BookTocItemV2`: فهرست مستقل از صفحات لود شده.
-- `BookAssetV2`: خلاصه دارایی‌های رسانه‌ای برای پنل مدیا و جستجو.
+- `BookAssetV2`: خلاصه دارایی‌های رسانه‌ای برای پنل مدیا و جستجو؛ از نسخه 1.0.599 شامل `blockId` هم هست تا assetهای خارج از window فعلی قابل پرش باشند.
 
 قواعد normalize در `src/lib/book-document-v2/normalize.ts` و `src/lib/book-content.ts` متمرکز هستند. هر تغییری درباره فارسی، ZWS/ZWNJ، پاورقی، رفرنس، اعداد، یونانی، subscript/superscript و لینک باید ابتدا همینجا بررسی شود.
 
@@ -227,7 +227,7 @@ migration اصلی: `supabase/migrations/20260629012000_page_based_content_engin
 
 ## 14. Cleanup نسخه فعلی
 
-در نسخه مرجع 1.0.597:
+در نسخه مرجع 1.0.599:
 
 - `src/pages/Edit.tsx` حذف شده است.
 - route قدیمی `/edit-legacy/:id` حذف شده است.
@@ -235,6 +235,7 @@ migration اصلی: `supabase/migrations/20260629012000_page_based_content_engin
 - `docs/CARDIAC_CYCLE_PLAN.md` حذف شده چون مربوط به پروژه دیگری بود.
 - سندهای مرجع معماری و DFD/ERD/امنیت بر اساس Editor V2 و Page Engine بازنویسی شده‌اند.
 - تشخیص صفحه خالی در Editor V2 و Reader از شمارش بلوک‌ها به تشخیص «محتوای قابل نمایش» تغییر کرده است؛ بنابراین صفحه‌ای با پاراگراف/هدینگ خالی هم placeholder درست می‌گیرد.
+- فهرست و لیست رسانه ادیتور نباید از 50 صفحه لودشده اولیه ساخته شوند؛ manifest در زمان load از کل `book_pages` و `book_assets` قابل ترمیم است و save یک window فقط همان صفحات dirty را در manifest جایگزین می‌کند.
 
 ## 15. محل شروع تغییرات آینده
 
