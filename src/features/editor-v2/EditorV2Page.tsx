@@ -1485,13 +1485,13 @@ function RightPanelV2({
                 {mediaRefs.filter(item => item.needsCheck).slice(0, 8).map(item => (
                   <article
                     key={item.key}
-                    role={item.blockId ? 'button' : undefined}
-                    tabIndex={item.blockId ? 0 : undefined}
-                    onClick={() => item.blockId && onJumpToBlock(item.blockId, item.pageIndex)}
+                    role={item.blockId || Number.isFinite(Number(item.pageIndex)) ? 'button' : undefined}
+                    tabIndex={item.blockId || Number.isFinite(Number(item.pageIndex)) ? 0 : undefined}
+                    onClick={() => (item.blockId || Number.isFinite(Number(item.pageIndex))) && onJumpToBlock(item.blockId || '', item.pageIndex)}
                     onKeyDown={event => {
-                      if (item.blockId && (event.key === 'Enter' || event.key === ' ')) {
+                      if ((item.blockId || Number.isFinite(Number(item.pageIndex))) && (event.key === 'Enter' || event.key === ' ')) {
                         event.preventDefault()
-                        onJumpToBlock(item.blockId, item.pageIndex)
+                        onJumpToBlock(item.blockId || '', item.pageIndex)
                       }
                     }}
                   >
@@ -1514,9 +1514,9 @@ function RightPanelV2({
                   type="button"
                   data-media-ref-key={item.key}
                   className={`${item.needsCheck ? 'has-issue' : ''}`}
-                  disabled={!item.url || !item.blockId}
+                  disabled={!item.url || (!item.blockId && !Number.isFinite(Number(item.pageIndex)))}
                   onClick={() => {
-                    if (item.blockId) onJumpToBlock(item.blockId, item.pageIndex)
+                    if (item.blockId || Number.isFinite(Number(item.pageIndex))) onJumpToBlock(item.blockId || '', item.pageIndex)
                   }}
                   title="رفتن به محل تصویر"
                 >
@@ -1599,12 +1599,12 @@ function RightPanelV2({
                     type="button"
                     data-media-ref-key={item.key}
                     className={`${item.needsCheck ? 'has-issue' : ''} ${nearestMediaRef?.key === item.key ? 'is-nearest' : ''} ${canLinkImageRef ? 'is-link-target' : ''}`}
-                    disabled={!item.url || (!item.blockId && !item.assetId)}
+                    disabled={!item.url || (!canLinkImageRef && !item.blockId && !Number.isFinite(Number(item.pageIndex)))}
                     onClick={() => {
                       if (canLinkImageRef) {
                         onLinkImageRef(item)
                         setReferenceMessage('متن انتخاب‌شده به تصویر وصل شد.')
-                      } else if (item.blockId) onJumpToBlock(item.blockId, item.pageIndex)
+                      } else if (item.blockId || Number.isFinite(Number(item.pageIndex))) onJumpToBlock(item.blockId || '', item.pageIndex)
                     }}
                     title={canLinkImageRef ? 'اتصال متن انتخاب‌شده به این تصویر' : 'رفتن به محل تصویر'}
                   >
