@@ -14,7 +14,6 @@ const loadLibrary = () => import('@/pages/Library')
 const loadReader = () => import('@/pages/Reader')
 const loadBookLanding = () => import('@/pages/BookLanding')
 const loadUpload = () => import('@/pages/Upload')
-const loadEdit = () => import('@/pages/Edit')
 const loadEditV2 = () => import('@/features/editor-v2/EditorV2Page')
 const loadPublish = () => import('@/pages/Publish')
 const loadPublisher = () => import('@/pages/Publisher')
@@ -36,7 +35,6 @@ const Library = lazy(loadLibrary)
 const Reader = lazy(loadReader)
 const BookLanding = lazy(loadBookLanding)
 const Upload = lazy(loadUpload)
-const Edit = lazy(loadEdit)
 const EditV2 = lazy(loadEditV2)
 const Publish = lazy(loadPublish)
 const Publisher = lazy(loadPublisher)
@@ -82,7 +80,7 @@ function App() {
 
   useEffect(() => {
     const pathname = location.pathname
-    if (pathname.startsWith('/publisher/')) return preloadRoutesWhenIdle([loadEdit, loadEditV2, loadReader, loadUpload])
+    if (pathname.startsWith('/publisher/')) return preloadRoutesWhenIdle([loadEditV2, loadReader, loadUpload])
     if (pathname.startsWith('/b/') || pathname === '/library' || pathname === '/store') return preloadRoutesWhenIdle([loadReader])
     if (pathname.startsWith('/edit/')) return preloadRoutesWhenIdle([loadReader])
     if (pathname.startsWith('/edit-v2/')) return preloadRoutesWhenIdle([loadReader])
@@ -165,11 +163,6 @@ function App() {
               <Route path="/upload" element={
                 <RoleGuard roles={['publisher', 'editor', 'admin', 'super_admin']}>
                   <Upload />
-                </RoleGuard>
-              } />
-              <Route path="/edit-legacy/:id" element={
-                <RoleGuard roles={['publisher', 'editor', 'admin', 'super_admin']}>
-                  <Edit />
                 </RoleGuard>
               } />
               <Route path="/edit/:id" element={

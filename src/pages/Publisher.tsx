@@ -473,7 +473,6 @@ export default function Publisher() {
                   </div>
                   <div className="flex flex-wrap gap-2 mt-auto">
                     <Button disabled={isPublished} title={isPublished ? 'کتاب منتشرشده قابل ویرایش مستقیم نیست.' : undefined} onClick={() => navigate(`/edit/${safeBook.id}`)} className="gap-2 flex-1 sm:min-w-56"><FileText className="w-4 h-4" />ویرایش متن و محتوا</Button>
-                    <Button variant="outline" disabled={isPublished} title={isPublished ? 'کتاب منتشرشده قابل ویرایش مستقیم نیست.' : undefined} onClick={() => navigate(`/edit-legacy/${safeBook.id}`)} className="gap-2 flex-1 sm:min-w-56"><BookOpen className="w-4 h-4" />ادیتور قبلی</Button>
                     <Button onClick={() => navigate(`/publish/${safeBook.id}`)} className="gap-2 bg-amber-500 hover:bg-amber-600 flex-1 sm:min-w-56"><Rocket className="w-4 h-4" />قیمت، سهام و انتشار</Button>
                     {canUnpublish && <Button variant="outline" disabled={unpublishingBookId === safeBook.id} onClick={() => void unpublishBook(safeBook)} className="gap-2"><RefreshCcw className={`w-4 h-4 ${unpublishingBookId === safeBook.id ? 'animate-spin' : ''}`} />خروج از نشر برای ویرایش</Button>}
                     <Button variant="outline" onClick={() => void previewPublisherBook(safeBook)} className="gap-2"><Eye className="w-4 h-4" />پیش‌نمایش</Button>
