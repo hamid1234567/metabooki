@@ -101,6 +101,7 @@ function collectPageAssets(bookId: string, page: BookPageV2) {
           type: 'image',
           url: block.url,
           caption: cleanImageCaptionV2(block.caption),
+          blockId: block.id,
           pageIndex: page.index,
           printNumber: page.printNumber,
           status: block.status,
@@ -150,6 +151,22 @@ export function assetsFromDocumentV2(document: BookDocumentV2) {
   return [...byId.values()]
 }
 
+function mergePageAssetsSummaryV2(currentAssets: BookAssetV2[], bookId: string, pages: BookPageV2[]) {
+  const pageIndexes = new Set(pages.map(page => Number(page.index)).filter(Number.isFinite))
+  const byId = new Map<string, BookAssetV2>()
+  currentAssets
+    .filter(asset => !pageIndexes.has(Number(asset.pageIndex)))
+    .forEach(asset => byId.set(asset.id, asset))
+  pages.forEach(page => {
+    collectPageAssets(bookId, page).forEach(asset => byId.set(asset.id, asset))
+  })
+  return [...byId.values()].sort((a, b) =>
+    Number(a.pageIndex ?? 0) - Number(b.pageIndex ?? 0)
+    || String(a.printNumber || '').localeCompare(String(b.printNumber || ''), 'fa')
+    || String(a.id).localeCompare(String(b.id)),
+  )
+}
+
 export function manifestFromDocumentV2(document: BookDocumentV2, options: { pageCount?: number; assetsSummary?: BookAssetV2[] } = {}): PageEngineManifest {
   const toc = document.toc.length ? document.toc : buildTocFromHeadingsV2(document.pages)
   return {
@@ -167,7 +184,7 @@ function shouldRecoverPageEngineToc(manifest: PageEngineManifest) {
   if (manifest.pageCount <= PAGE_ENGINE_INITIAL_LOAD_COUNT) return false
   if (manifest.toc.length <= 1) return true
   const maxTocPage = manifest.toc.reduce((max, item) => Math.max(max, Number(item.pageIndex || 0)), 0)
-  return maxTocPage < manifest.pageCount - 1 && maxTocPage < PAGE_ENGINE_INITIAL_LOAD_COUNT
+  return maxTocPage < Math.max(0, manifest.pageCount - PAGE_ENGINE_WINDOW_AFTER - 1)
 }
 
 function pageRecordFromRemote(row: UnknownRecord, bookId: string): PageEnginePageRecord {
@@ -207,9 +224,11 @@ function tocFromPageRowsV2(rows: UnknownRecord[]) {
     const visit = (blocks: BookBlockV2[]) => {
       blocks.forEach(block => {
         if (block.type === 'heading') {
+          const title = blockPlainTextV2(block)
+          if (!title) return
           toc.push({
             id: `toc-${block.id || `${pageIndex}-${toc.length}`}`,
-            title: normalizeBookTextV2(block.text),
+            title,
             level: block.level,
             blockId: block.id,
             anchor: block.anchor,
@@ -225,22 +244,72 @@ function tocFromPageRowsV2(rows: UnknownRecord[]) {
   return toc
 }
 
-async function recoverPageEngineTocFromPages(bookId: string, manifest: PageEngineManifest) {
-  if (!hasSupabase || !isUuidV2(bookId)) return manifest
-  if (!shouldRecoverPageEngineToc(manifest)) return manifest
+function assetsFromAssetRowsV2(rows: UnknownRecord[]): BookAssetV2[] {
+  return rows.map(row => {
+    const metadata = asRecord(row.metadata)
+    return {
+      id: String(row.asset_id || row.id || ''),
+      type: 'image' as const,
+      url: String(row.url || ''),
+      caption: row.caption ? String(row.caption) : undefined,
+      blockId: row.block_id ? String(row.block_id) : undefined,
+      pageIndex: Number.isFinite(Number(row.page_index)) ? Number(row.page_index) : undefined,
+      printNumber: metadata.printNumber === null || metadata.printNumber === undefined ? undefined : String(metadata.printNumber),
+      status: row.status ? String(row.status) as BookAssetV2['status'] : undefined,
+      issue: row.issue ? String(row.issue) : undefined,
+    }
+  }).filter(asset => asset.id && asset.url)
+}
+
+async function loadPageEngineAssetsSummaryFromRows(bookId: string) {
+  if (!hasSupabase || !isUuidV2(bookId)) return []
   const { data, error } = await (supabase as any)
-    .from('book_pages')
-    .select('page_index,print_number,blocks')
+    .from('book_assets')
+    .select('asset_id,page_index,block_id,url,caption,status,issue,metadata,updated_at')
     .eq('book_id', bookId)
     .order('page_index', { ascending: true })
-  if (error || !Array.isArray(data) || !data.length) return manifest
-  const recoveredToc = tocFromPageRowsV2(data as UnknownRecord[])
-  if (recoveredToc.length <= manifest.toc.length) return manifest
-  const nextManifest = { ...manifest, toc: recoveredToc }
-  void (supabase as any)
-    .from('book_content_manifests')
-    .update({ toc: recoveredToc, updated_at: manifest.updatedAt || new Date().toISOString() })
-    .eq('book_id', bookId)
+  if (error || !Array.isArray(data)) return []
+  return assetsFromAssetRowsV2(data as UnknownRecord[])
+}
+
+async function recoverPageEngineManifestFromServer(bookId: string, manifest: PageEngineManifest) {
+  if (!hasSupabase || !isUuidV2(bookId)) return manifest
+  let nextManifest = manifest
+  let changed = false
+
+  if (shouldRecoverPageEngineToc(manifest)) {
+    const { data, error } = await (supabase as any)
+      .from('book_pages')
+      .select('page_index,print_number,blocks')
+      .eq('book_id', bookId)
+      .order('page_index', { ascending: true })
+    if (!error && Array.isArray(data) && data.length) {
+      const recoveredToc = tocFromPageRowsV2(data as UnknownRecord[])
+      if (recoveredToc.length && recoveredToc.length >= manifest.toc.length) {
+        nextManifest = { ...nextManifest, toc: recoveredToc }
+        changed = true
+      }
+    }
+  }
+
+  const recoveredAssets = await loadPageEngineAssetsSummaryFromRows(bookId)
+  if (recoveredAssets.length && recoveredAssets.length >= (manifest.assetsSummary?.length || 0)) {
+    const currentSignature = JSON.stringify((manifest.assetsSummary || []).map(asset => [asset.id, asset.blockId, asset.pageIndex, asset.caption, asset.status, asset.issue]))
+    const nextSignature = JSON.stringify(recoveredAssets.map(asset => [asset.id, asset.blockId, asset.pageIndex, asset.caption, asset.status, asset.issue]))
+    if (currentSignature !== nextSignature) {
+      nextManifest = { ...nextManifest, assetsSummary: recoveredAssets }
+      changed = true
+    }
+  }
+
+  if (changed) {
+    const updatedAt = new Date().toISOString()
+    nextManifest = { ...nextManifest, updatedAt }
+    void (supabase as any)
+      .from('book_content_manifests')
+      .update({ toc: nextManifest.toc, assets_summary: nextManifest.assetsSummary, updated_at: updatedAt })
+      .eq('book_id', bookId)
+  }
   return nextManifest
 }
 
@@ -286,7 +355,7 @@ export async function loadPageEngineManifest(bookId: string): Promise<PageEngine
 export async function loadPageEngineWindow(book: MockBook, centerPage = 0, beforeCount = PAGE_ENGINE_WINDOW_BEFORE, afterCount = PAGE_ENGINE_WINDOW_AFTER) {
   const base = legacyBookToDocumentV2(book)
   const loadedManifest = await loadPageEngineManifest(book.id)
-  const manifest = loadedManifest ? await recoverPageEngineTocFromPages(book.id, loadedManifest) : null
+  const manifest = loadedManifest ? await recoverPageEngineManifestFromServer(book.id, loadedManifest) : null
   if (!manifest || !isUuidV2(book.id)) {
     return { document: base, manifest: manifest || manifestFromDocumentV2(base), records: recordsFromDocumentV2(base), pageEngine: false }
   }
@@ -307,7 +376,7 @@ export async function loadPageEngineWindow(book: MockBook, centerPage = 0, befor
 export async function loadPageEngineDocument(book: MockBook) {
   const base = legacyBookToDocumentV2(book)
   const loadedManifest = await loadPageEngineManifest(book.id)
-  const manifest = loadedManifest ? await recoverPageEngineTocFromPages(book.id, loadedManifest) : null
+  const manifest = loadedManifest ? await recoverPageEngineManifestFromServer(book.id, loadedManifest) : null
   if (!manifest || !isUuidV2(book.id)) {
     return { document: base, manifest: manifest || manifestFromDocumentV2(base), records: recordsFromDocumentV2(base), pageEngine: false }
   }
@@ -369,7 +438,7 @@ export async function savePageEngineDocument(
     book_id: bookId,
     asset_id: asset.id,
     page_index: page.index,
-    block_id: asset.id,
+    block_id: asset.blockId || asset.id,
     url: asset.url,
     caption: asset.caption || null,
     caption_inline: null,
@@ -379,7 +448,10 @@ export async function savePageEngineDocument(
     updated_at: document.updatedAt,
   })))
   const shouldUpdateManifest = options.updateManifest !== false
-  const manifest = shouldUpdateManifest ? manifestFromDocumentV2(document, options) : null
+  const assetsSummary = options.assetsSummary
+    ? mergePageAssetsSummaryV2(options.assetsSummary, bookId, dirtyPages)
+    : assetsFromDocumentV2(document)
+  const manifest = shouldUpdateManifest ? manifestFromDocumentV2(document, { ...options, assetsSummary }) : null
   const manifestRow = {
     book_id: bookId,
     schema_version: PAGE_ENGINE_SCHEMA_VERSION,

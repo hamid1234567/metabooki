@@ -913,6 +913,7 @@ function collectMediaReferencesV2(document: BookDocumentV2, selectedPrintNumber?
   const assetMap = new Map(document.assets.map(asset => [asset.id, asset]))
   const assetBlockPrintNumbers = new Map<string, PrintPageValue>()
   const assetBlockPageIndexes = new Map<string, number>()
+  const assetBlockIds = new Map<string, string>()
   const refs: EditorMediaReferenceV2[] = []
   const seenAssetIds = new Set<string>()
   const pushImageBlock = (block: Extract<BookBlockV2, { type: 'image' }>, pageIndex?: number, pagePrintNumber?: PrintPageValue) => {
@@ -924,6 +925,9 @@ function collectMediaReferencesV2(document: BookDocumentV2, selectedPrintNumber?
       }
       if (Number.isFinite(pageIndex) && !assetBlockPageIndexes.has(block.imageId)) {
         assetBlockPageIndexes.set(block.imageId, Number(pageIndex))
+      }
+      if (block.id && !assetBlockIds.has(block.imageId)) {
+        assetBlockIds.set(block.imageId, block.id)
       }
     }
     const caption = block.caption || asset?.caption || ''
@@ -961,6 +965,7 @@ function collectMediaReferencesV2(document: BookDocumentV2, selectedPrintNumber?
     refs.push({
       key: `asset-${asset.id}`,
       assetId: asset.id,
+      blockId: assetBlockIds.get(asset.id) ?? asset.blockId,
       pageIndex,
       url: asset.url,
       caption,
@@ -3206,7 +3211,16 @@ export default function EditorV2Page() {
       }
     }
     window.setTimeout(() => {
-      editorSurfaceRef.current?.querySelector<HTMLElement>(`[data-block-id="${blockId.replace(/"/g, '\\"')}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      const target = blockId
+        ? editorSurfaceRef.current?.querySelector<HTMLElement>(`[data-block-id="${blockId.replace(/"/g, '\\"')}"]`)
+        : null
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        return
+      }
+      if (Number.isFinite(Number(pageIndex))) {
+        editorSurfaceRef.current?.querySelector<HTMLElement>(`.editor-v2-flow-page[data-page-index="${Number(pageIndex)}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
     }, 80)
   }, [book, dirty, document, saveDocument])
 
