@@ -147,8 +147,7 @@ export function assetsFromDocumentV2(document: BookDocumentV2) {
 }
 
 export function manifestFromDocumentV2(document: BookDocumentV2, options: { pageCount?: number; assetsSummary?: BookAssetV2[] } = {}): PageEngineManifest {
-  const headingToc = buildTocFromHeadingsV2(document.pages)
-  const toc = document.toc.length >= headingToc.length ? document.toc : headingToc
+  const toc = document.toc.length ? document.toc : buildTocFromHeadingsV2(document.pages)
   return {
     bookId: document.sourceBookId,
     schemaVersion: PAGE_ENGINE_SCHEMA_VERSION,
@@ -187,6 +186,11 @@ function documentWithPages(base: BookDocumentV2, pages: BookPageV2[], manifest?:
     pages: pages.map((page, index) => ({ ...page, index: page.index ?? index })),
     toc: manifest?.toc?.length ? manifest.toc : base.toc,
     assets: manifest?.assetsSummary?.length ? manifest.assetsSummary : base.assets,
+    metadata: {
+      ...base.metadata,
+      editor_v2_page_engine: Boolean(manifest),
+      editor_v2_page_count: manifest?.pageCount || base.pages.length,
+    } as BookDocumentV2['metadata'],
     updatedAt: manifest?.updatedAt || base.updatedAt,
   }
 }

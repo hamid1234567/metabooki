@@ -39,6 +39,23 @@ export function resolveTocTreeV2(flatItems: BookTocItemV2[]) {
   return roots
 }
 
+export function mergeLoadedPagesTocV2(currentToc: BookTocItemV2[], loadedPages: BookPageV2[]) {
+  const currentFlatToc = flattenTocV2(currentToc)
+  const loadedPageIndexes = new Set(loadedPages.map(page => Number(page.index)).filter(Number.isFinite))
+  const loadedToc = buildTocFromHeadingsV2(loadedPages)
+  const order = new Map<string, number>()
+  currentFlatToc.forEach((item, index) => order.set(item.id, index * 1000))
+  loadedToc.forEach((item, index) => order.set(item.id, (Number(item.pageIndex || 0) * 1000) + index))
+  return [
+    ...currentFlatToc.filter(item => !loadedPageIndexes.has(Number(item.pageIndex))),
+    ...loadedToc,
+  ].sort((a, b) => {
+    const pageDelta = Number(a.pageIndex || 0) - Number(b.pageIndex || 0)
+    if (pageDelta) return pageDelta
+    return (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0)
+  })
+}
+
 export function tocAsFlatListV2(document: BookDocumentV2) {
   return flattenTocV2(document.toc.length ? document.toc : buildTocFromHeadingsV2(document.pages))
 }

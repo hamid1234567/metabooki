@@ -1,7 +1,7 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent as ReactClipboardEvent, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import { AlignCenter, AlignJustify, AlignLeft, AlignRight, AlertTriangle, ArrowLeft, ArrowRight, Bold, BookOpen, Check, CheckCircle2, ChevronLeft, ChevronRight, Eraser, Eye, FileText, Image as ImageIcon, Info, Italic, Link2, List, ListOrdered, ListTree, Loader2, PanelRight, Redo2, Save, Search, Sparkles, Strikethrough, Subscript, Superscript, Table2, Type, Underline as UnderlineIcon, Undo2, Upload, Wand2 } from 'lucide-react'
+import { AlignCenter, AlignJustify, AlignLeft, AlignRight, AlertTriangle, ArrowLeft, ArrowRight, Bold, BookOpen, Check, CheckCircle2, ChevronLeft, ChevronRight, Eraser, Eye, FileText, Image as ImageIcon, Info, Italic, Link2, List, ListOrdered, ListTree, Loader2, PanelRight, Redo2, RefreshCw, Save, Search, Sparkles, Strikethrough, Subscript, Superscript, Table2, Type, Underline as UnderlineIcon, Undo2, Upload, Wand2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { getBook } from '@/lib/book-repository'
 import { notifyPublisherBookChanged, updatePublisherBook, type PublisherBook } from '@/lib/publisher-books'
@@ -11,7 +11,7 @@ import { estimateAiTextUsage, generateAiImageThroughGateway, runAiThroughGateway
 import { useAuthContext } from '@/lib/auth-context'
 import { useCredits } from '@/hooks/useCredits'
 import { creditsBus } from '@/lib/credits-bus'
-import { buildTocFromHeadingsV2, cleanImageCaptionV2, createV2Id, documentV2ToConfirmedToc, documentV2ToLegacyPages, legacyBookToDocumentV2, normalizeBookTextV2, resolveTocTreeV2, textDirectionV2, tocAsFlatListV2, type BookBlockV2, type BookDocumentV2, type BookInlineV2, type BookTocItemV2, type CalloutBlockV2, type ParagraphBlockV2 } from '@/lib/book-document-v2'
+import { buildTocFromHeadingsV2, cleanImageCaptionV2, createV2Id, documentV2ToConfirmedToc, documentV2ToLegacyPages, legacyBookToDocumentV2, mergeLoadedPagesTocV2, normalizeBookTextV2, resolveTocTreeV2, textDirectionV2, tocAsFlatListV2, type BookBlockV2, type BookDocumentV2, type BookInlineV2, type BookTocItemV2, type CalloutBlockV2, type ParagraphBlockV2 } from '@/lib/book-document-v2'
 import { backfillPageEngineForBook, isUuidV2, loadPageEngineWindow, rebuildPageEngineToc, savePageEngineDocument } from '@/lib/page-content-engine'
 import { bookDisplayTextHtml, bookSearchIncludes, isBookLtrRunText, type PrintPageValue } from '@/lib/book-content'
 import type { MockBook } from '@/lib/mock-data'
@@ -683,6 +683,19 @@ function editorNodesToBlocksV2(nodes: ChildNode[], page: BookDocumentV2['pages']
   return blocks
 }
 
+function editorDocumentTotalPageCountV2(document: BookDocumentV2) {
+  const metadata = (document.metadata || {}) as Record<string, unknown>
+  const original = (metadata.originalMetadata && typeof metadata.originalMetadata === 'object' ? metadata.originalMetadata : {}) as Record<string, unknown>
+  const count = Number(
+    metadata.editor_v2_page_count
+    ?? metadata.page_count
+    ?? original.editor_v2_page_count
+    ?? original.page_count
+    ?? document.pages.length,
+  )
+  return Number.isFinite(count) && count > 0 ? count : document.pages.length
+}
+
 function documentFromEditorDomV2(bookDocument: BookDocumentV2, root: HTMLElement | null): BookDocumentV2 {
   if (!root) return bookDocument
   restoreEditorPageBreaksV2(bookDocument, root)
@@ -694,8 +707,10 @@ function documentFromEditorDomV2(bookDocument: BookDocumentV2, root: HTMLElement
     return { ...page, blocks }
   })
   const nextDocument = { ...bookDocument, pages, updatedAt: new Date().toISOString() }
-  const totalPageCount = Number((bookDocument.metadata as Record<string, unknown> | undefined)?.editor_v2_page_count || (bookDocument.metadata as Record<string, unknown> | undefined)?.page_count || pages.length)
-  return totalPageCount > pages.length ? { ...nextDocument, toc: mergeLoadedPagesTocV2(bookDocument.toc, pages) } : rebuildDocumentTocV2(nextDocument)
+  const totalPageCount = editorDocumentTotalPageCountV2(bookDocument)
+  return totalPageCount > pages.length
+    ? { ...nextDocument, toc: mergeLoadedPagesTocV2(bookDocument.toc, pages) }
+    : rebuildDocumentTocV2(nextDocument)
 }
 
 function mergeEditorWindowDocumentV2(current: BookDocumentV2, loaded: BookDocumentV2): BookDocumentV2 {
@@ -749,42 +764,30 @@ function findBlockPageIndexV2(document: BookDocumentV2 | null | undefined, id?: 
 }
 
 function rebuildDocumentTocV2(document: BookDocumentV2): BookDocumentV2 {
-  const totalPageCount = Number((document.metadata as Record<string, unknown> | undefined)?.editor_v2_page_count || (document.metadata as Record<string, unknown> | undefined)?.page_count || document.pages.length)
-  const toc = totalPageCount > document.pages.length ? mergeLoadedPagesTocV2(document.toc, document.pages) : buildTocFromHeadingsV2(document.pages)
+  const totalPageCount = editorDocumentTotalPageCountV2(document)
+  const toc = totalPageCount > document.pages.length
+    ? mergeLoadedPagesTocV2(document.toc, document.pages)
+    : buildTocFromHeadingsV2(document.pages)
   return { ...document, toc, updatedAt: new Date().toISOString() }
 }
 
-function tocSignatureV2(items: BookTocItemV2[]) {
-  return JSON.stringify(items.map(item => [
-    item.id,
-    item.title,
-    item.level,
-    item.blockId,
-    item.anchor,
-    item.pageIndex,
-    item.printNumber,
-  ]))
+function tocStorageSignatureV2(toc: BookTocItemV2[]) {
+  return JSON.stringify(toc.map(item => ({
+    id: item.id,
+    title: item.title,
+    level: item.level,
+    blockId: item.blockId,
+    anchor: item.anchor,
+    pageIndex: item.pageIndex,
+    printNumber: item.printNumber,
+  })))
 }
 
-function mergeLoadedPagesTocV2(currentToc: BookTocItemV2[], loadedPages: BookDocumentV2['pages']): BookTocItemV2[] {
-  const loadedPageIndexes = new Set(loadedPages.map(page => page.index))
-  const loadedToc = buildTocFromHeadingsV2(loadedPages)
-  const insertionOrder = new Map<string, number>()
-  loadedToc.forEach((item, index) => insertionOrder.set(item.id, index))
-  const merged = [
-    ...currentToc.filter(item => !loadedPageIndexes.has(Number(item.pageIndex))),
-    ...loadedToc,
-  ]
-  return merged.sort((a, b) => {
-    const pageDelta = Number(a.pageIndex || 0) - Number(b.pageIndex || 0)
-    if (pageDelta) return pageDelta
-    const aLoadedOrder = insertionOrder.get(a.id)
-    const bLoadedOrder = insertionOrder.get(b.id)
-    if (aLoadedOrder !== undefined || bLoadedOrder !== undefined) {
-      return (aLoadedOrder ?? Number.MAX_SAFE_INTEGER) - (bLoadedOrder ?? Number.MAX_SAFE_INTEGER)
-    }
-    return 0
-  })
+function pagesHaveHeadingV2(document: BookDocumentV2, pageIndexes: Set<number>) {
+  if (!pageIndexes.size) return false
+  return document.pages.some(page =>
+    pageIndexes.has(page.index) && page.blocks.some(block => block.type === 'heading'),
+  )
 }
 
 function updateBlockInDocumentV2(document: BookDocumentV2, blockId: string, mapper: (block: BookBlockV2) => BookBlockV2 | BookBlockV2[] | null) {
@@ -1250,6 +1253,8 @@ function RightPanelV2({
   setActivePanel,
   activeTocId,
   onJumpToToc,
+  onRebuildToc,
+  tocRebuilding,
   onInsertImage,
   onUploadImage,
   onGenerateImage,
@@ -1275,13 +1280,15 @@ function RightPanelV2({
   setActivePanel: (panel: EditorPanelV2) => void
   activeTocId?: string
   onJumpToToc: (item: BookTocItemV2) => void
+  onRebuildToc: () => void
+  tocRebuilding: boolean
   onInsertImage: (assetId: string) => void
   onUploadImage: (file: File) => void
   onGenerateImage: (prompt: string) => void
   onAutoCaption: () => void
   mediaMessage: string
   onResolveMediaIssue: (ref: EditorMediaReferenceV2) => void
-  onJumpToBlock: (blockId: string) => void
+  onJumpToBlock: (blockId: string, pageIndex?: number) => void
   canLinkImageRef: boolean
   onLinkImageRef: (ref: EditorMediaReferenceV2) => void
   onApplyTextLink: (href: string) => boolean
@@ -1385,6 +1392,10 @@ function RightPanelV2({
             <div className="editor-v2-panel-actions">
               <button type="button" onClick={() => setOpenIds(new Set(tocAsFlatListV2(document).map(item => item.id)))}>باز کردن همه</button>
               <button type="button" onClick={() => setOpenIds(new Set())}>جمع کردن همه</button>
+              <button type="button" onClick={onRebuildToc} disabled={tocRebuilding}>
+                {tocRebuilding ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+                بازسازی فهرست
+              </button>
             </div>
             {tree.length ? <TocTreeV2 items={tree} activeId={activeTocId} openIds={openIds} onToggle={toggle} onJump={onJumpToToc} /> : <p className="editor-v2-empty-panel">فهرستی برای این کتاب ثبت نشده است.</p>}
           </>
@@ -1436,11 +1447,11 @@ function RightPanelV2({
                     key={item.key}
                     role={item.blockId ? 'button' : undefined}
                     tabIndex={item.blockId ? 0 : undefined}
-                    onClick={() => item.blockId && onJumpToBlock(item.blockId)}
+                    onClick={() => item.blockId && onJumpToBlock(item.blockId, item.pageIndex)}
                     onKeyDown={event => {
                       if (item.blockId && (event.key === 'Enter' || event.key === ' ')) {
                         event.preventDefault()
-                        onJumpToBlock(item.blockId)
+                        onJumpToBlock(item.blockId, item.pageIndex)
                       }
                     }}
                   >
@@ -1465,7 +1476,7 @@ function RightPanelV2({
                   className={`${item.needsCheck ? 'has-issue' : ''}`}
                   disabled={!item.url || !item.blockId}
                   onClick={() => {
-                    if (item.blockId) onJumpToBlock(item.blockId)
+                    if (item.blockId) onJumpToBlock(item.blockId, item.pageIndex)
                   }}
                   title="رفتن به محل تصویر"
                 >
@@ -1553,7 +1564,7 @@ function RightPanelV2({
                       if (canLinkImageRef) {
                         onLinkImageRef(item)
                         setReferenceMessage('متن انتخاب‌شده به تصویر وصل شد.')
-                      } else if (item.blockId) onJumpToBlock(item.blockId)
+                      } else if (item.blockId) onJumpToBlock(item.blockId, item.pageIndex)
                     }}
                     title={canLinkImageRef ? 'اتصال متن انتخاب‌شده به این تصویر' : 'رفتن به محل تصویر'}
                   >
@@ -1647,6 +1658,7 @@ export default function EditorV2Page() {
   const [mediaMessage, setMediaMessage] = useState('')
   const [aiApproval, setAiApproval] = useState<AiApprovalV2 | null>(null)
   const [metadataOpen, setMetadataOpen] = useState(false)
+  const [tocRebuilding, setTocRebuilding] = useState(false)
   const canvasRef = useRef<HTMLDivElement | null>(null)
   const editorPaperRef = useRef<HTMLDivElement | null>(null)
   const editorSurfaceRef = useRef<HTMLDivElement | null>(null)
@@ -1664,7 +1676,6 @@ export default function EditorV2Page() {
   const autoSaveTimeoutRef = useRef<number | null>(null)
   const autoSaveTickerRef = useRef<number | null>(null)
   const loadingEditorWindowRef = useRef(false)
-  const persistedTocSignatureRef = useRef('')
   const selectedBlock = useMemo(() => document ? findBlockInDocumentV2(document, selectedBlockId) : null, [document, selectedBlockId])
   const autoSaveCountdownLabel = formatAutosaveCountdownV2(autoSaveRemainingSeconds)
   const visualSaveState: SaveVisualStateV2 = saveState === 'saving'
@@ -1770,7 +1781,6 @@ export default function EditorV2Page() {
         const nextDocument = loaded.document || legacyBookToDocumentV2(found)
         setBook(found)
         setDocument(nextDocument)
-        persistedTocSignatureRef.current = tocSignatureV2(nextDocument.toc)
         setActiveTocId(nextDocument.toc[0]?.id)
         setSelectedBlockId(undefined)
         editRevisionRef.current = 0
@@ -1810,19 +1820,19 @@ export default function EditorV2Page() {
     setSaveState('saving')
     setSaveProgress(6)
     const nextDocument = { ...documentFromEditorDomV2(document, editorSurfaceRef.current), updatedAt: new Date().toISOString() }
-    const nextTocSignature = tocSignatureV2(nextDocument.toc)
-    const tocChanged = persistedTocSignatureRef.current !== nextTocSignature
     const previewPages = nextDocument.pages.slice(0, 3).map((_, index) => index)
     const dirtyPageIndexes = dirtyPageIndexesRef.current.size
       ? new Set(dirtyPageIndexesRef.current)
       : new Set(nextDocument.pages.map(page => page.index))
+    const shouldUpdateTocManifest = tocStorageSignatureV2(nextDocument.toc) !== tocStorageSignatureV2(document.toc)
+      || pagesHaveHeadingV2(nextDocument, dirtyPageIndexes)
     let pageEngineResult: Awaited<ReturnType<typeof savePageEngineDocument>> | null = null
     if (isUuid(book.id)) {
       try {
         pageEngineResult = await savePageEngineDocument(book.id, nextDocument, dirtyPageIndexes, {
           pageCount: Number(book.page_count || book.metadata?.editor_v2_page_count || book.metadata?.page_count || 0) || nextDocument.pages.length,
           assetsSummary: nextDocument.assets,
-          updateManifest: tocChanged,
+          updateManifest: shouldUpdateTocManifest,
         })
         setSaveProgress(68)
       } catch {
@@ -1914,7 +1924,6 @@ export default function EditorV2Page() {
         skipNextSurfaceSyncRef.current = true
         setDocument(nextDocument)
         setBook(nextBook)
-        persistedTocSignatureRef.current = nextTocSignature
         setDirty(false)
         dirtyPageIndexesRef.current = new Set()
         setSaveProgress(100)
@@ -3121,12 +3130,36 @@ export default function EditorV2Page() {
     })
   }, [commitDocument])
 
-  const jumpToEditorBlock = useCallback((blockId: string) => {
+  const jumpToEditorBlock = useCallback(async (blockId: string, pageIndex?: number) => {
     setSelectedBlockId(blockId)
+    if (
+      book?.metadata?.editor_v2_page_engine
+      && document
+      && Number.isFinite(pageIndex)
+      && !document.pages.some(page => page.index === Number(pageIndex))
+    ) {
+      if (dirty) await saveDocument({ manual: true })
+      const loaded = await loadPageEngineWindow(book, Number(pageIndex), 10, 40)
+      if (loaded.pageEngine) {
+        setDocument(loaded.document)
+        setBook(current => current ? {
+          ...current,
+          page_count: loaded.manifest.pageCount || current.page_count,
+          metadata: {
+            ...(current.metadata || {}),
+            confirmed_toc: loaded.manifest.toc,
+            editor_v2_page_engine: true,
+            editor_v2_page_count: loaded.manifest.pageCount,
+          },
+        } : current)
+        dirtyPageIndexesRef.current = new Set()
+        setDirty(false)
+      }
+    }
     window.setTimeout(() => {
       editorSurfaceRef.current?.querySelector<HTMLElement>(`[data-block-id="${blockId.replace(/"/g, '\\"')}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    }, 30)
-  }, [])
+    }, 80)
+  }, [book, dirty, document, saveDocument])
 
   const insertInteractiveBlock = useCallback((kind: string) => {
     const printNumber = selectedBlock?.printNumber
@@ -3203,6 +3236,38 @@ export default function EditorV2Page() {
       setAiBusy(false)
     }
   }, [aiApproval, commitDocument, document, recordAiUsage, selectedBlock?.printNumber, selectedBlockId, user])
+
+  const rebuildFullToc = useCallback(async () => {
+    if (!book || !document || !isUuidV2(book.id)) {
+      toast.error('برای بازسازی فهرست کامل، کتاب باید روی سرور ذخیره شده باشد.')
+      return
+    }
+    if (dirty) await saveDocument({ manual: true })
+    setTocRebuilding(true)
+    try {
+      const manifest = await rebuildPageEngineToc(book.id)
+      if (!manifest) throw new Error('فهرست کامل از سرور دریافت نشد.')
+      setDocument(current => current ? { ...current, toc: manifest.toc, updatedAt: manifest.updatedAt || current.updatedAt } : current)
+      setBook(current => current ? {
+        ...current,
+        page_count: manifest.pageCount || current.page_count,
+        metadata: {
+          ...(current.metadata || {}),
+          confirmed_toc: manifest.toc,
+          editor_v2_page_engine: true,
+          editor_v2_page_count: manifest.pageCount,
+        },
+      } : current)
+      setActiveTocId(manifest.toc[0]?.id)
+      setDirty(false)
+      dirtyPageIndexesRef.current = new Set()
+      toast.success(`فهرست با ${manifest.toc.length.toLocaleString('fa-IR')} عنوان بازسازی شد.`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'بازسازی فهرست ناموفق بود.')
+    } finally {
+      setTocRebuilding(false)
+    }
+  }, [book, dirty, document, saveDocument])
 
   const jumpToToc = useCallback(async (item: BookTocItemV2) => {
     setActiveTocId(item.id)
@@ -3315,6 +3380,8 @@ export default function EditorV2Page() {
           setActivePanel={setActivePanel}
           activeTocId={activeTocId}
           onJumpToToc={jumpToToc}
+          onRebuildToc={rebuildFullToc}
+          tocRebuilding={tocRebuilding}
           onInsertImage={insertImageFromAsset}
           onUploadImage={insertUploadedImage}
           onGenerateImage={generateImageFromPrompt}

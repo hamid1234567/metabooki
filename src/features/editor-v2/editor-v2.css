@@ -408,16 +408,6 @@
   color: #64748b;
 }
 
-.editor-v2-toc-toggle span {
-  display: grid;
-  place-items: center;
-  width: 1rem;
-  height: 1rem;
-  font-size: 1rem;
-  font-weight: 950;
-  line-height: 1;
-}
-
 .editor-v2-empty-panel {
   margin: 0;
   border: 1px dashed #c5d5eb;
@@ -1196,6 +1186,7 @@
 
 .editor-v2-flow-editor {
   min-height: 58vh;
+  direction: rtl;
   color: #172033;
   font-size: 1rem;
   line-height: 2.05;
@@ -1526,13 +1517,14 @@
   height: calc(100vh - 12.8rem);
   min-height: 34rem;
   margin-inline: auto;
+  direction: ltr;
   border: 1px solid #d7e3f2;
   border-radius: 1.25rem;
   background: #fff;
   overflow-y: auto;
   overflow-x: hidden;
   padding: clamp(1.2rem, 4vw, 4.2rem);
-  scrollbar-gutter: stable both-edges;
+  scrollbar-gutter: stable;
   scrollbar-width: thin;
   scrollbar-color: hsl(212 78% 55% / 0.42) hsl(214 72% 96% / 0.74);
   box-shadow: 0 22px 60px hsl(216 36% 30% / 0.12);

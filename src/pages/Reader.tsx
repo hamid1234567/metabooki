@@ -9,7 +9,7 @@ import { ArrowLeft, BookOpen, Lock, Eye, List, Menu, Minus, Plus, X, Sparkles, F
 import { toast } from 'sonner'
 import { runAiThroughGateway, type AiStructuredContent, type ReaderAiAction, type RunAiResult } from '@/lib/ai-gateway'
 import { supabase } from '@/integrations/supabase/client'
-import { bookSearchIncludes, bookSearchMatches, compactBookSearchText, normalizeBookSearchText, bookTextDirection, normalizeBookText, printPageLabel } from '@/lib/book-content'
+import { bookSearchMatches, compactBookSearchText, normalizeBookSearchText, bookTextDirection, normalizeBookText, printPageLabel } from '@/lib/book-content'
 import { BookContentBlock, resolveSharedBookContentBlock } from '@/components/book/BookContentBlocks'
 import { subscribePublisherBookUpdates } from '@/lib/publisher-books'
 import { BookRendererV2 } from '@/components/book-content-v2'
@@ -442,6 +442,15 @@ export default function Reader() {
     })
     return () => cancelAnimationFrame(frame)
   }, [tocTarget, currentPage, book])
+
+  useEffect(() => {
+    if (!showToc) return
+    const frame = requestAnimationFrame(() => {
+      const activeRow = document.querySelector<HTMLElement>('.reader-toc-panel .reader-toc-row.is-active')
+      activeRow?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [showToc, currentPage])
 
   // Auto scroll - must be before any early returns (Rules of Hooks)
   useEffect(() => {
@@ -1379,13 +1388,13 @@ export default function Reader() {
             <div className="flex items-center justify-between mb-5"><h2 className="font-bold font-display text-lg">📑 فهرست</h2><button title="بستن فهرست" onClick={()=>setShowToc(false)} className="p-1.5 rounded-lg hover:bg-muted"><X className="w-4 h-4"/></button></div>
             <div className="reader-panel-search relative mb-4"><Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"/><input value={tocSearchQuery} placeholder="جستجو در عناوین..." className="w-full pr-10 pl-9 py-2 rounded-xl border bg-background text-sm" onChange={e=>setTocSearchQuery(e.target.value)}/>{tocSearchQuery && <button type="button" title="پاک کردن جستجوی فهرست" onClick={() => setTocSearchQuery('')} className="reader-panel-search-clear"><X className="w-3.5 h-3.5"/></button>}</div>
             <div className="reader-toc-tools">
-              <button title="Expand all" onClick={expandReaderToc}><span aria-hidden="true">+</span></button>
-              <button title="Collapse all" onClick={collapseReaderToc}><span aria-hidden="true">-</span></button>
+              <button title="باز کردن همه عنوان‌ها" onClick={expandReaderToc}><span aria-hidden="true">+</span></button>
+              <button title="بستن همه عنوان‌ها" onClick={collapseReaderToc}><span aria-hidden="true">-</span></button>
             </div>
             <div className="reader-toc-tree">
               {readerTocTreeRows
                 .filter(row => !row.hidden || tocSearchQuery.trim())
-                .filter(row => !tocSearchQuery.trim() || bookSearchIncludes(row.item.title, tocSearchQuery))
+                .filter(row => !tocSearchQuery.trim() || normalizeBookSearchText(row.item.title).includes(normalizeBookSearchText(tocSearchQuery)))
                 .map(({ item, level, hasChildren, collapsed, h1Counter }) => {
                   const seen = seenReaderTocKeys.has(item.key)
                   const locked = !canReadFull && !book.preview_pages.includes(item.pageIndex)
@@ -1398,7 +1407,7 @@ export default function Reader() {
                       <span className="reader-toc-status">
                         {seen && <Check className="reader-toc-seen" />}
                         {locked && <Lock className="reader-toc-lock" />}
-                        {hasChildren && <button title={collapsed ? 'Expand branch' : 'Collapse branch'} onClick={() => toggleReaderTocBranch(item.key)}><span aria-hidden="true">{collapsed ? '+' : '-'}</span></button>}
+                        {hasChildren && <button title={collapsed ? 'باز کردن شاخه' : 'بستن شاخه'} onClick={() => toggleReaderTocBranch(item.key)}><span aria-hidden="true">{collapsed ? '+' : '-'}</span></button>}
                       </span>
                     </div>
                   )

@@ -63,7 +63,7 @@ function toBook(row: Record<string, unknown>): MockBook {
       : []
   const title = stringValue(row.title)
   const description = stringValue(row.description)
-  const category = metadataString(metadata, 'category', 'Ø¹Ù…ÙˆÙ…ÛŒ')
+  const category = metadataString(metadata, 'category', 'عمومی')
   const sample = stringValue(metadata.opening_sample || metadata.sample || metadata.first_page_text || textSampleFromPages(pages))
   const coverContext = { title, category, description, sample }
   const metadataWithCoverPrompt = {
