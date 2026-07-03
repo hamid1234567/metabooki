@@ -1,6 +1,6 @@
 # Metabooki System Architecture Reference
 
-نسخه مرجع: `APP_VERSION = 1.0.578`  
+نسخه مرجع: `APP_VERSION = 1.0.593`  
 تاریخ بازبینی: 2026-07-03  
 هدف سند: هر برنامه‌نویس یا عامل هوش مصنوعی بتواند بدون خواندن کل تاریخچه چت، ساختار فعلی متابوکی را بفهمد و تغییر بعدی را از محل درست شروع کند.
 
@@ -193,7 +193,7 @@ migration اصلی: `supabase/migrations/20260629012000_page_based_content_engin
 
 فایل: `src/integrations/supabase/client.ts`
 
-در نسخه 1.0.578 یک retry محدود اضافه شده است:
+از نسخه 1.0.578 یک retry محدود اضافه شده است:
 
 - retry فقط برای `GET`, `HEAD`, `OPTIONS` و auth entrypointهای login/signup انجام می‌شود.
 - writeهای ادیتور retry نمی‌شوند تا ذخیره صفحه‌ای دوبار اعمال نشود.
@@ -227,13 +227,14 @@ migration اصلی: `supabase/migrations/20260629012000_page_based_content_engin
 
 ## 14. Cleanup نسخه فعلی
 
-در نسخه مرجع 1.0.578:
+در نسخه مرجع 1.0.593:
 
 - `src/pages/Edit.tsx` حذف شده است.
 - route قدیمی `/edit-legacy/:id` حذف شده است.
 - دکمه «ادیتور قبلی» از پنل نشر حذف شده است.
 - `docs/CARDIAC_CYCLE_PLAN.md` حذف شده چون مربوط به پروژه دیگری بود.
 - سندهای مرجع معماری و DFD/ERD/امنیت بر اساس Editor V2 و Page Engine بازنویسی شده‌اند.
+- تشخیص صفحه خالی در Editor V2 و Reader از شمارش بلوک‌ها به تشخیص «محتوای قابل نمایش» تغییر کرده است؛ بنابراین صفحه‌ای با پاراگراف/هدینگ خالی هم placeholder درست می‌گیرد.
 
 ## 15. محل شروع تغییرات آینده
 
@@ -248,4 +249,3 @@ migration اصلی: `supabase/migrations/20260629012000_page_based_content_engin
 | کتابخوان | `src/pages/Reader.tsx` |
 | AI و هزینه | `src/lib/ai-gateway.ts`, `supabase/functions/ai-gateway/index.ts` |
 | دسترسی ناشر/Admin | migrationهای RLS، `publisher-books.ts`, `Publisher.tsx`, `Admin.tsx` |
-
