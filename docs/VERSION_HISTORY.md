@@ -1,0 +1,79 @@
+# Metabooki Version History and Decision Log
+
+نسخه فعلی فایل رسمی: `1.0.578`  
+منبع نسخه: `src/lib/version.ts`
+
+این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
+
+## قواعد نگهداری نسخه
+
+1. عدد معتبر نسخه فقط `APP_VERSION` در `src/lib/version.ts` است.
+2. قبل از deploy، `public/version.json` و `public/sw.js` باید با آن هماهنگ باشند.
+3. هر تغییر معماری یا تغییر رفتار cache/save/render باید در این فایل ثبت شود.
+4. اگر تغییری فقط UI کوچک است، ثبت در commit کافی است.
+
+## خلاصه مسیر نسخه‌ها
+
+### 1.0.3xx - شروع Editor V2
+
+- ادیتور جدید با بوم مرکزی و پنل سمت راست طراحی شد.
+- هدف: جایگزینی ادیتور قدیمی و پایان دادن به patchهای پراکنده.
+- گزارش اولیه در `docs/editor-v2-implementation-report.md` باقی مانده است.
+
+### 1.0.4xx - عملیاتی‌سازی نشر و Supabase
+
+- پنل نشر، قفسه من، فروشگاه و Admin به Supabase نزدیک‌تر شدند.
+- مشکل اختلاف local/GitHub/VS Code browser شناسایی شد.
+- تصمیم معماری: Supabase باید source of truth باشد و local fallback فقط dev/demo بماند.
+
+### 1.0.50x - یکپارچه‌سازی نمایش محتوا
+
+- `book-content.ts` و `BookContentBlocks.tsx` به‌عنوان مسیر مشترک نمایش متن، callout، interactive، caption و tooltip تثبیت شدند.
+- ZWS/ZWNJ، پاورقی، رفرنس، لینک، subscript/superscript و فرمول‌ها باید از همین مسیرها کنترل شوند.
+
+### 1.0.54x - بهبود ادیتور متن و رسانه
+
+- toolbar متن کوچک‌تر و عملیاتی‌تر شد.
+- autosave از رفتار مزاحم به ذخیره زمان‌بندی‌شده نزدیک شد.
+- کپشن تصویر، zoom modal، تشخیص خودکار کپشن و media panel اصلاح شدند.
+- تصمیم: media edit باید داخل همان بلوک/بوم یا پنل مرتبط انجام شود، نه در مسیرهای جداگانه.
+
+### 1.0.57x - Page-Based Content Engine
+
+- برای کتاب‌های بزرگ، لود و ذخیره کل کتاب کنار گذاشته شد.
+- `book_content_manifests`, `book_pages`, `book_assets`, `book_search_index` اضافه شدند.
+- اولین لود 50 صفحه است و برای پرش‌ها window شامل 10 صفحه قبل و 40 صفحه بعد گرفته می‌شود.
+- ذخیره فقط dirty pageها را می‌فرستد؛ manifest فقط هنگام تغییر TOC/assets/search metadata refresh می‌شود.
+- Reader و Editor باید TOC کامل را از manifest بخوانند، نه فقط از صفحه‌های لود شده.
+
+### 1.0.578 - پاکسازی مرجع و حذف legacy
+
+- ادیتور legacy (`src/pages/Edit.tsx`) حذف شد.
+- route قدیمی `/edit-legacy/:id` حذف شد.
+- دکمه «ادیتور قبلی» از پنل نشر حذف شد.
+- سند نامرتبط `docs/CARDIAC_CYCLE_PLAN.md` حذف شد.
+- مستندات معماری و DFD/ERD/امنیت بر اساس وضعیت فعلی بازنویسی شدند.
+- Supabase client دارای retry محدود read/auth است تا timeoutهای مستقیم شبکه‌ای بهتر مدیریت شود، بدون retry برای writeهای ادیتور.
+
+## تصمیم‌های معماری که نباید نادیده گرفته شوند
+
+### فقط یک ادیتور
+
+هر قابلیت جدید باید در `src/features/editor-v2/EditorV2Page.tsx` و مدل مشترک V2 اضافه شود. ایجاد editor موازی یا route legacy جدید ممنوع است مگر با تصمیم معماری ثبت‌شده.
+
+### فقط یک renderer محتوایی
+
+اگر متن در reader درست است ولی در editor یا preview خراب است، مشکل را با patch محلی حل نکنید. ابتدا `book-content.ts`, `book-document-v2/normalize.ts`, `BookContentBlocks.tsx` و schema را بررسی کنید.
+
+### TOC مستقل از window لود شده
+
+TOC باید از manifest کامل خوانده شود. window فعلی editor/reader فقط برای متن صفحه است، نه ساخت فهرست کامل کتاب.
+
+### ذخیره صفحه‌ای
+
+برای تغییر یک صفحه، کل کتاب نباید ارسال شود. اگر ویژگی جدیدی کل کتاب را بازنویسی می‌کند، قبل از merge باید دلیلش در این فایل ثبت شود.
+
+### امنیت نشر
+
+کتاب draft دارایی ناشر است. Admin می‌تواند وضعیت را ببیند، اما مسیر ویرایش draft ناشر دیگر نباید از پنل نشر admin در دسترس باشد.
+
