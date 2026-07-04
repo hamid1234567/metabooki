@@ -998,7 +998,8 @@ function collectInlineReferencesV2(document: BookDocumentV2): EditorInlineRefere
     inline?.forEach((span, index) => {
       const text = normalizeBookTextV2(span.text || span.footnoteId || span.referenceAnchor || '')
       if (span.href) {
-        refs.push({ key: `${blockId}-link-${index}`, type: 'link', label: 'لینک', text, target: span.href, blockId, printNumber })
+        const kind = referenceKindFromInlineV2(span)
+        refs.push({ key: `${blockId}-link-${index}`, type: kind === 'heading' ? 'heading' : 'link', label: referenceDisplayLabelV2(kind), text, target: span.href, blockId, printNumber })
       }
       if (span.footnoteId || span.footnoteText) {
         refs.push({ key: `${blockId}-footnote-${index}`, type: 'footnote', label: `پاورقی ${span.footnoteId || ''}`.trim(), text, target: span.footnoteText, blockId, printNumber })
