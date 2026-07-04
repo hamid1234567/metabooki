@@ -1,6 +1,6 @@
 # Metabooki System Architecture Reference
 
-نسخه مرجع: `APP_VERSION = 1.0.615`  
+نسخه مرجع: `APP_VERSION = 1.0.619`  
 تاریخ بازبینی: 2026-07-03  
 هدف سند: هر برنامه‌نویس یا عامل هوش مصنوعی بتواند بدون خواندن کل تاریخچه چت، ساختار فعلی متابوکی را بفهمد و تغییر بعدی را از محل درست شروع کند.
 
@@ -227,7 +227,7 @@ migration اصلی: `supabase/migrations/20260629012000_page_based_content_engin
 
 ## 14. Cleanup نسخه فعلی
 
-در نسخه مرجع 1.0.615:
+در نسخه مرجع 1.0.619:
 
 - `src/pages/Edit.tsx` حذف شده است.
 - route قدیمی `/edit-legacy/:id` حذف شده است.
