@@ -4,6 +4,7 @@ import { PageBreakV2 } from '@/components/book-content-v2/PageBreakV2'
 import { CalloutBlockV2 } from '@/components/book-content-v2/CalloutBlockV2'
 import { InteractiveBlockV2 } from '@/components/book-content-v2/InteractiveBlockV2'
 import { cleanImageCaptionV2, textDirectionV2, type BookBlockV2, type BookDocumentV2, type BookPageV2 } from '@/lib/book-document-v2'
+import { shortenReferencePreviewV2 } from '@/lib/book-references'
 import './book-content-v2.css'
 
 type TextEditableBlockV2 = Extract<BookBlockV2, { type: 'heading' | 'paragraph' }>
@@ -315,7 +316,7 @@ export function BookRendererV2({ document, pages, blocks, compact = false, edita
       dir={textDirectionV2(cleanImageCaptionV2(imageRefPreview.block.caption))}
     >
       <img src={imageRefPreview.block.url} alt={cleanImageCaptionV2(imageRefPreview.block.caption)} />
-      {cleanImageCaptionV2(imageRefPreview.block.caption) && <span>{cleanImageCaptionV2(imageRefPreview.block.caption)}</span>}
+      {cleanImageCaptionV2(imageRefPreview.block.caption) && <span>{shortenReferencePreviewV2(cleanImageCaptionV2(imageRefPreview.block.caption), 20)}</span>}
     </div>
   )
   if (blocks) return <div className={compact ? 'book-v2-renderer compact' : 'book-v2-renderer'} onClick={handleImageClick} onMouseMove={handleImageReferenceMove} onMouseOut={handleImageReferenceOut}>{renderBlocks(blocks, options)}{hoverPreview}{zoomModal}</div>

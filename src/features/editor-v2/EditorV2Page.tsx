@@ -2403,7 +2403,7 @@ export default function EditorV2Page() {
 
     pushEditorHistory()
     if (activeElement) {
-      wrapper.append(...Array.from(activeElement.childNodes))
+      wrapper.append(...Array.from(activeElement.childNodes).filter(node => !(node instanceof HTMLElement && node.classList.contains('citation-tooltip'))))
       activeElement.replaceWith(wrapper)
       activeReferenceElementRef.current = wrapper
       setActiveReference(readActiveReferenceFromElement(wrapper))
