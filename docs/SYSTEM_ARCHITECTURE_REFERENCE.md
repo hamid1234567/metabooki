@@ -1,6 +1,6 @@
 # Metabooki System Architecture Reference
 
-نسخه مرجع: `APP_VERSION = 1.0.599`  
+نسخه مرجع: `APP_VERSION = 1.0.615`  
 تاریخ بازبینی: 2026-07-03  
 هدف سند: هر برنامه‌نویس یا عامل هوش مصنوعی بتواند بدون خواندن کل تاریخچه چت، ساختار فعلی متابوکی را بفهمد و تغییر بعدی را از محل درست شروع کند.
 
@@ -227,7 +227,7 @@ migration اصلی: `supabase/migrations/20260629012000_page_based_content_engin
 
 ## 14. Cleanup نسخه فعلی
 
-در نسخه مرجع 1.0.599:
+در نسخه مرجع 1.0.615:
 
 - `src/pages/Edit.tsx` حذف شده است.
 - route قدیمی `/edit-legacy/:id` حذف شده است.
@@ -236,6 +236,7 @@ migration اصلی: `supabase/migrations/20260629012000_page_based_content_engin
 - سندهای مرجع معماری و DFD/ERD/امنیت بر اساس Editor V2 و Page Engine بازنویسی شده‌اند.
 - تشخیص صفحه خالی در Editor V2 و Reader از شمارش بلوک‌ها به تشخیص «محتوای قابل نمایش» تغییر کرده است؛ بنابراین صفحه‌ای با پاراگراف/هدینگ خالی هم placeholder درست می‌گیرد.
 - فهرست و لیست رسانه ادیتور نباید از 50 صفحه لودشده اولیه ساخته شوند؛ manifest در زمان load از کل `book_pages` و `book_assets` قابل ترمیم است و save یک window فقط همان صفحات dirty را در manifest جایگزین می‌کند.
+- ارجاعات از نسخه 1.0.615 باید از `src/lib/book-references.ts` عبور کنند. افزودن منطق جداگانه برای لینک، پاورقی، رفرنس، سرفصل یا لینک تصویر در ادیتور/renderer بدون استفاده از این فایل ممنوع است.
 
 ## 15. محل شروع تغییرات آینده
 
@@ -247,6 +248,7 @@ migration اصلی: `supabase/migrations/20260629012000_page_based_content_engin
 | ادیتور متن | `src/features/editor-v2/EditorV2Page.tsx`, `editor-v2.css` |
 | callout/interactive مشترک | `src/components/book/BookContentBlocks.tsx`, `src/lib/book-content.ts` |
 | رسانه و کپشن | `EditorV2Page.tsx`, `BookContentBlocks.tsx`, `book_assets` |
+| ارجاعات و لینک‌ها | `src/lib/book-references.ts`, `InlineTextV2.tsx`, `EditorV2Page.tsx`, `BookRendererV2.tsx` |
 | کتابخوان | `src/pages/Reader.tsx` |
 | AI و هزینه | `src/lib/ai-gateway.ts`, `supabase/functions/ai-gateway/index.ts` |
 | دسترسی ناشر/Admin | migrationهای RLS، `publisher-books.ts`, `Publisher.tsx`, `Admin.tsx` |
