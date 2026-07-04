@@ -981,6 +981,12 @@
   padding: 0 0.6rem 0.65rem;
 }
 
+.editor-v2-reference-inline-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+}
+
 .editor-v2-reference-item label {
   display: grid;
   gap: 0.25rem;

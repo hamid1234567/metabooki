@@ -1319,6 +1319,7 @@ function RightPanelV2({
   onLinkImageRef,
   onApplyReference,
   onRemoveReference,
+  onEditInlineReference,
   activeReference,
   onInsertInteractive,
   onApplyCallout,
@@ -1347,6 +1348,7 @@ function RightPanelV2({
   onLinkImageRef: (ref: EditorMediaReferenceV2) => void
   onApplyReference: (kind: BookReferenceKindV2, payload: { target?: string; detail?: string; imageRef?: EditorMediaReferenceV2 }) => boolean
   onRemoveReference: () => boolean
+  onEditInlineReference: (ref: EditorInlineReferenceV2) => void
   activeReference?: EditorActiveReferenceV2 | null
   onInsertInteractive: (kind: string) => void
   onApplyCallout: (variant: (typeof CALLOUT_VARIANTS_V2)[number]) => void
@@ -1691,7 +1693,10 @@ function RightPanelV2({
                         مقصد / متن ارجاع
                         <textarea readOnly value={item.target || ''} />
                       </label>
-                      {item.blockId && <button type="button" onClick={() => onJumpToBlock(item.blockId!)}>رفتن به محل ارجاع</button>}
+                      <div className="editor-v2-reference-inline-actions">
+                        {item.blockId && <button type="button" onClick={() => onJumpToBlock(item.blockId!)}>رفتن به محل ارجاع</button>}
+                        <button type="button" onClick={() => onEditInlineReference(item)}>ویرایش در پنل بالا</button>
+                      </div>
                     </div>
                   </details>
                 )) : <p className="editor-v2-empty-panel">هنوز ارجاعی در این بخش پیدا نشد.</p>}
@@ -3334,6 +3339,46 @@ export default function EditorV2Page() {
     }, 80)
   }, [book, dirty, document, saveDocument])
 
+  const editInlineReference = useCallback(async (ref: EditorInlineReferenceV2) => {
+    if (ref.blockId) await jumpToEditorBlock(ref.blockId)
+    window.setTimeout(() => {
+      const root = editorSurfaceRef.current
+      if (!root) return
+      const block = ref.blockId
+        ? root.querySelector<HTMLElement>(`[data-block-id="${ref.blockId.replace(/"/g, '\\"')}"]`)
+        : null
+      const searchRoot = block || root
+      const expectedKind: BookReferenceKindV2 = ref.type === 'link'
+        ? 'external'
+        : ref.type === 'heading'
+          ? 'heading'
+          : ref.type
+      const candidates = Array.from(searchRoot.querySelectorAll<HTMLElement>('[data-reference-kind], .book-inline-reference, .book-image-reference, .citation-reference, [data-image-ref-id], [data-footnote-text], [data-reference-text], a[href]'))
+      const normalize = (value = '') => normalizeBookTextV2(value).trim()
+      const target = candidates.find(element => {
+        const kind = referenceKindFromElementV2(element)
+        if (kind !== expectedKind) return false
+        const current = readActiveReferenceFromElement(element)
+        if (!current) return false
+        const targetMatches = !ref.target || normalize(current.target) === normalize(ref.target) || normalize(current.detail) === normalize(ref.target)
+        const textMatches = !ref.text || normalize(current.text) === normalize(ref.text) || normalize(current.text).includes(normalize(ref.text))
+        return targetMatches && textMatches
+      }) || candidates.find(element => referenceKindFromElementV2(element) === expectedKind)
+      if (!target) return
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      const range = window.document.createRange()
+      range.selectNodeContents(target)
+      const selection = window.getSelection()
+      selection?.removeAllRanges()
+      selection?.addRange(range)
+      savedSelectionRef.current = range.cloneRange()
+      activeReferenceElementRef.current = target
+      setActiveReference(readActiveReferenceFromElement(target))
+      setActivePanel('references')
+      setHasTextSelection(true)
+    }, 140)
+  }, [jumpToEditorBlock, readActiveReferenceFromElement])
+
   const insertInteractiveBlock = useCallback((kind: string) => {
     const printNumber = selectedBlock?.printNumber
     const block = createInteractiveTemplateV2(kind, printNumber)
@@ -3566,6 +3611,7 @@ export default function EditorV2Page() {
           onLinkImageRef={applyImageReferenceToSelection}
           onApplyReference={applyReferenceToSelection}
           onRemoveReference={removeReferenceFromSelection}
+          onEditInlineReference={editInlineReference}
           activeReference={activeReference}
           onInsertInteractive={insertInteractiveBlock}
           onApplyCallout={wrapSelectedCallout}
