@@ -1,6 +1,6 @@
 # Metabooki DFD, ERD and Security Reference
 
-نسخه مرجع: `APP_VERSION = 1.0.620`  
+نسخه مرجع: `APP_VERSION = 1.0.630`  
 تاریخ بازبینی: 2026-07-05  
 این سند مکمل `SYSTEM_ARCHITECTURE_REFERENCE.md` است و روی جریان داده، ERD و کنترل‌های امنیتی تمرکز دارد.
 
