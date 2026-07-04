@@ -14,6 +14,7 @@ import { creditsBus } from '@/lib/credits-bus'
 import { buildTocFromHeadingsV2, cleanImageCaptionV2, createV2Id, documentV2ToConfirmedToc, documentV2ToLegacyPages, legacyBookToDocumentV2, mergeLoadedPagesTocV2, normalizeBookTextV2, resolveTocTreeV2, textDirectionV2, tocAsFlatListV2, type BookBlockV2, type BookDocumentV2, type BookInlineV2, type BookTocItemV2, type CalloutBlockV2, type ParagraphBlockV2 } from '@/lib/book-document-v2'
 import { backfillPageEngineForBook, isUuidV2, loadPageEngineWindow, rebuildPageEngineToc, savePageEngineDocument } from '@/lib/page-content-engine'
 import { bookDisplayTextHtml, bookSearchIncludes, isBookLtrRunText, type PrintPageValue } from '@/lib/book-content'
+import { referenceClassNameV2, referenceHtmlDataAttributesV2, referenceKindFromElementV2, referenceKindFromInlineV2, referenceTooltipDirectionV2, referenceTooltipTextV2 } from '@/lib/book-references'
 import type { MockBook } from '@/lib/mock-data'
 import './editor-v2.css'
 
@@ -157,15 +158,12 @@ const EMPTY_TEXT_TOOLBAR_STATE_V2: TextToolbarStateV2 = {
 }
 
 function citationAttrsV2(span: BookInlineV2) {
-  const text = normalizeBookTextV2(span.footnoteText || span.referenceText || '')
+  const text = referenceTooltipTextV2(span)
   if (!text && !span.footnoteId) return ''
+  const attrs = referenceHtmlDataAttributesV2(span)
   return [
-    ' class="citation-reference editor-v2-citation-reference"',
-    span.footnoteId ? attrV2('data-footnote-id', span.footnoteId) : '',
-    span.footnoteText ? attrV2('data-footnote-text', text) : '',
-    span.referenceAnchor ? attrV2('data-reference-anchor', span.referenceAnchor) : '',
-    span.referenceText ? attrV2('data-reference-text', text) : '',
-    attrV2('data-tooltip-dir', textDirectionV2(text || span.text)),
+    ` class="${referenceClassNameV2(span, 'editor-v2-citation-reference')}"`,
+    Object.entries(attrs).map(([name, value]) => attrV2(name, value)).join(''),
   ].join('')
 }
 
@@ -224,11 +222,18 @@ function editorInlineSpanHtmlV2(span: BookInlineV2, isolated = false) {
   if (marks.includes('underline')) html = `<u>${html}</u>`
   if (marks.includes('strike')) html = `<s>${html}</s>`
   if (span.style) html = `<span${styleAttrFromInlineV2(span.style)}>${html}</span>`
-  if (span.href) html = `<a href="${escapeHtmlV2(span.href)}">${html}</a>`
-  if (span.imageRefId) html = `<span class="book-image-reference editor-v2-image-reference" data-image-ref-id="${escapeHtmlV2(span.imageRefId)}">${html}</span>`
+  const kind = referenceKindFromInlineV2(span)
+  if (span.href) {
+    const attrs = referenceHtmlDataAttributesV2(span)
+    html = `<a class="${referenceClassNameV2(span)}" href="${escapeHtmlV2(span.href)}"${Object.entries(attrs).map(([name, value]) => attrV2(name, value)).join('')}>${html}</a>`
+  }
+  if (kind === 'image') {
+    const attrs = referenceHtmlDataAttributesV2(span)
+    html = `<span class="${referenceClassNameV2(span, 'editor-v2-image-reference')}"${Object.entries(attrs).map(([name, value]) => attrV2(name, value)).join('')}>${html}</span>`
+  }
   if (span.footnoteText || span.referenceText || span.footnoteId) {
-    const noteText = normalizeBookTextV2(span.footnoteText || span.referenceText || '')
-    const dir = textDirectionV2(noteText || span.text)
+    const noteText = referenceTooltipTextV2(span)
+    const dir = referenceTooltipDirectionV2(noteText || span.text)
     html = `<span${citationAttrsV2(span)} dir="${dir}">${html}${noteText ? `<span contenteditable="false" class="citation-tooltip" dir="${dir}">${escapeHtmlV2(noteText)}</span>` : ''}</span>`
   }
   return html
