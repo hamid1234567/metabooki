@@ -14,7 +14,7 @@ import { creditsBus } from '@/lib/credits-bus'
 import { buildTocFromHeadingsV2, cleanImageCaptionV2, createV2Id, documentV2ToConfirmedToc, documentV2ToLegacyPages, legacyBookToDocumentV2, mergeLoadedPagesTocV2, normalizeBookTextV2, resolveTocTreeV2, textDirectionV2, tocAsFlatListV2, type BookBlockV2, type BookDocumentV2, type BookInlineV2, type BookTocItemV2, type CalloutBlockV2, type ParagraphBlockV2 } from '@/lib/book-document-v2'
 import { backfillPageEngineForBook, isUuidV2, loadPageEngineWindow, rebuildPageEngineToc, savePageEngineDocument } from '@/lib/page-content-engine'
 import { bookDisplayTextHtml, bookSearchIncludes, isBookLtrRunText, type PrintPageValue } from '@/lib/book-content'
-import { referenceClassNameV2, referenceHtmlDataAttributesV2, referenceKindFromElementV2, referenceKindFromInlineV2, referenceTooltipDirectionV2, referenceTooltipTextV2 } from '@/lib/book-references'
+import { referenceClassNameV2, referenceDisplayLabelV2, referenceHtmlDataAttributesV2, referenceKindFromElementV2, referenceKindFromInlineV2, referenceTooltipDirectionV2, referenceTooltipTextV2, shortenReferencePreviewV2, type BookReferenceKindV2 } from '@/lib/book-references'
 import type { MockBook } from '@/lib/mock-data'
 import './editor-v2.css'
 
@@ -36,6 +36,13 @@ type AiApprovalV2 = {
   provider: string
   model: string
   pageText: string
+}
+
+type EditorActiveReferenceV2 = {
+  kind: BookReferenceKindV2
+  text: string
+  target: string
+  detail?: string
 }
 
 const EDITOR_V2_AUTOSAVE_DELAY_MS = 60_000
@@ -899,7 +906,7 @@ type EditorMediaReferenceV2 = {
 
 type EditorInlineReferenceV2 = {
   key: string
-  type: 'link' | 'footnote' | 'reference' | 'image'
+  type: 'link' | 'footnote' | 'reference' | 'image' | 'heading'
   label: string
   text: string
   target?: string
@@ -1309,8 +1316,9 @@ function RightPanelV2({
   onJumpToBlock,
   canLinkImageRef,
   onLinkImageRef,
-  onApplyTextLink,
-  onRemoveTextLink,
+  onApplyReference,
+  onRemoveReference,
+  activeReference,
   onInsertInteractive,
   onApplyCallout,
   onUnwrapCallout,
@@ -1336,8 +1344,9 @@ function RightPanelV2({
   onJumpToBlock: (blockId: string, pageIndex?: number) => void
   canLinkImageRef: boolean
   onLinkImageRef: (ref: EditorMediaReferenceV2) => void
-  onApplyTextLink: (href: string) => boolean
-  onRemoveTextLink: () => boolean
+  onApplyReference: (kind: BookReferenceKindV2, payload: { target?: string; detail?: string; imageRef?: EditorMediaReferenceV2 }) => boolean
+  onRemoveReference: () => boolean
+  activeReference?: EditorActiveReferenceV2 | null
   onInsertInteractive: (kind: string) => void
   onApplyCallout: (variant: (typeof CALLOUT_VARIANTS_V2)[number]) => void
   onUnwrapCallout: () => void
@@ -1355,6 +1364,9 @@ function RightPanelV2({
   const [mediaQuery, setMediaQuery] = useState('')
   const [referenceQuery, setReferenceQuery] = useState('')
   const [linkHref, setLinkHref] = useState('')
+  const [footnoteText, setFootnoteText] = useState('')
+  const [referenceText, setReferenceText] = useState('')
+  const [headingTarget, setHeadingTarget] = useState('')
   const [referenceMessage, setReferenceMessage] = useState('')
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [aiPrompt, setAiPrompt] = useState('')
@@ -1400,6 +1412,13 @@ function RightPanelV2({
     }, 90)
     return () => window.clearTimeout(handle)
   }, [activePanel, canLinkImageRef, nearestMediaRef])
+  useEffect(() => {
+    if (!activeReference) return
+    if (activeReference.kind === 'external') setLinkHref(activeReference.target || '')
+    if (activeReference.kind === 'heading') setHeadingTarget(activeReference.target || '')
+    if (activeReference.kind === 'footnote') setFootnoteText(activeReference.detail || activeReference.target || '')
+    if (activeReference.kind === 'reference') setReferenceText(activeReference.detail || activeReference.target || '')
+  }, [activeReference])
   const [openIds, setOpenIds] = useState<Set<string>>(() => new Set(tree.map(item => item.id)))
   useEffect(() => {
     setOpenIds(new Set(tree.map(item => item.id)))
@@ -1559,15 +1578,21 @@ function RightPanelV2({
         )}
         {activePanel === 'references' && (
           <div className="editor-v2-reference-panel">
+            {activeReference && (
+              <div className="editor-v2-reference-current">
+                <strong>{referenceDisplayLabelV2(activeReference.kind)}</strong>
+                <span>{shortenReferencePreviewV2(activeReference.text || activeReference.target, 42)}</span>
+              </div>
+            )}
             <div className="editor-v2-reference-box">
-              <h4><Link2 size={14} />لینک متن انتخاب‌شده</h4>
+              <h4><Link2 size={14} />لینک خارجی</h4>
               <input value={linkHref} onChange={event => setLinkHref(event.target.value)} placeholder="https://... یا #bookmark" />
               <div className="editor-v2-reference-actions">
                 <button
                   type="button"
                   disabled={!canLinkImageRef || !linkHref.trim()}
                   onClick={() => {
-                    const ok = onApplyTextLink(linkHref.trim())
+                    const ok = onApplyReference(linkHref.trim().startsWith('#') ? 'heading' : 'external', { target: linkHref.trim() })
                     setReferenceMessage(ok ? 'لینک روی متن انتخاب‌شده اعمال شد.' : 'اول متن مورد نظر را داخل سند انتخاب کنید.')
                     if (ok) setLinkHref('')
                   }}
@@ -1576,13 +1601,38 @@ function RightPanelV2({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setReferenceMessage(onRemoveTextLink() ? 'لینک از متن انتخاب‌شده حذف شد.' : 'متنی که لینک داشته باشد انتخاب نشده است.')}
+                  onClick={() => setReferenceMessage(onRemoveReference() ? 'ارجاع از متن حذف شد.' : 'متن یا ارجاعی برای حذف انتخاب نشده است.')}
                 >
                   حذف لینک
                 </button>
               </div>
               {!canLinkImageRef && <small>برای ایجاد لینک یا اتصال به تصویر، ابتدا متن داخل سند را انتخاب کنید.</small>}
             </div>
+
+            <details className="editor-v2-reference-accordion">
+              <summary>لینک به سرفصل کتاب</summary>
+              <select value={headingTarget} onChange={event => setHeadingTarget(event.target.value)}>
+                <option value="">انتخاب سرفصل...</option>
+                {tocAsFlatListV2(document).map(item => (
+                  <option key={item.id} value={`#${item.anchor || item.blockId || item.id}`}>
+                    {'—'.repeat(Math.max(0, item.level - 1))} {item.title}
+                  </option>
+                ))}
+              </select>
+              <button type="button" disabled={!canLinkImageRef || !headingTarget} onClick={() => setReferenceMessage(onApplyReference('heading', { target: headingTarget }) ? 'لینک سرفصل اعمال شد.' : 'ابتدا متن داخل سند را انتخاب کنید.')}>اعمال لینک سرفصل</button>
+            </details>
+
+            <details className="editor-v2-reference-accordion">
+              <summary>پاورقی</summary>
+              <textarea value={footnoteText} onChange={event => setFootnoteText(event.target.value)} placeholder="متن پاورقی..." />
+              <button type="button" disabled={!canLinkImageRef || !footnoteText.trim()} onClick={() => setReferenceMessage(onApplyReference('footnote', { detail: footnoteText.trim() }) ? 'پاورقی اعمال شد.' : 'ابتدا متن داخل سند را انتخاب کنید.')}>اعمال پاورقی</button>
+            </details>
+
+            <details className="editor-v2-reference-accordion">
+              <summary>رفرنس داخل متن</summary>
+              <textarea value={referenceText} onChange={event => setReferenceText(event.target.value)} placeholder="متن رفرنس یا توضیح منبع..." />
+              <button type="button" disabled={!canLinkImageRef || !referenceText.trim()} onClick={() => setReferenceMessage(onApplyReference('reference', { detail: referenceText.trim() }) ? 'رفرنس اعمال شد.' : 'ابتدا متن داخل سند را انتخاب کنید.')}>اعمال رفرنس</button>
+            </details>
 
             <div className="editor-v2-media-search">
               <Search size={14} />
@@ -1695,6 +1745,7 @@ export default function EditorV2Page() {
   const [activeTocId, setActiveTocId] = useState<string>()
   const [selectedBlockId, setSelectedBlockId] = useState<string>()
   const [hasTextSelection, setHasTextSelection] = useState(false)
+  const [activeReference, setActiveReference] = useState<EditorActiveReferenceV2 | null>(null)
   const [toolbarState, setToolbarState] = useState<TextToolbarStateV2>(EMPTY_TEXT_TOOLBAR_STATE_V2)
   const [dirty, setDirty] = useState(false)
   const [dirtyRevision, setDirtyRevision] = useState(0)
@@ -1709,6 +1760,7 @@ export default function EditorV2Page() {
   const editorSurfaceRef = useRef<HTMLDivElement | null>(null)
   const dirtyPageIndexesRef = useRef<Set<number>>(new Set())
   const savedSelectionRef = useRef<Range | null>(null)
+  const activeReferenceElementRef = useRef<HTMLElement | null>(null)
   const lastInlineStyleTargetRef = useRef<HTMLElement | null>(null)
   const calloutActionLockRef = useRef(false)
   const undoStackRef = useRef<string[]>([])
@@ -2230,16 +2282,47 @@ export default function EditorV2Page() {
     label.textContent = `${percent}%`
   }, [])
 
+  const referenceElementFromNode = useCallback((source?: Node | null) => {
+    const root = editorSurfaceRef.current
+    if (!root) return null
+    const element = source instanceof Element ? source : source?.parentElement
+    const target = element?.closest<HTMLElement>('[data-reference-kind], .book-inline-reference, .book-image-reference, .citation-reference, [data-image-ref-id], [data-footnote-text], [data-reference-text], a[href]')
+    return target && root.contains(target) ? target : null
+  }, [])
+
+  const readActiveReferenceFromElement = useCallback((element: HTMLElement | null): EditorActiveReferenceV2 | null => {
+    if (!element) return null
+    const kind = referenceKindFromElementV2(element)
+    if (kind === 'none') return null
+    const link = element instanceof HTMLAnchorElement ? element : element.closest<HTMLAnchorElement>('a[href]')
+    const target = element.dataset.imageRefId
+      || element.dataset.footnoteText
+      || element.dataset.referenceText
+      || element.dataset.referenceAnchor
+      || link?.getAttribute('href')
+      || ''
+    return {
+      kind,
+      text: normalizeBookTextV2(element.textContent || ''),
+      target,
+      detail: element.dataset.footnoteText || element.dataset.referenceText || '',
+    }
+  }, [])
+
   const updateSelectedBlockFromDom = useCallback(() => {
     rememberEditorSelection()
     const selection = window.getSelection()
     const node = selection?.anchorNode
     const element = node instanceof Element ? node : node?.parentElement
+    const referenceElement = referenceElementFromNode(element || null)
+    activeReferenceElementRef.current = referenceElement
+    setActiveReference(readActiveReferenceFromElement(referenceElement))
+    if (referenceElement) setActivePanel('references')
     const target = element?.closest<HTMLElement>('[data-block-id]')
     syncImageSizeControl(target?.matches('figure[data-v2-type="image"]') ? target : target?.closest<HTMLElement>('figure[data-v2-type="image"]'))
     setSelectedBlockId(target?.dataset.blockId)
     setToolbarState(readToolbarStateFromSelection())
-  }, [readToolbarStateFromSelection, rememberEditorSelection, syncImageSizeControl])
+  }, [readActiveReferenceFromElement, readToolbarStateFromSelection, referenceElementFromNode, rememberEditorSelection, syncImageSizeControl])
 
   const markDirtyPageFromNode = useCallback((source?: EventTarget | Node | null) => {
     const root = editorSurfaceRef.current
@@ -2275,45 +2358,93 @@ export default function EditorV2Page() {
     scheduleRefreshDocumentFromEditor()
   }, [scheduleRefreshDocumentFromEditor])
 
-  const applyImageReferenceToSelection = useCallback((ref: EditorMediaReferenceV2) => {
-    const imageRefId = ref.blockId || ref.assetId
-    if (!imageRefId) return
-    restoreEditorSelection()
-    const selection = window.getSelection()
+  const createReferenceElement = useCallback((kind: BookReferenceKindV2, payload: { target?: string; detail?: string; imageRef?: EditorMediaReferenceV2 }) => {
+    const target = payload.imageRef?.blockId || payload.imageRef?.assetId || payload.target || ''
+    const detail = payload.detail || ''
+    const element = window.document.createElement(kind === 'external' || kind === 'heading' ? 'a' : 'span')
+    element.className = 'book-inline-reference'
+    element.dataset.referenceKind = kind
+    if (kind === 'external' || kind === 'heading') {
+      ;(element as HTMLAnchorElement).href = target
+      element.classList.add(kind === 'heading' ? 'book-heading-reference' : 'book-external-reference')
+      if (kind === 'external') {
+        ;(element as HTMLAnchorElement).target = '_blank'
+        ;(element as HTMLAnchorElement).rel = 'noopener noreferrer'
+      }
+    }
+    if (kind === 'image') {
+      element.classList.add('book-image-reference', 'editor-v2-image-reference')
+      element.dataset.imageRefId = target
+      element.title = payload.imageRef?.caption || 'مشاهده تصویر مرتبط'
+    }
+    if (kind === 'footnote') {
+      element.classList.add('citation-reference', 'footnote-reference', 'editor-v2-citation-reference')
+      element.dataset.footnoteText = detail
+      element.dataset.tooltipDir = referenceTooltipDirectionV2(detail)
+    }
+    if (kind === 'reference') {
+      element.classList.add('citation-reference', 'editor-v2-citation-reference')
+      element.dataset.referenceText = detail
+      element.dataset.tooltipDir = referenceTooltipDirectionV2(detail)
+    }
+    return element
+  }, [])
+
+  const replaceOrWrapReferenceSelection = useCallback((kind: BookReferenceKindV2, payload: { target?: string; detail?: string; imageRef?: EditorMediaReferenceV2 }) => {
     const root = editorSurfaceRef.current
+    if (!root) return false
+    const activeElement = activeReferenceElementRef.current && root.contains(activeReferenceElementRef.current)
+      ? activeReferenceElementRef.current
+      : null
+    const selection = window.getSelection()
     const range = selection?.rangeCount ? selection.getRangeAt(0) : savedSelectionRef.current
-    if (!selection || !range || !root || selection.isCollapsed || !selection.toString().trim()) {
+    const wrapper = createReferenceElement(kind, payload)
+
+    pushEditorHistory()
+    if (activeElement) {
+      wrapper.append(...Array.from(activeElement.childNodes))
+      activeElement.replaceWith(wrapper)
+      activeReferenceElementRef.current = wrapper
+      setActiveReference(readActiveReferenceFromElement(wrapper))
+      markEditorDirty(wrapper)
+      scheduleToolbarDocumentRefresh()
+      return true
+    }
+
+    restoreEditorSelection()
+    const nextSelection = window.getSelection()
+    const nextRange = nextSelection?.rangeCount ? nextSelection.getRangeAt(0) : range
+    if (!nextSelection || !nextRange || nextSelection.isCollapsed || !nextSelection.toString().trim()) return false
+    const container = nextRange.commonAncestorContainer
+    const selectionNode = container.nodeType === Node.ELEMENT_NODE ? container as Element : container.parentElement
+    if (!selectionNode || !root.contains(selectionNode)) return false
+    try {
+      nextRange.surroundContents(wrapper)
+    } catch {
+      const contents = nextRange.extractContents()
+      wrapper.appendChild(contents)
+      nextRange.insertNode(wrapper)
+    }
+    const afterRange = window.document.createRange()
+    afterRange.selectNodeContents(wrapper)
+    nextSelection.removeAllRanges()
+    nextSelection.addRange(afterRange)
+    savedSelectionRef.current = afterRange.cloneRange()
+    activeReferenceElementRef.current = wrapper
+    setActiveReference(readActiveReferenceFromElement(wrapper))
+    setHasTextSelection(true)
+    markEditorDirty(wrapper)
+    scheduleToolbarDocumentRefresh()
+    return true
+  }, [createReferenceElement, markEditorDirty, pushEditorHistory, readActiveReferenceFromElement, restoreEditorSelection, scheduleToolbarDocumentRefresh])
+
+  const applyImageReferenceToSelection = useCallback((ref: EditorMediaReferenceV2) => {
+    if (!replaceOrWrapReferenceSelection('image', { imageRef: ref })) {
       setMediaMessage('برای اتصال تصویر، اول متن مورد نظر را انتخاب کنید.')
       return
     }
-    const container = range.commonAncestorContainer
-    const selectionNode = container.nodeType === Node.ELEMENT_NODE ? container as Element : container.parentElement
-    if (!selectionNode || !root.contains(selectionNode)) {
-      setMediaMessage('انتخاب متن داخل سند فعال نیست.')
-      return
-    }
-    pushEditorHistory()
-    const wrapper = window.document.createElement('span')
-    wrapper.className = 'book-image-reference editor-v2-image-reference'
-    wrapper.dataset.imageRefId = imageRefId
-    wrapper.title = ref.caption || 'مشاهده تصویر مرتبط'
-    try {
-      range.surroundContents(wrapper)
-    } catch {
-      const contents = range.extractContents()
-      wrapper.appendChild(contents)
-      range.insertNode(wrapper)
-    }
-    const nextRange = window.document.createRange()
-    nextRange.selectNodeContents(wrapper)
-    selection.removeAllRanges()
-    selection.addRange(nextRange)
-    savedSelectionRef.current = nextRange.cloneRange()
-    setHasTextSelection(true)
     setMediaMessage('متن انتخاب‌شده به تصویر وصل شد.')
-    markEditorDirty()
-    scheduleToolbarDocumentRefresh()
-  }, [markEditorDirty, pushEditorHistory, restoreEditorSelection, scheduleToolbarDocumentRefresh])
+  }, [replaceOrWrapReferenceSelection])
 
   const handleEditorSurfaceInput = useCallback((event: any) => {
     const target = event.target as HTMLElement
@@ -2704,57 +2835,30 @@ export default function EditorV2Page() {
     setActivePanel('references')
   }, [rememberEditorSelection])
 
-  const applyTextLinkToSelection = useCallback((href: string) => {
-    if (!href.trim()) return false
-    restoreEditorSelection()
-    const selection = window.getSelection()
-    const root = editorSurfaceRef.current
-    const range = selection?.rangeCount ? selection.getRangeAt(0) : savedSelectionRef.current
-    if (!selection || !range || !root || selection.isCollapsed || !selection.toString().trim()) return false
-    const container = range.commonAncestorContainer
-    const selectionNode = container.nodeType === Node.ELEMENT_NODE ? container as Element : container.parentElement
-    if (!selectionNode || !root.contains(selectionNode)) return false
-    pushEditorHistory()
-    try {
-      window.document.execCommand('createLink', false, href.trim())
-    } catch {
-      const wrapper = window.document.createElement('a')
-      wrapper.href = href.trim()
-      const contents = range.extractContents()
-      wrapper.appendChild(contents)
-      range.insertNode(wrapper)
-    }
-    markEditorDirty()
-    rememberEditorSelection()
-    scheduleToolbarDocumentRefresh()
-    return true
-  }, [markEditorDirty, pushEditorHistory, rememberEditorSelection, restoreEditorSelection, scheduleToolbarDocumentRefresh])
+  const applyReferenceToSelection = useCallback((kind: BookReferenceKindV2, payload: { target?: string; detail?: string; imageRef?: EditorMediaReferenceV2 }) => {
+    return replaceOrWrapReferenceSelection(kind, payload)
+  }, [replaceOrWrapReferenceSelection])
 
-  const removeTextLinkFromSelection = useCallback(() => {
-    restoreEditorSelection()
+  const removeReferenceFromSelection = useCallback(() => {
     const selection = window.getSelection()
     const root = editorSurfaceRef.current
     const range = selection?.rangeCount ? selection.getRangeAt(0) : savedSelectionRef.current
     if (!range || !root) return false
     const container = range.commonAncestorContainer
     const element = container.nodeType === Node.ELEMENT_NODE ? container as Element : container.parentElement
-    if (!element || !root.contains(element)) return false
-    const link = element.closest<HTMLAnchorElement>('a')
+    const referenceElement = activeReferenceElementRef.current && root.contains(activeReferenceElementRef.current)
+      ? activeReferenceElementRef.current
+      : referenceElementFromNode(element || null)
+    if (!referenceElement || !root.contains(referenceElement)) return false
     pushEditorHistory()
-    if (link) {
-      link.replaceWith(...Array.from(link.childNodes))
-    } else {
-      try {
-        window.document.execCommand('unlink')
-      } catch {
-        return false
-      }
-    }
-    markEditorDirty()
+    referenceElement.replaceWith(...Array.from(referenceElement.childNodes))
+    activeReferenceElementRef.current = null
+    setActiveReference(null)
+    markEditorDirty(element)
     rememberEditorSelection()
     scheduleToolbarDocumentRefresh()
     return true
-  }, [markEditorDirty, pushEditorHistory, rememberEditorSelection, restoreEditorSelection, scheduleToolbarDocumentRefresh])
+  }, [markEditorDirty, pushEditorHistory, referenceElementFromNode, rememberEditorSelection, scheduleToolbarDocumentRefresh])
 
   const insertSimpleTable = useCallback(() => {
     const tableId = createV2Id('table', Date.now())
@@ -3457,10 +3561,11 @@ export default function EditorV2Page() {
           mediaMessage={mediaMessage}
           onResolveMediaIssue={resolveMediaIssue}
           onJumpToBlock={jumpToEditorBlock}
-          canLinkImageRef={hasTextSelection}
+          canLinkImageRef={hasTextSelection || Boolean(activeReference)}
           onLinkImageRef={applyImageReferenceToSelection}
-          onApplyTextLink={applyTextLinkToSelection}
-          onRemoveTextLink={removeTextLinkFromSelection}
+          onApplyReference={applyReferenceToSelection}
+          onRemoveReference={removeReferenceFromSelection}
+          activeReference={activeReference}
           onInsertInteractive={insertInteractiveBlock}
           onApplyCallout={wrapSelectedCallout}
           onUnwrapCallout={unwrapSelectedCallout}

@@ -798,6 +798,28 @@
   box-shadow: 0 12px 30px hsl(214 80% 42% / 0.08);
 }
 
+.editor-v2-reference-current {
+  display: grid;
+  gap: 0.25rem;
+  border: 1px solid #b9d7ff;
+  border-radius: 1rem;
+  background: linear-gradient(135deg, hsl(207 100% 96% / 0.9), hsl(0 0% 100% / 0.72));
+  color: #153a77;
+  padding: 0.65rem 0.75rem;
+  box-shadow: 0 16px 42px hsl(210 95% 45% / 0.11);
+}
+
+.editor-v2-reference-current strong {
+  font-size: 0.74rem;
+  font-weight: 950;
+}
+
+.editor-v2-reference-current span {
+  color: #475569;
+  font-size: 0.7rem;
+  line-height: 1.8;
+}
+
 .editor-v2-reference-box {
   display: grid;
   gap: 0.5rem;
@@ -815,6 +837,10 @@
 }
 
 .editor-v2-reference-box input,
+.editor-v2-reference-box select,
+.editor-v2-reference-accordion select,
+.editor-v2-reference-accordion textarea,
+.editor-v2-reference-accordion button,
 .editor-v2-reference-item textarea {
   width: 100%;
   border: 1px solid #d5e2f3;
@@ -825,6 +851,24 @@
   font: inherit;
   font-size: 0.72rem;
   line-height: 1.7;
+}
+
+.editor-v2-reference-accordion textarea {
+  min-height: 5.5rem;
+  resize: vertical;
+}
+
+.editor-v2-reference-accordion button {
+  margin-top: 0.45rem;
+  background: linear-gradient(135deg, #0ea5e9, #2563eb);
+  color: white;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.editor-v2-reference-accordion button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .editor-v2-reference-box small {
@@ -1275,6 +1319,14 @@
   text-underline-offset: 0.18em;
 }
 
+.editor-v2-flow-editor .book-inline-reference {
+  border-bottom: 1.5px dotted #2563eb;
+  background: linear-gradient(180deg, transparent 58%, rgba(191, 219, 254, 0.45) 0);
+  color: #1d4ed8;
+  text-decoration: none;
+  cursor: pointer;
+}
+
 .editor-v2-citation-reference {
   position: relative;
   display: inline;
@@ -1298,8 +1350,8 @@
 .editor-v2-image-reference,
 .editor-v2-flow-editor .book-image-reference {
   display: inline;
-  border-bottom: 2px solid #38bdf8;
-  background: linear-gradient(180deg, transparent 45%, #bae6fd66 0);
+  border-bottom: 1.5px dotted #2563eb;
+  background: linear-gradient(180deg, transparent 58%, rgba(191, 219, 254, 0.45) 0);
   color: #075985;
   cursor: zoom-in;
   border-radius: 0.15rem;
