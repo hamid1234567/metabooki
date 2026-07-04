@@ -115,15 +115,21 @@
   font-size: 0.86rem;
 }
 
+.book-inline-reference,
 .book-image-reference {
   display: inline;
   border: 0;
-  border-bottom: 2px solid #38bdf8;
-  background: linear-gradient(180deg, transparent 45%, #bae6fd66 0);
-  color: #075985;
+  border-bottom: 1.5px dotted #2563eb;
+  background: linear-gradient(180deg, transparent 58%, rgba(191, 219, 254, 0.45) 0);
+  color: #1d4ed8;
   padding: 0 0.08em;
   font: inherit;
   line-height: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.book-image-reference {
   cursor: zoom-in;
 }
 

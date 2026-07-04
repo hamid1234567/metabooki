@@ -1,6 +1,7 @@
 import { Fragment, type ReactNode } from 'react'
 import { normalizeBookTextV2, textDirectionV2 } from '@/lib/book-document-v2'
 import { isBookLtrRunText, splitBookTextForDisplay } from '@/lib/book-content'
+import { referenceClassNameV2, referenceHtmlDataAttributesV2, referenceKindFromInlineV2, referenceTooltipTextV2 } from '@/lib/book-references'
 import type { BookInlineV2 } from '@/lib/book-document-v2'
 
 function wrapWithMarks(node: ReactNode, span: BookInlineV2) {
@@ -84,17 +85,13 @@ function SpanText({ span, isolated = false }: { span: BookInlineV2; isolated?: b
 }
 
 function CitationTooltip({ span, children }: { span: BookInlineV2; children: ReactNode }) {
-  const text = normalizeBookTextV2(span.footnoteText || span.referenceText || '')
+  const text = referenceTooltipTextV2(span)
   if (!text) return <>{children}</>
   const direction = textDirectionV2(text)
   return (
     <span
-      className={`citation-reference ${span.footnoteText ? 'footnote-reference' : ''}`}
-      data-footnote-id={span.footnoteId}
-      data-footnote-text={span.footnoteText ? text : undefined}
-      data-reference-anchor={span.referenceAnchor}
-      data-reference-text={span.referenceText ? text : undefined}
-      data-tooltip-dir={direction}
+      className={referenceClassNameV2(span)}
+      {...referenceHtmlDataAttributesV2(span)}
       dir={direction}
       tabIndex={0}
       role="button"
@@ -109,8 +106,8 @@ function ImageReference({ span, children }: { span: BookInlineV2; children: Reac
   return (
     <button
       type="button"
-      className="book-image-reference"
-      data-image-ref-id={span.imageRefId}
+      className={referenceClassNameV2(span)}
+      {...referenceHtmlDataAttributesV2(span)}
       title="مشاهده تصویر مرتبط"
     >
       {children}
@@ -125,15 +122,16 @@ export function InlineTextV2({ inline, fallback = '' }: { inline?: BookInlineV2[
       {groupInlineRuns(inline).map((group, groupIndex) => {
         const nodes = group.spans.map((span, index) => {
           const content = wrapWithMarks(<span style={spanStyle(span)}><SpanText span={span} isolated={group.ltr} /></span>, span)
-          const withCitation = span.footnoteText || span.referenceText || span.footnoteId
+          const kind = referenceKindFromInlineV2(span)
+          const withCitation = kind === 'footnote' || kind === 'reference'
             ? <CitationTooltip span={span}>{content}</CitationTooltip>
             : content
-          const withImageRef = span.imageRefId
+          const withImageRef = kind === 'image'
             ? <ImageReference span={span}>{withCitation}</ImageReference>
             : withCitation
           return (
             <Fragment key={span.id || `${groupIndex}-${index}`}>
-              {span.href && !span.imageRefId ? <a href={span.href} target={span.href.startsWith('#') ? undefined : '_blank'} rel={span.href.startsWith('#') ? undefined : 'noopener noreferrer'}>{withImageRef}</a> : withImageRef}
+              {span.href && kind !== 'image' ? <a className={referenceClassNameV2(span)} {...referenceHtmlDataAttributesV2(span)} href={span.href} target={span.href.startsWith('#') ? undefined : '_blank'} rel={span.href.startsWith('#') ? undefined : 'noopener noreferrer'}>{withImageRef}</a> : withImageRef}
             </Fragment>
           )
         })
