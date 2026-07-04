@@ -1,0 +1,22 @@
+﻿Metabooki Editor V2 Checkpoint
+Version: 1.0.599
+Created: 2026-07-04 22:41:17 +03:30
+
+Checkpoint name:
+editor-v2-media-toc-stable
+
+Reason:
+- Stable point before continuing the References/Links panel workstream.
+- Captures current Editor V2 state after fixing page-window limitations for TOC and media list.
+- Current behavior: initial 50-page editor window must not limit full TOC, media thumbnail list, or jumps to assets outside the loaded window.
+
+Included:
+- Editor V2 page and CSS
+- Page-Based Content Engine
+- BookDocument V2 schema, TOC, and normalization rules
+- Shared renderer and Reader integration
+- Global CSS used by editor/reader display
+- Current system/version/DFD reference docs
+
+Rollback hint:
+- Use git tag checkpoint/editor-v2-media-toc-stable-1.0.599 or copy files from this folder.
