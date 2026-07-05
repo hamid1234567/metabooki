@@ -30,6 +30,7 @@ export interface BookInlineV2 {
   footnoteId?: string
   footnoteText?: string
   referenceAnchor?: string
+  referenceTitle?: string
   referenceText?: string
   style?: BookInlineStyleV2
 }

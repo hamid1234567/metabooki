@@ -56,6 +56,7 @@ export function normalizeInlineV2(inline: unknown): BookInlineV2[] | undefined {
         footnoteId: item.footnoteId ? String(item.footnoteId) : undefined,
         footnoteText: item.footnoteText ? normalizeBookTextV2(item.footnoteText) : undefined,
         referenceAnchor: item.referenceAnchor ? String(item.referenceAnchor) : undefined,
+        referenceTitle: item.referenceTitle ? normalizeBookTextV2(item.referenceTitle) : undefined,
         referenceText: item.referenceText ? normalizeBookTextV2(item.referenceText) : undefined,
         style,
       } satisfies BookInlineV2

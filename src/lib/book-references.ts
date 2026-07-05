@@ -68,7 +68,7 @@ export function referenceHoverTextV2(span: BookInlineV2) {
   const kind = referenceKindFromInlineV2(span)
   const target = normalizeBookTextV2(inlineReferenceTargetV2(span))
   if (kind === 'external') return target
-  if (kind === 'heading') return `رفتن به سرفصل ${shortenReferencePreviewV2(target.replace(/^#/, ''), 48)}`
+  if (kind === 'heading') return `رفتن به سرفصل ${shortenReferencePreviewV2(span.referenceTitle || target.replace(/^#/, ''), 30)}`
   return ''
 }
 
@@ -83,6 +83,7 @@ export function referenceHtmlDataAttributesV2(span: BookInlineV2) {
     'data-footnote-id': span.footnoteId || undefined,
     'data-footnote-text': span.footnoteText ? tooltip : undefined,
     'data-reference-anchor': span.referenceAnchor || undefined,
+    'data-reference-title': span.referenceTitle || undefined,
     'data-reference-text': span.referenceText ? tooltip : undefined,
     'data-reference-tooltip': hoverText || undefined,
     'data-tooltip-dir': direction,

@@ -479,16 +479,20 @@ function inlineFromDomV2(node: Node, marks: BookInlineV2['marks'] = [], href?: s
   const nextStyle = mergeInlineStyleFromElementV2(node, inheritedStyle)
   const footnoteText = normalizeBookTextV2((node as HTMLElement).dataset.footnoteText || '')
   const referenceText = normalizeBookTextV2((node as HTMLElement).dataset.referenceText || '')
+  const referenceTitle = normalizeBookTextV2((node as HTMLElement).dataset.referenceTitle || '')
   const footnoteId = (node as HTMLElement).dataset.footnoteId
   const referenceAnchor = (node as HTMLElement).dataset.referenceAnchor
   const children = Array.from(node.childNodes).flatMap(child => inlineFromDomV2(child, nextMarks, nextHref, nextStyle, nextImageRefId))
+  if (referenceTitle && nextHref?.startsWith('#') && children.length) {
+    return children.map((span, index) => index === 0 ? { ...span, referenceTitle } : span)
+  }
   if (!footnoteText && !referenceText && !footnoteId && !referenceAnchor && !nextImageRefId) return children
   if (children.length) {
     return children.map((span, index) => index === 0
-      ? { ...span, imageRefId: nextImageRefId, footnoteId, footnoteText: footnoteText || undefined, referenceAnchor, referenceText: referenceText || undefined }
+      ? { ...span, imageRefId: nextImageRefId, footnoteId, footnoteText: footnoteText || undefined, referenceAnchor, referenceTitle: referenceTitle || span.referenceTitle, referenceText: referenceText || undefined }
       : span)
   }
-  return [{ text: footnoteId || referenceAnchor || '', marks: nextMarks.length ? nextMarks : undefined, href: nextHref, imageRefId: nextImageRefId, style: Object.keys(nextStyle || {}).length ? nextStyle : undefined, footnoteId, footnoteText: footnoteText || undefined, referenceAnchor, referenceText: referenceText || undefined }]
+  return [{ text: footnoteId || referenceAnchor || '', marks: nextMarks.length ? nextMarks : undefined, href: nextHref, imageRefId: nextImageRefId, style: Object.keys(nextStyle || {}).length ? nextStyle : undefined, footnoteId, footnoteText: footnoteText || undefined, referenceAnchor, referenceTitle: referenceTitle || undefined, referenceText: referenceText || undefined }]
 }
 
 function inlineFromElementV2(element: Element) {
@@ -1361,6 +1365,7 @@ function RightPanelV2({
   aiMessage: string
 }) {
   const tree = useMemo(() => resolveTocTreeV2(document.toc), [document.toc])
+  const flatToc = useMemo(() => tocAsFlatListV2(document), [document])
   const selectedPrintNumber = selectedBlock?.printNumber
   const mediaRefs = useMemo(() => collectMediaReferencesV2(document), [document])
   const libraryMediaRefs = useMemo(() => collectMediaReferencesV2(document, selectedPrintNumber), [document, selectedPrintNumber])
@@ -1689,13 +1694,22 @@ function RightPanelV2({
               <summary>لینک به سرفصل کتاب</summary>
               <select value={headingTarget} onChange={event => setHeadingTarget(event.target.value)}>
                 <option value="">انتخاب سرفصل...</option>
-                {tocAsFlatListV2(document).map(item => (
+                {flatToc.map(item => (
                   <option key={item.id} value={`#${item.anchor || item.blockId || item.id}`}>
                     {'—'.repeat(Math.max(0, item.level - 1))} {item.title}
                   </option>
                 ))}
               </select>
-              <button type="button" disabled={!canLinkImageRef || !headingTarget} onClick={() => setReferenceMessage(onApplyReference('heading', { target: headingTarget }) ? 'لینک سرفصل اعمال شد.' : 'ابتدا متن داخل سند را انتخاب کنید.')}>اعمال لینک سرفصل</button>
+              <button
+                type="button"
+                disabled={!canLinkImageRef || !headingTarget}
+                onClick={() => {
+                  const targetItem = flatToc.find(item => `#${item.anchor || item.blockId || item.id}` === headingTarget)
+                  setReferenceMessage(onApplyReference('heading', { target: headingTarget, detail: targetItem?.title }) ? 'لینک سرفصل اعمال شد.' : 'ابتدا متن داخل سند را انتخاب کنید.')
+                }}
+              >
+                اعمال لینک سرفصل
+              </button>
             </details>
 
             <details className="editor-v2-reference-accordion" open={openReferenceSection === 'reference'} onToggle={event => { if (event.currentTarget.open) setOpenReferenceSection('reference') }}>
@@ -2410,8 +2424,9 @@ export default function EditorV2Page() {
     if (kind === 'external' || kind === 'heading') {
       ;(element as HTMLAnchorElement).setAttribute('href', target)
       element.classList.add(kind === 'heading' ? 'book-heading-reference' : 'book-external-reference')
+      if (kind === 'heading' && detail) element.dataset.referenceTitle = detail
       element.dataset.referenceTooltip = kind === 'heading'
-        ? `رفتن به سرفصل ${target.replace(/^#/, '')}`
+        ? `رفتن به سرفصل ${shortenReferencePreviewV2(detail || target.replace(/^#/, ''), 30)}`
         : target
       if (kind === 'external') {
         ;(element as HTMLAnchorElement).target = '_blank'

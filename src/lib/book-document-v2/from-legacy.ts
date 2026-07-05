@@ -298,6 +298,7 @@ function inlineV2ToLegacy(inline?: BookInlineV2[]) {
     footnoteId: span.footnoteId,
     footnoteText: span.footnoteText,
     referenceAnchor: span.referenceAnchor,
+    referenceTitle: span.referenceTitle,
     referenceText: span.referenceText,
     color: span.style?.color,
     fontFamily: span.style?.fontFamily,
