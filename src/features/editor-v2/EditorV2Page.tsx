@@ -1661,6 +1661,15 @@ function RightPanelV2({
               <div className="editor-v2-reference-current">
                 <strong>{referenceDisplayLabelV2(activeReference.kind)}</strong>
                 <span>{shortenReferencePreviewV2(activeReference.text || activeReference.target, 42)}</span>
+                {activeReference.kind === 'image' && (
+                  <button
+                    type="button"
+                    className="editor-v2-reference-remove-current"
+                    onClick={() => setReferenceMessage(onRemoveReference() ? 'اتصال تصویر حذف شد.' : 'ارجاع تصویری برای حذف انتخاب نشده است.')}
+                  >
+                    حذف اتصال تصویر
+                  </button>
+                )}
               </div>
             )}
             <details className="editor-v2-reference-accordion" open={openReferenceSection === 'edit'} onToggle={event => { if (event.currentTarget.open) setOpenReferenceSection('edit') }}>

@@ -145,26 +145,26 @@
 }
 
 .book-image-reference::after {
-  content: "▧";
+  content: "\25A7";
 }
 
 .book-external-reference::after {
-  content: "↗";
+  content: "\2197";
 }
 
 .book-heading-reference::after {
-  content: "§";
+  content: "\00A7";
 }
 
 .book-inline-reference[data-reference-tooltip]::before {
   content: attr(data-reference-tooltip);
-  position: absolute;
+  position: fixed;
   z-index: 10002;
   inset-inline-start: 50%;
-  inset-block-end: calc(100% + 0.45rem);
+  inset-block-end: max(5.5rem, env(safe-area-inset-bottom));
   width: max-content;
-  max-width: min(24rem, calc(100vw - 2rem));
-  transform: translateX(-50%);
+  max-width: min(34rem, calc(100vw - 2rem));
+  transform: translateX(-50%) translateY(0.35rem);
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
@@ -186,7 +186,7 @@
 .book-inline-reference[data-reference-tooltip]:focus-visible::before {
   opacity: 1;
   visibility: visible;
-  transform: translateX(-50%) translateY(-0.08rem);
+  transform: translateX(-50%) translateY(0);
 }
 
 .book-v2-image-ref-preview {
