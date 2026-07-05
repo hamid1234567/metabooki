@@ -593,6 +593,26 @@ export default function Reader() {
     }
   }
 
+  const goInternalEditorLink = (targetId: string) => {
+    const normalized = String(targetId || '').replace(/^#/, '')
+    if (!normalized) return
+    const tocTarget = readerToc.find(item => item.targetId === normalized || item.key === normalized)
+      || confirmedToc.map(item => {
+        const position = findTocPosition(item)
+        return {
+          item,
+          targetIds: [item.anchor, item.blockId, item.id].filter(Boolean).map(String),
+          pageIndex: position.pageIndex,
+        }
+      }).find(entry => entry.targetIds.includes(normalized))
+    if (!tocTarget) return
+    if ('item' in tocTarget) {
+      goPage(tocTarget.pageIndex, { page: tocTarget.pageIndex, targetId: normalized, title: tocTarget.item.title })
+      return
+    }
+    goPage(tocTarget.pageIndex, { page: tocTarget.pageIndex, targetId: normalized, title: tocTarget.title })
+  }
+
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     if (highlightActive || highlightHolding || highlightArmed || Date.now() < highlightReadyUntilRef.current) return
     if (e.touches.length !== 1) return
@@ -1437,7 +1457,7 @@ export default function Reader() {
             onContextMenu={e => e.preventDefault()}
           >
             {editorV2Page
-              ? <BookRendererV2 pages={[editorV2Page]} compact />
+              ? <BookRendererV2 document={editorV2Document || undefined} pages={[editorV2Page]} compact onInternalLink={goInternalEditorLink} />
               : pageHasVisibleLegacyContent(page.blocks)
                 ? page.blocks.map((block:any,i:number)=>renderBlock(block,i))
                 : <div className="reader-empty-page-placeholder"><span>این صفحه عمداً خالی گذاشته شده است.</span></div>}

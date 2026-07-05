@@ -108,7 +108,7 @@ function ImageReference({ span, children }: { span: BookInlineV2; children: Reac
       type="button"
       className={referenceClassNameV2(span)}
       {...referenceHtmlDataAttributesV2(span)}
-      title="مشاهده تصویر مرتبط"
+      aria-label="مشاهده تصویر مرتبط"
     >
       {children}
     </button>

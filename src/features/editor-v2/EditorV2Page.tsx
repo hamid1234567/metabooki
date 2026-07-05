@@ -1416,6 +1416,8 @@ function RightPanelV2({
       setFootnoteText('')
       setReferenceText('')
       setHeadingTarget('')
+      setSelectedReferenceItem(null)
+      setReferenceQuery('')
       return
     }
     if (activeReference.kind === 'external') setLinkHref(activeReference.target || '')
@@ -2404,7 +2406,7 @@ export default function EditorV2Page() {
     if (kind === 'image') {
       element.classList.add('book-image-reference', 'editor-v2-image-reference')
       element.dataset.imageRefId = target
-      element.title = payload.imageRef?.caption || 'مشاهده تصویر مرتبط'
+      element.setAttribute('aria-label', payload.imageRef?.caption || 'مشاهده تصویر مرتبط')
     }
     if (kind === 'footnote') {
       element.classList.add('citation-reference', 'footnote-reference', 'editor-v2-citation-reference')
