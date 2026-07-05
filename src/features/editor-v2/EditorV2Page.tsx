@@ -1320,6 +1320,7 @@ function RightPanelV2({
   onApplyReference,
   onRemoveReference,
   onEditInlineReference,
+  onDeleteInlineReference,
   activeReference,
   onInsertInteractive,
   onApplyCallout,
@@ -1349,6 +1350,7 @@ function RightPanelV2({
   onApplyReference: (kind: BookReferenceKindV2, payload: { target?: string; detail?: string; imageRef?: EditorMediaReferenceV2 }) => boolean
   onRemoveReference: () => boolean
   onEditInlineReference: (ref: EditorInlineReferenceV2) => void
+  onDeleteInlineReference: (ref: EditorInlineReferenceV2) => void
   activeReference?: EditorActiveReferenceV2 | null
   onInsertInteractive: (kind: string) => void
   onApplyCallout: (variant: (typeof CALLOUT_VARIANTS_V2)[number]) => void
@@ -1371,6 +1373,8 @@ function RightPanelV2({
   const [referenceText, setReferenceText] = useState('')
   const [headingTarget, setHeadingTarget] = useState('')
   const [referenceMessage, setReferenceMessage] = useState('')
+  const [selectedReferenceItem, setSelectedReferenceItem] = useState<EditorInlineReferenceV2 | null>(null)
+  const [openReferenceSection, setOpenReferenceSection] = useState<'edit' | 'heading' | 'footnote' | 'reference' | 'image' | ''>('edit')
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [aiPrompt, setAiPrompt] = useState('')
   const filteredMediaRefs = useMemo(() => {
@@ -1407,21 +1411,17 @@ function RightPanelV2({
       || mediaRefs.find(item => item.url && (item.blockId || item.assetId))
   }, [canLinkImageRef, libraryMediaRefs, mediaRefs])
   useEffect(() => {
-    if (activePanel !== 'references' || !canLinkImageRef || !nearestMediaRef) return
-    const handle = window.setTimeout(() => {
-      const safeKey = CSS.escape(nearestMediaRef.key)
-      const target = window.document.querySelector<HTMLElement>(`[data-media-ref-key="${safeKey}"]`)
-      target?.scrollIntoView({ block: 'center', behavior: 'smooth' })
-    }, 90)
-    return () => window.clearTimeout(handle)
-  }, [activePanel, canLinkImageRef, nearestMediaRef])
-  useEffect(() => {
     if (!activeReference) return
     if (activeReference.kind === 'external') setLinkHref(activeReference.target || '')
     if (activeReference.kind === 'heading') setHeadingTarget(activeReference.target || '')
     if (activeReference.kind === 'footnote') setFootnoteText(activeReference.detail || activeReference.target || '')
     if (activeReference.kind === 'reference') setReferenceText(activeReference.detail || activeReference.target || '')
+    setReferenceQuery(activeReference.text || activeReference.target || '')
+    setOpenReferenceSection(activeReference.kind === 'image' ? 'image' : activeReference.kind === 'heading' ? 'heading' : activeReference.kind === 'reference' ? 'reference' : 'edit')
   }, [activeReference])
+  useEffect(() => {
+    if (selectedReferenceItem && !filteredInlineRefs.some(item => item.key === selectedReferenceItem.key)) setSelectedReferenceItem(null)
+  }, [filteredInlineRefs, selectedReferenceItem])
   const [openIds, setOpenIds] = useState<Set<string>>(() => new Set(tree.map(item => item.id)))
   useEffect(() => {
     setOpenIds(new Set(tree.map(item => item.id)))
@@ -1581,14 +1581,65 @@ function RightPanelV2({
         )}
         {activePanel === 'references' && (
           <div className="editor-v2-reference-panel">
+            <div className="editor-v2-media-search editor-v2-reference-search">
+              <Search size={14} />
+              <input value={referenceQuery} onChange={event => setReferenceQuery(event.target.value)} placeholder="جستجو در لینک‌ها، پاورقی‌ها، رفرنس‌ها و تصاویر..." />
+              {referenceQuery && <button type="button" onClick={() => { setReferenceQuery(''); setSelectedReferenceItem(null) }}>×</button>}
+            </div>
+            <div className="editor-v2-reference-quick-actions">
+              <button type="button" disabled={!selectedReferenceItem?.blockId} onClick={() => selectedReferenceItem?.blockId && onJumpToBlock(selectedReferenceItem.blockId)}>رفتن به محل ارجاع</button>
+              <button
+                type="button"
+                disabled={!selectedReferenceItem}
+                onClick={() => {
+                  if (!selectedReferenceItem) return
+                  onEditInlineReference(selectedReferenceItem)
+                  setOpenReferenceSection(selectedReferenceItem.type === 'image' ? 'image' : selectedReferenceItem.type === 'heading' ? 'heading' : selectedReferenceItem.type === 'reference' ? 'reference' : 'edit')
+                  setReferenceMessage('ارجاع برای ویرایش آماده شد.')
+                }}
+              >
+                ویرایش
+              </button>
+              <button
+                type="button"
+                disabled={!selectedReferenceItem}
+                onClick={() => {
+                  if (!selectedReferenceItem) return
+                  onDeleteInlineReference(selectedReferenceItem)
+                  setReferenceMessage('ارجاع انتخاب‌شده پاک شد.')
+                  setSelectedReferenceItem(null)
+                }}
+              >
+                پاک کردن
+              </button>
+            </div>
+            <div className="editor-v2-reference-results">
+              {filteredInlineRefs.length ? filteredInlineRefs.slice(0, 80).map(item => (
+                <button
+                  key={item.key}
+                  type="button"
+                  className={`editor-v2-reference-result type-${item.type} ${selectedReferenceItem?.key === item.key ? 'is-selected' : ''}`}
+                  onClick={() => {
+                    setSelectedReferenceItem(item)
+                    setReferenceQuery(item.text || item.target || '')
+                    onEditInlineReference(item)
+                    setOpenReferenceSection(item.type === 'image' ? 'image' : item.type === 'heading' ? 'heading' : item.type === 'reference' ? 'reference' : 'edit')
+                  }}
+                >
+                  <b>{item.type === 'image' ? <ImageIcon size={13} /> : item.label}</b>
+                  <span>{item.text || item.target || 'بدون متن'}</span>
+                  <small>صفحه {item.printNumber || 'نامشخص'}</small>
+                </button>
+              )) : <p className="editor-v2-empty-panel">ارجاعی با این جستجو پیدا نشد.</p>}
+            </div>
             {activeReference && (
               <div className="editor-v2-reference-current">
                 <strong>{referenceDisplayLabelV2(activeReference.kind)}</strong>
                 <span>{shortenReferencePreviewV2(activeReference.text || activeReference.target, 42)}</span>
               </div>
             )}
-            <div className="editor-v2-reference-box">
-              <h4><Link2 size={14} />لینک خارجی</h4>
+            <details className="editor-v2-reference-accordion" open={openReferenceSection === 'edit'} onToggle={event => { if (event.currentTarget.open) setOpenReferenceSection('edit') }}>
+              <summary><Link2 size={14} /> لینک و پاورقی</summary>
               <input value={linkHref} onChange={event => setLinkHref(event.target.value)} placeholder="https://... یا #bookmark" />
               <div className="editor-v2-reference-actions">
                 <button
@@ -1609,10 +1660,12 @@ function RightPanelV2({
                   حذف لینک
                 </button>
               </div>
+              <textarea value={footnoteText} onChange={event => setFootnoteText(event.target.value)} placeholder="متن پاورقی..." />
+              <button type="button" disabled={!canLinkImageRef || !footnoteText.trim()} onClick={() => setReferenceMessage(onApplyReference('footnote', { detail: footnoteText.trim() }) ? 'پاورقی اعمال شد.' : 'ابتدا متن داخل سند را انتخاب کنید.')}>اعمال پاورقی</button>
               {!canLinkImageRef && <small>برای ایجاد لینک یا اتصال به تصویر، ابتدا متن داخل سند را انتخاب کنید.</small>}
-            </div>
+            </details>
 
-            <details className="editor-v2-reference-accordion">
+            <details className="editor-v2-reference-accordion" open={openReferenceSection === 'heading'} onToggle={event => { if (event.currentTarget.open) setOpenReferenceSection('heading') }}>
               <summary>لینک به سرفصل کتاب</summary>
               <select value={headingTarget} onChange={event => setHeadingTarget(event.target.value)}>
                 <option value="">انتخاب سرفصل...</option>
@@ -1625,25 +1678,14 @@ function RightPanelV2({
               <button type="button" disabled={!canLinkImageRef || !headingTarget} onClick={() => setReferenceMessage(onApplyReference('heading', { target: headingTarget }) ? 'لینک سرفصل اعمال شد.' : 'ابتدا متن داخل سند را انتخاب کنید.')}>اعمال لینک سرفصل</button>
             </details>
 
-            <details className="editor-v2-reference-accordion">
-              <summary>پاورقی</summary>
-              <textarea value={footnoteText} onChange={event => setFootnoteText(event.target.value)} placeholder="متن پاورقی..." />
-              <button type="button" disabled={!canLinkImageRef || !footnoteText.trim()} onClick={() => setReferenceMessage(onApplyReference('footnote', { detail: footnoteText.trim() }) ? 'پاورقی اعمال شد.' : 'ابتدا متن داخل سند را انتخاب کنید.')}>اعمال پاورقی</button>
-            </details>
-
-            <details className="editor-v2-reference-accordion">
+            <details className="editor-v2-reference-accordion" open={openReferenceSection === 'reference'} onToggle={event => { if (event.currentTarget.open) setOpenReferenceSection('reference') }}>
               <summary>رفرنس داخل متن</summary>
               <textarea value={referenceText} onChange={event => setReferenceText(event.target.value)} placeholder="متن رفرنس یا توضیح منبع..." />
               <button type="button" disabled={!canLinkImageRef || !referenceText.trim()} onClick={() => setReferenceMessage(onApplyReference('reference', { detail: referenceText.trim() }) ? 'رفرنس اعمال شد.' : 'ابتدا متن داخل سند را انتخاب کنید.')}>اعمال رفرنس</button>
             </details>
-
-            <div className="editor-v2-media-search">
-              <Search size={14} />
-              <input value={referenceQuery} onChange={event => setReferenceQuery(event.target.value)} placeholder="جستجو در ارجاعات، پاورقی، رفرنس یا تصاویر..." />
-            </div>
             {referenceMessage && <p className="editor-v2-media-message">{referenceMessage}</p>}
 
-            <details className="editor-v2-reference-accordion" open>
+            <details className="editor-v2-reference-accordion" open={openReferenceSection === 'image'} onToggle={event => { if (event.currentTarget.open) setOpenReferenceSection('image') }}>
               <summary>اتصال متن به تصویر</summary>
               {canLinkImageRef && (
                 <p className="editor-v2-media-link-hint">
@@ -1671,35 +1713,6 @@ function RightPanelV2({
                     <small>صفحه {item.printNumber || 'نامشخص'}</small>
                   </button>
                 ))}
-              </div>
-            </details>
-
-            <details className="editor-v2-reference-accordion" open>
-              <summary>پاورقی‌ها، رفرنس‌ها و لینک‌های موجود</summary>
-              <div className="editor-v2-reference-list">
-                {filteredInlineRefs.length ? filteredInlineRefs.slice(0, 80).map(item => (
-                  <details key={item.key} className={`editor-v2-reference-item type-${item.type}`}>
-                    <summary>
-                      <b>{item.label}</b>
-                      <span>{item.text || item.target || 'بدون متن'}</span>
-                      <small>صفحه {item.printNumber || 'نامشخص'}</small>
-                    </summary>
-                    <div>
-                      <label>
-                        متن انتخاب‌شده
-                        <textarea readOnly value={item.text} />
-                      </label>
-                      <label>
-                        مقصد / متن ارجاع
-                        <textarea readOnly value={item.target || ''} />
-                      </label>
-                      <div className="editor-v2-reference-inline-actions">
-                        {item.blockId && <button type="button" onClick={() => onJumpToBlock(item.blockId!)}>رفتن به محل ارجاع</button>}
-                        <button type="button" onClick={() => onEditInlineReference(item)}>ویرایش در پنل بالا</button>
-                      </div>
-                    </div>
-                  </details>
-                )) : <p className="editor-v2-empty-panel">هنوز ارجاعی در این بخش پیدا نشد.</p>}
               </div>
             </details>
           </div>
@@ -2371,7 +2384,7 @@ export default function EditorV2Page() {
     element.className = 'book-inline-reference'
     element.dataset.referenceKind = kind
     if (kind === 'external' || kind === 'heading') {
-      ;(element as HTMLAnchorElement).href = target
+      ;(element as HTMLAnchorElement).setAttribute('href', target)
       element.classList.add(kind === 'heading' ? 'book-heading-reference' : 'book-external-reference')
       if (kind === 'external') {
         ;(element as HTMLAnchorElement).target = '_blank'
@@ -3379,6 +3392,41 @@ export default function EditorV2Page() {
     }, 140)
   }, [jumpToEditorBlock, readActiveReferenceFromElement])
 
+  const deleteInlineReference = useCallback(async (ref: EditorInlineReferenceV2) => {
+    if (ref.blockId) await jumpToEditorBlock(ref.blockId)
+    window.setTimeout(() => {
+      const root = editorSurfaceRef.current
+      if (!root) return
+      const block = ref.blockId
+        ? root.querySelector<HTMLElement>(`[data-block-id="${ref.blockId.replace(/"/g, '\\"')}"]`)
+        : null
+      const searchRoot = block || root
+      const expectedKind: BookReferenceKindV2 = ref.type === 'link'
+        ? 'external'
+        : ref.type === 'heading'
+          ? 'heading'
+          : ref.type
+      const normalize = (value = '') => normalizeBookTextV2(value).trim()
+      const candidates = Array.from(searchRoot.querySelectorAll<HTMLElement>('[data-reference-kind], .book-inline-reference, .book-image-reference, .citation-reference, [data-image-ref-id], [data-footnote-text], [data-reference-text], a[href]'))
+      const target = candidates.find(element => {
+        const kind = referenceKindFromElementV2(element)
+        if (kind !== expectedKind) return false
+        const current = readActiveReferenceFromElement(element)
+        if (!current) return false
+        const targetMatches = !ref.target || normalize(current.target) === normalize(ref.target) || normalize(current.detail) === normalize(ref.target)
+        const textMatches = !ref.text || normalize(current.text) === normalize(ref.text) || normalize(current.text).includes(normalize(ref.text))
+        return targetMatches && textMatches
+      }) || candidates.find(element => referenceKindFromElementV2(element) === expectedKind)
+      if (!target) return
+      pushEditorHistory()
+      target.replaceWith(...Array.from(target.childNodes).filter(node => !(node instanceof HTMLElement && node.classList.contains('citation-tooltip'))))
+      activeReferenceElementRef.current = null
+      setActiveReference(null)
+      markEditorDirty(block || root)
+      scheduleToolbarDocumentRefresh()
+    }, 120)
+  }, [jumpToEditorBlock, markEditorDirty, pushEditorHistory, readActiveReferenceFromElement, scheduleToolbarDocumentRefresh])
+
   const insertInteractiveBlock = useCallback((kind: string) => {
     const printNumber = selectedBlock?.printNumber
     const block = createInteractiveTemplateV2(kind, printNumber)
@@ -3612,6 +3660,7 @@ export default function EditorV2Page() {
           onApplyReference={applyReferenceToSelection}
           onRemoveReference={removeReferenceFromSelection}
           onEditInlineReference={editInlineReference}
+          onDeleteInlineReference={deleteInlineReference}
           activeReference={activeReference}
           onInsertInteractive={insertInteractiveBlock}
           onApplyCallout={wrapSelectedCallout}
