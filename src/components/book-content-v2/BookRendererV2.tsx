@@ -207,6 +207,25 @@ function findImageBlockByRefV2(blocks: BookBlockV2[], refId?: string): Extract<B
   return null
 }
 
+function clampedInlinePreviewPositionV2(root: HTMLElement, target: HTMLElement, estimatedWidth: number, estimatedHeight: number) {
+  const rootRect = root.getBoundingClientRect()
+  const targetRect = target.getBoundingClientRect()
+  const margin = 12
+  const minLeft = Math.max(margin, rootRect.left + margin)
+  const maxLeft = Math.max(minLeft, Math.min(window.innerWidth - estimatedWidth - margin, rootRect.right - estimatedWidth - margin))
+  const preferredLeft = targetRect.left + (targetRect.width / 2) - (estimatedWidth / 2)
+  const belowTop = targetRect.bottom + 10
+  const aboveTop = targetRect.top - estimatedHeight - 10
+  const maxTop = Math.min(window.innerHeight - estimatedHeight - margin, rootRect.bottom - estimatedHeight - margin)
+  const useAbove = belowTop > maxTop && aboveTop >= Math.max(margin, rootRect.top + margin)
+  const preferredTop = useAbove ? aboveTop : belowTop
+
+  return {
+    left: Math.min(maxLeft, Math.max(minLeft, preferredLeft)),
+    top: Math.min(maxTop, Math.max(Math.max(margin, rootRect.top + margin), preferredTop)),
+  }
+}
+
 export function BookRendererV2({ document, pages, blocks, compact = false, editable = false, selectedBlockId, onSelectBlock, onTextChange, onInternalLink }: BookRendererV2Props) {
   const options = { editable, selectedBlockId, onSelectBlock, onTextChange }
   const visiblePages = pages || document?.pages || []
@@ -216,6 +235,7 @@ export function BookRendererV2({ document, pages, blocks, compact = false, edita
   const [zoomCaptionVisible, setZoomCaptionVisible] = useState(true)
   const [zoomCaptionExiting, setZoomCaptionExiting] = useState(false)
   const [imageRefPreview, setImageRefPreview] = useState<{ block: Extract<BookBlockV2, { type: 'image' }>; x: number; y: number } | null>(null)
+  const [inlineRefPreview, setInlineRefPreview] = useState<{ text: string; direction: 'rtl' | 'ltr'; x: number; y: number } | null>(null)
   const openZoomForImageBlock = (imageBlock: Extract<BookBlockV2, { type: 'image' }>, src = imageBlock.url) => {
     if (!src) return
     const caption = cleanImageCaptionV2(imageBlock.caption)
@@ -290,15 +310,33 @@ export function BookRendererV2({ document, pages, blocks, compact = false, edita
     const refTarget = target.closest<HTMLElement>('[data-image-ref-id], a[href^="#"]')
     const refId = refTarget?.dataset.imageRefId || (refTarget instanceof HTMLAnchorElement ? refTarget.getAttribute('href') || '' : '')
     const imageBlock = findImageReferenceBlock(refId || '')
-    if (!imageBlock?.url) {
-      if (imageRefPreview) setImageRefPreview(null)
+    if (imageBlock?.url) {
+      if (inlineRefPreview) setInlineRefPreview(null)
+      setImageRefPreview({ block: imageBlock, x: event.clientX, y: event.clientY })
       return
     }
-    setImageRefPreview({ block: imageBlock, x: event.clientX, y: event.clientY })
+    if (imageRefPreview) setImageRefPreview(null)
+
+    const tooltipTarget = target.closest<HTMLElement>('[data-reference-tooltip]')
+    const tooltip = tooltipTarget?.dataset.referenceTooltip?.trim()
+    if (!tooltipTarget || !tooltip) {
+      if (inlineRefPreview) setInlineRefPreview(null)
+      return
+    }
+    const { left, top } = clampedInlinePreviewPositionV2(event.currentTarget as HTMLElement, tooltipTarget, 320, 92)
+    setInlineRefPreview({
+      text: tooltip,
+      direction: tooltipTarget.dataset.tooltipDir === 'ltr' || textDirectionV2(tooltip) === 'ltr' ? 'ltr' : 'rtl',
+      x: left,
+      y: top,
+    })
   }
   const handleImageReferenceOut = (event: MouseEvent<HTMLElement>) => {
     const target = event.target as HTMLElement
-    if (target.closest('[data-image-ref-id], a[href^="#"]')) setImageRefPreview(null)
+    if (target.closest('[data-image-ref-id], a[href^="#"], [data-reference-tooltip]')) {
+      if (imageRefPreview) setImageRefPreview(null)
+      if (inlineRefPreview) setInlineRefPreview(null)
+    }
   }
   const toggleZoomCaption = () => {
     if (zoomCaptionVisible && !zoomCaptionExiting) {
@@ -346,7 +384,16 @@ export function BookRendererV2({ document, pages, blocks, compact = false, edita
       {cleanImageCaptionV2(imageRefPreview.block.caption) && <span>{shortenReferencePreviewV2(cleanImageCaptionV2(imageRefPreview.block.caption), 20)}</span>}
     </div>
   )
-  if (blocks) return <div className={compact ? 'book-v2-renderer compact' : 'book-v2-renderer'} onClick={handleImageClick} onMouseMove={handleImageReferenceMove} onMouseOut={handleImageReferenceOut}>{renderBlocks(blocks, options)}{hoverPreview}{zoomModal}</div>
+  const inlinePreview = inlineRefPreview && (
+    <div
+      className="book-v2-inline-ref-preview"
+      style={{ left: inlineRefPreview.x, top: inlineRefPreview.y }}
+      dir={inlineRefPreview.direction}
+    >
+      {inlineRefPreview.text}
+    </div>
+  )
+  if (blocks) return <div className={compact ? 'book-v2-renderer compact' : 'book-v2-renderer'} onClick={handleImageClick} onMouseMove={handleImageReferenceMove} onMouseOut={handleImageReferenceOut}>{renderBlocks(blocks, options)}{hoverPreview}{inlinePreview}{zoomModal}</div>
   return (
     <article className={compact ? 'book-v2-renderer compact' : 'book-v2-renderer'} dir={document?.direction === 'ltr' ? 'ltr' : 'rtl'} onClick={handleImageClick} onMouseMove={handleImageReferenceMove} onMouseOut={handleImageReferenceOut}>
       {visiblePages.map((page, index) => (
@@ -356,6 +403,7 @@ export function BookRendererV2({ document, pages, blocks, compact = false, edita
         </section>
       ))}
       {hoverPreview}
+      {inlinePreview}
       {zoomModal}
     </article>
   )
