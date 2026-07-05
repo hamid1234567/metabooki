@@ -64,10 +64,19 @@ export function referenceTooltipDirectionV2(text = '') {
   return textDirectionV2(text)
 }
 
+export function referenceHoverTextV2(span: BookInlineV2) {
+  const kind = referenceKindFromInlineV2(span)
+  const target = normalizeBookTextV2(inlineReferenceTargetV2(span))
+  if (kind === 'external') return target
+  if (kind === 'heading') return `رفتن به سرفصل ${shortenReferencePreviewV2(target.replace(/^#/, ''), 48)}`
+  return ''
+}
+
 export function referenceHtmlDataAttributesV2(span: BookInlineV2) {
   const kind = referenceKindFromInlineV2(span)
   const tooltip = referenceTooltipTextV2(span)
-  const direction = referenceTooltipDirectionV2(tooltip || span.text)
+  const hoverText = referenceHoverTextV2(span)
+  const direction = referenceTooltipDirectionV2(tooltip || hoverText || span.text)
   return {
     'data-reference-kind': kind === 'none' ? undefined : kind,
     'data-image-ref-id': span.imageRefId || undefined,
@@ -75,6 +84,7 @@ export function referenceHtmlDataAttributesV2(span: BookInlineV2) {
     'data-footnote-text': span.footnoteText ? tooltip : undefined,
     'data-reference-anchor': span.referenceAnchor || undefined,
     'data-reference-text': span.referenceText ? tooltip : undefined,
+    'data-reference-tooltip': hoverText || undefined,
     'data-tooltip-dir': direction,
   }
 }
@@ -84,6 +94,8 @@ export function referenceClassNameV2(span: BookInlineV2, extra = '') {
   return [
     kind !== 'none' ? BOOK_REFERENCE_CLASS_V2 : '',
     kind === 'image' ? BOOK_REFERENCE_IMAGE_CLASS_V2 : '',
+    kind === 'external' ? 'book-external-reference' : '',
+    kind === 'heading' ? 'book-heading-reference' : '',
     kind === 'footnote' || kind === 'reference' ? BOOK_REFERENCE_CITATION_CLASS_V2 : '',
     kind === 'footnote' ? 'footnote-reference' : '',
     extra,

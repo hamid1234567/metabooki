@@ -1438,6 +1438,7 @@
 }
 
 .editor-v2-flow-editor .book-inline-reference {
+  position: relative;
   border-bottom: 1.5px dotted #2563eb;
   background: linear-gradient(180deg, transparent 58%, rgba(191, 219, 254, 0.45) 0);
   color: #1d4ed8;
@@ -1467,6 +1468,7 @@
 
 .editor-v2-image-reference,
 .editor-v2-flow-editor .book-image-reference {
+  position: relative;
   display: inline;
   border-bottom: 1.5px dotted #2563eb;
   background: linear-gradient(180deg, transparent 58%, rgba(191, 219, 254, 0.45) 0);
@@ -1476,17 +1478,60 @@
 }
 
 .editor-v2-image-reference::after,
-.editor-v2-flow-editor .book-image-reference::after {
-  content: "";
-  display: inline-block;
-  width: 0.58em;
-  height: 0.58em;
-  margin-inline: 0.22em 0.18em;
-  border: 1.7px solid #0284c7;
-  border-radius: 999px;
-  background: linear-gradient(#0284c7, #0284c7) 115% 50% / 0.34em 0.1em no-repeat;
-  transform: rotate(45deg) translateY(-0.08em);
+.editor-v2-flow-editor .book-image-reference::after,
+.editor-v2-flow-editor .book-external-reference::after,
+.editor-v2-flow-editor .book-heading-reference::after {
+  margin-inline: 0.18em;
+  color: #0284c7;
+  font-size: 0.78em;
+  font-weight: 900;
   vertical-align: super;
+}
+
+.editor-v2-image-reference::after,
+.editor-v2-flow-editor .book-image-reference::after {
+  content: "▧";
+}
+
+.editor-v2-flow-editor .book-external-reference::after {
+  content: "↗";
+}
+
+.editor-v2-flow-editor .book-heading-reference::after {
+  content: "§";
+}
+
+.editor-v2-flow-editor .book-inline-reference[data-reference-tooltip]::before {
+  content: attr(data-reference-tooltip);
+  position: absolute;
+  z-index: 10002;
+  inset-inline-start: 50%;
+  inset-block-end: calc(100% + 0.45rem);
+  width: max-content;
+  max-width: min(24rem, calc(100vw - 2rem));
+  transform: translateX(-50%);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  border: 1px solid hsl(207 75% 73% / 0.65);
+  border-radius: 0.8rem;
+  background: hsl(214 55% 12% / 0.92);
+  color: #fff;
+  box-shadow: 0 18px 42px hsl(215 42% 16% / 0.28);
+  padding: 0.45rem 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 750;
+  line-height: 1.7;
+  white-space: normal;
+  text-align: start;
+  transition: opacity 160ms ease, transform 160ms ease, visibility 160ms ease;
+}
+
+.editor-v2-flow-editor .book-inline-reference[data-reference-tooltip]:hover::before,
+.editor-v2-flow-editor .book-inline-reference[data-reference-tooltip]:focus-visible::before {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(-0.08rem);
 }
 
 .editor-v2-flow-editor table {

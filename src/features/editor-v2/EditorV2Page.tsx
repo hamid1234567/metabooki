@@ -2410,6 +2410,9 @@ export default function EditorV2Page() {
     if (kind === 'external' || kind === 'heading') {
       ;(element as HTMLAnchorElement).setAttribute('href', target)
       element.classList.add(kind === 'heading' ? 'book-heading-reference' : 'book-external-reference')
+      element.dataset.referenceTooltip = kind === 'heading'
+        ? `رفتن به سرفصل ${target.replace(/^#/, '')}`
+        : target
       if (kind === 'external') {
         ;(element as HTMLAnchorElement).target = '_blank'
         ;(element as HTMLAnchorElement).rel = 'noopener noreferrer'
