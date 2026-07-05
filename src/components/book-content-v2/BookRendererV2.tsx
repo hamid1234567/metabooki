@@ -226,11 +226,28 @@ export function BookRendererV2({ document, pages, blocks, compact = false, edita
     setZoomCaptionVisible(true)
     setZoomCaptionExiting(false)
   }
+  const findImageReferenceBlock = (refId?: string) => {
+    const block = findImageBlockByRefV2(rootBlocks, refId)
+    if (block) return block
+    const normalized = decodeURIComponent(String(refId || '').replace(/^#/, ''))
+    const asset = document?.assets.find(asset => [asset.id, asset.blockId].filter(Boolean).map(String).includes(normalized))
+    if (!asset?.url) return null
+    return {
+      id: asset.blockId || asset.id,
+      type: 'image' as const,
+      url: asset.url,
+      caption: asset.caption || '',
+      imageId: asset.id,
+      printNumber: asset.printNumber,
+      status: asset.status,
+      issue: asset.issue,
+    }
+  }
   const handleImageClick = (event: MouseEvent<HTMLElement>) => {
     const target = event.target as HTMLElement
     const imageReference = target.closest<HTMLElement>('[data-image-ref-id]')
     if (imageReference?.dataset.imageRefId) {
-      const imageBlock = findImageBlockByRefV2(rootBlocks, imageReference.dataset.imageRefId)
+      const imageBlock = findImageReferenceBlock(imageReference.dataset.imageRefId)
       if (imageBlock) {
         event.preventDefault()
         openZoomForImageBlock(imageBlock)
@@ -239,7 +256,7 @@ export function BookRendererV2({ document, pages, blocks, compact = false, edita
     }
     const localLink = target.closest<HTMLAnchorElement>('a[href^="#"]')
     if (localLink) {
-      const imageBlock = findImageBlockByRefV2(rootBlocks, localLink.getAttribute('href') || '')
+      const imageBlock = findImageReferenceBlock(localLink.getAttribute('href') || '')
       if (imageBlock) {
         event.preventDefault()
         openZoomForImageBlock(imageBlock)
@@ -262,7 +279,7 @@ export function BookRendererV2({ document, pages, blocks, compact = false, edita
     const target = event.target as HTMLElement
     const refTarget = target.closest<HTMLElement>('[data-image-ref-id], a[href^="#"]')
     const refId = refTarget?.dataset.imageRefId || (refTarget instanceof HTMLAnchorElement ? refTarget.getAttribute('href') || '' : '')
-    const imageBlock = findImageBlockByRefV2(rootBlocks, refId || '')
+    const imageBlock = findImageReferenceBlock(refId || '')
     if (!imageBlock?.url) {
       if (imageRefPreview) setImageRefPreview(null)
       return
