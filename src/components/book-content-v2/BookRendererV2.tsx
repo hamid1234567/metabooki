@@ -18,6 +18,7 @@ export type BookRendererV2Props = {
   selectedBlockId?: string
   onSelectBlock?: (blockId: string) => void
   onTextChange?: (blockId: string, value: string) => void
+  onInternalLink?: (targetId: string) => void
 }
 
 type RenderOptionsV2 = Pick<BookRendererV2Props, 'editable' | 'selectedBlockId' | 'onSelectBlock' | 'onTextChange'>
@@ -206,7 +207,7 @@ function findImageBlockByRefV2(blocks: BookBlockV2[], refId?: string): Extract<B
   return null
 }
 
-export function BookRendererV2({ document, pages, blocks, compact = false, editable = false, selectedBlockId, onSelectBlock, onTextChange }: BookRendererV2Props) {
+export function BookRendererV2({ document, pages, blocks, compact = false, editable = false, selectedBlockId, onSelectBlock, onTextChange, onInternalLink }: BookRendererV2Props) {
   const options = { editable, selectedBlockId, onSelectBlock, onTextChange }
   const visiblePages = pages || document?.pages || []
   const rootBlocks = blocks || visiblePages.flatMap(page => page.blocks)
@@ -256,10 +257,19 @@ export function BookRendererV2({ document, pages, blocks, compact = false, edita
     }
     const localLink = target.closest<HTMLAnchorElement>('a[href^="#"]')
     if (localLink) {
-      const imageBlock = findImageReferenceBlock(localLink.getAttribute('href') || '')
+      const href = localLink.getAttribute('href') || ''
+      const imageBlock = findImageReferenceBlock(href)
       if (imageBlock) {
         event.preventDefault()
         openZoomForImageBlock(imageBlock)
+        return
+      }
+      const targetId = decodeURIComponent(href.replace(/^#/, ''))
+      if (targetId) {
+        event.preventDefault()
+        const localTarget = (event.currentTarget as HTMLElement).querySelector<HTMLElement>(`#${CSS.escape(targetId)}, [data-reader-anchor="${CSS.escape(targetId)}"]`)
+        if (localTarget) localTarget.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        else onInternalLink?.(targetId)
         return
       }
     }

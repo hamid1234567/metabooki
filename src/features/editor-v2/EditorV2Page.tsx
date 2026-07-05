@@ -1392,12 +1392,12 @@ function RightPanelV2({
     })
   }, [libraryMediaRefs, mediaQuery])
   const filteredReferenceMediaRefs = useMemo(() => {
-    const query = referenceQuery.trim()
-    return libraryMediaRefs.filter(item => {
+    const query = mediaQuery.trim()
+    return mediaRefs.filter(item => {
       if (!query) return true
       return bookSearchIncludes(`${item.caption || ''} ${item.issue || ''} ${item.printNumber || ''}`, query)
     })
-  }, [libraryMediaRefs, referenceQuery])
+  }, [mediaRefs, mediaQuery])
   const filteredInlineRefs = useMemo(() => {
     const query = referenceQuery.trim()
     return inlineRefs.filter(item => {
@@ -1411,7 +1411,13 @@ function RightPanelV2({
       || mediaRefs.find(item => item.url && (item.blockId || item.assetId))
   }, [canLinkImageRef, libraryMediaRefs, mediaRefs])
   useEffect(() => {
-    if (!activeReference) return
+    if (!activeReference) {
+      setLinkHref('')
+      setFootnoteText('')
+      setReferenceText('')
+      setHeadingTarget('')
+      return
+    }
     if (activeReference.kind === 'external') setLinkHref(activeReference.target || '')
     if (activeReference.kind === 'heading') setHeadingTarget(activeReference.target || '')
     if (activeReference.kind === 'footnote') setFootnoteText(activeReference.detail || activeReference.target || '')
@@ -1692,6 +1698,11 @@ function RightPanelV2({
                   متن انتخاب شده است؛ روی تصویر بزنید تا همان متن به تصویر وصل شود. تصاویر نزدیک به همین صفحه در اولویت هستند.
                 </p>
               )}
+              <div className="editor-v2-media-search">
+                <Search size={14} />
+                <input value={mediaQuery} onChange={event => setMediaQuery(event.target.value)} placeholder="جستجو در تصاویر کتاب..." />
+                {mediaQuery && <button type="button" onClick={() => setMediaQuery('')}>×</button>}
+              </div>
               <div className="editor-v2-media-list compact">
                 {filteredReferenceMediaRefs.slice(0, 50).map(item => (
                   <button
@@ -2336,7 +2347,6 @@ export default function EditorV2Page() {
     const referenceElement = referenceElementFromNode(element || null)
     activeReferenceElementRef.current = referenceElement
     setActiveReference(readActiveReferenceFromElement(referenceElement))
-    if (referenceElement) setActivePanel('references')
     const target = element?.closest<HTMLElement>('[data-block-id]')
     syncImageSizeControl(target?.matches('figure[data-v2-type="image"]') ? target : target?.closest<HTMLElement>('figure[data-v2-type="image"]'))
     setSelectedBlockId(target?.dataset.blockId)
@@ -3253,8 +3263,14 @@ export default function EditorV2Page() {
       }
       return
     }
+    const referenceElement = referenceElementFromNode(target)
+    if (referenceElement) {
+      activeReferenceElementRef.current = referenceElement
+      setActiveReference(readActiveReferenceFromElement(referenceElement))
+      setActivePanel('references')
+    }
     updateSelectedBlockFromDom()
-  }, [deleteImageBlock, updateSelectedBlockFromDom])
+  }, [deleteImageBlock, readActiveReferenceFromElement, referenceElementFromNode, updateSelectedBlockFromDom])
 
   const applyAutoCaptions = useCallback(() => {
     const root = editorSurfaceRef.current
