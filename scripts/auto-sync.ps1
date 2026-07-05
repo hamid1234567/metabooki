@@ -1,7 +1,8 @@
 param(
   [int]$IntervalSeconds = 20,
   [int]$QuietSeconds = 45,
-  [switch]$Once
+  [switch]$Once,
+  [switch]$BumpVersion
 )
 
 $ErrorActionPreference = 'Stop'
@@ -39,7 +40,11 @@ function Update-AppVersion {
 
 function Publish-Changes {
   Write-Host "`n[Metabooki] Changes detected. Running production build..." -ForegroundColor Cyan
-  Update-AppVersion
+  if ($BumpVersion) {
+    Update-AppVersion
+  } else {
+    Write-Host '[Metabooki] Version bump skipped. Use -BumpVersion for release-level updates.' -ForegroundColor DarkGray
+  }
   & npm.cmd run build
   if ($LASTEXITCODE -ne 0) {
     Write-Host '[Metabooki] Build failed. Nothing was pushed.' -ForegroundColor Red
