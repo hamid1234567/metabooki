@@ -1411,6 +1411,18 @@ function RightPanelV2({
       || mediaRefs.find(item => item.url && (item.blockId || item.assetId))
   }, [canLinkImageRef, libraryMediaRefs, mediaRefs])
   useEffect(() => {
+    if (activePanel !== 'references') {
+      setLinkHref('')
+      setFootnoteText('')
+      setReferenceText('')
+      setHeadingTarget('')
+      setSelectedReferenceItem(null)
+      setReferenceQuery('')
+      setReferenceMessage('')
+      return
+    }
+  }, [activePanel])
+  useEffect(() => {
     if (!activeReference) {
       setLinkHref('')
       setFootnoteText('')
@@ -3267,9 +3279,12 @@ export default function EditorV2Page() {
     }
     const referenceElement = referenceElementFromNode(target)
     if (referenceElement) {
+      event.preventDefault()
+      event.stopPropagation()
       activeReferenceElementRef.current = referenceElement
       setActiveReference(readActiveReferenceFromElement(referenceElement))
       setActivePanel('references')
+      return
     }
     updateSelectedBlockFromDom()
   }, [deleteImageBlock, readActiveReferenceFromElement, referenceElementFromNode, updateSelectedBlockFromDom])
