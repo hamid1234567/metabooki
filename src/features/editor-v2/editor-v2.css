@@ -1477,7 +1477,7 @@
 
 .editor-v2-image-reference::after,
 .editor-v2-flow-editor .book-image-reference::after {
-  content: " تصویر";
+  content: " 🖼";
   margin-inline: 0.15em;
   color: #0284c7;
   font-size: 0.72em;
