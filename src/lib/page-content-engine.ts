@@ -167,25 +167,6 @@ function mergePageAssetsSummaryV2(currentAssets: BookAssetV2[], bookId: string, 
   )
 }
 
-function chunkRowsV2<T>(rows: T[], size: number) {
-  const chunks: T[][] = []
-  for (let index = 0; index < rows.length; index += size) {
-    chunks.push(rows.slice(index, index + size))
-  }
-  return chunks
-}
-
-async function upsertChunksV2(table: string, rows: unknown[], onConflict: string, chunkSize: number) {
-  const results: unknown[] = []
-  for (const chunk of chunkRowsV2(rows, chunkSize)) {
-    if (!chunk.length) continue
-    const result = await (supabase as any).from(table).upsert(chunk, { onConflict })
-    results.push(result)
-    if (result.error) throw result.error
-  }
-  return results
-}
-
 export function manifestFromDocumentV2(document: BookDocumentV2, options: { pageCount?: number; assetsSummary?: BookAssetV2[] } = {}): PageEngineManifest {
   const toc = document.toc.length ? document.toc : buildTocFromHeadingsV2(document.pages)
   return {
@@ -484,20 +465,18 @@ export async function savePageEngineDocument(
 
   const requestBytes = jsonBytesV2({ manifestRow: shouldUpdateManifest ? manifestRow : null, pageRows, searchRows, assetRows })
   const started = performance.now()
-  const manifestResult = shouldUpdateManifest
-    ? await (supabase as any).from('book_content_manifests').upsert(manifestRow, { onConflict: 'book_id' })
-    : { data: null, error: null, status: 204 }
-  if (manifestResult.error) throw manifestResult.error
-
-  // Keep editor writes below browser/network request limits. A single page can
-  // contain large inline/image metadata, so page rows are saved one request at a time.
-  const pagesResult = await upsertChunksV2('book_pages', pageRows, 'book_id,page_index', 1)
-  const searchResult = await upsertChunksV2('book_search_index', searchRows, 'book_id,page_index', 20)
-  const assetsResult = assetRows.length
-    ? await upsertChunksV2('book_assets', assetRows, 'book_id,asset_id', 20)
-    : [{ data: null, error: null, status: 204 }]
+  const [manifestResult, pagesResult, searchResult, assetsResult] = await Promise.all([
+    shouldUpdateManifest
+      ? (supabase as any).from('book_content_manifests').upsert(manifestRow, { onConflict: 'book_id' })
+      : Promise.resolve({ data: null, error: null, status: 204 }),
+    (supabase as any).from('book_pages').upsert(pageRows, { onConflict: 'book_id,page_index' }),
+    (supabase as any).from('book_search_index').upsert(searchRows, { onConflict: 'book_id,page_index' }),
+    assetRows.length
+      ? (supabase as any).from('book_assets').upsert(assetRows, { onConflict: 'book_id,asset_id' })
+      : Promise.resolve({ data: null, error: null, status: 204 }),
+  ])
   const networkMs = performance.now() - started
-  const errors = [manifestResult, ...pagesResult, ...searchResult, ...assetsResult].map((result: any) => result?.error).filter(Boolean)
+  const errors = [manifestResult, pagesResult, searchResult, assetsResult].map(result => result?.error).filter(Boolean)
   const responseBytes = jsonBytesV2({ manifestResult, pagesResult, searchResult, assetsResult })
   if (errors.length) throw errors[0]
   return {
