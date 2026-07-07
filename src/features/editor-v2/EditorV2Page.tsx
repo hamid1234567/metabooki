@@ -1839,6 +1839,7 @@ export default function EditorV2Page() {
   const editorPaperRef = useRef<HTMLDivElement | null>(null)
   const editorSurfaceRef = useRef<HTMLDivElement | null>(null)
   const dirtyPageIndexesRef = useRef<Set<number>>(new Set())
+  const dirtyAssetPageIndexesRef = useRef<Set<number>>(new Set())
   const savedSelectionRef = useRef<Range | null>(null)
   const activeReferenceElementRef = useRef<HTMLElement | null>(null)
   const lastInlineStyleTargetRef = useRef<HTMLElement | null>(null)
@@ -1962,6 +1963,7 @@ export default function EditorV2Page() {
         setSelectedBlockId(undefined)
         editRevisionRef.current = 0
         dirtyPageIndexesRef.current = new Set()
+        dirtyAssetPageIndexesRef.current = new Set()
         setDirtyRevision(0)
         setDirty(false)
         if (!loaded.pageEngine && isUuid(found.id)) {
@@ -2001,8 +2003,9 @@ export default function EditorV2Page() {
     const dirtyPageIndexes = dirtyPageIndexesRef.current.size
       ? new Set(dirtyPageIndexesRef.current)
       : new Set(nextDocument.pages.map(page => page.index))
+    const dirtyAssetPageIndexes = new Set(dirtyAssetPageIndexesRef.current)
+    const hasAssetChanges = dirtyAssetPageIndexes.size > 0
     const shouldUpdateTocManifest = tocStorageSignatureV2(nextDocument.toc) !== tocStorageSignatureV2(document.toc)
-      || pagesHaveHeadingV2(nextDocument, dirtyPageIndexes)
     let pageEngineResult: Awaited<ReturnType<typeof savePageEngineDocument>> | null = null
     let pageEngineError: unknown = null
     if (isUuid(book.id)) {
@@ -2010,7 +2013,9 @@ export default function EditorV2Page() {
         pageEngineResult = await savePageEngineDocument(book.id, nextDocument, dirtyPageIndexes, {
           pageCount: Number(book.page_count || book.metadata?.editor_v2_page_count || book.metadata?.page_count || 0) || nextDocument.pages.length,
           assetsSummary: nextDocument.assets,
-          updateManifest: shouldUpdateTocManifest,
+          updateManifest: shouldUpdateTocManifest || hasAssetChanges,
+          updateAssets: hasAssetChanges,
+          updateAssetsSummary: hasAssetChanges,
         })
         setSaveProgress(68)
       } catch (error) {
@@ -2121,6 +2126,7 @@ export default function EditorV2Page() {
         setBook(nextBook)
         setDirty(false)
         dirtyPageIndexesRef.current = new Set()
+        dirtyAssetPageIndexesRef.current = new Set()
         setSaveProgress(100)
         setSaveState('saved')
       } else {
@@ -2247,7 +2253,7 @@ export default function EditorV2Page() {
     }
   }, [])
 
-  const commitDocument = useCallback((updater: (current: BookDocumentV2) => BookDocumentV2, options: { recordHistory?: boolean; dirtyPageIndexes?: Iterable<number | undefined> } = {}) => {
+  const commitDocument = useCallback((updater: (current: BookDocumentV2) => BookDocumentV2, options: { recordHistory?: boolean; dirtyPageIndexes?: Iterable<number | undefined>; dirtyAssetPageIndexes?: Iterable<number | undefined> } = {}) => {
     if (options.recordHistory) pushEditorHistory()
     setDocument(current => {
       if (!current) return current
@@ -2259,6 +2265,12 @@ export default function EditorV2Page() {
       dirtyPageIndexesRef.current = explicitDirty.length
         ? new Set([...dirtyPageIndexesRef.current, ...explicitDirty])
         : new Set(next.pages.map(page => page.index))
+      const explicitAssetDirty = options.dirtyAssetPageIndexes
+        ? [...options.dirtyAssetPageIndexes].map(Number).filter(Number.isFinite)
+        : []
+      if (explicitAssetDirty.length) {
+        dirtyAssetPageIndexesRef.current = new Set([...dirtyAssetPageIndexesRef.current, ...explicitAssetDirty])
+      }
       setDirty(true)
       return next
     })
@@ -2433,7 +2445,7 @@ export default function EditorV2Page() {
   const markDirtyPageFromNode = useCallback((source?: EventTarget | Node | null) => {
     const root = editorSurfaceRef.current
     const selection = window.getSelection()
-    const sourceNode = source instanceof Node
+    const sourceNode = source instanceof Node && source !== root
       ? source
       : selection?.anchorNode || savedSelectionRef.current?.commonAncestorContainer || null
     const element = sourceNode instanceof Element ? sourceNode : sourceNode?.parentElement
@@ -2441,6 +2453,19 @@ export default function EditorV2Page() {
       || (selectedBlockId ? root?.querySelector<HTMLElement>(`[data-block-id="${selectedBlockId.replace(/"/g, '\\"')}"]`)?.closest<HTMLElement>('.editor-v2-flow-page') : null)
     const pageIndex = Number(pageElement?.dataset.pageIndex)
     if (Number.isFinite(pageIndex)) dirtyPageIndexesRef.current.add(pageIndex)
+  }, [selectedBlockId])
+
+  const markDirtyAssetPageFromNode = useCallback((source?: EventTarget | Node | null) => {
+    const root = editorSurfaceRef.current
+    const selection = window.getSelection()
+    const sourceNode = source instanceof Node && source !== root
+      ? source
+      : selection?.anchorNode || savedSelectionRef.current?.commonAncestorContainer || null
+    const element = sourceNode instanceof Element ? sourceNode : sourceNode?.parentElement
+    const pageElement = element?.closest<HTMLElement>('.editor-v2-flow-page')
+      || (selectedBlockId ? root?.querySelector<HTMLElement>(`[data-block-id="${selectedBlockId.replace(/"/g, '\\"')}"]`)?.closest<HTMLElement>('.editor-v2-flow-page') : null)
+    const pageIndex = Number(pageElement?.dataset.pageIndex)
+    if (Number.isFinite(pageIndex)) dirtyAssetPageIndexesRef.current.add(pageIndex)
   }, [selectedBlockId])
 
   const markEditorDirty = useCallback((source?: EventTarget | Node | null) => {
@@ -2579,16 +2604,20 @@ export default function EditorV2Page() {
       if (valueLabel) valueLabel.textContent = `${percent}%`
       setSelectedBlockId(blockId)
       markEditorDirty(target)
+      markDirtyAssetPageFromNode(target)
       scheduleToolbarDocumentRefresh()
       return
     }
     markEditorDirty(target)
+    if (target.closest('figure[data-v2-type="image"], figcaption[data-image-caption], figcaption')) {
+      markDirtyAssetPageFromNode(target)
+    }
     const selectionNode = window.getSelection()?.anchorNode
     const selectionElement = selectionNode instanceof Element ? selectionNode : selectionNode?.parentElement
     if (target.closest('h1,h2,h3,h4,h5,h6,[data-v2-type="heading"]') || selectionElement?.closest('h1,h2,h3,h4,h5,h6,[data-v2-type="heading"]')) {
       scheduleToolbarDocumentRefresh()
     }
-  }, [document, markEditorDirty, pushEditorHistory, scheduleToolbarDocumentRefresh])
+  }, [document, markDirtyAssetPageFromNode, markEditorDirty, pushEditorHistory, scheduleToolbarDocumentRefresh])
 
   const restoreEditorHtmlSnapshot = useCallback((html: string) => {
     if (!editorSurfaceRef.current) return
@@ -2598,6 +2627,7 @@ export default function EditorV2Page() {
       if (!current) return current
       const next = documentFromEditorDomV2(current, editorSurfaceRef.current)
       dirtyPageIndexesRef.current = new Set(next.pages.map(page => page.index))
+      dirtyAssetPageIndexesRef.current = new Set()
       return next
     })
     editRevisionRef.current += 1
@@ -3148,7 +3178,7 @@ export default function EditorV2Page() {
       status: asset.status,
       issue: asset.issue,
     }
-    commitDocument(current => insertBlockAfterV2(current, insertionBlockId, block), { dirtyPageIndexes: [dirtyPageIndex] })
+    commitDocument(current => insertBlockAfterV2(current, insertionBlockId, block), { dirtyPageIndexes: [dirtyPageIndex], dirtyAssetPageIndexes: [dirtyPageIndex] })
     insertBlockIntoEditorDom(block, insertionBlockId)
     setSelectedBlockId(block.id)
   }, [commitDocument, document, insertBlockIntoEditorDom, selectedBlockId, selectedBlockIdFromEditorTarget])
@@ -3182,7 +3212,7 @@ export default function EditorV2Page() {
       commitDocument(current => {
         const next = insertBlockAfterV2(current, insertionBlockId, block)
         return { ...next, assets: [...next.assets, asset] }
-      }, { dirtyPageIndexes: [dirtyPageIndex] })
+      }, { dirtyPageIndexes: [dirtyPageIndex], dirtyAssetPageIndexes: [dirtyPageIndex] })
       insertBlockIntoEditorDom(block, insertionBlockId)
       setSelectedBlockId(block.id)
       setAiMessage('تصویر آپلود و در سند درج شد.')
@@ -3228,7 +3258,7 @@ export default function EditorV2Page() {
       commitDocument(current => {
         const next = insertBlockAfterV2(current, insertionBlockId, block)
         return { ...next, assets: [...next.assets, asset] }
-      }, { dirtyPageIndexes: [dirtyPageIndex] })
+      }, { dirtyPageIndexes: [dirtyPageIndex], dirtyAssetPageIndexes: [dirtyPageIndex] })
       insertBlockIntoEditorDom(block, insertionBlockId)
       recordAiUsage(result.usage)
       setSelectedBlockId(block.id)
@@ -3245,7 +3275,7 @@ export default function EditorV2Page() {
     commitDocument(current => updateBlockInDocumentV2(current, blockId, block => {
       if (block.type !== 'image') return block
       return { ...block, widthPercent, widthPx: undefined }
-    }), { dirtyPageIndexes: [dirtyPageIndex] })
+    }), { dirtyPageIndexes: [dirtyPageIndex], dirtyAssetPageIndexes: [dirtyPageIndex] })
   }, [commitDocument, document])
 
   const deleteImageBlock = useCallback((blockId: string) => {
@@ -3280,7 +3310,7 @@ export default function EditorV2Page() {
       })
       const assets = current.assets.filter(asset => !removedAssetIds.has(asset.id) || usedAssetIds.has(asset.id))
       return rebuildDocumentTocV2({ ...current, pages, assets })
-    }, { recordHistory: true, dirtyPageIndexes: [dirtyPageIndex] })
+    }, { recordHistory: true, dirtyPageIndexes: [dirtyPageIndex], dirtyAssetPageIndexes: [dirtyPageIndex] })
     setSelectedBlockId(current => current === blockId ? undefined : current)
     scheduleRefreshDocumentFromEditor()
   }, [commitDocument, document, pushEditorHistory, scheduleRefreshDocumentFromEditor])
@@ -3384,6 +3414,8 @@ export default function EditorV2Page() {
       figure.dataset.autoCaption = 'true'
       while (next.firstChild) caption.appendChild(next.firstChild)
       next.remove()
+      const pageIndex = Number(figure.closest<HTMLElement>('.editor-v2-flow-page')?.dataset.pageIndex)
+      if (Number.isFinite(pageIndex)) dirtyAssetPageIndexesRef.current.add(pageIndex)
       changes.push(figure.dataset.blockId || '')
     })
     if (!changes.length) {
@@ -3397,6 +3429,7 @@ export default function EditorV2Page() {
   }, [markEditorDirty, pushEditorHistory, scheduleToolbarDocumentRefresh])
 
   const resolveMediaIssue = useCallback((ref: EditorMediaReferenceV2) => {
+    const dirtyPageIndex = Number.isFinite(Number(ref.pageIndex)) ? Number(ref.pageIndex) : undefined
     commitDocument(current => {
       const assets = current.assets.map(asset => asset.id === ref.assetId ? { ...asset, status: 'ready' as const, issue: undefined, caption: asset.caption || ref.caption || 'تصویر کتاب' } : asset)
       const pages = current.pages.map(page => ({
@@ -3409,7 +3442,7 @@ export default function EditorV2Page() {
         }),
       }))
       return rebuildDocumentTocV2({ ...current, assets, pages })
-    })
+    }, { dirtyPageIndexes: [dirtyPageIndex], dirtyAssetPageIndexes: [dirtyPageIndex] })
   }, [commitDocument])
 
   const jumpToEditorBlock = useCallback(async (blockId: string, pageIndex?: number) => {
@@ -3435,6 +3468,7 @@ export default function EditorV2Page() {
           },
         } : current)
         dirtyPageIndexesRef.current = new Set()
+        dirtyAssetPageIndexesRef.current = new Set()
         setDirty(false)
       }
     }
@@ -3627,6 +3661,7 @@ export default function EditorV2Page() {
       setActiveTocId(manifest.toc[0]?.id)
       setDirty(false)
       dirtyPageIndexesRef.current = new Set()
+      dirtyAssetPageIndexesRef.current = new Set()
       toast.success(`فهرست با ${manifest.toc.length.toLocaleString('fa-IR')} عنوان بازسازی شد.`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'بازسازی فهرست ناموفق بود.')
@@ -3653,6 +3688,7 @@ export default function EditorV2Page() {
           },
         } : current)
         dirtyPageIndexesRef.current = new Set()
+        dirtyAssetPageIndexesRef.current = new Set()
         setDirty(false)
       }
     }

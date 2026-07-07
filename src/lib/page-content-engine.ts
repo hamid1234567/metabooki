@@ -396,7 +396,7 @@ export async function savePageEngineDocument(
   bookId: string,
   document: BookDocumentV2,
   dirtyPageIndexes: Iterable<number> | null,
-  options: { pageCount?: number; assetsSummary?: BookAssetV2[]; updateManifest?: boolean } = {},
+  options: { pageCount?: number; assetsSummary?: BookAssetV2[]; updateManifest?: boolean; updateAssets?: boolean; updateAssetsSummary?: boolean } = {},
 ): Promise<PageEngineSaveResult | null> {
   if (!hasSupabase || !isUuidV2(bookId)) return null
   const dirtySet = dirtyPageIndexes ? new Set([...dirtyPageIndexes].map(Number).filter(Number.isFinite)) : new Set(document.pages.map(page => page.index))
@@ -434,7 +434,8 @@ export async function savePageEngineDocument(
       .join('\n'),
     updated_at: row.updated_at,
   }))
-  const assetRows = dirtyPages.flatMap(page => collectPageAssets(bookId, page).map(asset => ({
+  const shouldUpdateAssets = options.updateAssets !== false
+  const assetRows = shouldUpdateAssets ? dirtyPages.flatMap(page => collectPageAssets(bookId, page).map(asset => ({
     book_id: bookId,
     asset_id: asset.id,
     page_index: page.index,
@@ -446,18 +447,19 @@ export async function savePageEngineDocument(
     issue: asset.issue || null,
     metadata: { printNumber: asset.printNumber ?? null },
     updated_at: document.updatedAt,
-  })))
+  }))) : []
   const shouldUpdateManifest = options.updateManifest !== false
-  const assetsSummary = options.assetsSummary
+  const shouldUpdateAssetsSummary = options.updateAssetsSummary !== false
+  const assetsSummary = shouldUpdateAssetsSummary && options.assetsSummary
     ? mergePageAssetsSummaryV2(options.assetsSummary, bookId, dirtyPages)
-    : assetsFromDocumentV2(document)
+    : shouldUpdateAssetsSummary ? assetsFromDocumentV2(document) : []
   const manifest = shouldUpdateManifest ? manifestFromDocumentV2(document, { ...options, assetsSummary }) : null
   const manifestRow = {
     book_id: bookId,
     schema_version: PAGE_ENGINE_SCHEMA_VERSION,
     page_count: manifest?.pageCount || Math.max(document.pages.length, Number(options.pageCount || 0) || 0),
     toc: manifest?.toc || [],
-    assets_summary: manifest?.assetsSummary || [],
+    ...(shouldUpdateAssetsSummary ? { assets_summary: manifest?.assetsSummary || [] } : {}),
     search_ready: true,
     content_hash: manifest ? String(jsonBytesV2(manifest)) : '',
     updated_at: document.updatedAt,
@@ -467,7 +469,9 @@ export async function savePageEngineDocument(
   const started = performance.now()
   const [manifestResult, pagesResult, searchResult, assetsResult] = await Promise.all([
     shouldUpdateManifest
-      ? (supabase as any).from('book_content_manifests').upsert(manifestRow, { onConflict: 'book_id' })
+      ? shouldUpdateAssetsSummary
+        ? (supabase as any).from('book_content_manifests').upsert(manifestRow, { onConflict: 'book_id' })
+        : (supabase as any).from('book_content_manifests').update(manifestRow).eq('book_id', bookId)
       : Promise.resolve({ data: null, error: null, status: 204 }),
     (supabase as any).from('book_pages').upsert(pageRows, { onConflict: 'book_id,page_index' }),
     (supabase as any).from('book_search_index').upsert(searchRows, { onConflict: 'book_id,page_index' }),
