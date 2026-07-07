@@ -1089,6 +1089,19 @@ function formatMsV2(value: number) {
   return `${(value / 1000).toLocaleString('en-US', { maximumFractionDigits: 2 })} s`
 }
 
+function formatSupabaseErrorV2(error: unknown) {
+  const item = error as { code?: string; message?: string; details?: string; hint?: string; status?: number; statusText?: string }
+  const parts = [
+    item?.code ? `code: ${item.code}` : '',
+    item?.message ? `message: ${item.message}` : '',
+    item?.details ? `details: ${item.details}` : '',
+    item?.hint ? `hint: ${item.hint}` : '',
+    item?.status ? `status: ${item.status}` : '',
+    item?.statusText ? `statusText: ${item.statusText}` : '',
+  ].filter(Boolean)
+  return parts.join('\n') || (error instanceof Error ? error.message : 'Unknown Supabase error')
+}
+
 function showSaveTrafficToastV2(report: {
   mode: 'supabase' | 'supabase/page-engine' | 'local'
   manual?: boolean
@@ -1991,6 +2004,7 @@ export default function EditorV2Page() {
     const shouldUpdateTocManifest = tocStorageSignatureV2(nextDocument.toc) !== tocStorageSignatureV2(document.toc)
       || pagesHaveHeadingV2(nextDocument, dirtyPageIndexes)
     let pageEngineResult: Awaited<ReturnType<typeof savePageEngineDocument>> | null = null
+    let pageEngineError: unknown = null
     if (isUuid(book.id)) {
       try {
         pageEngineResult = await savePageEngineDocument(book.id, nextDocument, dirtyPageIndexes, {
@@ -1999,7 +2013,8 @@ export default function EditorV2Page() {
           updateManifest: shouldUpdateTocManifest,
         })
         setSaveProgress(68)
-      } catch {
+      } catch (error) {
+        pageEngineError = error
         pageEngineResult = null
         setSaveProgress(24)
       }
@@ -2101,21 +2116,36 @@ export default function EditorV2Page() {
         setSaveState(current => current === 'saved' ? 'idle' : current)
         setSaveProgress(null)
       }, 2200)
+      if (pageEngineError) {
+        toast.warning('Page engine save fell back to legacy book save', {
+          description: formatSupabaseErrorV2(pageEngineError),
+          duration: 20_000,
+        })
+      }
       if (saveReport) showSaveTrafficToastV2(saveReport)
-    } catch {
+    } catch (error) {
       const remainingAnimationMs = 360 - (performance.now() - startedAt)
       if (remainingAnimationMs > 0) {
         await new Promise(resolve => window.setTimeout(resolve, remainingAnimationMs))
       }
       setSaveState('error')
       setSaveProgress(null)
+      const saveErrorDetails = formatSupabaseErrorV2(error)
+      const pageEngineErrorDetails = pageEngineError ? `\n\nPage engine error before fallback:\n${formatSupabaseErrorV2(pageEngineError)}` : ''
       if (saveReport) {
         toast.error('Save failed', {
           description: [
+            saveErrorDetails,
             `• Supabase time: ${formatMsV2(saveReport.networkMs)}`,
             `• Upload payload: ${formatBytesV2(saveReport.requestBytes)}`,
             `• Supabase response egress: ${formatBytesV2(saveReport.responseBytes)}`,
-          ].join('\n'),
+            pageEngineErrorDetails,
+          ].filter(Boolean).join('\n'),
+          duration: 20_000,
+        })
+      } else {
+        toast.error('Save failed', {
+          description: `${saveErrorDetails}${pageEngineErrorDetails}`,
           duration: 20_000,
         })
       }
