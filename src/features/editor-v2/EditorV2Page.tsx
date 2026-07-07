@@ -2019,6 +2019,9 @@ export default function EditorV2Page() {
         setSaveProgress(24)
       }
     }
+    if (isUuid(book.id) && !pageEngineResult) {
+      throw pageEngineError || new Error('Page-based save is unavailable for this book. Full-book fallback is disabled to prevent large payloads.')
+    }
     const usePageEngine = Boolean(pageEngineResult)
     const confirmedToc = usePageEngine ? [] : documentV2ToConfirmedToc(nextDocument)
     const metadata = {
@@ -2116,12 +2119,6 @@ export default function EditorV2Page() {
         setSaveState(current => current === 'saved' ? 'idle' : current)
         setSaveProgress(null)
       }, 2200)
-      if (pageEngineError) {
-        toast.warning('Page engine save fell back to legacy book save', {
-          description: formatSupabaseErrorV2(pageEngineError),
-          duration: 20_000,
-        })
-      }
       if (saveReport) showSaveTrafficToastV2(saveReport)
     } catch (error) {
       const remainingAnimationMs = 360 - (performance.now() - startedAt)
