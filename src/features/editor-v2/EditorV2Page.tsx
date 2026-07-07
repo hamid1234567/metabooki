@@ -2019,6 +2019,9 @@ export default function EditorV2Page() {
         setSaveProgress(24)
       }
     }
+    if (pageEngineError && book.metadata?.editor_v2_page_engine) {
+      throw pageEngineError
+    }
     const usePageEngine = Boolean(pageEngineResult)
     const confirmedToc = usePageEngine ? [] : documentV2ToConfirmedToc(nextDocument)
     const metadata = {
