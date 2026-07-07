@@ -1840,6 +1840,7 @@ export default function EditorV2Page() {
   const editorSurfaceRef = useRef<HTMLDivElement | null>(null)
   const dirtyPageIndexesRef = useRef<Set<number>>(new Set())
   const dirtyAssetPageIndexesRef = useRef<Set<number>>(new Set())
+  const dirtyTocRef = useRef(false)
   const savedSelectionRef = useRef<Range | null>(null)
   const activeReferenceElementRef = useRef<HTMLElement | null>(null)
   const lastInlineStyleTargetRef = useRef<HTMLElement | null>(null)
@@ -1964,6 +1965,7 @@ export default function EditorV2Page() {
         editRevisionRef.current = 0
         dirtyPageIndexesRef.current = new Set()
         dirtyAssetPageIndexesRef.current = new Set()
+        dirtyTocRef.current = false
         setDirtyRevision(0)
         setDirty(false)
         if (!loaded.pageEngine && isUuid(found.id)) {
@@ -2005,7 +2007,7 @@ export default function EditorV2Page() {
       : new Set(nextDocument.pages.map(page => page.index))
     const dirtyAssetPageIndexes = new Set(dirtyAssetPageIndexesRef.current)
     const hasAssetChanges = dirtyAssetPageIndexes.size > 0
-    const shouldUpdateTocManifest = tocStorageSignatureV2(nextDocument.toc) !== tocStorageSignatureV2(document.toc)
+    const shouldUpdateTocManifest = dirtyTocRef.current || tocStorageSignatureV2(nextDocument.toc) !== tocStorageSignatureV2(document.toc)
     let pageEngineResult: Awaited<ReturnType<typeof savePageEngineDocument>> | null = null
     let pageEngineError: unknown = null
     if (isUuid(book.id)) {
@@ -2133,6 +2135,7 @@ export default function EditorV2Page() {
         setDirty(false)
         dirtyPageIndexesRef.current = new Set()
         dirtyAssetPageIndexesRef.current = new Set()
+        dirtyTocRef.current = false
         setSaveProgress(100)
         setSaveState('saved')
       } else {
@@ -2621,6 +2624,7 @@ export default function EditorV2Page() {
     const selectionNode = window.getSelection()?.anchorNode
     const selectionElement = selectionNode instanceof Element ? selectionNode : selectionNode?.parentElement
     if (target.closest('h1,h2,h3,h4,h5,h6,[data-v2-type="heading"]') || selectionElement?.closest('h1,h2,h3,h4,h5,h6,[data-v2-type="heading"]')) {
+      dirtyTocRef.current = true
       scheduleToolbarDocumentRefresh()
     }
   }, [document, markDirtyAssetPageFromNode, markEditorDirty, pushEditorHistory, scheduleToolbarDocumentRefresh])
@@ -2634,6 +2638,7 @@ export default function EditorV2Page() {
       const next = documentFromEditorDomV2(current, editorSurfaceRef.current)
       dirtyPageIndexesRef.current = new Set(next.pages.map(page => page.index))
       dirtyAssetPageIndexesRef.current = new Set()
+      dirtyTocRef.current = true
       return next
     })
     editRevisionRef.current += 1
@@ -2956,6 +2961,7 @@ export default function EditorV2Page() {
       }
       setSelectedBlockId(target.dataset.blockId)
     }
+    dirtyTocRef.current = true
     markEditorDirty()
     rememberEditorSelection()
     scheduleToolbarDocumentRefresh()
@@ -3430,6 +3436,7 @@ export default function EditorV2Page() {
     }
     setSelectedBlockId(changes[0])
     markEditorDirty()
+    dirtyTocRef.current = true
     scheduleToolbarDocumentRefresh()
     setMediaMessage(`${changes.length.toLocaleString('fa-IR')} کپشن به‌صورت خودکار تشخیص داده شد.`)
   }, [markEditorDirty, pushEditorHistory, scheduleToolbarDocumentRefresh])
@@ -3475,6 +3482,7 @@ export default function EditorV2Page() {
         } : current)
         dirtyPageIndexesRef.current = new Set()
         dirtyAssetPageIndexesRef.current = new Set()
+        dirtyTocRef.current = false
         setDirty(false)
       }
     }
@@ -3668,6 +3676,7 @@ export default function EditorV2Page() {
       setDirty(false)
       dirtyPageIndexesRef.current = new Set()
       dirtyAssetPageIndexesRef.current = new Set()
+      dirtyTocRef.current = false
       toast.success(`فهرست با ${manifest.toc.length.toLocaleString('fa-IR')} عنوان بازسازی شد.`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'بازسازی فهرست ناموفق بود.')
@@ -3695,6 +3704,7 @@ export default function EditorV2Page() {
         } : current)
         dirtyPageIndexesRef.current = new Set()
         dirtyAssetPageIndexesRef.current = new Set()
+        dirtyTocRef.current = false
         setDirty(false)
       }
     }
