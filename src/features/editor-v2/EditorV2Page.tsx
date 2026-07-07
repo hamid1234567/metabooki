@@ -2060,7 +2060,7 @@ export default function EditorV2Page() {
     let saveReport: Parameters<typeof showSaveTrafficToastV2>[0] | null = null
     try {
       const legacyPages = usePageEngine ? undefined : documentV2ToLegacyPages(nextDocument)
-      const patch = (usePageEngine
+      const localPatch = (usePageEngine
         ? {
           metadata,
           preview_pages: previewPages,
@@ -2073,12 +2073,18 @@ export default function EditorV2Page() {
           page_count: legacyPages?.length || nextDocument.pages.length,
           content_updated_at: nextDocument.updatedAt,
         }) as unknown as Partial<PublisherBook>
-      const nextBook = { ...book, ...patch, pages: legacyPages || book.pages } as MockBook
+      const remotePatch = (usePageEngine
+        ? {
+          preview_pages: previewPages,
+          content_updated_at: nextDocument.updatedAt,
+        }
+        : localPatch) as unknown as Partial<PublisherBook>
+      const nextBook = { ...book, ...localPatch, pages: legacyPages || book.pages } as MockBook
       if (isUuid(book.id)) {
-        const { page_count: _pageCount, ...remotePatch } = patch as Partial<PublisherBook> & { page_count?: number }
-        const requestBytes = jsonBytesV2(remotePatch) + (pageEngineResult?.requestBytes || 0)
+        const { page_count: _pageCount, ...safeRemotePatch } = remotePatch as Partial<PublisherBook> & { page_count?: number }
+        const requestBytes = jsonBytesV2(safeRemotePatch) + (pageEngineResult?.requestBytes || 0)
         const networkStartedAt = performance.now()
-        const result = await (supabase as any).from('books').update(remotePatch).eq('id', book.id)
+        const result = await (supabase as any).from('books').update(safeRemotePatch).eq('id', book.id)
         setSaveProgress(92)
         const networkMs = performance.now() - networkStartedAt + (pageEngineResult?.networkMs || 0)
         const responseBytes = jsonBytesV2({
@@ -2109,7 +2115,7 @@ export default function EditorV2Page() {
           manual: options.manual,
           totalMs: performance.now() - startedAt,
           networkMs: 0,
-          requestBytes: jsonBytesV2(patch),
+          requestBytes: jsonBytesV2(localPatch),
           responseBytes: 0,
         }
         updatePublisherBook(book.id, nextBook as PublisherBook)
