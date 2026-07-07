@@ -2020,7 +2020,20 @@ export default function EditorV2Page() {
       }
     }
     if (isUuid(book.id) && !pageEngineResult) {
-      throw pageEngineError || new Error('Page-based save is unavailable for this book. Full-book fallback is disabled to prevent large payloads.')
+      const remainingAnimationMs = 360 - (performance.now() - startedAt)
+      if (remainingAnimationMs > 0) {
+        await new Promise(resolve => window.setTimeout(resolve, remainingAnimationMs))
+      }
+      setSaveState('error')
+      setSaveProgress(null)
+      toast.error('Save failed', {
+        description: [
+          'Page-based save failed; full-book fallback is disabled to prevent large payloads.',
+          formatSupabaseErrorV2(pageEngineError || new Error('Page-based save is unavailable for this book.')),
+        ].join('\n\n'),
+        duration: 20_000,
+      })
+      return
     }
     const usePageEngine = Boolean(pageEngineResult)
     const confirmedToc = usePageEngine ? [] : documentV2ToConfirmedToc(nextDocument)
@@ -2128,7 +2141,7 @@ export default function EditorV2Page() {
       setSaveState('error')
       setSaveProgress(null)
       const saveErrorDetails = formatSupabaseErrorV2(error)
-      const pageEngineErrorDetails = pageEngineError ? `\n\nPage engine error before fallback:\n${formatSupabaseErrorV2(pageEngineError)}` : ''
+      const pageEngineErrorDetails = pageEngineError ? `\n\nPage engine error:\n${formatSupabaseErrorV2(pageEngineError)}` : ''
       if (saveReport) {
         toast.error('Save failed', {
           description: [
