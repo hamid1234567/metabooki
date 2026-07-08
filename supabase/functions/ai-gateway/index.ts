@@ -60,14 +60,77 @@ function kieAspectRatioForSize(size: AiImageSize) {
   return '1:1'
 }
 
+function kieImageSizeForModel(size: AiImageSize) {
+  if (size === '1024x1536') return 'portrait_4_3'
+  if (size === '1536x1024') return 'landscape_4_3'
+  return 'square_hd'
+}
+
+function kieImageTaskInput(model: string, prompt: string, size: AiImageSize) {
+  if (model.startsWith('qwen/') || model.startsWith('qwen2/') || model.startsWith('google/nano-banana')) {
+    return {
+      prompt,
+      image_size: kieImageSizeForModel(size),
+    }
+  }
+  return {
+    prompt,
+    aspect_ratio: kieAspectRatioForSize(size),
+    resolution: '1K',
+  }
+}
+
+function kieTextRoute(model: string) {
+  const selected = String(model || '').trim() || 'gpt-5-5'
+  if (selected === 'gpt-5-5' || selected === 'gpt-5-4') {
+    return { kind: 'responses' as const, path: '/codex/v1/responses', model: selected }
+  }
+  if (selected === 'gpt-5-2') {
+    return { kind: 'chat' as const, path: '/gpt-5-2/v1/chat/completions', model: selected }
+  }
+  if (selected.startsWith('claude-')) {
+    return { kind: 'claude' as const, path: '/claude/v1/messages', model: selected }
+  }
+  if (selected.startsWith('gemini-')) {
+    return { kind: 'chat' as const, path: `/${selected}/v1/chat/completions`, model: selected }
+  }
+  if (selected.startsWith('grok-')) {
+    return { kind: 'responses' as const, path: '/grok/v1/responses', model: selected }
+  }
+  return { kind: 'chat' as const, path: `/${selected}/v1/chat/completions`, model: selected }
+}
+
 function extractKieText(json: any) {
   if (typeof json?.output_text === 'string') return json.output_text
   if (typeof json?.text === 'string') return json.text
+  const choiceContent = json?.choices?.[0]?.message?.content
+  if (typeof choiceContent === 'string') return choiceContent.trim()
+  if (Array.isArray(choiceContent)) {
+    const text = choiceContent.map((part: any) => {
+      if (typeof part === 'string') return part
+      if (typeof part?.text === 'string') return part.text
+      if (typeof part?.content === 'string') return part.content
+      return ''
+    }).filter(Boolean).join('\n').trim()
+    if (text) return text
+  }
+  if (typeof json?.message?.content === 'string') return json.message.content.trim()
+  const claudeContent = Array.isArray(json?.content) ? json.content : []
+  if (claudeContent.length) {
+    const text = claudeContent.map((part: any) => {
+      if (typeof part === 'string') return part
+      if (typeof part?.text === 'string') return part.text
+      if (typeof part?.content === 'string') return part.content
+      return ''
+    }).filter(Boolean).join('\n').trim()
+    if (text) return text
+  }
   const output = Array.isArray(json?.output) ? json.output : []
   const parts: string[] = []
   for (const item of output) {
     const content = Array.isArray(item?.content) ? item.content : []
     for (const part of content) {
+      if (typeof part?.output_text === 'string') parts.push(part.output_text)
       if (typeof part?.text === 'string') parts.push(part.text)
       if (typeof part?.content === 'string') parts.push(part.content)
     }
@@ -136,10 +199,10 @@ function imageUsage(provider: AiProviderConfig, prompt: string, usdToToman: numb
 function imageBaseUsdForProvider(provider: AiProviderConfig) {
   const model = imageModelForProvider(provider)
   if (provider.provider === 'kie') {
-    if (model === 'qwen-image') return 0.025
-    if (model === 'qwen-image-edit') return 0.03
-    if (model === 'gemini-2-5-flash-image-preview') return 0.03
-    if (model === 'grok-2-image') return 0.035
+    if (model === 'qwen/text-to-image') return 0.0125
+    if (model === 'qwen2/text-to-image') return 0.027
+    if (model === 'google/nano-banana-2') return 0.03
+    if (model === 'google/nano-banana-2-lite') return 0.02
     if (model === '4o-image') return 0.03
     if (model === 'gpt-image-2-edit-image') return 0.05
     return 0.05
@@ -223,11 +286,7 @@ async function callImageProvider(provider: AiProviderConfig, prompt: string, siz
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${provider.api_key}` },
       body: JSON.stringify({
         model,
-        input: {
-          prompt,
-          aspect_ratio: kieAspectRatioForSize(size),
-          resolution: '1K',
-        },
+        input: kieImageTaskInput(model, prompt, size),
       }),
     })
     const created = await createRes.json().catch(() => ({}))
@@ -302,21 +361,38 @@ async function callProvider(provider: AiProviderConfig, prompt: string, maxToken
   let outputTokens = 0
 
   if (provider.provider === 'kie') {
-    const res = await fetch(`${kieBaseUrl(provider)}/codex/v1/responses`, {
+    const route = kieTextRoute(provider.model)
+    const requestBody = route.kind === 'responses'
+      ? {
+          model: route.model,
+          stream: false,
+          input: [{ role: 'user', content: prompt }],
+          max_output_tokens: maxTokens,
+          reasoning: { effort: 'low' },
+        }
+      : route.kind === 'claude'
+        ? {
+            model: route.model,
+            stream: false,
+            messages: [{ role: 'user', content: prompt }],
+            max_tokens: maxTokens,
+          }
+        : {
+            model: route.model,
+            stream: false,
+            messages: [{ role: 'user', content: prompt }],
+            max_tokens: maxTokens,
+            temperature: 0.2,
+          }
+    const res = await fetch(`${kieBaseUrl(provider)}${route.path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${provider.api_key}` },
-      body: JSON.stringify({
-        model: provider.model || 'gpt-5-5',
-        stream: false,
-        input: [{ role: 'user', content: prompt }],
-        max_output_tokens: maxTokens,
-        reasoning: { effort: 'low' },
-      }),
+      body: JSON.stringify(requestBody),
     })
     const json = await res.json().catch(() => ({}))
-    if (!res.ok) throw new Error(providerError(json, `KIE request failed (${res.status})`))
+    if (!res.ok) throw new Error(providerError(json, `KIE ${route.model} request failed (${res.status})`))
     text = extractKieText(json)
-    inputTokens = json.usage?.input_tokens || json.usage?.prompt_tokens || inputTokens
+    inputTokens = json.usage?.input_tokens || json.usage?.prompt_tokens || json.usage?.cache_creation_input_tokens || inputTokens
     outputTokens = json.usage?.output_tokens || json.usage?.completion_tokens || estimateTokens(text)
   } else if (provider.provider === 'gemini') {
     const res = await fetch(`${provider.base_url}/models/${provider.model}:generateContent?key=${provider.api_key}`, {
