@@ -29,6 +29,7 @@ function estimateTokens(text: string) {
 
 function imageModelForProvider(provider: AiProviderConfig) {
   const configured = String(provider.image_model || '').trim()
+  if (provider.provider === 'kie') return configured || 'gpt-image-2-text-to-image'
   const envModel = String(Deno.env.get('AI_IMAGE_MODEL') || '').trim()
   const candidate = configured || envModel || 'gpt-image-1'
   if (/^(gpt-image-|dall-e)/i.test(candidate)) return candidate
@@ -36,6 +37,7 @@ function imageModelForProvider(provider: AiProviderConfig) {
 }
 
 function imageModelWarning(provider: AiProviderConfig) {
+  if (provider.provider === 'kie') return ''
   const configured = String(provider.image_model || '').trim()
   if (configured && !/^(gpt-image-|dall-e)/i.test(configured)) {
     return `Configured image model "${configured}" is not an Image API model; using "${imageModelForProvider(provider)}" instead.`
@@ -44,6 +46,68 @@ function imageModelWarning(provider: AiProviderConfig) {
     return `Text model "${provider.model}" is not used for Image API generation; using "${imageModelForProvider(provider)}" instead.`
   }
   return ''
+}
+
+function kieBaseUrl(provider: AiProviderConfig) {
+  return String(provider.base_url || 'https://api.kie.ai').replace(/\/$/, '')
+}
+
+function kieAspectRatioForSize(size: AiImageSize) {
+  if (size === '1024x1536') return '2:3'
+  if (size === '1536x1024') return '3:2'
+  return '1:1'
+}
+
+function extractKieText(json: any) {
+  if (typeof json?.output_text === 'string') return json.output_text
+  if (typeof json?.text === 'string') return json.text
+  const output = Array.isArray(json?.output) ? json.output : []
+  const parts: string[] = []
+  for (const item of output) {
+    const content = Array.isArray(item?.content) ? item.content : []
+    for (const part of content) {
+      if (typeof part?.text === 'string') parts.push(part.text)
+      if (typeof part?.content === 'string') parts.push(part.content)
+    }
+  }
+  return parts.join('\n').trim()
+}
+
+function extractKieTaskId(json: any) {
+  return json?.data?.taskId || json?.data?.task_id || json?.taskId || json?.task_id || json?.id
+}
+
+function extractKieImageUrl(json: any) {
+  const data = json?.data || json
+  const response = data?.response || data?.result || data?.output || data
+  const parsed = typeof response === 'string'
+    ? (() => { try { return JSON.parse(response) } catch { return response } })()
+    : response
+  const candidates = [
+    parsed?.resultUrls?.[0],
+    parsed?.result_urls?.[0],
+    parsed?.urls?.[0],
+    parsed?.images?.[0]?.url,
+    parsed?.image_urls?.[0],
+    parsed?.imageUrl,
+    data?.imageUrl,
+    data?.url,
+  ].filter(Boolean)
+  return String(candidates[0] || '')
+}
+
+function isKieTaskComplete(json: any) {
+  const state = String(json?.data?.state || json?.data?.status || json?.status || '').toLowerCase()
+  return ['success', 'succeeded', 'completed', 'complete', 'done'].includes(state)
+}
+
+function isKieTaskFailed(json: any) {
+  const state = String(json?.data?.state || json?.data?.status || json?.status || '').toLowerCase()
+  return ['fail', 'failed', 'error', 'canceled', 'cancelled'].includes(state)
+}
+
+function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms))
 }
 
 function imageUsage(provider: AiProviderConfig, prompt: string, usdToToman: number, chargeMultiplier: number, creditsPerToman: number) {
@@ -81,6 +145,46 @@ function normalizeImageSize(value: unknown): AiImageSize {
 }
 
 async function callImageProvider(provider: AiProviderConfig, prompt: string, size: AiImageSize) {
+  if (provider.provider === 'kie') {
+    const baseUrl = kieBaseUrl(provider)
+    const model = imageModelForProvider(provider)
+    const createRes = await fetch(`${baseUrl}/api/v1/jobs/createTask`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${provider.api_key}` },
+      body: JSON.stringify({
+        model,
+        input: {
+          prompt,
+          aspect_ratio: kieAspectRatioForSize(size),
+          resolution: '2K',
+        },
+      }),
+    })
+    const created = await createRes.json().catch(() => ({}))
+    if (!createRes.ok) throw new Error(created.error?.message || created.message || `KIE image task failed (${createRes.status})`)
+
+    const immediateUrl = extractKieImageUrl(created)
+    if (immediateUrl) return { imageUrl: immediateUrl, model }
+
+    const taskId = extractKieTaskId(created)
+    if (!taskId) throw new Error('KIE did not return an image task id')
+
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      await sleep(2000)
+      const detailRes = await fetch(`${baseUrl}/api/v1/jobs/recordInfo?taskId=${encodeURIComponent(taskId)}`, {
+        headers: { Authorization: `Bearer ${provider.api_key}` },
+      })
+      const detail = await detailRes.json().catch(() => ({}))
+      if (!detailRes.ok) throw new Error(detail.error?.message || detail.message || `KIE image status failed (${detailRes.status})`)
+      const imageUrl = extractKieImageUrl(detail)
+      if (imageUrl) return { imageUrl, model }
+      if (isKieTaskFailed(detail)) throw new Error(detail?.data?.failMsg || detail?.data?.errorMessage || detail.message || 'KIE image task failed')
+      if (isKieTaskComplete(detail)) break
+    }
+
+    throw new Error('KIE image task did not finish in time. Try again or check KIE task history.')
+  }
+
   if (!['openai', 'custom'].includes(provider.provider)) {
     throw new Error('Image generation is currently available only for OpenAI-compatible providers')
   }
@@ -127,7 +231,24 @@ async function callProvider(provider: AiProviderConfig, prompt: string, maxToken
   let inputTokens = estimateTokens(prompt)
   let outputTokens = 0
 
-  if (provider.provider === 'gemini') {
+  if (provider.provider === 'kie') {
+    const res = await fetch(`${kieBaseUrl(provider)}/codex/v1/responses`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${provider.api_key}` },
+      body: JSON.stringify({
+        model: provider.model || 'gpt-5-5',
+        stream: false,
+        input: prompt,
+        max_output_tokens: maxTokens,
+        reasoning: { effort: 'low' },
+      }),
+    })
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(json.error?.message || json.message || `KIE request failed (${res.status})`)
+    text = extractKieText(json)
+    inputTokens = json.usage?.input_tokens || json.usage?.prompt_tokens || inputTokens
+    outputTokens = json.usage?.output_tokens || json.usage?.completion_tokens || estimateTokens(text)
+  } else if (provider.provider === 'gemini') {
     const res = await fetch(`${provider.base_url}/models/${provider.model}:generateContent?key=${provider.api_key}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -249,7 +370,7 @@ serve(async (req) => {
         label: incoming.label || incoming.id,
         enabled: true,
         api_key: apiKey,
-        base_url: incoming.baseUrl,
+        base_url: incoming.baseUrl || (incoming.id === 'kie' ? 'https://api.kie.ai' : ''),
         model: incoming.model,
         image_model: incoming.imageModel,
         input_cost_per_1k_usd: Number(incoming.inputCostPer1kUsd || 0),

@@ -2,7 +2,7 @@ import { supabase } from '@/integrations/supabase/client'
 import { buildAiImagePrompt, imageSizeForPurpose, type AiImagePurpose, type AiImageSize, type BookCoverPromptContext } from '@/lib/ai-image-prompts'
 import type { AppUser } from '@/lib/auth-context'
 
-export type AiProvider = 'openai' | 'gemini' | 'anthropic' | 'custom'
+export type AiProvider = 'openai' | 'gemini' | 'anthropic' | 'custom' | 'kie'
 export type ReaderAiAction = 'summary' | 'quiz' | 'mindmap' | 'learning_path' | 'explain' | 'callout_suggestions'
 export type AiStructuredContent =
   | { type: 'quiz'; question: string; options: string[]; correctIndex: number; explanation: string }
@@ -115,6 +115,7 @@ const defaultProviders: AiProviderConfig[] = [
   { id: 'gemini', label: 'Google Gemini', enabled: false, apiKey: '', baseUrl: 'https://generativelanguage.googleapis.com/v1beta', model: 'gemini-1.5-flash', inputCostPer1kUsd: 0.000075, outputCostPer1kUsd: 0.0003 },
   { id: 'anthropic', label: 'Anthropic Claude', enabled: false, apiKey: '', baseUrl: 'https://api.anthropic.com/v1', model: 'claude-3-haiku-20240307', inputCostPer1kUsd: 0.00025, outputCostPer1kUsd: 0.00125 },
   { id: 'custom', label: 'سرویس سفارشی OpenAI-compatible', enabled: false, apiKey: '', baseUrl: '', model: 'custom-model', imageModel: 'gpt-image-1', inputCostPer1kUsd: 0.00015, outputCostPer1kUsd: 0.0006 },
+  { id: 'kie', label: 'KIE.ai unified API', enabled: false, apiKey: '', baseUrl: 'https://api.kie.ai', model: 'gpt-5-5', imageModel: 'gpt-image-2-text-to-image', inputCostPer1kUsd: 0.0015, outputCostPer1kUsd: 0.006 },
 ]
 
 export const defaultAiGatewaySettings: AiGatewaySettings = {
