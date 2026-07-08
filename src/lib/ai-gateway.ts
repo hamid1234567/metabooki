@@ -107,15 +107,42 @@ export interface AiProviderTestResult {
   sample?: string
 }
 
+export type AiProviderModelOption = {
+  id: string
+  label: string
+  inputCostPer1kUsd: number
+  outputCostPer1kUsd: number
+  note?: string
+}
+
+export type AiProviderImageModelOption = {
+  id: string
+  label: string
+  baseCostUsd: number
+  note?: string
+}
+
 export const DEFAULT_USD_TO_TOMAN = 170_000
 export const DEFAULT_AI_CHARGE_MULTIPLIER = 2
+
+export const KIE_TEXT_MODEL_OPTIONS: AiProviderModelOption[] = [
+  { id: 'gpt-5-5', label: 'GPT 5.5 Response', inputCostPer1kUsd: 0.00127, outputCostPer1kUsd: 0.01, note: 'KIE Responses endpoint' },
+  { id: 'gpt-5-2', label: 'GPT 5.2 Response', inputCostPer1kUsd: 0.00044, outputCostPer1kUsd: 0.0035, note: 'lower-cost text model' },
+  { id: 'gpt-4o', label: 'GPT-4o compatible', inputCostPer1kUsd: 0.0025, outputCostPer1kUsd: 0.01, note: 'vision/text fallback' },
+]
+
+export const KIE_IMAGE_MODEL_OPTIONS: AiProviderImageModelOption[] = [
+  { id: 'gpt-image-2-text-to-image', label: 'GPT Image 2 - text to image', baseCostUsd: 0.05 },
+  { id: 'gpt-image-2-edit-image', label: 'GPT Image 2 - edit image', baseCostUsd: 0.05 },
+  { id: '4o-image', label: '4o Image generation', baseCostUsd: 0.03 },
+]
 
 const defaultProviders: AiProviderConfig[] = [
   { id: 'openai', label: 'OpenAI / ChatGPT', enabled: true, apiKey: '', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', imageModel: 'gpt-image-1', inputCostPer1kUsd: 0.00015, outputCostPer1kUsd: 0.0006 },
   { id: 'gemini', label: 'Google Gemini', enabled: false, apiKey: '', baseUrl: 'https://generativelanguage.googleapis.com/v1beta', model: 'gemini-1.5-flash', inputCostPer1kUsd: 0.000075, outputCostPer1kUsd: 0.0003 },
   { id: 'anthropic', label: 'Anthropic Claude', enabled: false, apiKey: '', baseUrl: 'https://api.anthropic.com/v1', model: 'claude-3-haiku-20240307', inputCostPer1kUsd: 0.00025, outputCostPer1kUsd: 0.00125 },
   { id: 'custom', label: 'سرویس سفارشی OpenAI-compatible', enabled: false, apiKey: '', baseUrl: '', model: 'custom-model', imageModel: 'gpt-image-1', inputCostPer1kUsd: 0.00015, outputCostPer1kUsd: 0.0006 },
-  { id: 'kie', label: 'KIE.ai unified API', enabled: false, apiKey: '', baseUrl: 'https://api.kie.ai', model: 'gpt-5-5', imageModel: 'gpt-image-2-text-to-image', inputCostPer1kUsd: 0.0015, outputCostPer1kUsd: 0.006 },
+  { id: 'kie', label: 'KIE.ai unified API', enabled: false, apiKey: '', baseUrl: 'https://api.kie.ai', model: 'gpt-5-5', imageModel: 'gpt-image-2-text-to-image', inputCostPer1kUsd: 0.00127, outputCostPer1kUsd: 0.01 },
 ]
 
 export const defaultAiGatewaySettings: AiGatewaySettings = {

@@ -106,6 +106,8 @@ export default function Admin() {
   const saveAiSettings = async () => {
     try {
       await saveAiGatewaySettings(aiSettings)
+      const savedSettings = await loadAiGatewaySettingsRemote()
+      setAiSettings(savedSettings)
       setMessage('تنظیمات هوش مصنوعی با امنیت کامل روی سرور ذخیره شد')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'ذخیره تنظیمات ناموفق بود')

@@ -112,13 +112,30 @@ function sleep(ms: number) {
 
 function imageUsage(provider: AiProviderConfig, prompt: string, usdToToman: number, chargeMultiplier: number, creditsPerToman: number) {
   const inputTokens = estimateTokens(prompt)
-  const imageBaseUsd = Number(Deno.env.get('AI_IMAGE_BASE_USD') || 0.04)
+  const imageBaseUsd = imageBaseUsdForProvider(provider)
   const promptUsd = (inputTokens / 1000) * Number(provider.input_cost_per_1k_usd || 0)
   const rawUsd = imageBaseUsd + promptUsd
   const chargedUsd = rawUsd * chargeMultiplier
   const chargedToman = Math.ceil(chargedUsd * usdToToman)
   const chargedCredits = Math.max(1, Math.ceil(chargedToman * creditsPerToman))
   return { inputTokens, outputTokens: 0, rawUsd, chargedUsd, chargedToman, chargedCredits, creditValueToman: Math.round(1 / creditsPerToman) }
+}
+
+function imageBaseUsdForProvider(provider: AiProviderConfig) {
+  const model = imageModelForProvider(provider)
+  if (provider.provider === 'kie') {
+    if (model === '4o-image') return 0.03
+    if (model === 'gpt-image-2-edit-image') return 0.05
+    return 0.05
+  }
+  return Number(Deno.env.get('AI_IMAGE_BASE_USD') || 0.04)
+}
+
+function providerError(json: any, fallback: string) {
+  const message = json?.error?.message || json?.message || json?.msg || json?.error || json?.data?.error || json?.data?.message
+  if (message) return String(message)
+  const preview = JSON.stringify(json || {}).slice(0, 500)
+  return preview && preview !== '{}' ? `${fallback}: ${preview}` : fallback
 }
 
 function textUsage(provider: AiProviderConfig, prompt: string, maxOutputTokens: number, usdToToman: number, chargeMultiplier: number, creditsPerToman: number) {
@@ -161,7 +178,7 @@ async function callImageProvider(provider: AiProviderConfig, prompt: string, siz
       }),
     })
     const created = await createRes.json().catch(() => ({}))
-    if (!createRes.ok) throw new Error(created.error?.message || created.message || `KIE image task failed (${createRes.status})`)
+    if (!createRes.ok) throw new Error(providerError(created, `KIE image task failed (${createRes.status})`))
 
     const immediateUrl = extractKieImageUrl(created)
     if (immediateUrl) return { imageUrl: immediateUrl, model }
@@ -175,10 +192,10 @@ async function callImageProvider(provider: AiProviderConfig, prompt: string, siz
         headers: { Authorization: `Bearer ${provider.api_key}` },
       })
       const detail = await detailRes.json().catch(() => ({}))
-      if (!detailRes.ok) throw new Error(detail.error?.message || detail.message || `KIE image status failed (${detailRes.status})`)
+      if (!detailRes.ok) throw new Error(providerError(detail, `KIE image status failed (${detailRes.status})`))
       const imageUrl = extractKieImageUrl(detail)
       if (imageUrl) return { imageUrl, model }
-      if (isKieTaskFailed(detail)) throw new Error(detail?.data?.failMsg || detail?.data?.errorMessage || detail.message || 'KIE image task failed')
+      if (isKieTaskFailed(detail)) throw new Error(providerError(detail, 'KIE image task failed'))
       if (isKieTaskComplete(detail)) break
     }
 
@@ -238,13 +255,13 @@ async function callProvider(provider: AiProviderConfig, prompt: string, maxToken
       body: JSON.stringify({
         model: provider.model || 'gpt-5-5',
         stream: false,
-        input: prompt,
+        input: [{ role: 'user', content: prompt }],
         max_output_tokens: maxTokens,
         reasoning: { effort: 'low' },
       }),
     })
     const json = await res.json().catch(() => ({}))
-    if (!res.ok) throw new Error(json.error?.message || json.message || `KIE request failed (${res.status})`)
+    if (!res.ok) throw new Error(providerError(json, `KIE request failed (${res.status})`))
     text = extractKieText(json)
     inputTokens = json.usage?.input_tokens || json.usage?.prompt_tokens || inputTokens
     outputTokens = json.usage?.output_tokens || json.usage?.completion_tokens || estimateTokens(text)
@@ -322,8 +339,10 @@ serve(async (req) => {
       if (!role?.length) throw new Error('Admin access required')
 
       if (body.operation === 'admin_get_settings') {
-        const { data: gateway } = await adminClient.from('ai_gateway_settings').select('*').eq('id', 1).single()
-        const { data: providers } = await adminClient.from('ai_provider_settings').select('provider,label,enabled,base_url,model,image_model,input_cost_per_1k_usd,output_cost_per_1k_usd,api_key')
+        const { data: gateway, error: gatewayError } = await adminClient.from('ai_gateway_settings').select('*').eq('id', 1).single()
+        if (gatewayError) throw gatewayError
+        const { data: providers, error: providersError } = await adminClient.from('ai_provider_settings').select('provider,label,enabled,base_url,model,image_model,input_cost_per_1k_usd,output_cost_per_1k_usd,api_key')
+        if (providersError) throw providersError
         return new Response(JSON.stringify({
           activeProvider: gateway?.active_provider || 'openai',
           usdToToman: Number(gateway?.usd_to_toman || DEFAULT_USD_TO_TOMAN),
@@ -337,10 +356,11 @@ serve(async (req) => {
       }
 
       const incoming = body.settings
-      await adminClient.from('ai_gateway_settings').upsert({
+      const { error: settingsError } = await adminClient.from('ai_gateway_settings').upsert({
         id: 1, active_provider: incoming.activeProvider, usd_to_toman: incoming.usdToToman,
         charge_multiplier: incoming.chargeMultiplier, updated_at: new Date().toISOString(),
       })
+      if (settingsError) throw settingsError
       for (const p of incoming.providers || []) {
         const row: Record<string, unknown> = {
           provider: p.id, label: p.label, enabled: p.enabled, base_url: p.baseUrl, model: p.model, image_model: p.imageModel || null,
@@ -348,7 +368,8 @@ serve(async (req) => {
           updated_at: new Date().toISOString(),
         }
         if (p.apiKey && p.apiKey !== '__stored__') row.api_key = p.apiKey
-        await adminClient.from('ai_provider_settings').upsert(row)
+        const { error: providerError } = await adminClient.from('ai_provider_settings').upsert(row)
+        if (providerError) throw providerError
       }
       return new Response(JSON.stringify({ ok: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }

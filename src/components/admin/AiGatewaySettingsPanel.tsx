@@ -1,7 +1,13 @@
 import { AlertTriangle, CheckCircle, KeyRound, RefreshCw, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { CREDIT_VALUE_TOMAN } from '@/lib/mock-data'
-import { maskApiKey, type AiGatewaySettings, type AiProviderConfig } from '@/lib/ai-gateway'
+import {
+  KIE_IMAGE_MODEL_OPTIONS,
+  KIE_TEXT_MODEL_OPTIONS,
+  maskApiKey,
+  type AiGatewaySettings,
+  type AiProviderConfig,
+} from '@/lib/ai-gateway'
 
 type ProviderTestState = {
   state: 'idle' | 'testing' | 'ok' | 'error'
@@ -29,6 +35,19 @@ export function AiGatewaySettingsPanel({
   onSave,
 }: AiGatewaySettingsPanelProps) {
   const enabledCount = settings.providers.filter(provider => provider.enabled).length
+  const activeProvider = settings.providers.find(provider => provider.id === settings.activeProvider)
+  const activeProviderLabel = activeProvider?.label || settings.activeProvider
+
+  const updateKieTextModel = (provider: AiProviderConfig, modelId: string) => {
+    const option = KIE_TEXT_MODEL_OPTIONS.find(item => item.id === modelId)
+    onProviderChange(provider.id, {
+      model: modelId,
+      ...(option ? {
+        inputCostPer1kUsd: option.inputCostPer1kUsd,
+        outputCostPer1kUsd: option.outputCostPer1kUsd,
+      } : {}),
+    })
+  }
 
   return (
     <div className="space-y-6">
@@ -44,7 +63,10 @@ export function AiGatewaySettingsPanel({
             </p>
           </div>
           <div className="grid gap-2 text-xs text-muted-foreground sm:text-left">
-            <span className="rounded-full bg-primary/10 px-3 py-1 text-primary">ارائه‌دهنده فعال: {settings.activeProvider}</span>
+            <span className={`rounded-full px-3 py-1 ${activeProvider?.enabled ? 'bg-primary/10 text-primary' : 'bg-destructive/10 text-destructive'}`}>
+              ارائه‌دهنده فعال: {activeProviderLabel}
+              {activeProvider && !activeProvider.enabled ? ' (غیرفعال)' : ''}
+            </span>
             <span className="rounded-full bg-muted px-3 py-1">{enabledCount.toLocaleString('fa-IR')} ارائه‌دهنده فعال</span>
           </div>
         </div>
@@ -107,8 +129,47 @@ export function AiGatewaySettingsPanel({
                 <div className="grid gap-3">
                   <input title="API Key" type="password" value={provider.apiKey} onChange={event => onProviderChange(provider.id, { apiKey: event.target.value })} placeholder="API Key" className="w-full rounded-xl border border-input bg-background p-2.5 text-sm" dir="ltr" />
                   <input title="Base URL" value={provider.baseUrl || ''} onChange={event => onProviderChange(provider.id, { baseUrl: event.target.value })} placeholder="https://api.openai.com/v1" className="w-full rounded-xl border border-input bg-background p-2.5 text-sm" dir="ltr" />
-                  <input title="مدل متن و بینایی" value={provider.model} onChange={event => onProviderChange(provider.id, { model: event.target.value })} placeholder="Text / Vision model, مثل gpt-4o یا gpt-4o-mini" className="w-full rounded-xl border border-input bg-background p-2.5 text-sm" dir="ltr" />
-                  <input title="مدل تولید تصویر" value={provider.imageModel || ''} onChange={event => onProviderChange(provider.id, { imageModel: event.target.value })} placeholder="Image generation model, مثل gpt-image-1" className="w-full rounded-xl border border-input bg-background p-2.5 text-sm" dir="ltr" />
+                  {provider.id === 'kie' ? (
+                    <>
+                      <label className="grid gap-1">
+                        <span className="text-xs text-muted-foreground">مدل متنی KIE</span>
+                        <select
+                          title="مدل متنی KIE"
+                          value={provider.model}
+                          onChange={event => updateKieTextModel(provider, event.target.value)}
+                          className="w-full rounded-xl border border-input bg-background p-2.5 text-sm"
+                          dir="ltr"
+                        >
+                          {KIE_TEXT_MODEL_OPTIONS.map(option => (
+                            <option key={option.id} value={option.id}>
+                              {option.label} - ${option.inputCostPer1kUsd}/1K in - ${option.outputCostPer1kUsd}/1K out
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="grid gap-1">
+                        <span className="text-xs text-muted-foreground">مدل تصویری KIE</span>
+                        <select
+                          title="مدل تصویری KIE"
+                          value={provider.imageModel || KIE_IMAGE_MODEL_OPTIONS[0]?.id || ''}
+                          onChange={event => onProviderChange(provider.id, { imageModel: event.target.value })}
+                          className="w-full rounded-xl border border-input bg-background p-2.5 text-sm"
+                          dir="ltr"
+                        >
+                          {KIE_IMAGE_MODEL_OPTIONS.map(option => (
+                            <option key={option.id} value={option.id}>
+                              {option.label} - base ${option.baseCostUsd}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </>
+                  ) : (
+                    <>
+                      <input title="مدل متن و بینایی" value={provider.model} onChange={event => onProviderChange(provider.id, { model: event.target.value })} placeholder="Text / Vision model, مثل gpt-4o یا gpt-4o-mini" className="w-full rounded-xl border border-input bg-background p-2.5 text-sm" dir="ltr" />
+                      <input title="مدل تولید تصویر" value={provider.imageModel || ''} onChange={event => onProviderChange(provider.id, { imageModel: event.target.value })} placeholder="Image generation model, مثل gpt-image-1" className="w-full rounded-xl border border-input bg-background p-2.5 text-sm" dir="ltr" />
+                    </>
+                  )}
                   <div className="grid gap-3 sm:grid-cols-2">
                     <label className="grid gap-1">
                       <span className="text-xs text-muted-foreground">هزینه ورودی / ۱۰۰۰ توکن ($)</span>
