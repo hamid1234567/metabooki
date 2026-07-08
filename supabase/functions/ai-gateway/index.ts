@@ -281,6 +281,40 @@ async function callImageProvider(provider: AiProviderConfig, prompt: string, siz
   if (provider.provider === 'kie') {
     const baseUrl = kieBaseUrl(provider)
     const model = imageModelForProvider(provider)
+    if (model === '4o-image') {
+      const createRes = await fetch(`${baseUrl}/api/v1/gpt4o-image/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${provider.api_key}` },
+        body: JSON.stringify({
+          prompt,
+          size: kieAspectRatioForSize(size),
+        }),
+      })
+      const created = await createRes.json().catch(() => ({}))
+      if (!createRes.ok) throw new Error(providerError(created, `KIE 4o image task failed (${createRes.status})`))
+
+      const immediateUrl = extractKieImageUrl(created)
+      if (immediateUrl) return { imageUrl: immediateUrl, model }
+
+      const taskId = extractKieTaskId(created)
+      if (!taskId) throw new Error('KIE 4o image did not return a task id')
+
+      for (let attempt = 0; attempt < 70; attempt += 1) {
+        await sleep(2000)
+        const detailRes = await fetch(`${baseUrl}/api/v1/gpt4o-image/record-info?taskId=${encodeURIComponent(taskId)}`, {
+          headers: { Authorization: `Bearer ${provider.api_key}` },
+        })
+        const detail = await detailRes.json().catch(() => ({}))
+        if (!detailRes.ok) throw new Error(providerError(detail, `KIE 4o image status failed (${detailRes.status})`))
+        const imageUrl = extractKieImageUrl(detail)
+        if (imageUrl) return { imageUrl, model }
+        if (isKieTaskFailed(detail)) throw new Error(providerError(detail, 'KIE 4o image task failed'))
+        if (isKieTaskComplete(detail)) break
+      }
+
+      throw new Error(`KIE 4o image task did not finish in time. Task id: ${taskId}. Try again or check KIE task history.`)
+    }
+
     const createRes = await fetch(`${baseUrl}/api/v1/jobs/createTask`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${provider.api_key}` },
