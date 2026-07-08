@@ -356,12 +356,17 @@ serve(async (req) => {
       }
 
       const incoming = body.settings
+      const incomingProviders = Array.isArray(incoming.providers) ? incoming.providers : []
+      const activeIncoming = incomingProviders.find((p: any) => p.id === incoming.activeProvider)
+      const normalizedActiveProvider = activeIncoming?.enabled
+        ? incoming.activeProvider
+        : (incomingProviders.find((p: any) => p.enabled)?.id || incoming.activeProvider || 'openai')
       const { error: settingsError } = await adminClient.from('ai_gateway_settings').upsert({
-        id: 1, active_provider: incoming.activeProvider, usd_to_toman: incoming.usdToToman,
+        id: 1, active_provider: normalizedActiveProvider, usd_to_toman: incoming.usdToToman,
         charge_multiplier: incoming.chargeMultiplier, updated_at: new Date().toISOString(),
       })
       if (settingsError) throw settingsError
-      for (const p of incoming.providers || []) {
+      for (const p of incomingProviders) {
         const row: Record<string, unknown> = {
           provider: p.id, label: p.label, enabled: p.enabled, base_url: p.baseUrl, model: p.model, image_model: p.imageModel || null,
           input_cost_per_1k_usd: p.inputCostPer1kUsd, output_cost_per_1k_usd: p.outputCostPer1kUsd,
@@ -414,12 +419,24 @@ serve(async (req) => {
     const usdToToman = Number(settings?.usd_to_toman || DEFAULT_USD_TO_TOMAN)
     const chargeMultiplier = Number(settings?.charge_multiplier || DEFAULT_CHARGE_MULTIPLIER)
 
-    const { data: providerRow } = await adminClient
+    let { data: providerRow } = await adminClient
       .from('ai_provider_settings')
       .select('*')
       .eq('provider', activeProvider)
       .eq('enabled', true)
       .single()
+
+    if (!providerRow?.api_key) {
+      const { data: fallbackProvider } = await adminClient
+        .from('ai_provider_settings')
+        .select('*')
+        .eq('enabled', true)
+        .not('api_key', 'is', null)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      providerRow = fallbackProvider
+    }
 
     const provider = providerRow as AiProviderConfig | null
     if (!provider?.api_key) throw new Error('AI provider is not configured')

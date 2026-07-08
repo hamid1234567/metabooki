@@ -97,10 +97,16 @@ export default function Admin() {
   }
 
   const updateAiProvider = (providerId: AiProviderConfig['id'], patch: Partial<AiProviderConfig>) => {
-    setAiSettings(current => ({
-      ...current,
-      providers: current.providers.map(provider => provider.id === providerId ? { ...provider, ...patch } : provider),
-    }))
+    setAiSettings(current => {
+      const providers = current.providers.map(provider => provider.id === providerId ? { ...provider, ...patch } : provider)
+      let activeProvider = current.activeProvider
+      if (patch.enabled === true) {
+        activeProvider = providerId
+      } else if (patch.enabled === false && current.activeProvider === providerId) {
+        activeProvider = providers.find(provider => provider.enabled)?.id || providerId
+      }
+      return { ...current, activeProvider, providers }
+    })
   }
 
   const saveAiSettings = async () => {
