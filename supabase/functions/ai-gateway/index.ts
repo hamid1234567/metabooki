@@ -67,7 +67,7 @@ function kieImageSizeForModel(size: AiImageSize) {
 }
 
 function kieImageTaskInput(model: string, prompt: string, size: AiImageSize) {
-  if (model.startsWith('qwen/') || model.startsWith('qwen2/') || model.startsWith('google/nano-banana')) {
+  if (model.startsWith('qwen/') || model.startsWith('qwen2/') || model.startsWith('google/nano-banana') || model.startsWith('nano-banana')) {
     return {
       prompt,
       image_size: kieImageSizeForModel(size),
@@ -139,7 +139,20 @@ function extractKieText(json: any) {
 }
 
 function extractKieTaskId(json: any) {
-  return json?.data?.taskId || json?.data?.task_id || json?.taskId || json?.task_id || json?.id
+  return json?.data?.taskId
+    || json?.data?.task_id
+    || json?.data?.id
+    || json?.data?.task?.id
+    || json?.data?.result?.taskId
+    || json?.data?.result?.task_id
+    || json?.data?.response?.taskId
+    || json?.data?.response?.task_id
+    || json?.result?.taskId
+    || json?.result?.task_id
+    || json?.task?.id
+    || json?.taskId
+    || json?.task_id
+    || json?.id
 }
 
 function extractKieImageUrl(json: any) {
@@ -171,6 +184,11 @@ function extractKieImageUrl(json: any) {
   return String(candidates[0] || '')
 }
 
+function kieImageStatusEndpoint(baseUrl: string, model: string, taskId: string) {
+  if (model === '4o-image') return `${baseUrl}/api/v1/gpt4o-image/record-info?taskId=${encodeURIComponent(taskId)}`
+  return `${baseUrl}/api/v1/jobs/recordInfo?taskId=${encodeURIComponent(taskId)}`
+}
+
 function isKieTaskComplete(json: any) {
   const state = String(json?.data?.state || json?.data?.status || json?.status || '').toLowerCase()
   return ['success', 'succeeded', 'completed', 'complete', 'done'].includes(state)
@@ -179,10 +197,6 @@ function isKieTaskComplete(json: any) {
 function isKieTaskFailed(json: any) {
   const state = String(json?.data?.state || json?.data?.status || json?.status || '').toLowerCase()
   return ['fail', 'failed', 'error', 'canceled', 'cancelled'].includes(state)
-}
-
-function sleep(ms: number) {
-  return new Promise(resolve => setTimeout(resolve, ms))
 }
 
 function imageUsage(provider: AiProviderConfig, prompt: string, usdToToman: number, chargeMultiplier: number, creditsPerToman: number) {
@@ -297,22 +311,9 @@ async function callImageProvider(provider: AiProviderConfig, prompt: string, siz
       if (immediateUrl) return { imageUrl: immediateUrl, model }
 
       const taskId = extractKieTaskId(created)
-      if (!taskId) throw new Error('KIE 4o image did not return a task id')
+      if (!taskId) throw new Error(providerError(created, 'KIE 4o image did not return a task id'))
 
-      for (let attempt = 0; attempt < 70; attempt += 1) {
-        await sleep(2000)
-        const detailRes = await fetch(`${baseUrl}/api/v1/gpt4o-image/record-info?taskId=${encodeURIComponent(taskId)}`, {
-          headers: { Authorization: `Bearer ${provider.api_key}` },
-        })
-        const detail = await detailRes.json().catch(() => ({}))
-        if (!detailRes.ok) throw new Error(providerError(detail, `KIE 4o image status failed (${detailRes.status})`))
-        const imageUrl = extractKieImageUrl(detail)
-        if (imageUrl) return { imageUrl, model }
-        if (isKieTaskFailed(detail)) throw new Error(providerError(detail, 'KIE 4o image task failed'))
-        if (isKieTaskComplete(detail)) break
-      }
-
-      throw new Error(`KIE 4o image task did not finish in time. Task id: ${taskId}. Try again or check KIE task history.`)
+      return { taskId, model, status: 'pending' }
     }
 
     const createRes = await fetch(`${baseUrl}/api/v1/jobs/createTask`, {
@@ -330,22 +331,9 @@ async function callImageProvider(provider: AiProviderConfig, prompt: string, siz
     if (immediateUrl) return { imageUrl: immediateUrl, model }
 
     const taskId = extractKieTaskId(created)
-    if (!taskId) throw new Error('KIE did not return an image task id')
+    if (!taskId) throw new Error(providerError(created, 'KIE did not return an image task id'))
 
-    for (let attempt = 0; attempt < 70; attempt += 1) {
-      await sleep(2000)
-      const detailRes = await fetch(`${baseUrl}/api/v1/jobs/recordInfo?taskId=${encodeURIComponent(taskId)}`, {
-        headers: { Authorization: `Bearer ${provider.api_key}` },
-      })
-      const detail = await detailRes.json().catch(() => ({}))
-      if (!detailRes.ok) throw new Error(providerError(detail, `KIE image status failed (${detailRes.status})`))
-      const imageUrl = extractKieImageUrl(detail)
-      if (imageUrl) return { imageUrl, model }
-      if (isKieTaskFailed(detail)) throw new Error(providerError(detail, 'KIE image task failed'))
-      if (isKieTaskComplete(detail)) break
-    }
-
-    throw new Error(`KIE image task did not finish in time. Task id: ${taskId}. Try again or check KIE task history.`)
+    return { taskId, model, status: 'pending' }
   }
 
   if (!['openai', 'custom'].includes(provider.provider)) {
@@ -364,6 +352,22 @@ async function callImageProvider(provider: AiProviderConfig, prompt: string, siz
   const imageUrl = item.b64_json ? `data:image/png;base64,${item.b64_json}` : item.url
   if (!imageUrl) throw new Error(`Image provider did not return an image for model ${model}`)
   return { imageUrl, model }
+}
+
+async function pollKieImageProvider(provider: AiProviderConfig, taskId: string, model: string) {
+  const baseUrl = kieBaseUrl(provider)
+  const detailRes = await fetch(kieImageStatusEndpoint(baseUrl, model, taskId), {
+    headers: { Authorization: `Bearer ${provider.api_key}` },
+  })
+  const detail = await detailRes.json().catch(() => ({}))
+  if (!detailRes.ok) throw new Error(providerError(detail, `KIE image status failed (${detailRes.status})`))
+  const imageUrl = extractKieImageUrl(detail)
+  if (imageUrl) return { imageUrl, model, taskId, status: 'completed' }
+  if (isKieTaskFailed(detail)) throw new Error(providerError(detail, 'KIE image task failed'))
+  if (isKieTaskComplete(detail)) {
+    throw new Error(providerError(detail, `KIE image task completed but no image URL was found. Task id: ${taskId}`))
+  }
+  return { imageUrl: '', model, taskId, status: 'pending' }
 }
 
 function actionPrompt(action: string, bookTitle: string, pageTitle: string | undefined, pageText: string) {
@@ -610,13 +614,97 @@ serve(async (req) => {
     const { data: feeSettings } = await adminClient.from('platform_fee_settings').select('credits_per_toman').eq('id', 1).single()
     const creditsPerToman = Number(feeSettings?.credits_per_toman || 0.001)
 
-    if (body.operation === 'estimate_image' || body.operation === 'generate_image') {
+    if (body.operation === 'estimate_image' || body.operation === 'generate_image' || body.operation === 'poll_image') {
       const rawPrompt = String(body.prompt || '').trim()
       if (!rawPrompt) throw new Error('Image prompt is empty')
       const prompt = imagePromptWithSettings(rawPrompt, String(body.purpose || 'direct'), promptSettings)
       const size = normalizeImageSize(body.size)
       const model = imageModelForProvider(provider)
       const usage = imageUsage(provider, prompt, usdToToman, chargeMultiplier, creditsPerToman)
+
+      if (body.operation === 'poll_image') {
+        if (provider.provider !== 'kie') throw new Error('Image polling is only available for KIE image tasks')
+        const taskId = String(body.taskId || '').trim()
+        const taskModel = String(body.model || model || '').trim()
+        if (!taskId || !taskModel) throw new Error('KIE image task id or model is missing')
+
+        const { data: existingOutput } = await adminClient
+          .from('ai_saved_outputs')
+          .select('content')
+          .eq('user_id', user.id)
+          .eq('action', 'image_generation')
+          .filter('content->>taskId', 'eq', taskId)
+          .maybeSingle()
+        const existingImageUrl = (existingOutput?.content as any)?.imageUrl
+        if (existingImageUrl) {
+          return new Response(JSON.stringify({
+            provider: provider.label || provider.provider,
+            model: taskModel,
+            prompt,
+            purpose: body.purpose || 'direct',
+            size,
+            imageUrl: existingImageUrl,
+            taskId,
+            status: 'completed',
+            usage,
+            alreadyCharged: true,
+          }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+        }
+
+        const polled = await pollKieImageProvider(provider, taskId, taskModel)
+        if (!polled.imageUrl) {
+          return new Response(JSON.stringify({
+            provider: provider.label || provider.provider,
+            model: taskModel,
+            prompt,
+            purpose: body.purpose || 'direct',
+            size,
+            taskId,
+            status: 'pending',
+            usage,
+          }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+        }
+
+        const { error: txError } = await userClient.rpc('charge_user_credits', {
+          target_user_id: user.id,
+          charge_amount: usage.chargedCredits,
+          charge_description: `AI image generation: ${provider.provider}/${taskModel} ($${usage.chargedUsd.toFixed(6)})`,
+        })
+        if (txError) throw txError
+
+        await adminClient.from('ai_usage_logs').insert({
+          user_id: user.id,
+          provider: provider.provider,
+          model: taskModel,
+          action: 'image_generation',
+          input_tokens: usage.inputTokens,
+          output_tokens: usage.outputTokens,
+          raw_usd: usage.rawUsd,
+          charged_usd: usage.chargedUsd,
+          charged_toman: usage.chargedToman,
+          charged_credits: usage.chargedCredits,
+        })
+
+        await adminClient.from('ai_saved_outputs').insert({
+          user_id: user.id,
+          book_id: body.bookId || null,
+          page_index: body.pageIndex ?? null,
+          action: 'image_generation',
+          content: { type: 'image', prompt, size, purpose: body.purpose || 'direct', imageUrl: polled.imageUrl, taskId },
+        })
+
+        return new Response(JSON.stringify({
+          provider: provider.label || provider.provider,
+          model: taskModel,
+          prompt,
+          purpose: body.purpose || 'direct',
+          size,
+          imageUrl: polled.imageUrl,
+          taskId,
+          status: 'completed',
+          usage,
+        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
 
       if (body.operation === 'estimate_image') {
         return new Response(JSON.stringify({
@@ -631,6 +719,20 @@ serve(async (req) => {
       }
 
       const generated = await callImageProvider(provider, prompt, size)
+      if ((generated as any).taskId && !(generated as any).imageUrl) {
+        return new Response(JSON.stringify({
+          provider: provider.label || provider.provider,
+          model: generated.model,
+          warning: imageModelWarning(provider),
+          prompt,
+          purpose: body.purpose || 'direct',
+          size,
+          taskId: (generated as any).taskId,
+          status: 'pending',
+          usage,
+        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+
       const { error: txError } = await userClient.rpc('charge_user_credits', {
         target_user_id: user.id,
         charge_amount: usage.chargedCredits,
@@ -656,7 +758,7 @@ serve(async (req) => {
         book_id: body.bookId || null,
         page_index: body.pageIndex ?? null,
         action: 'image_generation',
-        content: { type: 'image', prompt, size, purpose: body.purpose || 'direct', imageUrl: generated.imageUrl },
+        content: { type: 'image', prompt, size, purpose: body.purpose || 'direct', imageUrl: (generated as any).imageUrl },
       })
 
       return new Response(JSON.stringify({
@@ -666,7 +768,8 @@ serve(async (req) => {
         prompt,
         purpose: body.purpose || 'direct',
         size,
-        imageUrl: generated.imageUrl,
+        imageUrl: (generated as any).imageUrl,
+        status: 'completed',
         usage,
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }

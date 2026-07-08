@@ -103,6 +103,9 @@ export interface AiImageEstimateResult {
 
 export interface AiImageGenerationResult extends AiImageEstimateResult {
   imageUrl: string
+  status?: 'completed'
+  taskId?: string
+  alreadyCharged?: boolean
 }
 
 export interface AiImageRequest {
@@ -121,6 +124,12 @@ export interface AiProviderTestResult {
   model: string
   message: string
   sample?: string
+}
+
+type AiImagePendingResult = AiImageEstimateResult & {
+  imageUrl?: string
+  status?: 'pending' | 'completed'
+  taskId?: string
 }
 
 export type AiProviderModelOption = {
@@ -339,9 +348,30 @@ export async function generateAiImageThroughGateway(request: AiImageRequest): Pr
     body: { operation: 'generate_image', prompt: prepared.prompt, purpose: prepared.purpose, size: prepared.size, bookId: request.bookId, pageIndex: request.pageIndex },
   })
   if (error) throw await gatewayError(error, 'تولید تصویر ناموفق بود.')
-  if (!(data as AiImageGenerationResult)?.imageUrl) {
-    const model = (data as AiImageGenerationResult)?.model || 'unknown'
+  let result = data as AiImagePendingResult
+  if (result?.status === 'pending' && result.taskId) {
+    for (let attempt = 0; attempt < 90; attempt += 1) {
+      await new Promise(resolve => setTimeout(resolve, 2500))
+      const { data: pollData, error: pollError } = await supabase.functions.invoke('ai-gateway', {
+        body: {
+          operation: 'poll_image',
+          taskId: result.taskId,
+          model: result.model,
+          prompt: prepared.prompt,
+          purpose: prepared.purpose,
+          size: prepared.size,
+          bookId: request.bookId,
+          pageIndex: request.pageIndex,
+        },
+      })
+      if (pollError) throw await gatewayError(pollError, 'بررسی وضعیت تولید تصویر ناموفق بود.')
+      result = pollData as AiImagePendingResult
+      if (result?.imageUrl) break
+    }
+  }
+  if (!result?.imageUrl) {
+    const model = result?.model || 'unknown'
     throw new Error(`هوش مصنوعی تصویری برنگرداند. مدل گزارش‌شده: ${model}. برای تولید تصویر باید فیلد «مدل تولید تصویر» روی مدلی مثل gpt-image-1 باشد، نه مدل متنی مثل gpt-4o.`)
   }
-  return data as AiImageGenerationResult
+  return result as AiImageGenerationResult
 }
