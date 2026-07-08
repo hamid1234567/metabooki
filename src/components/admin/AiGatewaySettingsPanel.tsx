@@ -2,6 +2,7 @@ import { AlertTriangle, CheckCircle, KeyRound, RefreshCw, Sparkles } from 'lucid
 import { Button } from '@/components/ui/button'
 import { CREDIT_VALUE_TOMAN } from '@/lib/mock-data'
 import {
+  KIE_AUDIO_MODEL_OPTIONS,
   KIE_IMAGE_MODEL_OPTIONS,
   KIE_TEXT_MODEL_OPTIONS,
   maskApiKey,
@@ -46,6 +47,25 @@ export function AiGatewaySettingsPanel({
         inputCostPer1kUsd: option.inputCostPer1kUsd,
         outputCostPer1kUsd: option.outputCostPer1kUsd,
       } : {}),
+    })
+  }
+  const promptFields: Array<[keyof AiGatewaySettings['promptSettings'], string, string]> = [
+    ['textGlobal', 'پرامپت تکمیلی عمومی متن', 'به همه درخواست‌های متنی اضافه می‌شود.'],
+    ['readerSummary', 'کتابخوان: خلاصه', 'راهنمای اختصاصی تولید خلاصه صفحه.'],
+    ['readerQuiz', 'کتابخوان: سؤال', 'راهنمای اختصاصی تولید سؤال چندگزینه‌ای.'],
+    ['readerMindmap', 'کتابخوان: Mindmap', 'راهنمای اختصاصی تولید نقشه ذهنی.'],
+    ['readerLearningPath', 'کتابخوان: مسیر یادگیری', 'راهنمای اختصاصی تولید مسیر مرحله‌ای.'],
+    ['readerExplain', 'کتابخوان: شرح عمیق', 'راهنمای اختصاصی توضیح عمیق‌تر.'],
+    ['readerCalloutSuggestions', 'ادیتور: پیشنهاد Callout', 'راهنمای اختصاصی پیشنهاد کال‌اوت.'],
+    ['imageGlobal', 'پرامپت تکمیلی عمومی تصویر', 'به همه درخواست‌های تصویر اضافه می‌شود.'],
+    ['imageInteractive', 'تصاویر تعاملی', 'به پرامپت تصاویر تعاملی اضافه می‌شود.'],
+    ['imageBookCover', 'کاور کتاب', 'به پرامپت تولید جلد کتاب اضافه می‌شود.'],
+    ['imageDirect', 'تصویر مستقیم کاربر', 'در صورت نیاز به پرامپت مستقیم کاربر افزوده می‌شود.'],
+  ]
+  const updatePromptSetting = (key: keyof AiGatewaySettings['promptSettings'], value: string) => {
+    onSettingsChange({
+      ...settings,
+      promptSettings: { ...settings.promptSettings, [key]: value },
     })
   }
 
@@ -163,6 +183,22 @@ export function AiGatewaySettingsPanel({
                           ))}
                         </select>
                       </label>
+                      <label className="grid gap-1">
+                        <span className="text-xs text-muted-foreground">مدل صوتی KIE / ElevenLabs</span>
+                        <select
+                          title="مدل صوتی KIE"
+                          value={provider.audioModel || KIE_AUDIO_MODEL_OPTIONS[0]?.id || ''}
+                          onChange={event => onProviderChange(provider.id, { audioModel: event.target.value })}
+                          className="w-full rounded-xl border border-input bg-background p-2.5 text-sm"
+                          dir="ltr"
+                        >
+                          {KIE_AUDIO_MODEL_OPTIONS.map(option => (
+                            <option key={option.id} value={option.id}>
+                              {option.label} - base ${option.baseCostUsd}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
                     </>
                   ) : (
                     <>
@@ -203,6 +239,30 @@ export function AiGatewaySettingsPanel({
         <div className="mt-6 flex flex-wrap items-center gap-3">
           <Button onClick={onSave} className="gap-2">ذخیره تنظیمات هوش مصنوعی</Button>
           {message && <p className="text-sm font-medium text-success">{message}</p>}
+        </div>
+      </section>
+
+      <section className="glass rounded-2xl p-6">
+        <div className="mb-4">
+          <h2 className="text-lg font-bold">پرامپت‌های تکمیلی سایت</h2>
+          <p className="mt-1 text-sm leading-7 text-muted-foreground">
+            این متن‌ها به درخواست همان بخش اضافه می‌شوند. اگر خالی باشند، فقط پرامپت تولیدشده توسط سایت یا متن کاربر ارسال می‌شود.
+          </p>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          {promptFields.map(([key, label, hint]) => (
+            <label key={key} className="grid gap-2">
+              <span className="text-sm font-bold">{label}</span>
+              <textarea
+                value={settings.promptSettings?.[key] || ''}
+                onChange={event => updatePromptSetting(key, event.target.value)}
+                placeholder={hint}
+                className="min-h-24 w-full rounded-xl border border-input bg-background/75 p-3 text-sm leading-7 outline-none focus:border-primary"
+                dir="auto"
+              />
+              <small className="text-xs text-muted-foreground">{hint}</small>
+            </label>
+          ))}
         </div>
       </section>
 

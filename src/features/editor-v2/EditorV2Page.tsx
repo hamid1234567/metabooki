@@ -1537,7 +1537,10 @@ function RightPanelV2({
 
             <div className="editor-v2-media-ai">
               <textarea value={aiPrompt} onChange={event => setAiPrompt(event.target.value)} placeholder="پرامپت تولید تصویر با هوش مصنوعی..." />
-              <button type="button" onClick={() => aiPrompt.trim() && onGenerateImage(aiPrompt.trim())}><Wand2 size={14} />تولید و درج</button>
+              <button type="button" disabled={aiBusy || !aiPrompt.trim()} aria-busy={aiBusy} onClick={() => aiPrompt.trim() && onGenerateImage(aiPrompt.trim())}>
+                {aiBusy ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} />}
+                {aiBusy ? 'در حال تولید...' : 'تولید و درج'}
+              </button>
             </div>
 
             <div className="editor-v2-media-search">

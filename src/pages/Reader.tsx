@@ -5,7 +5,7 @@ import { type MockBook } from '@/lib/mock-data'
 import { getBook } from '@/lib/book-repository'
 import { isInMockLibrary, saveReadingProgress } from '@/lib/mock-library'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, BookOpen, Lock, Eye, List, Menu, Minus, Plus, X, Sparkles, FileText, HelpCircle, ChevronRight, ChevronLeft, Check, X as XIcon, Search, Highlighter, Sun, Moon, Play, Pause, PenTool, Image as ImageIcon, Network, GitBranch } from 'lucide-react'
+import { ArrowLeft, BookOpen, Lock, Eye, List, Menu, Minus, Plus, X, Sparkles, FileText, HelpCircle, ChevronRight, ChevronLeft, Check, X as XIcon, Search, Highlighter, Sun, Moon, Play, Pause, PenTool, Image as ImageIcon, Network, GitBranch, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { runAiThroughGateway, type AiStructuredContent, type ReaderAiAction, type RunAiResult } from '@/lib/ai-gateway'
 import { supabase } from '@/integrations/supabase/client'
@@ -148,6 +148,7 @@ export default function Reader() {
   const [aiMindmapBranch, setAiMindmapBranch] = useState(0)
   const [aiUsage, setAiUsage] = useState<RunAiResult['usage'] | null>(null)
   const [aiLoading, setAiLoading] = useState(false)
+  const [aiCache, setAiCache] = useState<Record<string, { content: AiStructuredContent; usage: RunAiResult['usage'] }>>({})
   const [quizAnswers, setQuizAnswers] = useState<Record<string, number>>({})
   const [highlights, setHighlights] = useState<HighlightEntry[]>([])
   const [showHighlights, setShowHighlights] = useState(false)
@@ -1019,7 +1020,37 @@ export default function Reader() {
   })
 
   // AI
-  const runAi = async (action: ReaderAiAction) => {
+  const aiCacheKey = (action: ReaderAiAction) => {
+    const text = currentPageText()
+    return `${book.id}:${currentPage}:${action}:${text.length}:${text.slice(0, 80)}`
+  }
+
+  const aiActionDescriptions: Record<ReaderAiAction, string> = {
+    summary: 'این ابزار یک خلاصه خوانا از همین صفحه می‌سازد و نکات اصلی را مرتب می‌کند.',
+    quiz: 'این ابزار از همین صفحه یک سؤال چندگزینه‌ای تک‌پاسخی می‌سازد و بعد از پاسخ، بازخورد می‌دهد.',
+    mindmap: 'این ابزار مفاهیم صفحه را به شکل شاخه‌های ذهنی برای مرور سریع مرتب می‌کند.',
+    learning_path: 'این ابزار اگر متن مرحله‌ای، تاریخی یا فرایندی باشد، آن را به مسیر یادگیری تعاملی تبدیل می‌کند.',
+    explain: 'این ابزار بخش‌های سخت صفحه را با توضیح آموزشی و روان باز می‌کند.',
+    callout_suggestions: 'این ابزار پیشنهادهایی برای برجسته‌سازی بخش‌های مهم متن ارائه می‌دهد.',
+  }
+
+  const selectAiAction = (action: ReaderAiAction) => {
+    setShowAiPanel(true)
+    setAiAction(action)
+    setAiQuizAnswer(null)
+    setAiTimelineStep(0)
+    setAiMindmapBranch(0)
+    const cached = aiCache[aiCacheKey(action)]
+    setAiResult(cached?.content || null)
+    setAiUsage(cached?.usage || null)
+  }
+
+  const runAi = async (action: ReaderAiAction, force = false) => {
+    const key = aiCacheKey(action)
+    if (!force && aiCache[key]) {
+      selectAiAction(action)
+      return
+    }
     try {
       setAiLoading(true)
       setShowAiPanel(true)
@@ -1041,6 +1072,7 @@ export default function Reader() {
       if (!result.content) throw new Error('خروجی ساختاریافته از سرویس دریافت نشد.')
       setAiResult(result.content)
       setAiUsage(result.usage)
+      setAiCache(current => ({ ...current, [key]: { content: result.content!, usage: result.usage } }))
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'اجرای دستیار هوش مصنوعی ناموفق بود')
       setAiResult(null)
@@ -1587,7 +1619,7 @@ export default function Reader() {
               ['mindmap', Network, 'ذهنی'],
               ['learning_path', GitBranch, 'مراحل'],
               ['explain', Sparkles, 'شرح'],
-            ] as const).map(([action, Icon, label]) => <button key={action} disabled={aiLoading} onClick={() => runAi(action)} title={label} className={`flex min-w-0 flex-col items-center gap-1 rounded-xl p-2 text-[10px] transition-colors ${aiAction === action ? 'bg-primary text-primary-foreground' : 'bg-muted/50 hover:bg-muted'}`}><Icon className="w-4 h-4"/><span>{label}</span></button>)}
+            ] as const).map(([action, Icon, label]) => <button key={action} disabled={aiLoading} onClick={() => selectAiAction(action)} title={label} className={`flex min-w-0 flex-col items-center gap-1 rounded-xl p-2 text-[10px] transition-colors ${aiAction === action ? 'bg-primary text-primary-foreground' : 'bg-muted/50 hover:bg-muted'}`}><Icon className="w-4 h-4"/><span>{label}</span></button>)}
           </div>
           {aiLoading ? (
             <div className="ai-thinking-loader">
@@ -1598,15 +1630,27 @@ export default function Reader() {
               </div>
               <div className="ai-thinking-bars"><span/><span/><span/><span/><span/></div>
             </div>
-          ) : !aiResult ? (
+          ) : !aiAction ? (
             <div className="py-6 text-center">
               <p className="text-sm font-medium">یک ابزار را برای تحلیل همین صفحه انتخاب کنید.</p>
-              <p className="text-xs text-muted-foreground leading-relaxed mt-2">هزینه واقعی درخواست طبق تنظیمات ادمین از کردیت شما کسر می‌شود.</p>
+              <p className="text-xs text-muted-foreground leading-relaxed mt-2">صرف انتخاب تب، خروجی جدید تولید نمی‌کند.</p>
+            </div>
+          ) : !aiResult ? (
+            <div className="py-5 text-center">
+              <p className="text-sm font-bold">{aiActionDescriptions[aiAction]}</p>
+              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">برای تولید خروجی، دکمه شروع را بزنید. هزینه طبق تنظیمات ادمین از کردیت کم می‌شود.</p>
+              <Button size="sm" onClick={() => runAi(aiAction, true)} className="mt-4 w-full gap-2">
+                <Sparkles className="h-4 w-4" />
+                شروع تولید
+              </Button>
             </div>
           ) : (
             <div className="animate-fade-in">
               <div className="bg-muted/35 rounded-xl p-4 mb-3 max-h-[55vh] overflow-y-auto">{renderAiResult(aiResult)}</div>
-              {aiResult.type === 'quiz' ? <Button size="sm" onClick={() => runAi('quiz')} className="w-full">تولید سؤال بعدی</Button> : <Button size="sm" variant="outline" onClick={() => addHighlight(selectedHighlightColor, aiContentAsText(aiResult), 'ai')} className="w-full gap-2"><Highlighter className="w-4 h-4"/>افزودن خروجی به هایلایت‌ها</Button>}
+              <div className="grid gap-2">
+                <Button size="sm" variant="outline" onClick={() => aiAction && runAi(aiAction, true)} className="w-full gap-2"><RefreshCw className="w-4 h-4"/>تولید دوباره</Button>
+                {aiResult.type === 'quiz' ? null : <Button size="sm" variant="outline" onClick={() => addHighlight(selectedHighlightColor, aiContentAsText(aiResult), 'ai')} className="w-full gap-2"><Highlighter className="w-4 h-4"/>افزودن خروجی به هایلایت‌ها</Button>}
+              </div>
               {aiUsage && <p className="mt-3 text-center text-[11px] text-muted-foreground">{aiUsage.chargedCredits.toLocaleString('fa-IR')} کردیت کسر شد</p>}
             </div>
           )}

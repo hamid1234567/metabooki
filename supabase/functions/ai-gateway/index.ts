@@ -17,11 +17,13 @@ type AiProviderConfig = {
   base_url: string
   model: string
   image_model?: string
+  audio_model?: string
   input_cost_per_1k_usd: number
   output_cost_per_1k_usd: number
 }
 
 type AiImageSize = '1024x1024' | '1024x1536' | '1536x1024'
+type PromptSettings = Record<string, string>
 
 function estimateTokens(text: string) {
   return Math.max(1, Math.ceil((text || '').trim().length / 4))
@@ -79,17 +81,27 @@ function extractKieTaskId(json: any) {
 
 function extractKieImageUrl(json: any) {
   const data = json?.data || json
-  const response = data?.response || data?.result || data?.output || data
+  const response = data?.response || data?.result || data?.output || data?.resultJson || data?.result_json || data
   const parsed = typeof response === 'string'
     ? (() => { try { return JSON.parse(response) } catch { return response } })()
     : response
   const candidates = [
     parsed?.resultUrls?.[0],
     parsed?.result_urls?.[0],
+    parsed?.result?.resultUrls?.[0],
+    parsed?.result?.urls?.[0],
+    parsed?.response?.resultUrls?.[0],
+    parsed?.response?.urls?.[0],
     parsed?.urls?.[0],
     parsed?.images?.[0]?.url,
+    parsed?.images?.[0],
+    parsed?.image?.url,
+    parsed?.image,
     parsed?.image_urls?.[0],
     parsed?.imageUrl,
+    parsed?.url,
+    data?.resultUrls?.[0],
+    data?.result_urls?.[0],
     data?.imageUrl,
     data?.url,
   ].filter(Boolean)
@@ -124,6 +136,10 @@ function imageUsage(provider: AiProviderConfig, prompt: string, usdToToman: numb
 function imageBaseUsdForProvider(provider: AiProviderConfig) {
   const model = imageModelForProvider(provider)
   if (provider.provider === 'kie') {
+    if (model === 'qwen-image') return 0.025
+    if (model === 'qwen-image-edit') return 0.03
+    if (model === 'gemini-2-5-flash-image-preview') return 0.03
+    if (model === 'grok-2-image') return 0.035
     if (model === '4o-image') return 0.03
     if (model === 'gpt-image-2-edit-image') return 0.05
     return 0.05
@@ -136,6 +152,43 @@ function providerError(json: any, fallback: string) {
   if (message) return String(message)
   const preview = JSON.stringify(json || {}).slice(0, 500)
   return preview && preview !== '{}' ? `${fallback}: ${preview}` : fallback
+}
+
+function promptSetting(settings: PromptSettings | null | undefined, key: string) {
+  const value = settings?.[key]
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function appendSupplementalPrompt(prompt: string, additions: string[]) {
+  const extras = additions.map(item => item.trim()).filter(Boolean)
+  if (!extras.length) return prompt
+  return `${prompt}\n\nAdditional site instructions:\n${extras.map(item => `- ${item}`).join('\n')}`
+}
+
+function imagePromptWithSettings(prompt: string, purpose: string, settings: PromptSettings | null | undefined) {
+  const purposeKey = purpose === 'book_cover' ? 'imageBookCover' : purpose === 'interactive' ? 'imageInteractive' : 'imageDirect'
+  return appendSupplementalPrompt(prompt, [
+    promptSetting(settings, 'imageGlobal'),
+    promptSetting(settings, purposeKey),
+    'Resolution target: 1k.',
+  ])
+}
+
+function textPromptWithSettings(prompt: string, action: string, settings: PromptSettings | null | undefined) {
+  const actionKey = action === 'summary'
+    ? 'readerSummary'
+    : action === 'quiz'
+      ? 'readerQuiz'
+      : action === 'mindmap'
+        ? 'readerMindmap'
+        : action === 'learning_path'
+          ? 'readerLearningPath'
+          : action === 'explain'
+            ? 'readerExplain'
+            : action === 'callout_suggestions'
+              ? 'readerCalloutSuggestions'
+              : ''
+  return appendSupplementalPrompt(prompt, [promptSetting(settings, 'textGlobal'), actionKey ? promptSetting(settings, actionKey) : ''])
 }
 
 function textUsage(provider: AiProviderConfig, prompt: string, maxOutputTokens: number, usdToToman: number, chargeMultiplier: number, creditsPerToman: number) {
@@ -173,7 +226,7 @@ async function callImageProvider(provider: AiProviderConfig, prompt: string, siz
         input: {
           prompt,
           aspect_ratio: kieAspectRatioForSize(size),
-          resolution: '2K',
+          resolution: '1K',
         },
       }),
     })
@@ -186,7 +239,7 @@ async function callImageProvider(provider: AiProviderConfig, prompt: string, siz
     const taskId = extractKieTaskId(created)
     if (!taskId) throw new Error('KIE did not return an image task id')
 
-    for (let attempt = 0; attempt < 30; attempt += 1) {
+    for (let attempt = 0; attempt < 70; attempt += 1) {
       await sleep(2000)
       const detailRes = await fetch(`${baseUrl}/api/v1/jobs/recordInfo?taskId=${encodeURIComponent(taskId)}`, {
         headers: { Authorization: `Bearer ${provider.api_key}` },
@@ -199,7 +252,7 @@ async function callImageProvider(provider: AiProviderConfig, prompt: string, siz
       if (isKieTaskComplete(detail)) break
     }
 
-    throw new Error('KIE image task did not finish in time. Try again or check KIE task history.')
+    throw new Error(`KIE image task did not finish in time. Task id: ${taskId}. Try again or check KIE task history.`)
   }
 
   if (!['openai', 'custom'].includes(provider.provider)) {
@@ -341,15 +394,16 @@ serve(async (req) => {
       if (body.operation === 'admin_get_settings') {
         const { data: gateway, error: gatewayError } = await adminClient.from('ai_gateway_settings').select('*').eq('id', 1).single()
         if (gatewayError) throw gatewayError
-        const { data: providers, error: providersError } = await adminClient.from('ai_provider_settings').select('provider,label,enabled,base_url,model,image_model,input_cost_per_1k_usd,output_cost_per_1k_usd,api_key')
+        const { data: providers, error: providersError } = await adminClient.from('ai_provider_settings').select('provider,label,enabled,base_url,model,image_model,audio_model,input_cost_per_1k_usd,output_cost_per_1k_usd,api_key')
         if (providersError) throw providersError
         return new Response(JSON.stringify({
           activeProvider: gateway?.active_provider || 'openai',
           usdToToman: Number(gateway?.usd_to_toman || DEFAULT_USD_TO_TOMAN),
           chargeMultiplier: Number(gateway?.charge_multiplier || DEFAULT_CHARGE_MULTIPLIER),
+          promptSettings: gateway?.prompt_settings || {},
           providers: (providers || []).map((p: any) => ({
             id: p.provider, label: p.label, enabled: p.enabled, apiKey: p.api_key ? '__stored__' : '',
-            baseUrl: p.base_url, model: p.model, imageModel: p.image_model || '', inputCostPer1kUsd: Number(p.input_cost_per_1k_usd),
+            baseUrl: p.base_url, model: p.model, imageModel: p.image_model || '', audioModel: p.audio_model || '', inputCostPer1kUsd: Number(p.input_cost_per_1k_usd),
             outputCostPer1kUsd: Number(p.output_cost_per_1k_usd),
           })),
         }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
@@ -363,12 +417,12 @@ serve(async (req) => {
         : (incomingProviders.find((p: any) => p.enabled)?.id || incoming.activeProvider || 'openai')
       const { error: settingsError } = await adminClient.from('ai_gateway_settings').upsert({
         id: 1, active_provider: normalizedActiveProvider, usd_to_toman: incoming.usdToToman,
-        charge_multiplier: incoming.chargeMultiplier, updated_at: new Date().toISOString(),
+        charge_multiplier: incoming.chargeMultiplier, prompt_settings: incoming.promptSettings || {}, updated_at: new Date().toISOString(),
       })
       if (settingsError) throw settingsError
       for (const p of incomingProviders) {
         const row: Record<string, unknown> = {
-          provider: p.id, label: p.label, enabled: p.enabled, base_url: p.baseUrl, model: p.model, image_model: p.imageModel || null,
+          provider: p.id, label: p.label, enabled: p.enabled, base_url: p.baseUrl, model: p.model, image_model: p.imageModel || null, audio_model: p.audioModel || null,
           input_cost_per_1k_usd: p.inputCostPer1kUsd, output_cost_per_1k_usd: p.outputCostPer1kUsd,
           updated_at: new Date().toISOString(),
         }
@@ -399,6 +453,7 @@ serve(async (req) => {
         base_url: incoming.baseUrl || (incoming.id === 'kie' ? 'https://api.kie.ai' : ''),
         model: incoming.model,
         image_model: incoming.imageModel,
+        audio_model: incoming.audioModel,
         input_cost_per_1k_usd: Number(incoming.inputCostPer1kUsd || 0),
         output_cost_per_1k_usd: Number(incoming.outputCostPer1kUsd || 0),
       }
@@ -418,6 +473,7 @@ serve(async (req) => {
     const activeProvider = settings?.active_provider || 'openai'
     const usdToToman = Number(settings?.usd_to_toman || DEFAULT_USD_TO_TOMAN)
     const chargeMultiplier = Number(settings?.charge_multiplier || DEFAULT_CHARGE_MULTIPLIER)
+    const promptSettings = (settings?.prompt_settings || {}) as PromptSettings
 
     let { data: providerRow } = await adminClient
       .from('ai_provider_settings')
@@ -445,8 +501,9 @@ serve(async (req) => {
     const creditsPerToman = Number(feeSettings?.credits_per_toman || 0.001)
 
     if (body.operation === 'estimate_image' || body.operation === 'generate_image') {
-      const prompt = String(body.prompt || '').trim()
-      if (!prompt) throw new Error('Image prompt is empty')
+      const rawPrompt = String(body.prompt || '').trim()
+      if (!rawPrompt) throw new Error('Image prompt is empty')
+      const prompt = imagePromptWithSettings(rawPrompt, String(body.purpose || 'direct'), promptSettings)
       const size = normalizeImageSize(body.size)
       const model = imageModelForProvider(provider)
       const usage = imageUsage(provider, prompt, usdToToman, chargeMultiplier, creditsPerToman)
@@ -504,7 +561,7 @@ serve(async (req) => {
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
-    const prompt = safeActionPrompt(body.action, body.bookTitle, body.pageTitle, body.pageText)
+    const prompt = textPromptWithSettings(safeActionPrompt(body.action, body.bookTitle, body.pageTitle, body.pageText), String(body.action || ''), promptSettings)
     const maxTokens = maxOutputTokensForAction(body.action)
 
     if (body.operation === 'estimate_text') {

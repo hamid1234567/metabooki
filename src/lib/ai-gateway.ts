@@ -19,8 +19,23 @@ export interface AiProviderConfig {
   baseUrl?: string
   model: string
   imageModel?: string
+  audioModel?: string
   inputCostPer1kUsd: number
   outputCostPer1kUsd: number
+}
+
+export type AiPromptSettings = {
+  textGlobal: string
+  imageGlobal: string
+  imageInteractive: string
+  imageBookCover: string
+  imageDirect: string
+  readerSummary: string
+  readerQuiz: string
+  readerMindmap: string
+  readerLearningPath: string
+  readerExplain: string
+  readerCalloutSuggestions: string
 }
 
 export interface AiGatewaySettings {
@@ -28,6 +43,7 @@ export interface AiGatewaySettings {
   usdToToman: number
   chargeMultiplier: number
   providers: AiProviderConfig[]
+  promptSettings: AiPromptSettings
 }
 
 export interface RunAiRequest {
@@ -122,6 +138,13 @@ export type AiProviderImageModelOption = {
   note?: string
 }
 
+export type AiProviderAudioModelOption = {
+  id: string
+  label: string
+  baseCostUsd: number
+  note?: string
+}
+
 export const DEFAULT_USD_TO_TOMAN = 170_000
 export const DEFAULT_AI_CHARGE_MULTIPLIER = 2
 
@@ -129,20 +152,61 @@ export const KIE_TEXT_MODEL_OPTIONS: AiProviderModelOption[] = [
   { id: 'gpt-5-5', label: 'GPT 5.5 Response', inputCostPer1kUsd: 0.00127, outputCostPer1kUsd: 0.01, note: 'KIE Responses endpoint' },
   { id: 'gpt-5-2', label: 'GPT 5.2 Response', inputCostPer1kUsd: 0.00044, outputCostPer1kUsd: 0.0035, note: 'lower-cost text model' },
   { id: 'gpt-4o', label: 'GPT-4o compatible', inputCostPer1kUsd: 0.0025, outputCostPer1kUsd: 0.01, note: 'vision/text fallback' },
+  { id: 'claude-opus-4-1', label: 'Claude Opus 4.1', inputCostPer1kUsd: 0.015, outputCostPer1kUsd: 0.075, note: 'premium reasoning/writing' },
+  { id: 'claude-sonnet-4', label: 'Claude Sonnet 4', inputCostPer1kUsd: 0.003, outputCostPer1kUsd: 0.015, note: 'balanced text/vision' },
+  { id: 'claude-3-7-sonnet', label: 'Claude 3.7 Sonnet', inputCostPer1kUsd: 0.003, outputCostPer1kUsd: 0.015, note: 'extended thinking model' },
+  { id: 'claude-3-5-sonnet', label: 'Claude 3.5 Sonnet', inputCostPer1kUsd: 0.003, outputCostPer1kUsd: 0.015, note: 'stable Claude fallback' },
+  { id: 'gemini-2-5-pro', label: 'Gemini 2.5 Pro', inputCostPer1kUsd: 0.00125, outputCostPer1kUsd: 0.01, note: 'deep text/vision reasoning' },
+  { id: 'gemini-2-5-flash', label: 'Gemini 2.5 Flash', inputCostPer1kUsd: 0.0003, outputCostPer1kUsd: 0.0025, note: 'fast low-cost text/vision' },
+  { id: 'gemini-2-0-flash', label: 'Gemini 2.0 Flash', inputCostPer1kUsd: 0.0001, outputCostPer1kUsd: 0.0004, note: 'fast fallback' },
+  { id: 'gemini-1-5-pro', label: 'Gemini 1.5 Pro', inputCostPer1kUsd: 0.00125, outputCostPer1kUsd: 0.005, note: 'long-context fallback' },
+  { id: 'qwen3-max', label: 'Qwen3 Max', inputCostPer1kUsd: 0.0012, outputCostPer1kUsd: 0.006, note: 'Qwen flagship text' },
+  { id: 'qwen3-coder-plus', label: 'Qwen3 Coder Plus', inputCostPer1kUsd: 0.001, outputCostPer1kUsd: 0.005, note: 'code and technical content' },
+  { id: 'qwen3-235b-a22b', label: 'Qwen3 235B A22B', inputCostPer1kUsd: 0.0008, outputCostPer1kUsd: 0.004, note: 'large MoE text model' },
+  { id: 'qwen2-5-max', label: 'Qwen2.5 Max', inputCostPer1kUsd: 0.0012, outputCostPer1kUsd: 0.006, note: 'Qwen fallback' },
+  { id: 'grok-4', label: 'Grok 4', inputCostPer1kUsd: 0.003, outputCostPer1kUsd: 0.015, note: 'xAI flagship' },
+  { id: 'grok-3', label: 'Grok 3', inputCostPer1kUsd: 0.003, outputCostPer1kUsd: 0.015, note: 'xAI text model' },
+  { id: 'grok-3-mini', label: 'Grok 3 Mini', inputCostPer1kUsd: 0.0003, outputCostPer1kUsd: 0.0005, note: 'fast xAI model' },
+  { id: 'grok-2-vision', label: 'Grok 2 Vision', inputCostPer1kUsd: 0.002, outputCostPer1kUsd: 0.01, note: 'vision fallback' },
 ]
 
 export const KIE_IMAGE_MODEL_OPTIONS: AiProviderImageModelOption[] = [
   { id: 'gpt-image-2-text-to-image', label: 'GPT Image 2 - text to image', baseCostUsd: 0.05 },
   { id: 'gpt-image-2-edit-image', label: 'GPT Image 2 - edit image', baseCostUsd: 0.05 },
   { id: '4o-image', label: '4o Image generation', baseCostUsd: 0.03 },
+  { id: 'qwen-image', label: 'Qwen Image', baseCostUsd: 0.025 },
+  { id: 'qwen-image-edit', label: 'Qwen Image Edit', baseCostUsd: 0.03 },
+  { id: 'gemini-2-5-flash-image-preview', label: 'Gemini 2.5 Flash Image Preview', baseCostUsd: 0.03 },
+  { id: 'grok-2-image', label: 'Grok Image', baseCostUsd: 0.035 },
 ]
+
+export const KIE_AUDIO_MODEL_OPTIONS: AiProviderAudioModelOption[] = [
+  { id: 'elevenlabs-v3', label: 'ElevenLabs v3 TTS', baseCostUsd: 0.02, note: 'speech generation' },
+  { id: 'elevenlabs-v2', label: 'ElevenLabs v2 TTS', baseCostUsd: 0.018, note: 'stable speech generation' },
+  { id: 'elevenlabs-turbo-v2-5', label: 'ElevenLabs Turbo v2.5', baseCostUsd: 0.012, note: 'fast speech generation' },
+  { id: 'elevenlabs-sfx', label: 'ElevenLabs Sound Effects', baseCostUsd: 0.02, note: 'sound effects' },
+]
+
+export const defaultAiPromptSettings: AiPromptSettings = {
+  textGlobal: '',
+  imageGlobal: '',
+  imageInteractive: '',
+  imageBookCover: '',
+  imageDirect: '',
+  readerSummary: '',
+  readerQuiz: '',
+  readerMindmap: '',
+  readerLearningPath: '',
+  readerExplain: '',
+  readerCalloutSuggestions: '',
+}
 
 const defaultProviders: AiProviderConfig[] = [
   { id: 'openai', label: 'OpenAI / ChatGPT', enabled: true, apiKey: '', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', imageModel: 'gpt-image-1', inputCostPer1kUsd: 0.00015, outputCostPer1kUsd: 0.0006 },
   { id: 'gemini', label: 'Google Gemini', enabled: false, apiKey: '', baseUrl: 'https://generativelanguage.googleapis.com/v1beta', model: 'gemini-1.5-flash', inputCostPer1kUsd: 0.000075, outputCostPer1kUsd: 0.0003 },
   { id: 'anthropic', label: 'Anthropic Claude', enabled: false, apiKey: '', baseUrl: 'https://api.anthropic.com/v1', model: 'claude-3-haiku-20240307', inputCostPer1kUsd: 0.00025, outputCostPer1kUsd: 0.00125 },
   { id: 'custom', label: 'سرویس سفارشی OpenAI-compatible', enabled: false, apiKey: '', baseUrl: '', model: 'custom-model', imageModel: 'gpt-image-1', inputCostPer1kUsd: 0.00015, outputCostPer1kUsd: 0.0006 },
-  { id: 'kie', label: 'KIE.ai unified API', enabled: false, apiKey: '', baseUrl: 'https://api.kie.ai', model: 'gpt-5-5', imageModel: 'gpt-image-2-text-to-image', inputCostPer1kUsd: 0.00127, outputCostPer1kUsd: 0.01 },
+  { id: 'kie', label: 'KIE.ai unified API', enabled: false, apiKey: '', baseUrl: 'https://api.kie.ai', model: 'gpt-5-5', imageModel: 'gpt-image-2-text-to-image', audioModel: 'elevenlabs-v3', inputCostPer1kUsd: 0.00127, outputCostPer1kUsd: 0.01 },
 ]
 
 export const defaultAiGatewaySettings: AiGatewaySettings = {
@@ -150,6 +214,7 @@ export const defaultAiGatewaySettings: AiGatewaySettings = {
   usdToToman: DEFAULT_USD_TO_TOMAN,
   chargeMultiplier: DEFAULT_AI_CHARGE_MULTIPLIER,
   providers: defaultProviders,
+  promptSettings: defaultAiPromptSettings,
 }
 
 function hasSupabaseConnection() {
@@ -199,6 +264,7 @@ function mergeAiGatewaySettings(settings: Partial<AiGatewaySettings> | null | un
     usdToToman: Number(settings?.usdToToman || defaultAiGatewaySettings.usdToToman),
     chargeMultiplier: Number(settings?.chargeMultiplier || defaultAiGatewaySettings.chargeMultiplier),
     providers,
+    promptSettings: { ...defaultAiPromptSettings, ...(settings?.promptSettings || {}) },
   }
 }
 
