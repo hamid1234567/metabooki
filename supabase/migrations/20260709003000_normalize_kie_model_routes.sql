@@ -5,6 +5,18 @@ where provider = 'kie'
   and image_model in ('qwen-image', 'qwen-image-edit', 'gemini-2-5-flash-image-preview', 'grok-2-image');
 
 update public.ai_provider_settings
+set image_model = 'nano-banana-2',
+    updated_at = now()
+where provider = 'kie'
+  and image_model = 'google/nano-banana-2';
+
+update public.ai_provider_settings
+set image_model = 'nano-banana-2-lite',
+    updated_at = now()
+where provider = 'kie'
+  and image_model = 'google/nano-banana-2-lite';
+
+update public.ai_provider_settings
 set model = 'gpt-5-5',
     input_cost_per_1k_usd = 0.00127,
     output_cost_per_1k_usd = 0.01,

@@ -183,8 +183,8 @@ export const KIE_IMAGE_MODEL_OPTIONS: AiProviderImageModelOption[] = [
   { id: '4o-image', label: '4o Image generation', baseCostUsd: 0.03 },
   { id: 'qwen/text-to-image', label: 'Qwen - Text to Image', baseCostUsd: 0.0125 },
   { id: 'qwen2/text-to-image', label: 'Qwen2 - Text to Image', baseCostUsd: 0.027 },
-  { id: 'google/nano-banana-2', label: 'Google Nano Banana 2', baseCostUsd: 0.03 },
-  { id: 'google/nano-banana-2-lite', label: 'Google Nano Banana 2 Lite', baseCostUsd: 0.02 },
+  { id: 'nano-banana-2', label: 'Google Nano Banana 2', baseCostUsd: 0.03 },
+  { id: 'nano-banana-2-lite', label: 'Google Nano Banana 2 Lite', baseCostUsd: 0.02 },
 ]
 
 export const KIE_AUDIO_MODEL_OPTIONS: AiProviderAudioModelOption[] = [

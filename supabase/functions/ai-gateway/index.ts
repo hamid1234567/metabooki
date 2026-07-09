@@ -67,7 +67,7 @@ function kieImageSizeForModel(size: AiImageSize) {
 }
 
 function kieImageTaskInput(model: string, prompt: string, size: AiImageSize) {
-  if (model.startsWith('qwen/') || model.startsWith('qwen2/') || model.startsWith('google/nano-banana') || model.startsWith('nano-banana')) {
+  if (model.startsWith('qwen/') || model.startsWith('qwen2/')) {
     return {
       prompt,
       image_size: kieImageSizeForModel(size),
@@ -215,8 +215,8 @@ function imageBaseUsdForProvider(provider: AiProviderConfig) {
   if (provider.provider === 'kie') {
     if (model === 'qwen/text-to-image') return 0.0125
     if (model === 'qwen2/text-to-image') return 0.027
-    if (model === 'google/nano-banana-2') return 0.03
-    if (model === 'google/nano-banana-2-lite') return 0.02
+    if (model === 'nano-banana-2') return 0.03
+    if (model === 'nano-banana-2-lite') return 0.02
     if (model === '4o-image') return 0.03
     if (model === 'gpt-image-2-edit-image') return 0.05
     return 0.05
