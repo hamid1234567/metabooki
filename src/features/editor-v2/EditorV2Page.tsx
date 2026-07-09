@@ -3714,10 +3714,13 @@ export default function EditorV2Page() {
 
   const insertInteractiveBlock = useCallback((kind: string) => {
     const printNumber = selectedBlock?.printNumber
+    const insertionBlockId = selectedBlockIdFromEditorTarget() || selectedBlockId
+    const dirtyPageIndex = findBlockPageIndexV2(document, insertionBlockId) ?? 0
     const block = createInteractiveTemplateV2(kind, printNumber)
-    commitDocument(current => insertBlockAfterV2(current, selectedBlockId, block))
+    commitDocument(current => insertBlockAfterV2(current, insertionBlockId, block), { dirtyPageIndexes: [dirtyPageIndex] })
+    insertBlockIntoEditorDom(block, insertionBlockId)
     setSelectedBlockId(block.id)
-  }, [commitDocument, selectedBlock?.printNumber, selectedBlockId])
+  }, [commitDocument, document, insertBlockIntoEditorDom, selectedBlock?.printNumber, selectedBlockId, selectedBlockIdFromEditorTarget])
 
   const aiSourceText = useCallback(() => {
     if (!document) return ''
