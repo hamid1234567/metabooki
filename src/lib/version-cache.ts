@@ -34,7 +34,10 @@ export async function recoverFromDynamicImportError(error: unknown) {
   if (!isDynamicImportError(error)) return false
   if (typeof window === 'undefined') return false
 
-  const marker = `${APP_VERSION}:${window.location.pathname}${window.location.search}${window.location.hash}`
+  const markerUrl = new URL(window.location.href)
+  markerUrl.searchParams.delete('appVersion')
+  markerUrl.searchParams.delete('recover')
+  const marker = `${APP_VERSION}:${markerUrl.pathname}${markerUrl.search}${markerUrl.hash}`
   if (sessionStorage.getItem(CHUNK_RECOVERY_STORAGE_KEY) === marker) return false
   sessionStorage.setItem(CHUNK_RECOVERY_STORAGE_KEY, marker)
 
