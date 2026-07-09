@@ -2,7 +2,7 @@
 import { BookPlainTextV2, InlineTextV2 } from '@/components/book-content-v2/InlineTextV2'
 import { PageBreakV2 } from '@/components/book-content-v2/PageBreakV2'
 import { CalloutBlockV2 } from '@/components/book-content-v2/CalloutBlockV2'
-import { InteractiveBlockV2 } from '@/components/book-content-v2/InteractiveBlockV2'
+import { InteractiveBlockV3 } from '@/features/interactive-v3/InteractiveBlockV3'
 import { cleanImageCaptionV2, textDirectionV2, type BookBlockV2, type BookDocumentV2, type BookPageV2 } from '@/lib/book-document-v2'
 import { shortenReferencePreviewV2 } from '@/lib/book-references'
 import './book-content-v2.css'
@@ -146,7 +146,7 @@ export function renderBookBlockV2(block: BookBlockV2, renderChildren: (blocks: B
   }
 
   if (block.type === 'interactive') {
-    return <InteractiveBlockV2 key={block.id} block={block} />
+    return <InteractiveBlockV3 key={block.id} block={block} />
   }
 
   return null

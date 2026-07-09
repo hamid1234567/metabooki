@@ -15,8 +15,11 @@ import { buildTocFromHeadingsV2, cleanImageCaptionV2, createV2Id, documentV2ToCo
 import { backfillPageEngineForBook, isUuidV2, loadPageEngineWindow, rebuildPageEngineToc, savePageEngineDocument } from '@/lib/page-content-engine'
 import { bookDisplayTextHtml, bookSearchIncludes, isBookLtrRunText, type PrintPageValue } from '@/lib/book-content'
 import { referenceClassNameV2, referenceDisplayLabelV2, referenceHtmlDataAttributesV2, referenceKindFromElementV2, referenceKindFromInlineV2, referenceTooltipDirectionV2, referenceTooltipTextV2, shortenReferencePreviewV2, type BookReferenceKindV2 } from '@/lib/book-references'
+import { createInteractiveBlockV3, INTERACTIVE_V3_DEFINITIONS } from '@/features/interactive-v3/registry'
+import { appendInteractiveItemV3, interactiveBlockFromEditorElementV3, interactiveBlockToEditorHtmlV3, removeInteractiveItemV3 } from '@/features/interactive-v3/editorHtml'
 import type { MockBook } from '@/lib/mock-data'
 import './editor-v2.css'
+import '@/features/interactive-v3/interactive-v3.css'
 
 type EditorPanelV2 = 'toc' | 'upgrade' | 'media' | 'references' | 'interactive' | 'ai'
 type SaveStateV2 = 'idle' | 'saving' | 'saved' | 'error'
@@ -287,7 +290,7 @@ function blockToEditorHtmlV2(block: BookBlockV2): string {
     return `<section class="book-callout editor-v2-callout has-rendered-title callout-${escapeHtmlV2(block.variant)}" data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="callout" data-variant="${escapeHtmlV2(block.variant)}" data-callout-variant="${escapeHtmlV2(block.variant)}" data-callout-title="${escapeHtmlV2(block.title)}" data-callout-icon="${escapeHtmlV2(block.icon || '')}"${attrV2('dir', direction)}><button type="button" class="book-callout-unwrap editor-v2-callout-unwrap" contenteditable="false" data-callout-unwrap="true" aria-label="Unwrap callout">×</button><div class="book-callout-head"><span class="book-callout-icon" contenteditable="false">${escapeHtmlV2(block.icon || '')}</span><strong class="book-callout-title" contenteditable="true" data-callout-title-editor="true">${escapeHtmlV2(block.title)}</strong></div><div class="book-callout-bg-icon" contenteditable="false">${escapeHtmlV2(block.icon || '')}</div><div class="book-callout-content">${body}</div></section>`
   }
   if (block.type === 'interactive') {
-    return `<section contenteditable="false" class="book-interactive-v2" data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="interactive" data-kind="${escapeHtmlV2(block.kind)}"><strong>${escapeHtmlV2(block.title || String(block.payload.title || 'بخش تعاملی'))}</strong></section>`
+    return interactiveBlockToEditorHtmlV3(block)
   }
   if (block.type === 'math') {
     return `<p data-block-id="${escapeHtmlV2(block.id)}" data-v2-type="math">${escapeHtmlV2(block.expression)}</p>`
@@ -594,7 +597,7 @@ function elementToBlockV2(element: Element, page: BookDocumentV2['pages'][number
       blocks: blocks.length ? blocks : fallbackBlocks,
     } as CalloutBlockV2
   }
-  if (v2Type === 'interactive' && old?.type === 'interactive') return old
+  if (v2Type === 'interactive') return interactiveBlockFromEditorElementV3(element as HTMLElement, old?.type === 'interactive' ? old : undefined, page)
   if (v2Type === 'table' && old?.type === 'table') return old
   if (v2Type === 'table' || tag === 'table' || element.querySelector(':scope > table')) return tableBlockFromElementV2(element, id, page, old)
   const nestedDirectList = element.querySelector<HTMLElement>(':scope > ol, :scope > ul')
@@ -870,17 +873,7 @@ function insertBlockAfterV2(document: BookDocumentV2, selectedBlockId: string | 
 }
 
 function createInteractiveTemplateV2(kind: string, printNumber?: PrintPageValue): BookBlockV2 {
-  const id = createV2Id('interactive', kind, Date.now())
-  const common = { id, type: 'interactive' as const, kind: kind as any, anchor: id, printNumber }
-  if (kind === 'quiz') return { ...common, title: 'کوییز چندگزینه‌ای', payload: { question: 'سؤال را اینجا بنویسید', options: ['گزینه اول', 'گزینه دوم', 'گزینه سوم'], correct: 0, explanation: '' } }
-  if (kind === 'flashcard') return { ...common, title: 'فلش‌کارت', payload: { cards: [{ front: 'روی کارت', back: 'پشت کارت', image: '' }] } }
-  if (kind === 'gallery') return { ...common, title: 'گالری تصویر', payload: { title: 'گالری تصویر', images: [{ url: '', caption: '' }] } }
-  if (kind === 'timeline') return { ...common, title: 'تایم‌لاین', payload: { title: 'تایم‌لاین', events: [{ title: 'مرحله اول', description: '', image: '' }, { title: 'مرحله دوم', description: '', image: '' }] } }
-  if (kind === 'accordion') return { ...common, title: 'آکاردئون', payload: { title: 'آکاردئون', items: [{ title: 'بخش اول', description: '', image: '' }, { title: 'بخش دوم', description: '', image: '' }] } }
-  if (kind === 'tabs') return { ...common, title: 'تب‌ها', payload: { title: 'تب‌ها', tabs: [{ title: 'تب اول', description: '', image: '' }, { title: 'تب دوم', description: '', image: '' }] } }
-  if (kind === 'hotspot') return { ...common, title: 'هات‌اسپات', payload: { title: 'هات‌اسپات', image: '', caption: '', points: [{ x: 50, y: 50, title: 'نقطه اول', text: '' }] } }
-  if (kind === 'author') return { ...common, title: 'معرفی نویسندگان', payload: { title: 'نویسندگان', authors: [{ name: '', role: '', bio: '', image: '' }] } }
-  return { ...common, title: 'مراحل تعاملی', payload: { title: 'مراحل تعاملی', steps: [{ title: 'مرحله اول', description: '', image: '' }, { title: 'مرحله دوم', description: '', image: '' }] } }
+  return createInteractiveBlockV3(kind, printNumber)
 }
 
 function plainTextFromBlockV2(block: BookBlockV2): string {
@@ -1328,6 +1321,8 @@ function RightPanelV2({
   onRebuildToc,
   tocRebuilding,
   onInsertImage,
+  interactiveMediaTargetActive,
+  onPickInteractiveImage,
   onUploadImage,
   onGenerateImage,
   onAutoCaption,
@@ -1358,6 +1353,8 @@ function RightPanelV2({
   onRebuildToc: () => void
   tocRebuilding: boolean
   onInsertImage: (assetId: string) => void
+  interactiveMediaTargetActive: boolean
+  onPickInteractiveImage: (assetId: string) => void
   onUploadImage: (file: File) => void
   onGenerateImage: (prompt: string) => void
   onAutoCaption: () => void
@@ -1610,7 +1607,7 @@ function RightPanelV2({
                   </div>
                   <div className="editor-v2-media-library">
                     {filteredLibraryMediaRefs.map(item => (
-                      <button key={item.key} type="button" className={item.needsCheck ? 'has-issue' : ''} disabled={!item.assetId || !item.url} onClick={() => { if (item.assetId) { onInsertImage(item.assetId); setLibraryOpen(false) } }}>
+                      <button key={item.key} type="button" className={item.needsCheck ? 'has-issue' : ''} disabled={!item.assetId || !item.url} onClick={() => { if (item.assetId) { interactiveMediaTargetActive ? onPickInteractiveImage(item.assetId) : onInsertImage(item.assetId); setLibraryOpen(false) } }}>
                         {item.url ? <img src={item.url} alt={item.caption || ''} loading="lazy" /> : <span className="editor-v2-missing-thumb"><ImageIcon size={18} /></span>}
                         <b>{item.caption || 'بدون کپشن'}</b>
                         <small>صفحه چاپی: {item.printNumber || 'نامشخص'}{item.autoCaption ? ' · اتوکپشن' : ''}</small>
@@ -1785,18 +1782,12 @@ function RightPanelV2({
         )}
         {activePanel === 'interactive' && (
           <div className="editor-v2-action-grid">
-            {[
-              ['quiz', 'Quiz چندگزینه‌ای'],
-              ['truefalse', 'صحیح/غلط'],
-              ['flashcard', 'فلش‌کارت'],
-              ['accordion', 'آکاردئون'],
-              ['tabs', 'تب‌ها'],
-              ['timeline', 'تایم‌لاین'],
-              ['gallery', 'گالری تصویر'],
-              ['scrollytelling', 'استوری‌تلینگ'],
-              ['algorithm', 'الگوریتم تعاملی'],
-              ['author', 'معرفی نویسنده'],
-            ].map(([kind, label]) => <button key={kind} type="button" onClick={() => onInsertInteractive(kind)}><Sparkles size={15} />{label}</button>)}
+            {INTERACTIVE_V3_DEFINITIONS.map(item => (
+              <button key={item.kind} type="button" onClick={() => onInsertInteractive(item.kind)}>
+                <Sparkles size={15} />
+                {item.label}
+              </button>
+            ))}
           </div>
         )}
         {activePanel === 'ai' && (
@@ -1837,6 +1828,7 @@ export default function EditorV2Page() {
   const [aiBusy, setAiBusy] = useState(false)
   const [aiMessage, setAiMessage] = useState('')
   const [mediaMessage, setMediaMessage] = useState('')
+  const [interactiveMediaTargetActive, setInteractiveMediaTargetActive] = useState(false)
   const [aiApproval, setAiApproval] = useState<AiApprovalV2 | null>(null)
   const [metadataOpen, setMetadataOpen] = useState(false)
   const [tocRebuilding, setTocRebuilding] = useState(false)
@@ -1848,6 +1840,7 @@ export default function EditorV2Page() {
   const dirtyTocRef = useRef(false)
   const savedSelectionRef = useRef<Range | null>(null)
   const activeReferenceElementRef = useRef<HTMLElement | null>(null)
+  const interactiveMediaTargetRef = useRef<HTMLElement | null>(null)
   const lastInlineStyleTargetRef = useRef<HTMLElement | null>(null)
   const calloutActionLockRef = useRef(false)
   const undoStackRef = useRef<string[]>([])
@@ -3287,6 +3280,97 @@ export default function EditorV2Page() {
     }
   }, [commitDocument, document, insertBlockIntoEditorDom, recordAiUsage, selectedBlockId, selectedBlockIdFromEditorTarget, user])
 
+  const setInteractiveMediaUrl = useCallback((url: string) => {
+    const target = interactiveMediaTargetRef.current
+    if (!target || !url) return false
+    const existing = target.querySelector<HTMLImageElement>(':scope > img')
+    const placeholder = target.querySelector<HTMLElement>(':scope > span')
+    const image = existing || window.document.createElement('img')
+    image.src = url
+    image.alt = ''
+    image.loading = 'lazy'
+    if (!existing) target.insertBefore(image, target.firstChild)
+    placeholder?.remove()
+    skipNextSurfaceSyncRef.current = true
+    markEditorDirty(target)
+    markDirtyAssetPageFromNode(target)
+    scheduleToolbarDocumentRefresh()
+    setInteractiveMediaTargetActive(false)
+    return true
+  }, [markDirtyAssetPageFromNode, markEditorDirty, scheduleToolbarDocumentRefresh])
+
+  const pickInteractiveImageFromAsset = useCallback((assetId: string) => {
+    const asset = document?.assets.find(item => item.id === assetId)
+    if (!asset?.url) return
+    if (setInteractiveMediaUrl(asset.url)) setMediaMessage('تصویر داخل همان بلوک تعاملی قرار گرفت.')
+  }, [document?.assets, setInteractiveMediaUrl])
+
+  const uploadInteractiveMediaImage = useCallback(async (file: File) => {
+    const target = interactiveMediaTargetRef.current
+    if (!target) return
+    const pageIndex = Number(target.closest<HTMLElement>('.editor-v2-flow-page')?.dataset.pageIndex)
+    const page = document?.pages.find(item => item.index === pageIndex)
+    try {
+      const assetId = createV2Id('asset-interactive', Date.now(), file.name)
+      const url = await uploadEditorImageFileV2(user?.id, document?.sourceBookId || id || '', assetId, file)
+      const asset = {
+        id: assetId,
+        type: 'image' as const,
+        url,
+        caption: file.name.replace(/\.[^.]+$/, ''),
+        printNumber: page?.printNumber,
+        status: 'ready' as const,
+      }
+      commitDocument(current => ({ ...current, assets: [...current.assets, asset] }), { dirtyAssetPageIndexes: [Number.isFinite(pageIndex) ? pageIndex : 0] })
+      if (setInteractiveMediaUrl(url)) setMediaMessage('تصویر آپلود و داخل بلوک تعاملی قرار گرفت.')
+    } catch (error) {
+      setMediaMessage(error instanceof Error ? error.message : 'آپلود تصویر تعاملی ناموفق بود.')
+    }
+  }, [commitDocument, document?.pages, document?.sourceBookId, id, setInteractiveMediaUrl, user?.id])
+
+  const generateInteractiveMediaImage = useCallback(async (target: HTMLElement) => {
+    const item = target.closest<HTMLElement>('[data-v3-list], .interactive-v3-editor-hotspot, .interactive-v3-editor')
+    const prompt = Array.from(item?.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('input, textarea') || [])
+      .map(input => normalizeBookTextV2(input.value))
+      .filter(Boolean)
+      .join('\n')
+      .slice(0, 1200)
+    if (!prompt) {
+      setMediaMessage('برای تولید تصویر، اول متن همان آیتم تعاملی را کامل کنید.')
+      return
+    }
+    const pageIndex = Number(target.closest<HTMLElement>('.editor-v2-flow-page')?.dataset.pageIndex)
+    const page = document?.pages.find(item => item.index === pageIndex)
+    setAiBusy(true)
+    setMediaMessage('در حال تولید تصویر برای آیتم تعاملی...')
+    try {
+      const result = await generateAiImageThroughGateway({
+        prompt,
+        purpose: 'interactive',
+        bookId: document?.sourceBookId,
+        pageIndex: page?.index,
+        user,
+      })
+      const asset = {
+        id: createV2Id('asset-interactive-ai', Date.now()),
+        type: 'image' as const,
+        url: result.imageUrl,
+        caption: prompt.slice(0, 90),
+        printNumber: page?.printNumber,
+        status: 'ready' as const,
+      }
+      commitDocument(current => ({ ...current, assets: [...current.assets, asset] }), { dirtyAssetPageIndexes: [Number.isFinite(pageIndex) ? pageIndex : 0] })
+      if (setInteractiveMediaUrl(result.imageUrl)) {
+        recordAiUsage(result.usage)
+        setMediaMessage('تصویر تولید و داخل بلوک تعاملی قرار گرفت.')
+      }
+    } catch (error) {
+      setMediaMessage(error instanceof Error ? error.message : 'تولید تصویر برای آیتم تعاملی ناموفق بود.')
+    } finally {
+      setAiBusy(false)
+    }
+  }, [commitDocument, document?.pages, document?.sourceBookId, recordAiUsage, setInteractiveMediaUrl, user])
+
   const resizeImageBlock = useCallback((blockId: string, widthPercent: number) => {
     const dirtyPageIndex = findBlockPageIndexV2(document, blockId)
     commitDocument(current => updateBlockInDocumentV2(current, blockId, block => {
@@ -3380,6 +3464,54 @@ export default function EditorV2Page() {
 
   const handleEditorSurfaceClick = useCallback((event: any) => {
     const target = event.target as HTMLElement
+    const interactiveAction = target.closest<HTMLElement>('[data-v3-add-item], [data-v3-item-remove], [data-v3-media-action]')
+    if (interactiveAction) {
+      const section = interactiveAction.closest<HTMLElement>('[data-v2-type="interactive"][data-block-id]')
+      const pageElement = section?.closest<HTMLElement>('.editor-v2-flow-page')
+      const blockId = section?.dataset.blockId
+      const pageIndex = Number(pageElement?.dataset.pageIndex)
+      const page = document?.pages.find(item => item.index === pageIndex) || document?.pages[0]
+      const oldBlock = document && blockId ? findBlockInDocumentV2(document, blockId) : undefined
+      if (!section || !blockId || !page || oldBlock?.type !== 'interactive') return
+      event.preventDefault()
+      event.stopPropagation()
+      const parsed = interactiveBlockFromEditorElementV3(section, oldBlock, page)
+      if (!parsed) return
+      if (interactiveAction.dataset.v3MediaAction) {
+        const mediaTarget = interactiveAction.closest<HTMLElement>('[data-v3-media]')
+        if (!mediaTarget) return
+        interactiveMediaTargetRef.current = mediaTarget
+        setInteractiveMediaTargetActive(true)
+        const action = interactiveAction.dataset.v3MediaAction
+        if (action === 'upload') {
+          const input = window.document.createElement('input')
+          input.type = 'file'
+          input.accept = 'image/png,image/jpeg,image/webp,image/gif,image/svg+xml'
+          input.onchange = () => {
+            const file = input.files?.[0]
+            if (file) void uploadInteractiveMediaImage(file)
+          }
+          input.click()
+          return
+        }
+        if (action === 'library') {
+          setMediaMessage('یک تصویر از کتاب انتخاب کنید تا داخل همین بلوک تعاملی قرار بگیرد.')
+          setActivePanel('media')
+          return
+        }
+        void generateInteractiveMediaImage(mediaTarget)
+        return
+      }
+      pushEditorHistory()
+      const nextBlock = interactiveAction.dataset.v3AddItem
+        ? appendInteractiveItemV3(parsed, interactiveAction.dataset.v3AddItem as any)
+        : removeInteractiveItemV3(parsed, interactiveAction.closest<HTMLElement>('[data-v3-list]')?.dataset.v3List as any, Number(interactiveAction.closest<HTMLElement>('[data-v3-index]')?.dataset.v3Index ?? -1))
+      section.outerHTML = interactiveBlockToEditorHtmlV3(nextBlock)
+      setSelectedBlockId(blockId)
+      markEditorDirty()
+      scheduleToolbarDocumentRefresh()
+      return
+    }
     const deleteButton = target.closest<HTMLElement>('[data-image-delete="true"]')
     if (deleteButton) {
       const figure = deleteButton.closest<HTMLElement>('figure[data-v2-type="image"][data-block-id]')
@@ -3401,7 +3533,7 @@ export default function EditorV2Page() {
       return
     }
     updateSelectedBlockFromDom()
-  }, [deleteImageBlock, readActiveReferenceFromElement, referenceElementFromNode, updateSelectedBlockFromDom])
+  }, [deleteImageBlock, document, generateInteractiveMediaImage, markEditorDirty, pushEditorHistory, readActiveReferenceFromElement, referenceElementFromNode, scheduleToolbarDocumentRefresh, updateSelectedBlockFromDom, uploadInteractiveMediaImage])
 
   const applyAutoCaptions = useCallback(() => {
     const root = editorSurfaceRef.current
@@ -3806,6 +3938,8 @@ export default function EditorV2Page() {
           onRebuildToc={rebuildFullToc}
           tocRebuilding={tocRebuilding}
           onInsertImage={insertImageFromAsset}
+          interactiveMediaTargetActive={interactiveMediaTargetActive}
+          onPickInteractiveImage={pickInteractiveImageFromAsset}
           onUploadImage={insertUploadedImage}
           onGenerateImage={generateImageFromPrompt}
           onAutoCaption={applyAutoCaptions}
