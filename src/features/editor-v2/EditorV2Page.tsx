@@ -873,10 +873,12 @@ function createInteractiveTemplateV2(kind: string, printNumber?: PrintPageValue)
   const id = createV2Id('interactive', kind, Date.now())
   const common = { id, type: 'interactive' as const, kind: kind as any, anchor: id, printNumber }
   if (kind === 'quiz') return { ...common, title: 'کوییز چندگزینه‌ای', payload: { question: 'سؤال را اینجا بنویسید', options: ['گزینه اول', 'گزینه دوم', 'گزینه سوم'], correct: 0, explanation: '' } }
-  if (kind === 'truefalse') return { ...common, title: 'صحیح یا غلط', payload: { question: 'گزاره را اینجا بنویسید', options: ['صحیح', 'غلط'], correct: 0, explanation: '' } }
   if (kind === 'flashcard') return { ...common, title: 'فلش‌کارت', payload: { cards: [{ front: 'روی کارت', back: 'پشت کارت', image: '' }] } }
   if (kind === 'gallery') return { ...common, title: 'گالری تصویر', payload: { title: 'گالری تصویر', images: [{ url: '', caption: '' }] } }
   if (kind === 'timeline') return { ...common, title: 'تایم‌لاین', payload: { title: 'تایم‌لاین', events: [{ title: 'مرحله اول', description: '', image: '' }, { title: 'مرحله دوم', description: '', image: '' }] } }
+  if (kind === 'accordion') return { ...common, title: 'آکاردئون', payload: { title: 'آکاردئون', items: [{ title: 'بخش اول', description: '', image: '' }, { title: 'بخش دوم', description: '', image: '' }] } }
+  if (kind === 'tabs') return { ...common, title: 'تب‌ها', payload: { title: 'تب‌ها', tabs: [{ title: 'تب اول', description: '', image: '' }, { title: 'تب دوم', description: '', image: '' }] } }
+  if (kind === 'hotspot') return { ...common, title: 'هات‌اسپات', payload: { title: 'هات‌اسپات', image: '', caption: '', points: [{ x: 50, y: 50, title: 'نقطه اول', text: '' }] } }
   if (kind === 'author') return { ...common, title: 'معرفی نویسندگان', payload: { title: 'نویسندگان', authors: [{ name: '', role: '', bio: '', image: '' }] } }
   return { ...common, title: 'مراحل تعاملی', payload: { title: 'مراحل تعاملی', steps: [{ title: 'مرحله اول', description: '', image: '' }, { title: 'مرحله دوم', description: '', image: '' }] } }
 }
