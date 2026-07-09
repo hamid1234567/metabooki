@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.671`
+نسخه فعلی فایل رسمی: `1.0.672`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,12 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.672 - prevent route preload refresh loops
+
+- Background route preloads no longer trigger dynamic-import recovery reloads.
+- Dynamic import recovery now ignores `appVersion` and `recover` query parameters when creating its once-per-route marker.
+- This prevents non-home routes from entering a reload loop when a stale chunk, cache, or service worker is still present.
 
 ### 1.0.671 - اصلاح شناسه و payload مدل‌های Nano Banana در KIE
 
