@@ -1054,6 +1054,64 @@ async function uploadEditorImageFileV2(userId: string | undefined, bookId: strin
   return signed.data?.signedUrl || fileToDataUrlV2(file)
 }
 
+type CompressedEditorImageV2 = {
+  file: File
+  compressed: boolean
+  originalWidth?: number
+  originalHeight?: number
+  width?: number
+  height?: number
+}
+
+async function compressInteractiveUploadImageV2(file: File, maxSize = 1024, quality = 0.86): Promise<CompressedEditorImageV2> {
+  if (!file.type.startsWith('image/') || file.type.includes('svg') || file.type.includes('gif')) {
+    return { file, compressed: false }
+  }
+
+  const objectUrl = URL.createObjectURL(file)
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const element = new Image()
+      element.onload = () => resolve(element)
+      element.onerror = () => reject(new Error('خواندن تصویر برای فشرده‌سازی ناموفق بود.'))
+      element.src = objectUrl
+    })
+    const originalWidth = image.naturalWidth || image.width
+    const originalHeight = image.naturalHeight || image.height
+    if (!originalWidth || !originalHeight || (originalWidth <= maxSize && originalHeight <= maxSize)) {
+      return { file, compressed: false, originalWidth, originalHeight, width: originalWidth, height: originalHeight }
+    }
+
+    const scale = Math.min(1, maxSize / Math.max(originalWidth, originalHeight))
+    const width = Math.max(1, Math.round(originalWidth * scale))
+    const height = Math.max(1, Math.round(originalHeight * scale))
+    const canvas = window.document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+    const context = canvas.getContext('2d')
+    if (!context) return { file, compressed: false, originalWidth, originalHeight }
+    context.drawImage(image, 0, 0, width, height)
+
+    const mimeType = file.type.includes('png') || file.type.includes('webp') ? 'image/webp' : 'image/jpeg'
+    const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, mimeType, quality))
+    if (!blob || blob.size >= file.size) return { file, compressed: false, originalWidth, originalHeight, width, height }
+    const extension = mimeType === 'image/webp' ? 'webp' : 'jpg'
+    const name = file.name.replace(/\.[^.]+$/, '') + `-1k.${extension}`
+    return {
+      file: new File([blob], name, { type: mimeType, lastModified: Date.now() }),
+      compressed: true,
+      originalWidth,
+      originalHeight,
+      width,
+      height,
+    }
+  } catch {
+    return { file, compressed: false }
+  } finally {
+    URL.revokeObjectURL(objectUrl)
+  }
+}
+
 const isUuid = isUuidV2
 
 function formatAutosaveCountdownV2(value: number | null) {
