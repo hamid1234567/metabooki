@@ -36,7 +36,7 @@ export function createInteractivePayloadV3(kind: InteractiveV3Kind): Interactive
   if (kind === 'timeline') return { schema: 'interactive-v3', title: '', events: [item('event-1', { title: '', description: '', image: '' }), item('event-2', { title: '', description: '', image: '' })] }
   if (kind === 'gallery') return { schema: 'interactive-v3', title: '', images: [item('image-1', { image: '', caption: '' })] }
   if (kind === 'scrollytelling') return { schema: 'interactive-v3', title: '', steps: [item('step-1', { title: '', description: '', image: '' }), item('step-2', { title: '', description: '', image: '' })] }
-  if (kind === 'hotspot') return { schema: 'interactive-v3', title: '', image: '', caption: '', points: [] }
+  if (kind === 'hotspot') return { schema: 'interactive-v3', title: '', image: '', imageWidthPercent: 100, caption: '', points: [] }
   return { schema: 'interactive-v3', title: '', authors: [item('author-1', { name: '', role: '', bio: '', image: '' })] }
 }
 

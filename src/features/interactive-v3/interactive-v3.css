@@ -401,10 +401,12 @@
 
 .interactive-v3-hotspot-canvas {
   position: relative;
-  overflow: hidden;
+  overflow: visible;
+  width: var(--hotspot-image-width, 100%);
+  max-width: 100%;
+  margin-inline: auto;
   border-radius: 16px;
   background: rgba(248, 250, 252, 0.74);
-  isolation: isolate;
 }
 
 .interactive-v3-hotspot-canvas > img {
@@ -476,53 +478,53 @@
 }
 
 .interactive-v3-hotspot-pin.place-right .interactive-v3-hotspot-popover {
-  inset-inline-start: calc(100% + 12px);
-  inset-block-start: calc(-0.9rem + var(--hotspot-offset, 0px));
+  left: calc(100% + 12px);
+  top: calc(-0.9rem + var(--hotspot-offset, 0px));
 }
 
 .interactive-v3-hotspot-pin.place-right .interactive-v3-hotspot-popover::before {
   width: 12px;
   height: 2px;
-  inset-inline-end: 100%;
-  inset-block-start: 1.1rem;
+  right: 100%;
+  top: 1.1rem;
 }
 
 .interactive-v3-hotspot-pin.place-left .interactive-v3-hotspot-popover {
-  inset-inline-end: calc(100% + 12px);
-  inset-block-start: calc(-0.9rem + var(--hotspot-offset, 0px));
+  right: calc(100% + 12px);
+  top: calc(-0.9rem + var(--hotspot-offset, 0px));
 }
 
 .interactive-v3-hotspot-pin.place-left .interactive-v3-hotspot-popover::before {
   width: 12px;
   height: 2px;
-  inset-inline-start: 100%;
-  inset-block-start: 1.1rem;
+  left: 100%;
+  top: 1.1rem;
 }
 
 .interactive-v3-hotspot-pin.place-bottom .interactive-v3-hotspot-popover {
-  inset-block-start: calc(100% + 12px);
-  inset-inline-start: calc(50% + var(--hotspot-offset, 0px));
+  top: calc(100% + 12px);
+  left: calc(50% + var(--hotspot-offset, 0px));
   transform: translateX(-50%);
 }
 
 .interactive-v3-hotspot-pin.place-bottom .interactive-v3-hotspot-popover::before {
   width: 2px;
   height: 12px;
-  inset-block-end: 100%;
-  inset-inline-start: 50%;
+  bottom: 100%;
+  left: 50%;
 }
 
 .interactive-v3-hotspot-pin.place-top .interactive-v3-hotspot-popover {
-  inset-block-end: calc(100% + 12px);
-  inset-inline-start: calc(50% + var(--hotspot-offset, 0px));
+  bottom: calc(100% + 12px);
+  left: calc(50% + var(--hotspot-offset, 0px));
   transform: translateX(-50%);
 }
 
 .interactive-v3-hotspot-pin.place-top .interactive-v3-hotspot-popover::before {
   width: 2px;
   height: 12px;
-  inset-block-start: 100%;
-  inset-inline-start: 50%;
+  top: 100%;
+  left: 50%;
 }
 
 .interactive-v3-hotspot-popover b {
@@ -834,7 +836,10 @@
 .interactive-v3-editor-hotspot-canvas {
   position: relative;
   display: block;
-  overflow: hidden;
+  overflow: visible;
+  width: var(--hotspot-image-width, 100%);
+  max-width: 100%;
+  margin-inline: auto;
   border-radius: 18px;
   background: rgba(248, 250, 252, 0.86);
 }
@@ -845,6 +850,12 @@
   border: 1px solid rgba(148, 163, 184, 0.22);
   border-radius: 18px;
   background: rgba(248, 250, 252, 0.86);
+}
+
+.interactive-v3-editor-hotspot-size {
+  width: var(--hotspot-image-width, 100%);
+  max-width: 100%;
+  margin-inline: auto;
 }
 
 .interactive-v3-editor-hotspot-media > span {
@@ -1041,6 +1052,21 @@
 }
 
 @media (max-width: 720px) {
+  .interactive-v3-hotspot-canvas,
+  .interactive-v3-editor-hotspot-canvas,
+  .interactive-v3-editor-hotspot-size {
+    width: 100%;
+  }
+
+  .interactive-v3-hotspot-popover {
+    width: min(190px, calc(100vw - 2rem));
+  }
+
+  .interactive-v3-hotspot-pin.place-right .interactive-v3-hotspot-popover,
+  .interactive-v3-hotspot-pin.place-left .interactive-v3-hotspot-popover {
+    top: 1.65rem;
+  }
+
   .interactive-v3-editor-item-grid {
     grid-template-columns: 1fr;
   }

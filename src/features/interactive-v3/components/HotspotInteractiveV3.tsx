@@ -19,6 +19,11 @@ function placementForPoint(x: number, y: number) {
   return 'bottom'
 }
 
+function imageWidthPercent(value: unknown) {
+  const number = Number(value)
+  return Number.isFinite(number) ? Math.max(20, Math.min(100, Math.round(number))) : 100
+}
+
 export function HotspotInteractiveV3({ block }: { block: InteractiveV3Block }) {
   const [active, setActive] = useState<number | null>(null)
   const [showAll, setShowAll] = useState(false)
@@ -27,12 +32,13 @@ export function HotspotInteractiveV3({ block }: { block: InteractiveV3Block }) {
   const caption = stringValue(block.payload?.caption)
   const points = itemsFor(block, 'points')
   const pointFontSize = fontSizeForPointCount(points.length)
+  const widthPercent = imageWidthPercent(block.payload?.imageWidthPercent)
   const baseDirection = directionFromText([title, caption, ...points.map(directionTextFromItem)].filter(Boolean).join(' '))
 
   if (!image && !points.length) return null
 
   return (
-    <section className="interactive-v3 interactive-v3-hotspot" dir={baseDirection}>
+    <section className="interactive-v3 interactive-v3-hotspot" dir={baseDirection} style={{ '--hotspot-image-width': `${widthPercent}%` } as CSSProperties}>
       {title && <h3>{title}</h3>}
       <div className="interactive-v3-hotspot-toolbar">
         <button type="button" className={showAll ? 'is-active' : ''} onClick={() => setShowAll(value => !value)}>

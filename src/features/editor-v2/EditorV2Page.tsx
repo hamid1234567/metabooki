@@ -2721,6 +2721,26 @@ export default function EditorV2Page() {
       scheduleToolbarDocumentRefresh()
       return
     }
+    const hotspotSizeInput = target.closest<HTMLInputElement>('input[data-v3-hotspot-size-range="true"]')
+    if (hotspotSizeInput) {
+      const section = hotspotSizeInput.closest<HTMLElement>('[data-v2-type="interactive"][data-block-id]')
+      const canvas = section?.querySelector<HTMLElement>('[data-v3-hotspot-canvas="true"]')
+      const blockId = section?.dataset.blockId
+      if (!section || !canvas || !blockId) return
+      if (hotspotSizeInput.dataset.historyRecorded !== 'true') {
+        pushEditorHistory()
+        hotspotSizeInput.dataset.historyRecorded = 'true'
+      }
+      const percent = Math.max(20, Math.min(100, Number(hotspotSizeInput.value) || 100))
+      canvas.style.setProperty('--hotspot-image-width', `${percent}%`)
+      const valueLabel = section.querySelector<HTMLElement>('[data-v3-hotspot-size-value="true"]')
+      if (valueLabel) valueLabel.textContent = `${percent}%`
+      setSelectedBlockId(blockId)
+      markEditorDirty(target)
+      markDirtyAssetPageFromNode(target)
+      scheduleToolbarDocumentRefresh()
+      return
+    }
     markEditorDirty(target)
     if (target.closest('figure[data-v2-type="image"], figcaption[data-image-caption], figcaption')) {
       markDirtyAssetPageFromNode(target)

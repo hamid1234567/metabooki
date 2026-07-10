@@ -43,6 +43,7 @@ export type InteractiveV3Payload = {
   authors?: InteractiveV3Item[]
   points?: InteractiveV3Item[]
   image?: string
+  imageWidthPercent?: number
   caption?: string
 }
 

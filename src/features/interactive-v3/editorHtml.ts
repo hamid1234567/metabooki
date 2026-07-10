@@ -68,6 +68,11 @@ function hotspotPointPlacement(point: InteractiveV3Item) {
   return 'place-bottom'
 }
 
+function percentValue(value: unknown, fallback = 100) {
+  const number = Number(value)
+  return Number.isFinite(number) ? Math.max(20, Math.min(100, Math.round(number))) : fallback
+}
+
 function editorItemsHtml(kind: InteractiveV3Kind, payload: InteractiveV3Payload) {
   if (kind === 'quiz') {
     const options = Array.isArray(payload.options) ? payload.options.slice(0, INTERACTIVE_V3_MAX_ITEMS) : ['', '', '', '']
@@ -107,10 +112,16 @@ function editorItemsHtml(kind: InteractiveV3Kind, payload: InteractiveV3Payload)
 
   if (kind === 'hotspot') {
     const points = limitedItems(payload, 'points', true)
+    const imageWidthPercent = percentValue(payload.imageWidthPercent)
     return `<div class="interactive-v3-editor-hotspot">
-      <div class="interactive-v3-editor-hotspot-canvas" data-v3-hotspot-canvas="true">
+      <div class="interactive-v3-editor-hotspot-canvas" data-v3-hotspot-canvas="true" style="--hotspot-image-width:${imageWidthPercent}%">
         ${hotspotMedia(payload.image || '')}
         ${points.map((point, index) => `<button type="button" class="interactive-v3-editor-hotspot-point ${hotspotPointPlacement(point)}" data-v3-hotspot-point-toggle="true" data-v3-index="${index}" contenteditable="false" style="--x:${escapeHtml(valueOf(point.x ?? 50))}%;--y:${escapeHtml(valueOf(point.y ?? 50))}%">${index + 1}</button>`).join('')}
+      </div>
+      <div class="editor-v2-image-size-control interactive-v3-editor-hotspot-size" contenteditable="false">
+        <span>درصد از عرض متن</span>
+        <input type="range" min="20" max="100" step="1" value="${imageWidthPercent}" data-v3-hotspot-size-range="true" data-v3-field="imageWidthPercent" aria-label="درصد اشغال عرض متن توسط تصویر هات‌اسپات">
+        <b data-v3-hotspot-size-value="true">${imageWidthPercent}%</b>
       </div>
       <div class="interactive-v3-editor-hotspot-cards" data-v3-hotspot-cards="true">
         ${points.map((point, index) => `<article class="interactive-v3-editor-hotspot-card" data-v3-list="points" data-v3-index="${index}"${attr('data-v3-item-id', point.id)}>
@@ -197,6 +208,7 @@ export function interactiveBlockFromEditorElementV3(element: HTMLElement, old: I
   else if (kind === 'scrollytelling') payload.steps = parseItems(element, 'steps')
   else if (kind === 'hotspot') {
     payload.image = element.querySelector<HTMLElement>('[data-v3-media="image"] img')?.getAttribute('src') || ''
+    payload.imageWidthPercent = percentValue(fieldValue(element, 'imageWidthPercent'))
     payload.caption = fieldValue(element, 'caption')
     payload.points = parseItems(element, 'points', false)
   } else if (kind === 'author') payload.authors = parseItems(element, 'authors')
