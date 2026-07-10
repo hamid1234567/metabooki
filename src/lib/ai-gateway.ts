@@ -2,6 +2,9 @@ import { supabase } from '@/integrations/supabase/client'
 import { buildAiImagePrompt, imageSizeForPurpose, type AiImagePurpose, type AiImageSize, type BookCoverPromptContext } from '@/lib/ai-image-prompts'
 import type { AppUser } from '@/lib/auth-context'
 
+const AI_GATEWAY_TIMEOUT_MS = 45_000
+const AI_GATEWAY_POLL_TIMEOUT_MS = 25_000
+
 export type AiProvider = 'openai' | 'gemini' | 'anthropic' | 'custom' | 'kie'
 export type ReaderAiAction = 'summary' | 'quiz' | 'mindmap' | 'learning_path' | 'explain' | 'callout_suggestions'
 export type AiStructuredContent =
@@ -131,6 +134,19 @@ type AiImagePendingResult = AiImageEstimateResult & {
   imageUrl?: string
   status?: 'pending' | 'completed'
   taskId?: string
+}
+
+function invokeAiGateway<T>(body: Record<string, unknown>, timeoutMessage: string, timeoutMs = AI_GATEWAY_TIMEOUT_MS) {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs)
+  })
+  return Promise.race([
+    supabase.functions.invoke('ai-gateway', { body }),
+    timeout,
+  ]).finally(() => {
+    if (timeoutId) clearTimeout(timeoutId)
+  }) as Promise<{ data: T | null; error: any }>
 }
 
 export type AiProviderModelOption = {
@@ -284,18 +300,18 @@ function mergeAiGatewaySettings(settings: Partial<AiGatewaySettings> | null | un
 }
 
 export async function loadAiGatewaySettingsRemote(): Promise<AiGatewaySettings> {
-  const { data, error } = await supabase.functions.invoke('ai-gateway', { body: { operation: 'admin_get_settings' } })
+  const { data, error } = await invokeAiGateway<Partial<AiGatewaySettings>>({ operation: 'admin_get_settings' }, 'خواندن تنظیمات هوش مصنوعی زمان‌بر شد. اتصال Edge Function را بررسی کنید.')
   if (error) throw new Error(error.message)
   return mergeAiGatewaySettings(data as Partial<AiGatewaySettings>)
 }
 
 export async function saveAiGatewaySettings(settings: AiGatewaySettings) {
-  const { error } = await supabase.functions.invoke('ai-gateway', { body: { operation: 'admin_save_settings', settings } })
+  const { error } = await invokeAiGateway({ operation: 'admin_save_settings', settings }, 'ذخیره تنظیمات هوش مصنوعی زمان‌بر شد. دوباره تلاش کنید.')
   if (error) throw new Error(error.message)
 }
 
 export async function testAiProvider(provider: AiProviderConfig): Promise<AiProviderTestResult> {
-  const { data, error } = await supabase.functions.invoke('ai-gateway', { body: { operation: 'admin_test_provider', provider } })
+  const { data, error } = await invokeAiGateway<AiProviderTestResult>({ operation: 'admin_test_provider', provider }, 'تست مسیر هوش مصنوعی زمان‌بر شد. Edge Function یا ارائه‌دهنده را بررسی کنید.')
   if (error) throw await gatewayError(error, 'تست کلید هوش مصنوعی ناموفق بود.')
   return data as AiProviderTestResult
 }
@@ -309,9 +325,10 @@ export async function runAiThroughGateway(request: RunAiRequest): Promise<RunAiR
   if (!request.pageText.trim()) throw new Error('متنی در این صفحه برای تحلیل پیدا نشد.')
   if (!hasSupabaseConnection()) throw new Error('برای استفاده امن از هوش مصنوعی، اتصال Supabase و Edge Function را فعال کنید.')
 
-  const { data, error } = await supabase.functions.invoke('ai-gateway', {
-    body: { action: request.action, bookTitle: request.bookTitle, pageTitle: request.pageTitle, pageText: request.pageText, bookId: request.bookId, pageIndex: request.pageIndex },
-  })
+  const { data, error } = await invokeAiGateway<RunAiResult>(
+    { action: request.action, bookTitle: request.bookTitle, pageTitle: request.pageTitle, pageText: request.pageText, bookId: request.bookId, pageIndex: request.pageIndex },
+    'پاسخ هوش مصنوعی بیش از حد طول کشید. اگر هزینه‌ای کسر شد، تاریخچه خروجی‌ها را بررسی کنید و سپس دوباره تلاش کنید.',
+  )
   if (error) throw await gatewayError(error, 'اجرای درخواست هوش مصنوعی ناموفق بود.')
   return data as RunAiResult
 }
@@ -321,9 +338,10 @@ export async function estimateAiTextUsage(request: RunAiRequest): Promise<AiText
   if (!request.pageText.trim()) throw new Error('متنی برای تحلیل پیدا نشد.')
   if (!hasSupabaseConnection()) throw new Error('برای استفاده امن از هوش مصنوعی، اتصال Supabase و Edge Function را فعال کنید.')
 
-  const { data, error } = await supabase.functions.invoke('ai-gateway', {
-    body: { operation: 'estimate_text', action: request.action, bookTitle: request.bookTitle, pageTitle: request.pageTitle, pageText: request.pageText, bookId: request.bookId, pageIndex: request.pageIndex },
-  })
+  const { data, error } = await invokeAiGateway<AiTextEstimateResult>(
+    { operation: 'estimate_text', action: request.action, bookTitle: request.bookTitle, pageTitle: request.pageTitle, pageText: request.pageText, bookId: request.bookId, pageIndex: request.pageIndex },
+    'برآورد هزینه هوش مصنوعی بیش از حد طول کشید. اتصال Edge Function را بررسی کنید.',
+  )
   if (error) throw await gatewayError(error, 'برآورد هزینه هوش مصنوعی ناموفق بود.')
   return data as AiTextEstimateResult
 }
@@ -340,9 +358,10 @@ export async function estimateAiImageGeneration(request: AiImageRequest): Promis
   if (!request.user) throw new Error('برای تولید تصویر ابتدا وارد حساب شوید.')
   if (!request.prompt.trim()) throw new Error('برای تولید تصویر، متن انتخاب‌شده یا پرامپت لازم است.')
   if (!hasSupabaseConnection()) throw new Error('اتصال Supabase و Edge Function برای تولید تصویر فعال نیست.')
-  const { data, error } = await supabase.functions.invoke('ai-gateway', {
-    body: { operation: 'estimate_image', prompt: prepared.prompt, purpose: prepared.purpose, size: prepared.size, bookId: request.bookId, pageIndex: request.pageIndex },
-  })
+  const { data, error } = await invokeAiGateway<AiImageEstimateResult>(
+    { operation: 'estimate_image', prompt: prepared.prompt, purpose: prepared.purpose, size: prepared.size, bookId: request.bookId, pageIndex: request.pageIndex },
+    'برآورد هزینه تولید تصویر بیش از حد طول کشید. اتصال Edge Function را بررسی کنید.',
+  )
   if (error) throw await gatewayError(error, 'برآورد هزینه تولید تصویر ناموفق بود.')
   return data as AiImageEstimateResult
 }
@@ -352,16 +371,17 @@ export async function generateAiImageThroughGateway(request: AiImageRequest): Pr
   if (!request.user) throw new Error('برای تولید تصویر ابتدا وارد حساب شوید.')
   if (!request.prompt.trim()) throw new Error('برای تولید تصویر، متن انتخاب‌شده یا پرامپت لازم است.')
   if (!hasSupabaseConnection()) throw new Error('اتصال Supabase و Edge Function برای تولید تصویر فعال نیست.')
-  const { data, error } = await supabase.functions.invoke('ai-gateway', {
-    body: { operation: 'generate_image', prompt: prepared.prompt, purpose: prepared.purpose, size: prepared.size, bookId: request.bookId, pageIndex: request.pageIndex },
-  })
+  const { data, error } = await invokeAiGateway<AiImagePendingResult>(
+    { operation: 'generate_image', prompt: prepared.prompt, purpose: prepared.purpose, size: prepared.size, bookId: request.bookId, pageIndex: request.pageIndex },
+    'ارسال درخواست تولید تصویر بیش از حد طول کشید. اتصال Edge Function یا سرویس تصویر را بررسی کنید.',
+  )
   if (error) throw await gatewayError(error, 'تولید تصویر ناموفق بود.')
   let result = data as AiImagePendingResult
   if (result?.status === 'pending' && result.taskId) {
     for (let attempt = 0; attempt < 90; attempt += 1) {
       await new Promise(resolve => setTimeout(resolve, 2500))
-      const { data: pollData, error: pollError } = await supabase.functions.invoke('ai-gateway', {
-        body: {
+      const { data: pollData, error: pollError } = await invokeAiGateway<AiImagePendingResult>(
+        {
           operation: 'poll_image',
           taskId: result.taskId,
           model: result.model,
@@ -371,7 +391,9 @@ export async function generateAiImageThroughGateway(request: AiImageRequest): Pr
           bookId: request.bookId,
           pageIndex: request.pageIndex,
         },
-      })
+        'بررسی وضعیت تولید تصویر بیش از حد طول کشید. کمی بعد تاریخچه خروجی‌ها را تازه‌سازی کنید.',
+        AI_GATEWAY_POLL_TIMEOUT_MS,
+      )
       if (pollError) throw await gatewayError(pollError, 'بررسی وضعیت تولید تصویر ناموفق بود.')
       result = pollData as AiImagePendingResult
       if (result?.imageUrl) break

@@ -1,6 +1,6 @@
 # MetaBooki Next Chat Handoff
 
-Last reviewed version: `1.0.704`
+Last reviewed version: `1.0.705`
 
 Use this file as the first reference in a fresh Codex chat before making changes.
 
@@ -82,6 +82,8 @@ Use this file as the first reference in a fresh Codex chat before making changes
 - Generated interactive images are compressed/uploaded before insertion when browser fetch permits it, and AI history image reuse uses a stable placeholder descriptor instead of only a transient DOM ref.
 - Editor AI history uses stale-response protection around the current-book filter and shows explicit loading/empty/error messages.
 - Editor V2 page-engine save failures now use a Persian user-facing connection/save retry message; raw Supabase details are kept only under `جزئیات فنی`.
+
+- Editor V2 AI panel now labels the text action as callout suggestion generation; AI history/profile output lists expose loading/empty/error states, and AI gateway/history reads use client-side timeouts so stuck requests no longer look like empty lists.
 
 ## Current Known Fragile Areas
 

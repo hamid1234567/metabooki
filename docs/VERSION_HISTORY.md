@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.704`
+نسخه فعلی فایل رسمی: `1.0.705`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,13 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.705 - AI history visibility and gateway timeouts
+
+- Editor V2 AI panel now labels the text action as a callout suggestion flow and explains that it inserts a new callout without replacing the original text.
+- Saved AI output history now applies the current-book filter before ordering/limiting, has a client-side timeout, and surfaces read errors instead of silently looking empty.
+- The user profile AI output section now separates loading, empty, and error states so intermittent Supabase/RLS/network failures are visible.
+- AI gateway calls now have client-side timeouts for estimate/run/test/image routes, preventing the UI from staying stuck on cost estimation forever.
 
 ### 1.0.704 - User-friendly save failure messages
 

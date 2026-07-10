@@ -2027,9 +2027,9 @@ function RightPanelV2({
           <div className="editor-v2-action-grid editor-v2-ai-panel">
             <button type="button" disabled={aiBusy} onClick={onAiEnhance}>
               {aiBusy ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
-              پیشنهاد ارتقای خوانایی
+              پیشنهاد کال‌اوت از متن
             </button>
-            <p>{aiMessage || 'اگر بلوکی انتخاب شده باشد همان متن بررسی می‌شود؛ در غیر این صورت متن صفحه یا ابتدای سند مبنا قرار می‌گیرد.'}</p>
+            <p>{aiMessage || 'متن انتخاب‌شده یا متن صفحه بررسی می‌شود؛ بعد از تایید هزینه، یک کال‌اوت پیشنهادی کنار متن اضافه می‌شود و متن اصلی تغییر نمی‌کند.'}</p>
             <div className="editor-v2-ai-history-head">
               <strong>خروجی‌های ذخیره‌شده</strong>
               <button type="button" onClick={onRefreshAiHistory} disabled={aiHistoryLoading}>{aiHistoryLoading ? 'در حال خواندن...' : 'تازه‌سازی'}</button>
@@ -2168,10 +2168,11 @@ export default function EditorV2Page() {
         : aiHistoryBookOnly
           ? 'برای همین کتاب هنوز خروجی ذخیره‌شده‌ای پیدا نشد.'
           : 'هنوز خروجی ذخیره‌شده‌ای برای این حساب پیدا نشد.')
-    } catch {
+    } catch (error) {
       if (aiHistoryRequestRef.current === requestId) {
         setAiHistory([])
-        setAiHistoryMessage('خواندن تاریخچه هوش مصنوعی ناموفق بود.')
+        const detail = error instanceof Error && error.message ? ` ${error.message}` : ''
+        setAiHistoryMessage(`خواندن تاریخچه هوش مصنوعی ناموفق بود.${detail}`)
       }
     } finally {
       if (aiHistoryRequestRef.current === requestId) setAiHistoryLoading(false)

@@ -101,6 +101,8 @@ export default function Profile() {
   const [saving, setSaving] = useState(false)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [aiOutputs, setAiOutputs] = useState<AiSavedOutput[]>([])
+  const [aiOutputsLoading, setAiOutputsLoading] = useState(false)
+  const [aiOutputsMessage, setAiOutputsMessage] = useState('')
 
   const userId = user?.id || mock?.id || ''
 
@@ -184,16 +186,32 @@ export default function Profile() {
   useEffect(() => {
     if (!user || isMock) {
       setAiOutputs([])
+      setAiOutputsLoading(false)
+      setAiOutputsMessage(isMock ? 'تاریخچه خروجی‌های هوش مصنوعی فقط برای حساب واقعی Supabase خوانده می‌شود.' : '')
       return
     }
     let alive = true
+    setAiOutputsLoading(true)
+    setAiOutputsMessage('')
     loadAiSavedOutputs(user, 80)
-      .then(outputs => { if (alive) setAiOutputs(outputs) })
-      .catch(() => { if (alive) setAiOutputs([]) })
+      .then(outputs => {
+        if (!alive) return
+        setAiOutputs(outputs)
+        setAiOutputsMessage(outputs.length ? '' : 'هنوز خروجی ذخیره‌شده‌ای برای این حساب پیدا نشد.')
+      })
+      .catch(error => {
+        if (!alive) return
+        setAiOutputs([])
+        const detail = error instanceof Error && error.message ? ` ${error.message}` : ''
+        setAiOutputsMessage(`خواندن تاریخچه هوش مصنوعی ناموفق بود.${detail}`)
+      })
+      .finally(() => {
+        if (alive) setAiOutputsLoading(false)
+      })
     return () => {
       alive = false
     }
-  }, [isMock, user])
+  }, [isMock, user, userId])
 
   const setField = (field: keyof ProfileForm, value: string | string[]) => {
     setProfile(current => ({ ...current, [field]: value }))
@@ -465,6 +483,8 @@ export default function Profile() {
 
       <section className="glass rounded-2xl p-6 mt-6">
         <h2 className="font-bold text-lg mb-4 flex items-center gap-2"><Sparkles className="w-5 h-5 text-primary" />خروجی‌های هوش مصنوعی من</h2>
+        {aiOutputsLoading && <p className="text-sm text-muted-foreground mb-3">در حال خواندن تاریخچه هوش مصنوعی...</p>}
+        {aiOutputsMessage && !aiOutputsLoading && <p className="text-sm text-muted-foreground mb-3">{aiOutputsMessage}</p>}
         <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3 max-h-[32rem] overflow-auto pr-1">
           {aiOutputs.length ? aiOutputs.map(output => {
             const isImage = aiOutputKind(output) === 'image'
@@ -487,9 +507,9 @@ export default function Profile() {
                 {isImage && imageUrl && <a href={imageUrl} target="_blank" rel="noreferrer" className="text-xs font-bold text-primary">باز کردن خروجی تصویر</a>}
               </article>
             )
-          }) : (
+          }) : !aiOutputsLoading && !aiOutputsMessage ? (
             <p className="text-sm text-muted-foreground">هنوز خروجی ذخیره‌شده‌ای برای هوش مصنوعی وجود ندارد.</p>
-          )}
+          ) : null}
         </div>
       </section>
 

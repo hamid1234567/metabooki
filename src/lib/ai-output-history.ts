@@ -1,6 +1,8 @@
 import { supabase } from '@/integrations/supabase/client'
 import type { AppUser } from '@/lib/auth-context'
 
+const AI_HISTORY_TIMEOUT_MS = 20_000
+
 export type AiSavedOutput = {
   id: string
   user_id: string
@@ -75,16 +77,30 @@ export function aiOutputImageUrl(output: AiSavedOutput) {
   )
 }
 
+function withAiHistoryTimeout<T>(promise: PromiseLike<T>, message: string): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(message)), AI_HISTORY_TIMEOUT_MS)
+  })
+  return Promise.race([Promise.resolve(promise), timeout]).finally(() => {
+    if (timeoutId) clearTimeout(timeoutId)
+  })
+}
+
 export async function loadAiSavedOutputs(user: AppUser | null, limit = 40, bookId?: string | null): Promise<AiSavedOutput[]> {
   if (!user) return []
   let query = (supabase as any)
     .from('ai_saved_outputs')
     .select('id,user_id,book_id,page_index,action,content,created_at')
     .eq('user_id', user.id)
+  if (bookId) query = query.eq('book_id', bookId)
+  query = query
     .order('created_at', { ascending: false })
     .limit(limit)
-  if (bookId) query = query.eq('book_id', bookId)
-  const { data, error } = await query
+  const { data, error } = await withAiHistoryTimeout<{ data: AiSavedOutput[] | null; error: any }>(
+    query as PromiseLike<{ data: AiSavedOutput[] | null; error: any }>,
+    'خواندن تاریخچه زمان‌بر شد. اتصال Supabase یا جدول ai_saved_outputs را بررسی کنید.',
+  )
   if (error) throw error
   return (data || []) as AiSavedOutput[]
 }
