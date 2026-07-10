@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.678`
+نسخه فعلی فایل رسمی: `1.0.679`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,12 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.679 - Hotspot popover clipping and image sizing
+
+- Reader hotspot popovers no longer clip at the image border and use physical left/right placement so RTL direction does not push edge labels off-screen.
+- Hotspot images now keep an `imageWidthPercent` payload value and render at that width in editor and reader.
+- Editor hotspot blocks now include the same width range control pattern used for regular images.
 
 ### 1.0.678 - Hotspot fixed editor text panel
 
