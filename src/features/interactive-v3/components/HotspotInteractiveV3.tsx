@@ -1,10 +1,22 @@
-import { useState } from 'react'
+import { useState, type CSSProperties } from 'react'
 import type { InteractiveV3Block } from '../types'
 import { blockTitle, directionFromText, directionTextFromItem, itemsFor, stringValue, titleValue } from './utils'
 
 function clampPercent(value: unknown) {
   const number = Number(value)
   return Number.isFinite(number) ? Math.max(0, Math.min(100, number)) : 50
+}
+
+function fontSizeForPointCount(count: number) {
+  if (count <= 5) return 13
+  return Math.max(8, 13 - Math.ceil((count - 5) / 10))
+}
+
+function placementForPoint(x: number, y: number) {
+  if (x > 68) return 'left'
+  if (x < 32) return 'right'
+  if (y > 62) return 'top'
+  return 'bottom'
 }
 
 export function HotspotInteractiveV3({ block }: { block: InteractiveV3Block }) {
@@ -14,33 +26,59 @@ export function HotspotInteractiveV3({ block }: { block: InteractiveV3Block }) {
   const image = stringValue(block.payload?.image)
   const caption = stringValue(block.payload?.caption)
   const points = itemsFor(block, 'points')
+  const pointFontSize = fontSizeForPointCount(points.length)
+  const baseDirection = directionFromText([title, caption, ...points.map(directionTextFromItem)].filter(Boolean).join(' '))
+
   if (!image && !points.length) return null
+
   return (
-    <section className="interactive-v3 interactive-v3-hotspot" dir={directionFromText([title, caption, ...points.map(directionTextFromItem)].filter(Boolean).join(' '))}>
+    <section className="interactive-v3 interactive-v3-hotspot" dir={baseDirection}>
       {title && <h3>{title}</h3>}
       <div className="interactive-v3-hotspot-toolbar">
-        <button type="button" className={showAll ? 'is-active' : ''} onClick={() => setShowAll(value => !value)}>{showAll ? 'مخفی کردن همه' : 'نمایش همه'}</button>
+        <button type="button" className={showAll ? 'is-active' : ''} onClick={() => setShowAll(value => !value)}>
+          {showAll ? 'مخفی کردن همه نقاط' : 'نمایش همه نقاط'}
+        </button>
       </div>
       <div className="interactive-v3-hotspot-canvas">
         {image && <img src={image} alt={caption || title} loading="lazy" />}
         {points.map((point, index) => {
           const open = showAll || active === index
+          const x = clampPercent(point.x)
+          const y = clampPercent(point.y)
+          const placement = placementForPoint(x, y)
+          const nudge = showAll ? ((index % 5) - 2) * 10 : 0
+          const pointText = stringValue(point.text)
+          const pointTitle = titleValue(point, `نقطه ${index + 1}`)
+          const pointDirection = directionFromText([pointTitle, pointText].filter(Boolean).join(' ')) || baseDirection
+          const style = {
+            '--x': `${x}%`,
+            '--y': `${y}%`,
+            '--hotspot-font-size': `${pointFontSize}px`,
+            '--hotspot-offset': `${nudge}px`,
+          } as CSSProperties
+
           return (
-            <button
+            <div
               key={point.id}
-              type="button"
-              className={`interactive-v3-hotspot-point ${open ? 'is-active' : ''}`}
-              style={{ left: `${clampPercent(point.x)}%`, top: `${clampPercent(point.y)}%` }}
-              onClick={() => setActive(value => value === index ? null : index)}
+              className={`interactive-v3-hotspot-pin place-${placement} ${open ? 'is-open' : ''}`}
+              style={style}
             >
-              <span>+</span>
+              <button
+                type="button"
+                className={`interactive-v3-hotspot-marker ${open ? 'is-active' : ''}`}
+                aria-expanded={open}
+                aria-label={pointTitle}
+                onClick={() => setActive(value => value === index ? null : index)}
+              >
+                <span>+</span>
+              </button>
               {open && (
-                <b className="interactive-v3-hotspot-popover interactive-v3-animated-panel">
-                  {titleValue(point, `نقطه ${index + 1}`)}
-                  {stringValue(point.text) && <small>{stringValue(point.text)}</small>}
-                </b>
+                <div className="interactive-v3-hotspot-popover interactive-v3-animated-panel" dir={pointDirection}>
+                  <b>{pointTitle}</b>
+                  {pointText && <small>{pointText}</small>}
+                </div>
               )}
-            </button>
+            </div>
           )
         })}
       </div>

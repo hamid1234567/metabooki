@@ -391,66 +391,149 @@
 }
 
 .interactive-v3-hotspot-toolbar button {
-  border: 1px solid rgba(37, 99, 235, 0.22);
+  border: 1px solid rgba(220, 38, 38, 0.22);
   border-radius: 999px;
-  background: rgba(37, 99, 235, 0.08);
+  background: rgba(220, 38, 38, 0.08);
   padding: 0.38rem 0.65rem;
   font-size: 0.84rem;
+  color: #b91c1c;
 }
 
 .interactive-v3-hotspot-canvas {
   position: relative;
   overflow: hidden;
   border-radius: 16px;
-  background: rgba(226, 232, 240, 0.62);
+  background: rgba(248, 250, 252, 0.74);
+  isolation: isolate;
 }
 
 .interactive-v3-hotspot-canvas > img {
   display: block;
   width: 100%;
   height: auto;
+  object-fit: contain;
 }
 
-.interactive-v3-hotspot-point {
+.interactive-v3-hotspot-pin {
   position: absolute;
+  left: var(--x);
+  top: var(--y);
   transform: translate(-50%, -50%);
-  border: 0;
-  background: transparent;
-  cursor: pointer;
+  z-index: 2;
 }
 
-.interactive-v3-hotspot-point > span {
-  width: 1.7rem;
-  height: 1.7rem;
+.interactive-v3-hotspot-pin.is-open {
+  z-index: 8;
+}
+
+.interactive-v3-hotspot-marker {
+  width: 1.35rem;
+  height: 1.35rem;
   display: grid;
   place-items: center;
+  border: 0;
   border-radius: 999px;
   color: #fff;
-  background: var(--interactive-v3-blue);
-  box-shadow: 0 14px 30px rgba(37, 99, 235, 0.32);
+  background: #dc2626;
+  box-shadow: 0 8px 22px rgba(220, 38, 38, 0.38), 0 0 0 3px rgba(255, 255, 255, 0.94);
+  cursor: pointer;
+  transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+
+.interactive-v3-hotspot-marker:hover,
+.interactive-v3-hotspot-marker.is-active {
+  background: #b91c1c;
+  transform: scale(1.08);
+  box-shadow: 0 10px 26px rgba(185, 28, 28, 0.42), 0 0 0 4px rgba(255, 255, 255, 0.96);
+}
+
+.interactive-v3-hotspot-marker span {
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1;
 }
 
 .interactive-v3-hotspot-popover {
   position: absolute;
-  z-index: 4;
-  min-width: 190px;
-  max-width: min(260px, 70vw);
-  inset-block-start: calc(100% + 8px);
-  inset-inline-start: 50%;
-  transform: translateX(-50%);
+  z-index: 5;
+  width: min(220px, 42vw);
   display: grid;
   gap: 0.35rem;
-  padding: 0.7rem;
+  padding: 0.62rem 0.68rem;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.16);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.18);
   color: var(--interactive-v3-ink);
+  font-size: var(--hotspot-font-size, 13px);
   text-align: start;
+  pointer-events: none;
+}
+
+.interactive-v3-hotspot-popover::before {
+  content: '';
+  position: absolute;
+  background: rgba(220, 38, 38, 0.58);
+}
+
+.interactive-v3-hotspot-pin.place-right .interactive-v3-hotspot-popover {
+  inset-inline-start: calc(100% + 12px);
+  inset-block-start: calc(-0.9rem + var(--hotspot-offset, 0px));
+}
+
+.interactive-v3-hotspot-pin.place-right .interactive-v3-hotspot-popover::before {
+  width: 12px;
+  height: 2px;
+  inset-inline-end: 100%;
+  inset-block-start: 1.1rem;
+}
+
+.interactive-v3-hotspot-pin.place-left .interactive-v3-hotspot-popover {
+  inset-inline-end: calc(100% + 12px);
+  inset-block-start: calc(-0.9rem + var(--hotspot-offset, 0px));
+}
+
+.interactive-v3-hotspot-pin.place-left .interactive-v3-hotspot-popover::before {
+  width: 12px;
+  height: 2px;
+  inset-inline-start: 100%;
+  inset-block-start: 1.1rem;
+}
+
+.interactive-v3-hotspot-pin.place-bottom .interactive-v3-hotspot-popover {
+  inset-block-start: calc(100% + 12px);
+  inset-inline-start: calc(50% + var(--hotspot-offset, 0px));
+  transform: translateX(-50%);
+}
+
+.interactive-v3-hotspot-pin.place-bottom .interactive-v3-hotspot-popover::before {
+  width: 2px;
+  height: 12px;
+  inset-block-end: 100%;
+  inset-inline-start: 50%;
+}
+
+.interactive-v3-hotspot-pin.place-top .interactive-v3-hotspot-popover {
+  inset-block-end: calc(100% + 12px);
+  inset-inline-start: calc(50% + var(--hotspot-offset, 0px));
+  transform: translateX(-50%);
+}
+
+.interactive-v3-hotspot-pin.place-top .interactive-v3-hotspot-popover::before {
+  width: 2px;
+  height: 12px;
+  inset-block-start: 100%;
+  inset-inline-start: 50%;
+}
+
+.interactive-v3-hotspot-popover b {
+  font-size: 1em;
+  line-height: 1.55;
 }
 
 .interactive-v3-hotspot-popover small {
+  font-size: 0.92em;
   font-weight: 400;
-  line-height: 1.8;
+  line-height: 1.7;
   color: #475467;
 }
 
@@ -745,6 +828,92 @@
 .interactive-v3-editor-hotspot {
   display: grid;
   gap: 0.75rem;
+}
+
+.interactive-v3-editor-hotspot-canvas {
+  position: relative;
+  display: grid;
+  gap: 0.6rem;
+  overflow: visible;
+  border-radius: 18px;
+}
+
+.interactive-v3-editor-hotspot-media {
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 18px;
+  background: rgba(248, 250, 252, 0.86);
+}
+
+.interactive-v3-editor-hotspot-media > span {
+  min-height: 260px;
+}
+
+.interactive-v3-editor-hotspot-media img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: none;
+  object-fit: contain;
+}
+
+.interactive-v3-editor-hotspot-point {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  transform: translate(-50%, -50%);
+}
+
+.interactive-v3-editor-hotspot-point > b {
+  width: 1.55rem;
+  height: 1.55rem;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #dc2626;
+  box-shadow: 0 8px 22px rgba(220, 38, 38, 0.34), 0 0 0 3px rgba(255, 255, 255, 0.92);
+  color: #fff;
+  font-size: 0.76rem;
+  line-height: 1;
+}
+
+.interactive-v3-editor-hotspot-card {
+  position: absolute;
+  inset-block-start: calc(100% + 8px);
+  inset-inline-start: 50%;
+  width: min(250px, 72vw);
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.58rem;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.18);
+  transform: translateX(-50%);
+}
+
+.interactive-v3-editor-hotspot-card [data-v3-item-remove] {
+  justify-self: end;
+  width: 1.65rem;
+  height: 1.65rem;
+  padding: 0;
+  border-radius: 999px;
+  color: #b91c1c;
+  background: rgba(220, 38, 38, 0.08);
+}
+
+.interactive-v3-editor-hotspot-card textarea {
+  min-height: 68px;
+}
+
+.interactive-v3-editor-hotspot-hint {
+  color: #64748b;
+  font-size: 0.82rem;
+  line-height: 1.7;
 }
 
 .interactive-v3-editor-points {

@@ -3599,7 +3599,7 @@ export default function EditorV2Page() {
   const handleEditorSurfaceClick = useCallback((event: any) => {
     const target = event.target as HTMLElement
     const hotspotCanvas = target.closest<HTMLElement>('[data-v3-hotspot-canvas="true"]')
-    if (hotspotCanvas && !target.closest('[data-v3-media-action], input, textarea, button, .interactive-v3-editor-hotspot-card')) {
+    if (hotspotCanvas && !target.closest('[data-v3-media-action], input, textarea, button, .interactive-v3-editor-hotspot-card, .interactive-v3-editor-hotspot-point')) {
       const section = hotspotCanvas.closest<HTMLElement>('[data-v2-type="interactive"][data-block-id]')
       const pageElement = section?.closest<HTMLElement>('.editor-v2-flow-page')
       const blockId = section?.dataset.blockId
@@ -3610,6 +3610,7 @@ export default function EditorV2Page() {
       if (!section || !blockId || !page || oldBlock?.type !== 'interactive' || !image) return
       const rect = image.getBoundingClientRect()
       if (!rect.width || !rect.height) return
+      if (Number(event.clientX) < rect.left || Number(event.clientX) > rect.right || Number(event.clientY) < rect.top || Number(event.clientY) > rect.bottom) return
       event.preventDefault()
       event.stopPropagation()
       const parsed = interactiveBlockFromEditorElementV3(section, oldBlock, page)

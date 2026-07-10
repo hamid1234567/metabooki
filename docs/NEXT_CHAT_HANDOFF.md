@@ -1,6 +1,6 @@
 # MetaBooki Next Chat Handoff
 
-Last reviewed version: `1.0.675`
+Last reviewed version: `1.0.676`
 
 Use this file as the first reference in a fresh Codex chat before making changes.
 
@@ -48,6 +48,7 @@ Use this file as the first reference in a fresh Codex chat before making changes
 - Interactive V3 reader direction now comes from the first strong character of actual entered item text; if an interactive block has no text/title, it inherits the book/page direction instead of forcing LTR.
 - Editor V2 now allows removing an inserted Interactive V3 block from the editor canvas.
 - Reader page-engine placeholders now show a loading placeholder instead of the intentional empty-page message, preventing false empty pages while image-heavy pages are still loading.
+- Interactive V3 hotspot blocks now use the image itself as the editor click target, support unlimited add/remove hotspot points, and render reader points as small red plus markers with animated in-image popovers and a show/hide-all control.
 
 ## Current Known Fragile Areas
 
