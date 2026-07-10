@@ -34,6 +34,14 @@ function mediaTools(path: string, image = '') {
   </div>`
 }
 
+function itemControls(index: number) {
+  return `<span class="interactive-v3-editor-item-actions">
+    <button type="button" data-v3-item-move="-1" title="جابجایی به بالا" ${index === 0 ? 'disabled' : ''}>↑</button>
+    <button type="button" data-v3-item-move="1" title="جابجایی به پایین">↓</button>
+    <button type="button" data-v3-item-remove="true" title="حذف آیتم">×</button>
+  </span>`
+}
+
 function authorBatchTools() {
   return `<div class="interactive-v3-author-batch" contenteditable="false">
     <textarea data-v3-author-lines="true" placeholder="نام نویسنده‌ها؛ هر نویسنده در یک خط"></textarea>
@@ -55,7 +63,7 @@ function hotspotMedia(image = '') {
 
 function itemShell(collection: keyof InteractiveV3Payload, index: number, item: InteractiveV3Item, body: string, media = true) {
   return `<article class="interactive-v3-editor-item" data-v3-list="${escapeHtml(String(collection))}" data-v3-index="${index}"${attr('data-v3-item-id', item.id)}>
-    <header contenteditable="false"><b>${index + 1}</b><button type="button" data-v3-item-remove="true" title="حذف آیتم">×</button></header>
+    <header contenteditable="false"><b>${index + 1}</b>${itemControls(index)}</header>
     <div class="interactive-v3-editor-item-grid ${media ? 'has-media' : 'no-media'}">
       ${media ? mediaTools(`${String(collection)}.${index}.image`, item.image || '') : ''}
       <div>${body}</div>
@@ -133,7 +141,7 @@ function editorItemsHtml(kind: InteractiveV3Kind, payload: InteractiveV3Payload)
       </div>
       <div class="interactive-v3-editor-hotspot-cards" data-v3-hotspot-cards="true">
         ${points.map((point, index) => `<article class="interactive-v3-editor-hotspot-card" data-v3-list="points" data-v3-index="${index}"${attr('data-v3-item-id', point.id)}>
-          <header contenteditable="false"><b>نقطه ${index + 1}</b><button type="button" data-v3-item-remove="true" title="حذف نقطه">×</button></header>
+          <header contenteditable="false"><b>نقطه ${index + 1}</b>${itemControls(index)}</header>
           ${input('title', point.title, 'عنوان نقطه')}
           ${text('text', point.text, 'توضیح نقطه')}
           <input data-v3-field="x" type="hidden" value="${escapeHtml(valueOf(point.x ?? 50))}">
@@ -304,21 +312,56 @@ export function removeInteractiveItemV3(block: BookBlockV2, collection: keyof In
   return { ...block, payload }
 }
 
-export function setInteractiveItemImagesV3(block: BookBlockV2, collection: keyof InteractiveV3Payload | undefined, startIndex: number, urls: string[]): BookBlockV2 {
-  if (block.type !== 'interactive' || !urls.length) return block
+export function moveInteractiveItemV3(block: BookBlockV2, collection: keyof InteractiveV3Payload, index: number, direction: number): BookBlockV2 {
+  if (block.type !== 'interactive' || !direction) return block
+  const payload = { ...(block.payload || {}) } as InteractiveV3Payload
+  const current = Array.isArray(payload[collection]) ? [...payload[collection] as InteractiveV3Item[]] : []
+  const nextIndex = index + (direction < 0 ? -1 : 1)
+  if (index < 0 || nextIndex < 0 || index >= current.length || nextIndex >= current.length) return block
+  const next = [...current]
+  const item = next[index]
+  next[index] = next[nextIndex]
+  next[nextIndex] = item
+  payload[collection] = next as any
+  return { ...block, payload }
+}
+
+export type InteractiveV3MediaInput = {
+  url: string
+  caption?: string
+}
+
+function itemWithMediaCaption(collection: keyof InteractiveV3Payload, item: InteractiveV3Item, caption: string) {
+  if (!caption) return item
+  if (collection === 'images') return item.caption ? item : { ...item, caption }
+  if (collection === 'cards') return item.back ? item : { ...item, back: caption }
+  if (collection === 'authors') return item.bio ? item : { ...item, bio: caption }
+  if (collection === 'points') return item.text ? item : { ...item, text: caption }
+  return item.description || item.text ? item : { ...item, description: caption }
+}
+
+export function setInteractiveItemMediaV3(block: BookBlockV2, collection: keyof InteractiveV3Payload | undefined, startIndex: number, media: InteractiveV3MediaInput[]): BookBlockV2 {
+  if (block.type !== 'interactive' || !media.length) return block
+  const cleanMedia = media.map(item => ({ url: item.url, caption: normalizeBookTextV2(item.caption || '').trim() })).filter(item => item.url)
+  if (!cleanMedia.length) return block
   const payload = { ...(block.payload || {}) } as InteractiveV3Payload
   if (!collection) {
-    payload.image = urls[0]
+    payload.image = cleanMedia[0].url
+    if (cleanMedia[0].caption && !payload.caption) payload.caption = cleanMedia[0].caption
     return { ...block, payload }
   }
   const current = Array.isArray(payload[collection]) ? [...payload[collection] as InteractiveV3Item[]] : []
   const next = current.length ? current : [blankItemForCollection(collection, 0)]
-  urls.forEach((url, offset) => {
+  cleanMedia.forEach((mediaItem, offset) => {
     const index = startIndex + offset
     if (collection !== 'authors' && index >= INTERACTIVE_V3_MAX_ITEMS) return
     while (next.length <= index) next.push(blankItemForCollection(collection, next.length))
-    next[index] = { ...next[index], image: url }
+    next[index] = itemWithMediaCaption(collection, { ...next[index], image: mediaItem.url }, mediaItem.caption)
   })
   payload[collection] = next as any
   return { ...block, payload }
+}
+
+export function setInteractiveItemImagesV3(block: BookBlockV2, collection: keyof InteractiveV3Payload | undefined, startIndex: number, urls: string[]): BookBlockV2 {
+  return setInteractiveItemMediaV3(block, collection, startIndex, urls.map(url => ({ url })))
 }

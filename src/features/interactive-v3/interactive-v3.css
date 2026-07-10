@@ -1336,6 +1336,12 @@
   color: var(--interactive-v3-blue);
 }
 
+.interactive-v3-editor-item-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
 .interactive-v3-editor-item > header button,
 .interactive-v3-editor-add {
   border: 1px solid rgba(148, 163, 184, 0.24);
@@ -1347,7 +1353,17 @@
 .interactive-v3-editor-item > header button {
   width: 1.8rem;
   height: 1.8rem;
+  color: #2563eb;
+  font-weight: 900;
+}
+
+.interactive-v3-editor-item > header button[data-v3-item-remove] {
   color: #ef4444;
+}
+
+.interactive-v3-editor-item > header button:disabled {
+  opacity: 0.42;
+  cursor: default;
 }
 
 .interactive-v3-editor-item-grid {
@@ -1631,6 +1647,28 @@
   padding: 0;
   border-radius: 999px;
   border: 0;
+  color: #b91c1c;
+  background: rgba(220, 38, 38, 0.08);
+}
+
+.interactive-v3-editor-hotspot-card header button {
+  width: 1.35rem;
+  height: 1.35rem;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.08);
+  color: #2563eb;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.interactive-v3-editor-hotspot-card header button:disabled {
+  opacity: 0.42;
+  cursor: default;
+}
+
+.interactive-v3-editor-hotspot-card header button[data-v3-item-remove] {
   color: #b91c1c;
   background: rgba(220, 38, 38, 0.08);
 }

@@ -16,7 +16,7 @@ import { backfillPageEngineForBook, isUuidV2, loadPageEngineWindow, rebuildPageE
 import { bookDisplayTextHtml, bookSearchIncludes, isBookLtrRunText, type PrintPageValue } from '@/lib/book-content'
 import { referenceClassNameV2, referenceDisplayLabelV2, referenceHtmlDataAttributesV2, referenceKindFromElementV2, referenceKindFromInlineV2, referenceTooltipDirectionV2, referenceTooltipTextV2, shortenReferencePreviewV2, type BookReferenceKindV2 } from '@/lib/book-references'
 import { createInteractiveBlockV3, INTERACTIVE_V3_DEFINITIONS } from '@/features/interactive-v3/registry'
-import { appendAuthorNamesV3, appendAuthorsV3, appendHotspotPointV3, appendInteractiveItemV3, interactiveBlockFromEditorElementV3, interactiveBlockToEditorHtmlV3, removeInteractiveItemV3, setInteractiveItemImagesV3 } from '@/features/interactive-v3/editorHtml'
+import { appendAuthorNamesV3, appendAuthorsV3, appendHotspotPointV3, appendInteractiveItemV3, interactiveBlockFromEditorElementV3, interactiveBlockToEditorHtmlV3, moveInteractiveItemV3, removeInteractiveItemV3, setInteractiveItemMediaV3, type InteractiveV3MediaInput } from '@/features/interactive-v3/editorHtml'
 import type { InteractiveV3Item } from '@/features/interactive-v3/types'
 import type { MockBook } from '@/lib/mock-data'
 import './editor-v2.css'
@@ -3475,10 +3475,10 @@ export default function EditorV2Page() {
     }
   }, [commitDocument, document, insertBlockIntoEditorDom, recordAiUsage, selectedBlockId, selectedBlockIdFromEditorTarget, user])
 
-  const applyInteractiveMediaUrls = useCallback((urls: string[]) => {
+  const applyInteractiveMedia = useCallback((media: InteractiveV3MediaInput[]) => {
     const target = interactiveMediaTargetRef.current
-    const cleanUrls = urls.filter(Boolean)
-    if (!target || !cleanUrls.length) return false
+    const cleanMedia = media.filter(item => item.url)
+    if (!target || !cleanMedia.length) return false
     const section = target.closest<HTMLElement>('[data-v2-type="interactive"][data-block-id]')
     const pageElement = section?.closest<HTMLElement>('.editor-v2-flow-page')
     const blockId = section?.dataset.blockId
@@ -3492,7 +3492,7 @@ export default function EditorV2Page() {
     const match = /^([^.]+)\.(\d+)\.image$/.exec(path)
     const collection = match?.[1] as any
     const startIndex = match ? Number(match[2]) : 0
-    const nextBlock = setInteractiveItemImagesV3(parsed, match ? collection : undefined, startIndex, cleanUrls)
+    const nextBlock = setInteractiveItemMediaV3(parsed, match ? collection : undefined, startIndex, cleanMedia)
     pushEditorHistory()
     section.outerHTML = interactiveBlockToEditorHtmlV3(nextBlock)
     skipNextSurfaceSyncRef.current = true
@@ -3504,11 +3504,11 @@ export default function EditorV2Page() {
   }, [document, markDirtyAssetPageFromNode, markEditorDirty, pushEditorHistory, scheduleToolbarDocumentRefresh])
 
   const pickInteractiveImagesFromRefs = useCallback((refs: EditorMediaReferenceV2[]) => {
-    const urls = refs.map(item => item.url).filter(Boolean)
-    if (applyInteractiveMediaUrls(urls)) {
-      setMediaMessage(`${urls.length.toLocaleString('fa-IR')} تصویر داخل آیتم‌های تعاملی قرار گرفت.`)
+    const media = refs.map(item => ({ url: item.url, caption: item.caption })).filter(item => item.url)
+    if (applyInteractiveMedia(media)) {
+      setMediaMessage(`${media.length.toLocaleString('fa-IR')} تصویر داخل آیتم‌های تعاملی قرار گرفت.`)
     }
-  }, [applyInteractiveMediaUrls])
+  }, [applyInteractiveMedia])
 
   const uploadInteractiveMediaImages = useCallback(async (files: File[]) => {
     const target = interactiveMediaTargetRef.current
@@ -3539,13 +3539,13 @@ export default function EditorV2Page() {
       if (compressedCount) {
         toast.success(`${compressedCount.toLocaleString('fa-IR')} تصویر پیش از آپلود کم‌حجم شد.`, { description: 'نسخه فشرده‌شده به سرور ارسال شد.' })
       }
-      if (applyInteractiveMediaUrls(urls)) {
+      if (applyInteractiveMedia(urls.map(url => ({ url })))) {
         setMediaMessage(`${urls.length.toLocaleString('fa-IR')} تصویر آپلود و داخل آیتم‌های تعاملی قرار گرفت.`)
       }
     } catch (error) {
       setMediaMessage(error instanceof Error ? error.message : 'آپلود تصویر تعاملی ناموفق بود.')
     }
-  }, [applyInteractiveMediaUrls, commitDocument, document?.pages, document?.sourceBookId, id, user?.id])
+  }, [applyInteractiveMedia, commitDocument, document?.pages, document?.sourceBookId, id, user?.id])
 
   const generateInteractiveMediaImage = useCallback(async (target: HTMLElement) => {
     const item = target.closest<HTMLElement>('[data-v3-list], .interactive-v3-editor-hotspot, .interactive-v3-editor')
@@ -3579,7 +3579,7 @@ export default function EditorV2Page() {
         status: 'ready' as const,
       }
       commitDocument(current => ({ ...current, assets: [...current.assets, asset] }), { dirtyAssetPageIndexes: [Number.isFinite(pageIndex) ? pageIndex : 0] })
-      if (applyInteractiveMediaUrls([result.imageUrl])) {
+      if (applyInteractiveMedia([{ url: result.imageUrl }])) {
         recordAiUsage(result.usage)
         setMediaMessage('تصویر تولید و داخل بلوک تعاملی قرار گرفت.')
       }
@@ -3588,7 +3588,7 @@ export default function EditorV2Page() {
     } finally {
       setAiBusy(false)
     }
-  }, [applyInteractiveMediaUrls, commitDocument, document?.pages, document?.sourceBookId, recordAiUsage, user])
+  }, [applyInteractiveMedia, commitDocument, document?.pages, document?.sourceBookId, recordAiUsage, user])
 
   const resizeImageBlock = useCallback((blockId: string, widthPercent: number) => {
     const dirtyPageIndex = findBlockPageIndexV2(document, blockId)
@@ -3772,7 +3772,7 @@ export default function EditorV2Page() {
       window.requestAnimationFrame(() => hydrateAuthorLibraryInEditorV2(editorSurfaceRef.current, authorLibrary))
       return
     }
-    const interactiveAction = target.closest<HTMLElement>('[data-v3-add-item], [data-v3-item-remove], [data-v3-media-action], [data-v3-block-remove]')
+    const interactiveAction = target.closest<HTMLElement>('[data-v3-add-item], [data-v3-item-remove], [data-v3-item-move], [data-v3-media-action], [data-v3-block-remove]')
     if (interactiveAction) {
       const section = interactiveAction.closest<HTMLElement>('[data-v2-type="interactive"][data-block-id]')
       const pageElement = section?.closest<HTMLElement>('.editor-v2-flow-page')
@@ -3821,10 +3821,15 @@ export default function EditorV2Page() {
         void generateInteractiveMediaImage(mediaTarget)
         return
       }
-      pushEditorHistory()
+      const collection = interactiveAction.closest<HTMLElement>('[data-v3-list]')?.dataset.v3List as any
+      const itemIndex = Number(interactiveAction.closest<HTMLElement>('[data-v3-index]')?.dataset.v3Index ?? -1)
       const nextBlock = interactiveAction.dataset.v3AddItem
         ? appendInteractiveItemV3(parsed, interactiveAction.dataset.v3AddItem as any)
-        : removeInteractiveItemV3(parsed, interactiveAction.closest<HTMLElement>('[data-v3-list]')?.dataset.v3List as any, Number(interactiveAction.closest<HTMLElement>('[data-v3-index]')?.dataset.v3Index ?? -1))
+        : interactiveAction.dataset.v3ItemMove
+          ? moveInteractiveItemV3(parsed, collection, itemIndex, Number(interactiveAction.dataset.v3ItemMove))
+          : removeInteractiveItemV3(parsed, collection, itemIndex)
+      if (nextBlock === parsed) return
+      pushEditorHistory()
       section.outerHTML = interactiveBlockToEditorHtmlV3(nextBlock)
       setSelectedBlockId(blockId)
       markEditorDirty()
