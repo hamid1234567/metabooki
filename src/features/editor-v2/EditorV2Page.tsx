@@ -3740,7 +3740,7 @@ export default function EditorV2Page() {
       selection?.addRange(range)
       savedSelectionRef.current = range.cloneRange()
       setHasTextSelection(true)
-      const matchElement = textNode.parentElement
+      const matchElement = textNode.parentNode instanceof HTMLElement ? textNode.parentNode : null
       matchElement?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       markAuthorFindButtonV2(authorFindButton, 'success')
       window.setTimeout(() => markAuthorFindButtonV2(authorFindButton, 'idle'), 1500)

@@ -26,16 +26,14 @@ export function AuthorInteractiveV3({ block }: { block: InteractiveV3Block }) {
   }
 
   const closeAuthor = (index: number) => {
+    if (active !== index) return
     clearExitTimer()
-    setActive(current => {
-      if (current !== index) return current
-      setExiting(index)
-      exitTimerRef.current = window.setTimeout(() => {
-        setExiting(null)
-        exitTimerRef.current = null
-      }, 240)
-      return null
-    })
+    setActive(null)
+    setExiting(index)
+    exitTimerRef.current = window.setTimeout(() => {
+      setExiting(null)
+      exitTimerRef.current = null
+    }, 240)
   }
 
   if (!authors.length) return null
