@@ -55,6 +55,83 @@ type AiCalloutSuggestionV2 = {
   placementHint?: string
 }
 
+function aiSuggestionIsFormattingV2(suggestion: AiCalloutSuggestionV2) {
+  const kind = normalizeBookTextV2(suggestion.suggestionType || '').toLowerCase()
+  return /(formatting|format|editing|ویرایش|قالب)/i.test(kind)
+}
+
+function aiSuggestionIsCalloutV2(suggestion: AiCalloutSuggestionV2) {
+  if (aiSuggestionIsFormattingV2(suggestion)) return false
+  const text = normalizeBookTextV2([
+    suggestion.suggestionType,
+    suggestion.variant,
+    suggestion.title,
+    suggestion.action,
+  ].filter(Boolean).join(' '))
+  return /(educational_callout|callout|کال\s*[-‌]?\s*اوت|نکته کلیدی|مکث و فکر|اشتباه رایج|جمله طلایی|عمیق‌تر بخوان|تمرین سریع|تعریف واژه|داده و منبع|یادداشت حاشیه‌ای)/i.test(text)
+}
+
+function splitAiFormattingTextV2(text: string) {
+  const clean = normalizeBookTextV2(text)
+  if (!clean) return []
+  const sentenceParts = clean.split(/\r?\n|[؛;]+|(?<=[.!؟?])\s+/u).map(part => normalizeBookTextV2(part)).filter(Boolean)
+  const parts = sentenceParts.length > 1
+    ? sentenceParts
+    : clean.split(/،/u).map(part => normalizeBookTextV2(part)).filter(Boolean)
+  return parts.filter((part, index) => parts.indexOf(part) === index)
+}
+
+function formattingReplacementBlocksForSuggestionV2(suggestion: AiCalloutSuggestionV2, sourceBlock?: BookBlockV2 | null): BookBlockV2[] | null {
+  const action = normalizeBookTextV2(`${suggestion.action || ''} ${suggestion.title || ''}`)
+  const sourceText = normalizeBookTextV2(suggestion.sourceQuote || suggestion.text || '')
+  const now = Date.now()
+  const common = {
+    printNumber: sourceBlock?.printNumber,
+    direction: sourceBlock?.direction,
+    style: sourceBlock?.style,
+  }
+
+  if (/(تیتر|زیرتیتر|عنوان|heading|subheading)/i.test(action)) {
+    const text = normalizeBookTextV2(suggestion.text || suggestion.title || sourceText)
+    if (!text) return null
+    return [{
+      ...common,
+      id: createV2Id('ai-heading', now),
+      type: 'heading',
+      level: /(زیرتیتر|subheading)/i.test(action) ? 3 : 2,
+      text,
+      anchor: createV2Id('ai-heading-anchor', now),
+    } as BookBlockV2]
+  }
+
+  if (/(فهرست|لیست|بولت|bullet|list)/i.test(action)) {
+    const items = splitAiFormattingTextV2(sourceText)
+    if (items.length < 2) return null
+    return [{
+      ...common,
+      id: createV2Id('ai-list', now),
+      type: 'list',
+      ordered: /(شماره|number|ordered)/i.test(action),
+      anchor: createV2Id('ai-list-anchor', now),
+      items: items.map((item, index) => ({ id: createV2Id('ai-list-item', now, index), text: item })),
+    } as BookBlockV2]
+  }
+
+  if (/(شکستن|تقسیم|پاراگراف|paragraph|break)/i.test(action)) {
+    const paragraphs = splitAiFormattingTextV2(sourceText)
+    if (paragraphs.length < 2) return null
+    return paragraphs.map((text, index) => ({
+      ...common,
+      id: createV2Id('ai-paragraph', now, index),
+      type: 'paragraph',
+      text,
+      anchor: createV2Id('ai-paragraph-anchor', now, index),
+    } as BookBlockV2))
+  }
+
+  return null
+}
+
 type AiImageApprovalV2 = {
   target: HTMLElement
   prompt: string
@@ -1005,6 +1082,68 @@ function replaceSourceQuoteWithCalloutV2(document: BookDocumentV2, sourceQuote: 
       }
       if (!replaced && fallbackBlockId && block.id === fallbackBlockId) {
         next.push({ ...callout, printNumber: block.printNumber })
+        replaced = true
+        continue
+      }
+      next.push(block)
+    }
+    return next
+  }
+  const pages = document.pages.map(page => ({ ...page, blocks: replaceInBlocks(page.blocks) }))
+  return { document: rebuildDocumentTocV2({ ...document, pages }), replaced }
+}
+
+function replaceSourceQuoteWithBlocksV2(document: BookDocumentV2, sourceQuote: string | undefined, fallbackBlockId: string | undefined, replacementBlocks: BookBlockV2[]) {
+  const quote = normalizeAiSourceTextV2(sourceQuote || '')
+  let replaced = false
+  const makeTextBlock = (source: BookBlockV2, text: string, suffix: string): BookBlockV2 | null => {
+    const clean = normalizeBookTextV2(text)
+    if (!clean) return null
+    const common = {
+      id: createV2Id('ai-split', source.id, suffix, Date.now()),
+      text: clean,
+      anchor: createV2Id('ai-split-anchor', source.id, suffix, Date.now()),
+      printNumber: source.printNumber,
+      direction: source.direction,
+      style: source.style,
+    }
+    if (source.type === 'heading') return { ...common, type: 'heading', level: source.level } as BookBlockV2
+    return { ...common, type: 'paragraph' } as BookBlockV2
+  }
+  const replacementsFor = (source: BookBlockV2) => replacementBlocks.map(block => ({
+    ...block,
+    printNumber: block.printNumber ?? source.printNumber,
+    direction: block.direction ?? source.direction,
+  }))
+  const replaceInBlocks = (blocks: BookBlockV2[]): BookBlockV2[] => {
+    const next: BookBlockV2[] = []
+    for (const block of blocks) {
+      if (block.type === 'callout') {
+        next.push({ ...block, blocks: replaceInBlocks(block.blocks) })
+        continue
+      }
+      const text = plainTextFromBlockV2(block)
+      const normalizedText = normalizeAiSourceTextV2(text)
+      const canSplit = block.type === 'paragraph' || block.type === 'heading'
+      const matchesQuote = quote.length >= 4 && normalizedText.includes(quote)
+      const matchesFallback = !quote && fallbackBlockId && block.id === fallbackBlockId
+      if (!replaced && canSplit && (matchesQuote || matchesFallback)) {
+        const rawQuote = matchesQuote ? normalizeBookTextV2(sourceQuote || '') : normalizeBookTextV2(text)
+        const index = rawQuote ? text.indexOf(rawQuote) : -1
+        if (index > 0) {
+          const before = makeTextBlock(block, text.slice(0, index), 'before')
+          if (before) next.push(before)
+        }
+        next.push(...replacementsFor(block))
+        if (index >= 0 && rawQuote && index + rawQuote.length < text.length) {
+          const after = makeTextBlock(block, text.slice(index + rawQuote.length), 'after')
+          if (after) next.push(after)
+        }
+        replaced = true
+        continue
+      }
+      if (!replaced && fallbackBlockId && block.id === fallbackBlockId) {
+        next.push(...replacementsFor(block))
         replaced = true
         continue
       }
@@ -2134,7 +2273,7 @@ function RightPanelV2({
                   <article key={suggestion.id} className="editor-v2-ai-suggestion-item">
                     <div>
                       <b>{suggestion.title || suggestion.action || 'پیشنهاد ویرایش'}</b>
-                      <small>{suggestion.suggestionType === 'educational_callout' ? 'کال‌اوت آموزشی' : 'ویرایش و قالب‌بندی'} · اهمیت: {suggestion.importance || 'متوسط'}</small>
+                      <small>{aiSuggestionIsCalloutV2(suggestion) ? 'کال‌اوت آموزشی' : 'ویرایش و قالب‌بندی'} · اهمیت: {suggestion.importance || 'متوسط'}</small>
                       {suggestion.sourceQuote && <p className="editor-v2-ai-source-quote">«{suggestion.sourceQuote}»</p>}
                       {suggestion.action && <p>{suggestion.action}</p>}
                       {suggestion.reason && <small>{suggestion.reason}</small>}
@@ -4498,7 +4637,8 @@ export default function EditorV2Page() {
       return
     }
     const action = normalizeBookTextV2(suggestion.action || '')
-    const isCallout = suggestion.suggestionType === 'educational_callout' || Boolean(suggestion.variant)
+    const isCallout = aiSuggestionIsCalloutV2(suggestion)
+    const sourceBlock = findBlockInDocumentV2(document, sourceBlockId)
     if (!isCallout && /(بولد|برجسته|bold)/i.test(action)) {
       if (applyBoldToSourceQuote(suggestion.sourceQuote)) {
         setAiCalloutSuggestions(current => current.filter(item => item.id !== suggestion.id))
@@ -4509,7 +4649,24 @@ export default function EditorV2Page() {
       return
     }
     if (!isCallout) {
-      setAiMessage('این نوع پیشنهاد هنوز اجرای خودکار کامل ندارد. برای کال‌اوت‌ها و برجسته‌سازی، اعمال مستقیم فعال است.')
+      const replacementBlocks = formattingReplacementBlocksForSuggestionV2(suggestion, sourceBlock)
+      if (!replacementBlocks?.length) {
+        setAiMessage('این پیشنهاد از نوع ویرایش و قالب‌بندی است، اما اجرای خودکار امن برای این اقدام هنوز فعال نیست.')
+        return
+      }
+      const dirtyPageIndex = findBlockPageIndexV2(document, sourceBlockId) ?? 0
+      forceNextSurfaceSyncRef.current = true
+      skipNextSurfaceSyncRef.current = false
+      commitDocument(current => {
+        const result = replaceSourceQuoteWithBlocksV2(current, suggestion.sourceQuote, sourceBlockId, replacementBlocks)
+        return result.document
+      }, { dirtyPageIndexes: [dirtyPageIndex] })
+      window.setTimeout(() => {
+        editorSurfaceRef.current?.querySelector<HTMLElement>(`[data-block-id="${replacementBlocks[0].id.replace(/"/g, '\\"')}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 80)
+      setSelectedBlockId(replacementBlocks[0].id)
+      setAiCalloutSuggestions(current => current.filter(item => item.id !== suggestion.id))
+      setAiMessage('پیشنهاد ویرایش و قالب‌بندی روی متن اعمال شد.')
       return
     }
     const variant = CALLOUT_VARIANTS_V2.includes((suggestion.variant || '') as any)

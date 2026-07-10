@@ -325,9 +325,7 @@ function textPromptWithSettings(prompt: string, action: string, settings: Prompt
   return appendSupplementalPrompt(prompt, [promptSetting(settings, 'textGlobal'), actionKey ? promptSetting(settings, actionKey) : ''])
 }
 
-function textUsage(provider: AiProviderConfig, prompt: string, maxOutputTokens: number, usdToToman: number, chargeMultiplier: number, creditsPerToman: number) {
-  const inputTokens = Math.ceil(estimateTokens(prompt) * 1.15)
-  const outputTokens = Math.ceil(maxOutputTokens * 1.15)
+function textUsageFromTokens(provider: AiProviderConfig, inputTokens: number, outputTokens: number, usdToToman: number, chargeMultiplier: number, creditsPerToman: number) {
   const rawUsd = (inputTokens / 1000) * Number(provider.input_cost_per_1k_usd || 0) + (outputTokens / 1000) * Number(provider.output_cost_per_1k_usd || 0)
   const chargedUsd = rawUsd * chargeMultiplier
   const chargedToman = Math.ceil(chargedUsd * usdToToman)
@@ -335,8 +333,21 @@ function textUsage(provider: AiProviderConfig, prompt: string, maxOutputTokens: 
   return { inputTokens, outputTokens, rawUsd, chargedUsd, chargedToman, chargedCredits, creditValueToman: Math.round(1 / creditsPerToman) }
 }
 
+function estimatedOutputTokensForAction(action: string, inputTokens: number, maxOutputTokens: number) {
+  if (action === 'callout_suggestions') return Math.min(maxOutputTokens, Math.max(180, Math.ceil(inputTokens * 0.22)))
+  if (action === 'quiz') return Math.min(maxOutputTokens, 260)
+  if (action === 'learning_path' || action === 'mindmap') return Math.min(maxOutputTokens, 420)
+  return Math.min(maxOutputTokens, 360)
+}
+
+function estimatedTextUsage(provider: AiProviderConfig, prompt: string, action: string, maxOutputTokens: number, usdToToman: number, chargeMultiplier: number, creditsPerToman: number) {
+  const inputTokens = Math.ceil(estimateTokens(prompt))
+  const outputTokens = estimatedOutputTokensForAction(action, inputTokens, maxOutputTokens)
+  return textUsageFromTokens(provider, inputTokens, outputTokens, usdToToman, chargeMultiplier, creditsPerToman)
+}
+
 function maxOutputTokensForAction(action: string) {
-  if (action === 'callout_suggestions') return 900
+  if (action === 'callout_suggestions') return 650
   if (action === 'learning_path' || action === 'mindmap') return 700
   if (action === 'quiz') return 420
   return 620
@@ -882,7 +893,7 @@ serve(async (req) => {
     const maxTokens = maxOutputTokensForAction(body.action)
 
     if (body.operation === 'estimate_text') {
-      const usage = textUsage(provider, prompt, maxTokens, usdToToman, chargeMultiplier, creditsPerToman)
+      const usage = estimatedTextUsage(provider, prompt, String(body.action || ''), maxTokens, usdToToman, chargeMultiplier, creditsPerToman)
       return new Response(JSON.stringify({
         provider: provider.label || provider.provider,
         model: provider.model,
