@@ -167,6 +167,25 @@ function mergePageAssetsSummaryV2(currentAssets: BookAssetV2[], bookId: string, 
   )
 }
 
+function dedupePagesByIndexV2(pages: BookPageV2[]) {
+  const byIndex = new Map<number, BookPageV2>()
+  pages.forEach(page => {
+    const pageIndex = Number(page.index)
+    if (!Number.isFinite(pageIndex)) return
+    byIndex.set(pageIndex, { ...page, index: pageIndex })
+  })
+  return [...byIndex.values()].sort((a, b) => Number(a.index) - Number(b.index))
+}
+
+function dedupeRowsByKeyV2<T>(rows: T[], getKey: (row: T) => string) {
+  const byKey = new Map<string, T>()
+  rows.forEach(row => {
+    const key = getKey(row)
+    if (key) byKey.set(key, row)
+  })
+  return [...byKey.values()]
+}
+
 export function manifestFromDocumentV2(document: BookDocumentV2, options: { pageCount?: number; assetsSummary?: BookAssetV2[] } = {}): PageEngineManifest {
   const toc = document.toc.length ? document.toc : buildTocFromHeadingsV2(document.pages)
   return {
@@ -399,8 +418,11 @@ export async function savePageEngineDocument(
   options: { pageCount?: number; assetsSummary?: BookAssetV2[]; updateManifest?: boolean; updateAssets?: boolean; updateAssetsSummary?: boolean } = {},
 ): Promise<PageEngineSaveResult | null> {
   if (!hasSupabase || !isUuidV2(bookId)) return null
-  const dirtySet = dirtyPageIndexes ? new Set([...dirtyPageIndexes].map(Number).filter(Number.isFinite)) : new Set(document.pages.map(page => page.index))
-  const dirtyPages = document.pages.filter(page => dirtySet.has(page.index))
+  const uniqueDocumentPages = dedupePagesByIndexV2(document.pages)
+  const dirtySet = dirtyPageIndexes
+    ? new Set([...dirtyPageIndexes].map(Number).filter(Number.isFinite))
+    : new Set(uniqueDocumentPages.map(page => page.index))
+  const dirtyPages = uniqueDocumentPages.filter(page => dirtySet.has(page.index))
   if (!dirtyPages.length) return {
     mode: 'page-engine',
     savedPageIndexes: [],
@@ -409,7 +431,7 @@ export async function savePageEngineDocument(
     networkMs: 0,
   }
 
-  const pageRows = dirtyPages.map(page => {
+  const pageRows = dedupeRowsByKeyV2(dirtyPages.map(page => {
     const record = pageRecordFromPageV2(bookId, page)
     return {
       book_id: bookId,
@@ -423,8 +445,8 @@ export async function savePageEngineDocument(
       content_hash: String(jsonBytesV2(record.blocks)),
       updated_at: document.updatedAt,
     }
-  })
-  const searchRows = pageRows.map(row => ({
+  }), row => `${row.book_id}:${row.page_index}`)
+  const searchRows = dedupeRowsByKeyV2(pageRows.map(row => ({
     book_id: row.book_id,
     page_index: row.page_index,
     plain_text: row.plain_text,
@@ -433,9 +455,9 @@ export async function savePageEngineDocument(
       .map((block: BookBlockV2) => blockPlainTextV2(block))
       .join('\n'),
     updated_at: row.updated_at,
-  }))
+  })), row => `${row.book_id}:${row.page_index}`)
   const shouldUpdateAssets = options.updateAssets !== false
-  const assetRows = shouldUpdateAssets ? dirtyPages.flatMap(page => collectPageAssets(bookId, page).map(asset => ({
+  const assetRows = shouldUpdateAssets ? dedupeRowsByKeyV2(dirtyPages.flatMap(page => collectPageAssets(bookId, page).map(asset => ({
     book_id: bookId,
     asset_id: asset.id,
     page_index: page.index,
@@ -447,7 +469,7 @@ export async function savePageEngineDocument(
     issue: asset.issue || null,
     metadata: { printNumber: asset.printNumber ?? null },
     updated_at: document.updatedAt,
-  }))) : []
+  }))), row => `${row.book_id}:${row.asset_id}`) : []
   const shouldUpdateManifest = options.updateManifest !== false
   const shouldUpdateAssetsSummary = options.updateAssetsSummary !== false
   const assetsSummary = shouldUpdateAssetsSummary && options.assetsSummary
@@ -485,7 +507,7 @@ export async function savePageEngineDocument(
   if (errors.length) throw errors[0]
   return {
     mode: 'page-engine',
-    savedPageIndexes: dirtyPages.map(page => page.index),
+    savedPageIndexes: pageRows.map(page => page.page_index),
     requestBytes,
     responseBytes,
     networkMs,
