@@ -2924,7 +2924,7 @@ export default function EditorV2Page() {
       dirtyTocRef.current = true
       scheduleToolbarDocumentRefresh()
     }
-  }, [currentInteractiveMediaTarget, document, markDirtyAssetPageFromNode, markEditorDirty, pushEditorHistory, scheduleToolbarDocumentRefresh])
+  }, [document, markDirtyAssetPageFromNode, markEditorDirty, pushEditorHistory, scheduleToolbarDocumentRefresh])
 
   const restoreEditorHtmlSnapshot = useCallback((html: string) => {
     if (!editorSurfaceRef.current) return
@@ -3647,7 +3647,7 @@ export default function EditorV2Page() {
     scheduleToolbarDocumentRefresh()
     setInteractiveMediaTargetActive(false)
     return true
-  }, [document, markDirtyAssetPageFromNode, markEditorDirty, pushEditorHistory, scheduleToolbarDocumentRefresh])
+  }, [currentInteractiveMediaTarget, document, markDirtyAssetPageFromNode, markEditorDirty, pushEditorHistory, scheduleToolbarDocumentRefresh])
 
   const pickInteractiveImagesFromRefs = useCallback((refs: EditorMediaReferenceV2[]) => {
     const media = refs.map(item => ({ url: item.url, caption: item.caption })).filter(item => item.url)

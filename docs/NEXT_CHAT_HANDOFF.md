@@ -1,6 +1,6 @@
 # MetaBooki Next Chat Handoff
 
-Last reviewed version: `1.0.702`
+Last reviewed version: `1.0.703`
 
 Use this file as the first reference in a fresh Codex chat before making changes.
 
@@ -78,6 +78,9 @@ Use this file as the first reference in a fresh Codex chat before making changes
 - Admin AI provider tests now show separate route results for text, image, and KIE audio using the selected models; KIE Qwen text-to-image uses `/api/v1/jobs/createTask` with `input.image_size`.
 - Admin AI provider test UI now creates fallback route rows when an older edge response lacks `routes`, so text/image/audio model rows remain visible instead of only showing the main model.
 - Missing fallback route rows now render as neutral `NOT REPORTED` instead of red errors; the old single-model success response is mapped to the text route.
+- Interactive AI image approval closes immediately after confirmation; the selected placeholder owns the visible loading state until the image appears.
+- Generated interactive images are compressed/uploaded before insertion when browser fetch permits it, and AI history image reuse uses a stable placeholder descriptor instead of only a transient DOM ref.
+- Editor AI history uses stale-response protection around the current-book filter and shows explicit loading/empty/error messages.
 
 ## Current Known Fragile Areas
 

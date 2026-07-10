@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.702`
+نسخه فعلی فایل رسمی: `1.0.703`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,13 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.703 - Interactive AI image placement and history stability
+
+- Interactive image generation approval now closes immediately after user confirmation, while the requested placeholder stays in a visible AI loading state until the image is inserted.
+- Generated interactive images are fetched, compressed to the existing 1K interactive-image rule when possible, uploaded, and then inserted from the lighter stored URL.
+- Interactive media placeholders now keep a stable target descriptor so images selected from AI history can be inserted even after panel changes or DOM refreshes.
+- AI history loading now ignores stale responses when the current-book filter changes quickly, shows loading/empty/error messages, and no longer silently disables image reuse.
 
 ### 1.0.702 - Softer AI route fallback states
 
