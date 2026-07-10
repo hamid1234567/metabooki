@@ -1239,6 +1239,35 @@ function formatSupabaseErrorV2(error: unknown) {
   return parts.join('\n') || (error instanceof Error ? error.message : 'Unknown Supabase error')
 }
 
+function isNetworkSaveErrorV2(error: unknown) {
+  const text = formatSupabaseErrorV2(error)
+  return /failed to fetch|networkerror|load failed|connection|internet|timeout|err_network|fetch/i.test(text)
+}
+
+function saveErrorToastV2(error: unknown, context?: { pageEngineError?: unknown; report?: Parameters<typeof showSaveTrafficToastV2>[0] | null }) {
+  const primaryError = context?.pageEngineError || error
+  const networkLike = isNetworkSaveErrorV2(primaryError) || isNetworkSaveErrorV2(error)
+  const title = networkLike ? 'ذخیره انجام نشد؛ ارتباط با سرور قطع شد' : 'ذخیره انجام نشد'
+  const userMessage = networkLike
+    ? 'اتصال به سرور ذخیره برقرار نشد. اینترنت، VPN یا دسترسی به Supabase را بررسی کنید و دوباره روی ذخیره بزنید. تغییرات فعلا در ادیتور باقی مانده‌اند.'
+    : 'ذخیره صفحه‌های تغییرکرده کامل نشد. لطفا دوباره تلاش کنید. اگر تکرار شد، جزئیات فنی را برای بررسی ارسال کنید.'
+  const details = formatSupabaseErrorV2(primaryError)
+  const report = context?.report
+  const reportLines = report ? [
+    `• زمان ارتباط با Supabase: ${formatMsV2(report.networkMs)}`,
+    `• حجم داده ارسالی: ${formatBytesV2(report.requestBytes)}`,
+    `• حجم پاسخ Supabase: ${formatBytesV2(report.responseBytes)}`,
+  ] : []
+  toast.error(title, {
+    description: [
+      userMessage,
+      ...reportLines,
+      details ? `جزئیات فنی:\n${details}` : '',
+    ].filter(Boolean).join('\n\n'),
+    duration: networkLike ? 12_000 : 18_000,
+  })
+}
+
 function showSaveTrafficToastV2(report: {
   mode: 'supabase' | 'supabase/page-engine' | 'local'
   manual?: boolean
@@ -2310,13 +2339,7 @@ export default function EditorV2Page() {
       }
       setSaveState('error')
       setSaveProgress(null)
-      toast.error('Save failed', {
-        description: [
-          'Page-based save failed; full-book fallback is disabled to prevent large payloads.',
-          formatSupabaseErrorV2(pageEngineError || new Error('Page-based save is unavailable for this book.')),
-        ].join('\n\n'),
-        duration: 20_000,
-      })
+      saveErrorToastV2(pageEngineError || new Error('Page-based save is unavailable for this book.'))
       return
     }
     const usePageEngine = Boolean(pageEngineResult)
@@ -2432,25 +2455,7 @@ export default function EditorV2Page() {
       }
       setSaveState('error')
       setSaveProgress(null)
-      const saveErrorDetails = formatSupabaseErrorV2(error)
-      const pageEngineErrorDetails = pageEngineError ? `\n\nPage engine error:\n${formatSupabaseErrorV2(pageEngineError)}` : ''
-      if (saveReport) {
-        toast.error('Save failed', {
-          description: [
-            saveErrorDetails,
-            `• Supabase time: ${formatMsV2(saveReport.networkMs)}`,
-            `• Upload payload: ${formatBytesV2(saveReport.requestBytes)}`,
-            `• Supabase response egress: ${formatBytesV2(saveReport.responseBytes)}`,
-            pageEngineErrorDetails,
-          ].filter(Boolean).join('\n'),
-          duration: 20_000,
-        })
-      } else {
-        toast.error('Save failed', {
-          description: `${saveErrorDetails}${pageEngineErrorDetails}`,
-          duration: 20_000,
-        })
-      }
+      saveErrorToastV2(error, { pageEngineError, report: saveReport })
     }
   }, [book, clearAutoSaveSchedule, dirty, document])
 

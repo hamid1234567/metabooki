@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.703`
+نسخه فعلی فایل رسمی: `1.0.704`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,11 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.704 - User-friendly save failure messages
+
+- Editor V2 save failures caused by `Failed to fetch` now show a Persian user-facing connection message instead of the raw page-engine/full-book fallback text.
+- Technical Supabase details are still included under a short `جزئیات فنی` section for debugging, while the main message explains that changes remain in the editor and the user can retry saving.
 
 ### 1.0.703 - Interactive AI image placement and history stability
 

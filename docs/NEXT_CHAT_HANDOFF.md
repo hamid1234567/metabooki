@@ -1,6 +1,6 @@
 # MetaBooki Next Chat Handoff
 
-Last reviewed version: `1.0.703`
+Last reviewed version: `1.0.704`
 
 Use this file as the first reference in a fresh Codex chat before making changes.
 
@@ -81,6 +81,7 @@ Use this file as the first reference in a fresh Codex chat before making changes
 - Interactive AI image approval closes immediately after confirmation; the selected placeholder owns the visible loading state until the image appears.
 - Generated interactive images are compressed/uploaded before insertion when browser fetch permits it, and AI history image reuse uses a stable placeholder descriptor instead of only a transient DOM ref.
 - Editor AI history uses stale-response protection around the current-book filter and shows explicit loading/empty/error messages.
+- Editor V2 page-engine save failures now use a Persian user-facing connection/save retry message; raw Supabase details are kept only under `جزئیات فنی`.
 
 ## Current Known Fragile Areas
 
