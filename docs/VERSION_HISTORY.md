@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.691`
+نسخه فعلی فایل رسمی: `1.0.692`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,11 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.692 - Interactive tabs blue bar reference design
+
+- Interactive V3 tabs now follow the blue top-bar reference style with simple tab labels and a white rounded active marker at the bottom of the active tab.
+- The content panel uses a faint blue themed background connected to the tab bar, while mobile keeps the same design with horizontal scrolling when needed.
 
 ### 1.0.691 - Interactive tabs height and active contrast polish
 
