@@ -1,6 +1,6 @@
 # MetaBooki Next Chat Handoff
 
-Last reviewed version: `1.0.684`
+Last reviewed version: `1.0.685`
 
 Use this file as the first reference in a fresh Codex chat before making changes.
 
@@ -57,6 +57,7 @@ Use this file as the first reference in a fresh Codex chat before making changes
 - Interactive V3 gallery was restored to the simpler previous layout and now adds only a default 3-second autoplay timer with a pause/play control.
 - Interactive V3 simple gallery now uses a smoother eased slide transition, 5-second autoplay, overlay captions with gradient, and an in-image caption visibility toggle beside the play/pause control.
 - Interactive V3 gallery RTL motion now keeps the first image at the right side and brings the next image in from left to right; the caption toggle icon is `CC`.
+- Interactive V3 gallery thumbnails now switch to the selected gallery image without triggering the global image zoom; gallery empty image space uses a frosted glass surface, caption on/off is visually distinct, and the active thumbnail frame is stronger.
 
 ## Current Known Fragile Areas
 

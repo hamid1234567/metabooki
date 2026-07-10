@@ -49,8 +49,8 @@ export function GalleryInteractiveV3({ block }: { block: InteractiveV3Block }) {
               </button>
               <button
                 type="button"
-                className="interactive-v3-gallery-caption-toggle"
-                aria-pressed={!showCaption}
+                className={`interactive-v3-gallery-caption-toggle ${showCaption ? 'is-caption-on' : 'is-caption-off'}`}
+                aria-pressed={showCaption}
                 aria-label={showCaption ? 'مخفی کردن کپشن' : 'نمایش کپشن'}
                 onClick={() => setShowCaption(value => !value)}
               >
@@ -81,7 +81,17 @@ export function GalleryInteractiveV3({ block }: { block: InteractiveV3Block }) {
       {images.length > 1 && (
         <div className="interactive-v3-thumbs">
           {images.map((image, index) => (
-            <button key={image.id} type="button" className={active === index ? 'is-active' : ''} onClick={() => setActive(index)}>
+            <button
+              key={image.id}
+              type="button"
+              className={active === index ? 'is-active' : ''}
+              data-skip-image-zoom="true"
+              onClick={event => {
+                event.preventDefault()
+                event.stopPropagation()
+                setActive(index)
+              }}
+            >
               {imageValue(image) ? <img src={imageValue(image)} alt={titleValue(image)} loading="lazy" /> : <span>{index + 1}</span>}
             </button>
           ))}

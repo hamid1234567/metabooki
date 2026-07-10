@@ -1,4 +1,4 @@
 // Release rationale and handoff notes live in docs/VERSION_HISTORY.md.
 // Keep APP_VERSION, public/version.json, and public/sw.js in sync before publishing.
-export const APP_VERSION = '1.0.684'
+export const APP_VERSION = '1.0.685'
 export const APP_LABEL = 'Metabooki'

@@ -341,7 +341,14 @@
   min-width: 0;
   overflow: hidden;
   border-radius: 14px;
-  background: rgba(226, 232, 240, 0.55);
+  background:
+    linear-gradient(145deg, hsl(0 0% 100% / 0.48), hsl(205 62% 96% / 0.34));
+  border: 1px solid hsl(0 0% 100% / 0.66);
+  box-shadow:
+    0 18px 48px hsl(213 38% 24% / 0.12),
+    inset 0 1px 0 hsl(0 0% 100% / 0.68);
+  backdrop-filter: blur(17px) saturate(1.35) contrast(1.04);
+  -webkit-backdrop-filter: blur(17px) saturate(1.35) contrast(1.04);
 }
 
 .interactive-v3-gallery-overlay-controls {
@@ -418,7 +425,29 @@
 }
 
 .interactive-v3-gallery-caption-toggle {
+  position: relative;
   font-size: 1rem;
+}
+
+.interactive-v3-gallery-caption-toggle.is-caption-on {
+  background: rgba(37, 99, 235, 0.9);
+  border-color: rgba(191, 219, 254, 0.88);
+  color: #fff;
+}
+
+.interactive-v3-gallery-caption-toggle.is-caption-off {
+  background: rgba(255, 255, 255, 0.55);
+  color: rgba(71, 85, 105, 0.78);
+}
+
+.interactive-v3-gallery-caption-toggle.is-caption-off::after {
+  content: "";
+  position: absolute;
+  width: 1.55rem;
+  height: 2px;
+  border-radius: 999px;
+  background: rgba(239, 68, 68, 0.86);
+  transform: rotate(-35deg);
 }
 
 .interactive-v3-thumbs {
@@ -431,6 +460,21 @@
   height: 54px;
   padding: 0;
   overflow: hidden;
+}
+
+.interactive-v3-gallery .interactive-v3-thumbs button {
+  border-width: 2px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.1);
+}
+
+.interactive-v3-gallery .interactive-v3-thumbs button.is-active {
+  border-color: rgba(37, 99, 235, 0.95);
+  background: rgba(239, 246, 255, 0.95);
+  box-shadow:
+    0 0 0 3px rgba(37, 99, 235, 0.18),
+    0 14px 30px rgba(37, 99, 235, 0.24);
+  transform: translateY(-2px);
 }
 
 .interactive-v3-thumbs img {

@@ -302,6 +302,7 @@ export function BookRendererV2({ document, pages, blocks, compact = false, edita
         return
       }
     }
+    if (target.closest('[data-skip-image-zoom]')) return
     const image = target.closest('img')
     if (!image?.src) return
     const figure = image.closest<HTMLElement>('figure[data-block-id]')
