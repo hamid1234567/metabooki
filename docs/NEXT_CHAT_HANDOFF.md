@@ -1,6 +1,6 @@
 # MetaBooki Next Chat Handoff
 
-Last reviewed version: `1.0.682`
+Last reviewed version: `1.0.684`
 
 Use this file as the first reference in a fresh Codex chat before making changes.
 
@@ -55,6 +55,8 @@ Use this file as the first reference in a fresh Codex chat before making changes
 - Interactive V3 circular previous/next controls now center their arrow glyphs with grid alignment and LTR icon direction.
 - Interactive V3 gallery, timeline, and storytelling previous/next controls now sit together in a bottom action row, with RTL-appropriate arrow directions for previous/next movement.
 - Interactive V3 gallery was restored to the simpler previous layout and now adds only a default 3-second autoplay timer with a pause/play control.
+- Interactive V3 simple gallery now uses a smoother eased slide transition, 5-second autoplay, overlay captions with gradient, and an in-image caption visibility toggle beside the play/pause control.
+- Interactive V3 gallery RTL motion now keeps the first image at the right side and brings the next image in from left to right; the caption toggle icon is `CC`.
 
 ## Current Known Fragile Areas
 

@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.682`
+نسخه فعلی فایل رسمی: `1.0.684`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,18 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.684 - Gallery RTL motion direction
+
+- Gallery RTL slide order now keeps the first image on the right and moves to the next image from left to right.
+- The paused play icon now points in the actual gallery movement direction.
+- The caption visibility control now uses a `CC` label.
+
+### 1.0.683 - Simple gallery motion and captions
+
+- Simple Interactive V3 gallery now moves between images with an eased horizontal transition instead of a flash-style swap.
+- Gallery autoplay interval changed from three seconds to five seconds.
+- Captions now render over the image with a bottom gradient and can be hidden or shown from an in-image control next to play/pause.
 
 ### 1.0.682 - Restore simple gallery with timer
 

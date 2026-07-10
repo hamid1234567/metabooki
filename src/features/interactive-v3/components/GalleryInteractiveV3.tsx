@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react'
-import type { InteractiveV3Block } from '../types'
+import type { InteractiveV3Block, InteractiveV3Item } from '../types'
 import { blockTitle, directionFromText, directionTextFromItem, imageValue, itemsFor, stringValue, titleValue } from './utils'
+
+type GalleryVisualItem = {
+  image: InteractiveV3Item
+  index: number
+}
 
 export function GalleryInteractiveV3({ block }: { block: InteractiveV3Block }) {
   const [active, setActive] = useState(0)
@@ -10,8 +15,11 @@ export function GalleryInteractiveV3({ block }: { block: InteractiveV3Block }) {
   const title = blockTitle(block)
   const dir = directionFromText([title, ...images.map(directionTextFromItem)].filter(Boolean).join(' '))
   const isRtl = (dir || 'rtl') === 'rtl'
-  const motionDirection = isRtl ? -1 : 1
-  const translate = active * 100 * motionDirection
+  const visualImages: GalleryVisualItem[] = isRtl
+    ? images.map((image, index) => ({ image, index })).reverse()
+    : images.map((image, index) => ({ image, index }))
+  const visualActive = isRtl ? images.length - 1 - active : active
+  const translate = -visualActive * 100
 
   useEffect(() => {
     if (!isAutoPlaying || images.length <= 1) return
@@ -37,7 +45,7 @@ export function GalleryInteractiveV3({ block }: { block: InteractiveV3Block }) {
                 aria-label={isAutoPlaying ? 'توقف حرکت خودکار' : 'شروع حرکت خودکار'}
                 onClick={() => setIsAutoPlaying(value => !value)}
               >
-                {isAutoPlaying ? 'Ⅱ' : isRtl ? '◀' : '▶'}
+                {isAutoPlaying ? 'Ⅱ' : isRtl ? '▶' : '◀'}
               </button>
               <button
                 type="button"
@@ -46,12 +54,12 @@ export function GalleryInteractiveV3({ block }: { block: InteractiveV3Block }) {
                 aria-label={showCaption ? 'مخفی کردن کپشن' : 'نمایش کپشن'}
                 onClick={() => setShowCaption(value => !value)}
               >
-                {showCaption ? '◉' : '○'}
+                CC
               </button>
             </div>
           )}
           <div className="interactive-v3-gallery-track" style={{ transform: `translateX(${translate}%)` }}>
-            {images.map((image, index) => {
+            {visualImages.map(({ image, index }) => {
               const caption = stringValue(image.caption)
               return (
                 <figure key={image.id} className="interactive-v3-gallery-slide" aria-hidden={active !== index}>
