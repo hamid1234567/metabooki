@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.695`
+نسخه فعلی فایل رسمی: `1.0.696`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,11 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.696 - Author intro exit and text lookup
+
+- Interactive V3 author intro popovers now keep a short exiting state so their close animation mirrors the opening animation instead of disappearing instantly.
+- Author items in the editor now include a direct action to find a matching author name in the editable book text, scroll to it, and select the matched text.
 
 ### 1.0.695 - Tabs require item titles
 

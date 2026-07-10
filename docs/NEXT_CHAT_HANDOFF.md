@@ -1,6 +1,6 @@
 # MetaBooki Next Chat Handoff
 
-Last reviewed version: `1.0.695`
+Last reviewed version: `1.0.696`
 
 Use this file as the first reference in a fresh Codex chat before making changes.
 
@@ -68,6 +68,8 @@ Use this file as the first reference in a fresh Codex chat before making changes
 - Interactive V3 tabs now use an iOS-style segmented control: gray rounded track, white active pill with subtle shadow, muted inactive labels, and horizontal mobile scrolling.
 - Interactive V3 tabs inherit book/page direction for tab ordering and media/text placement; the segmented track uses the site's frosted menu glass instead of flat gray.
 - Interactive V3 tab items must always have a visible title. Empty tab titles fall back to `تب n` in the reader/editor and are filled during editor save; this exception does not apply to other interactive kinds.
+
+- Interactive V3 author intro popovers now animate out with a reverse close animation, and author editor cards include a "پیدا کردن در متن" action that searches the editable book text for a matching author name.
 
 ## Current Known Fragile Areas
 
