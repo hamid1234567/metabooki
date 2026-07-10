@@ -5,7 +5,7 @@ import { useI18n } from '@/lib/i18n'
 import { mockBooks, setMockUserPassword } from '@/lib/mock-data'
 import { supabase } from '@/integrations/supabase/client'
 import { Button } from '@/components/ui/button'
-import { aiOutputImageUrl, aiOutputKind, aiOutputPreview, aiOutputTitle, loadAiSavedOutputs, type AiSavedOutput } from '@/lib/ai-output-history'
+import { aiOutputImageUrl, aiOutputKind, aiOutputPreview, aiOutputSourceLabel, aiOutputTitle, loadAiSavedOutputs, type AiSavedOutput } from '@/lib/ai-output-history'
 import {
   BookOpen,
   Camera,
@@ -480,7 +480,7 @@ export default function Profile() {
                   <div className="min-w-0">
                     <b className="block truncate">{aiOutputTitle(output)}</b>
                     <small className="block text-muted-foreground">{new Date(output.created_at).toLocaleString('fa-IR')}</small>
-                    <small className="block text-muted-foreground">نوع: {output.action}{output.book_id ? ` · کتاب: ${output.book_id}` : ''}{Number.isFinite(Number(output.page_index)) ? ` · صفحه ${Number(output.page_index) + 1}` : ''}</small>
+                    <small className="block text-muted-foreground">نوع: {output.action} · {aiOutputSourceLabel(output)}{output.book_id ? ` · کتاب: ${output.book_id}` : ''}</small>
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground leading-6 line-clamp-3">{aiOutputPreview(output, 220) || 'بدون پیش‌نمایش متنی'}</p>

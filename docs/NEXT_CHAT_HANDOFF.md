@@ -1,6 +1,6 @@
 # MetaBooki Next Chat Handoff
 
-Last reviewed version: `1.0.698`
+Last reviewed version: `1.0.699`
 
 Use this file as the first reference in a fresh Codex chat before making changes.
 
@@ -71,6 +71,9 @@ Use this file as the first reference in a fresh Codex chat before making changes
 
 - Interactive V3 author intro popovers animate out with a reverse close animation. Author editor placeholders now support adding multiple names from a line-by-line list and reusing saved author profiles from previous author interactive blocks inside the same author placeholder.
 - Interactive V3 editor items now have up/down reorder controls next to delete, and selecting images from the book for an interactive item copies the source image caption into that item's empty description/caption field.
+- AI gateway outputs are now listed as reusable saved outputs in the Editor V2 AI panel and in the user profile, covering both text and image results across books.
+- Interactive image generation now requires an explicit cost approval, keeps the exact clicked placeholder in a loading/disabled state while waiting, and inserts the result back into that same placeholder.
+- Reusing saved AI outputs can insert text into the editor or place saved images into the active interactive media placeholder.
 
 ## Current Known Fragile Areas
 

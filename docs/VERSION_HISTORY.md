@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.698`
+نسخه فعلی فایل رسمی: `1.0.699`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,13 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.699 - AI output history and interactive image approvals
+
+- AI gateway outputs are now surfaced as reusable saved outputs in the Editor V2 AI panel, with text/image type, creation time, action, and source labels.
+- User profiles now list saved AI outputs across books so generated text and images remain available for later reuse and review.
+- Interactive image generation now opens an explicit cost approval step before sending the request, keeps the exact clicked placeholder in a loading/disabled state, and inserts the returned image into that same placeholder.
+- Interactive generated-image usage now avoids duplicate client-side credit animation when the gateway reports an already charged/polled result.
 
 ### 1.0.698 - Interactive item ordering and image captions
 

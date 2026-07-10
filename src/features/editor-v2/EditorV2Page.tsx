@@ -11,7 +11,7 @@ import { estimateAiImageGeneration, estimateAiTextUsage, generateAiImageThroughG
 import { useAuthContext } from '@/lib/auth-context'
 import { useCredits } from '@/hooks/useCredits'
 import { creditsBus } from '@/lib/credits-bus'
-import { aiOutputImageUrl, aiOutputKind, aiOutputPreview, aiOutputTitle, aiOutputUsableText, loadAiSavedOutputs, type AiSavedOutput } from '@/lib/ai-output-history'
+import { aiOutputImageUrl, aiOutputKind, aiOutputPreview, aiOutputSourceLabel, aiOutputTitle, aiOutputUsableText, loadAiSavedOutputs, type AiSavedOutput } from '@/lib/ai-output-history'
 import { buildTocFromHeadingsV2, cleanImageCaptionV2, createV2Id, documentV2ToConfirmedToc, documentV2ToLegacyPages, legacyBookToDocumentV2, mergeLoadedPagesTocV2, normalizeBookTextV2, resolveTocTreeV2, textDirectionV2, tocAsFlatListV2, type BookBlockV2, type BookDocumentV2, type BookInlineV2, type BookTocItemV2, type CalloutBlockV2, type ParagraphBlockV2 } from '@/lib/book-document-v2'
 import { backfillPageEngineForBook, isUuidV2, loadPageEngineWindow, rebuildPageEngineToc, savePageEngineDocument } from '@/lib/page-content-engine'
 import { bookDisplayTextHtml, bookSearchIncludes, isBookLtrRunText, type PrintPageValue } from '@/lib/book-content'
@@ -1993,7 +1993,7 @@ function RightPanelV2({
                     {isImage && imageUrl ? <img src={imageUrl} alt={aiOutputTitle(output)} loading="lazy" /> : <Sparkles size={16} />}
                     <div>
                       <b>{aiOutputTitle(output)}</b>
-                      <small>{new Date(output.created_at).toLocaleString('fa-IR')} · {output.action}</small>
+                      <small>{new Date(output.created_at).toLocaleString('fa-IR')} · {output.action} · {aiOutputSourceLabel(output)}</small>
                       <p>{aiOutputPreview(output, 120)}</p>
                     </div>
                     <button type="button" disabled={isImage && !canUseAiHistoryImage} onClick={() => onUseAiHistoryOutput(output)}>
@@ -3660,9 +3660,9 @@ export default function EditorV2Page() {
         printNumber,
         status: 'ready' as const,
       }
+      if (!result.alreadyCharged) recordAiUsage(result.usage)
       commitDocument(current => ({ ...current, assets: [...current.assets, asset] }), { dirtyAssetPageIndexes: [Number.isFinite(pageIndex) ? pageIndex : 0] })
       if (applyInteractiveMedia([{ url: result.imageUrl, caption: prompt.slice(0, 90) }], target)) {
-        if (!result.alreadyCharged) recordAiUsage(result.usage)
         setAiImageApproval(null)
         setMediaMessage('تصویر تولید و داخل بلوک تعاملی قرار گرفت.')
         void refreshAiHistory()

@@ -27,6 +27,13 @@ export function aiOutputTitle(output: AiSavedOutput) {
   return output.action || 'خروجی هوش مصنوعی'
 }
 
+export function aiOutputSourceLabel(output: AiSavedOutput) {
+  const content = output.content || {}
+  const purpose = content.purpose === 'interactive' ? 'بلوک تعاملی' : content.purpose === 'cover' ? 'جلد کتاب' : 'پنل هوش مصنوعی'
+  const pageLabel = Number.isFinite(Number(output.page_index)) ? `صفحه ${Number(output.page_index) + 1}` : ''
+  return [purpose, pageLabel].filter(Boolean).join(' · ')
+}
+
 export function aiOutputPreview(output: AiSavedOutput, max = 180) {
   const content = output.content || {}
   const text = content.text
