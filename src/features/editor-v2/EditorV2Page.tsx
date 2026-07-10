@@ -2204,6 +2204,10 @@ export default function EditorV2Page() {
   }, [refreshAiHistory])
 
   useEffect(() => {
+    if (activePanel === 'ai') void refreshAiHistory()
+  }, [activePanel, refreshAiHistory])
+
+  useEffect(() => {
     if (!document || !editorSurfaceRef.current) return
     if (skipNextSurfaceSyncRef.current) {
       skipNextSurfaceSyncRef.current = false
@@ -4293,6 +4297,13 @@ export default function EditorV2Page() {
     try {
       const result = await runAiThroughGateway({ action: 'callout_suggestions', bookTitle: document.title, pageText: aiApproval.pageText, bookId: document.sourceBookId, user })
       const suggestion = result.content?.type === 'callout_suggestions' ? result.content.suggestions?.[0] : null
+      if (!suggestion) {
+        recordAiUsage(result.usage)
+        setAiApproval(null)
+        setAiMessage('هوش مصنوعی برای این متن کال‌اوت قوی و قابل پیشنهاد پیدا نکرد. خروجی در تاریخچه ذخیره شد.')
+        void refreshAiHistory()
+        return
+      }
       const variant = CALLOUT_VARIANTS_V2.includes((suggestion?.variant || '') as any) ? suggestion?.variant as (typeof CALLOUT_VARIANTS_V2)[number] : 'key'
       const meta = CALLOUT_META_V2[variant]
       const paragraph: ParagraphBlockV2 = {
@@ -4332,13 +4343,35 @@ export default function EditorV2Page() {
         return
       }
       const target = currentInteractiveMediaTarget()
-      if (!target) {
-        setAiMessage('برای استفاده از تصویر، اول روی placeholder تصویر در بلوک تعاملی کلیک کنید.')
+      const caption = aiOutputPreview(output, 120)
+      if (target && applyInteractiveMedia([{ url, caption }], target)) {
+        setAiMessage('تصویر ذخیره‌شده داخل placeholder تعاملی قرار گرفت.')
         return
       }
-      if (applyInteractiveMedia([{ url, caption: aiOutputPreview(output, 120) }], target)) {
-        setAiMessage('تصویر ذخیره‌شده داخل placeholder تعاملی قرار گرفت.')
+      const insertionBlockId = selectedBlockIdFromEditorTarget() || selectedBlockId
+      const anchorBlock = document ? findBlockInDocumentV2(document, insertionBlockId) : null
+      const dirtyPageIndex = findBlockPageIndexV2(document, insertionBlockId) ?? 0
+      const assetId = createV2Id('asset-ai-history', output.id, Date.now())
+      const block: BookBlockV2 = {
+        id: createV2Id('image-ai-history', output.id, Date.now()),
+        type: 'image',
+        url,
+        caption,
+        imageId: assetId,
+        anchor: createV2Id('image-ai-history-anchor', output.id, Date.now()),
+        printNumber: anchorBlock?.printNumber,
+        status: 'ready',
       }
+      commitDocument(current => ({
+        ...insertBlockAfterV2(current, insertionBlockId, block),
+        assets: [
+          ...current.assets,
+          { id: assetId, type: 'image' as const, url, caption, printNumber: anchorBlock?.printNumber, status: 'ready' as const },
+        ],
+      }), { dirtyPageIndexes: [dirtyPageIndex], dirtyAssetPageIndexes: [dirtyPageIndex] })
+      insertBlockIntoEditorDom(block, insertionBlockId)
+      setSelectedBlockId(block.id)
+      setAiMessage('تصویر ذخیره‌شده هوش مصنوعی داخل متن درج شد.')
       return
     }
     const text = normalizeBookTextV2(aiOutputUsableText(output))

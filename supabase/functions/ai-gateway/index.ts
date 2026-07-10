@@ -499,11 +499,14 @@ function safeActionPrompt(action: string, bookTitle: string, pageTitle: string |
   if (action === 'summary') return `${common}\nUse: {"type":"article","title":"...","lead":"...","sections":[{"heading":"...","paragraphs":["..."],"bullets":["..."]}]}\n\n${header}`
   if (action === 'explain') return `${common}\nUse: {"type":"article","title":"...","lead":"...","sections":[{"heading":"...","paragraphs":["..."],"bullets":["..."]}]}\nExplain deeply but only from the supplied text.\n\n${header}`
   if (action === 'callout_suggestions') return `${common}
-Read the selected/page text and suggest only the places where converting a specific existing sentence or short paragraph into a callout improves comprehension, attention, memory, or learning.
-Do not summarize the whole page generically. Each suggestion must point to an exact short quote copied from the page text in sourceQuote.
+Act as an expert educational editor. Find only the fragments that are truly worth turning into visual callouts inside an interactive textbook.
+Do not summarize the whole page. Do not create a callout for ordinary filler text. Prefer sentences that contain a definition, warning, contrast, key mechanism, clinical/technical fact, exam-worthy point, surprising idea, practical instruction, or a common misconception.
+Every suggestion must be anchored to one exact short quote copied from the supplied page text in sourceQuote. If the text has no strong callout candidate, return {"type":"callout_suggestions","suggestions":[]}.
+Write the title in 2 to 7 words. Write the callout text in 1 or 2 compact sentences. The callout text should teach or highlight the point, not merely repeat sourceQuote.
+Choose variant by purpose: key for core ideas, question for reflection, warning for risks/mistakes, quote for memorable wording, deep for deeper explanation, practice for actions/exercises, glossary for terms, data for numbers/findings, margin for side notes.
 Allowed variants: key, question, warning, quote, deep, practice, glossary, data, margin.
-Use: {"type":"callout_suggestions","suggestions":[{"variant":"key","title":"...","text":"...","sourceQuote":"exact quote from page text","reason":"why this improves learning"}]}
-Return 1 to 5 strong suggestions only.
+Use: {"type":"callout_suggestions","suggestions":[{"variant":"key","title":"...","text":"...","sourceQuote":"exact quote from page text","reason":"why this improves learning","placementHint":"after|before|replace-near-source"}]}
+Return 1 to 5 strong suggestions only, ordered from most useful to least useful.
 
 ${header}`
   return `${common}\nUser request: ${action}\n\n${header}`
