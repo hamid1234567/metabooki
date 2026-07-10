@@ -165,6 +165,6 @@ npm.cmd run build
 - Avoid patch-on-patch editor changes. Prefer clean, centralized fixes.
 - For long work, continue to completion without asking for confirmation unless genuinely blocked.
 - At the end of each final response, include approximate cost using:
-  - input token: `1 تومان`
-  - output token: `2 تومان`
-  - `170,000 تومان = $1`
+  - input token: `1 toman`
+  - output token: `2 toman`
+  - `170,000 toman = $1`
