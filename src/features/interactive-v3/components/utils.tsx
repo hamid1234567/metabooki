@@ -18,8 +18,25 @@ export function bodyValue(item?: InteractiveV3Item | Record<string, unknown>) {
   return stringValue(item?.description || item?.text || item?.bio || item?.back || item?.caption)
 }
 
-export function directionFromText(text = ''): 'rtl' | 'ltr' {
-  return /[\u0600-\u06FF]/.test(text) ? 'rtl' : 'ltr'
+export function directionTextFromItem(item?: InteractiveV3Item | Record<string, unknown>) {
+  if (!item) return ''
+  return [
+    item.title,
+    item.name,
+    item.front,
+    item.caption,
+    item.description,
+    item.text,
+    item.bio,
+    item.back,
+    item.role,
+  ].map(stringValue).filter(Boolean).join(' ')
+}
+
+export function directionFromText(text = ''): 'rtl' | 'ltr' | undefined {
+  const firstStrong = String(text).match(/[\u0600-\u06FF]|[A-Za-z]/)?.[0]
+  if (!firstStrong) return undefined
+  return /[\u0600-\u06FF]/.test(firstStrong) ? 'rtl' : 'ltr'
 }
 
 export function itemsFor(block: InteractiveV3Block, key: keyof InteractiveV3Payload) {

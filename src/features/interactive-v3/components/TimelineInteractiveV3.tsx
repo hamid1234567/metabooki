@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { InteractiveV3Block } from '../types'
-import { blockTitle, bodyValue, directionFromText, imageValue, itemsFor, titleValue, MediaTextCard } from './utils'
+import { blockTitle, bodyValue, directionFromText, directionTextFromItem, imageValue, itemsFor, titleValue, MediaTextCard } from './utils'
 
 export function TimelineInteractiveV3({ block }: { block: InteractiveV3Block }) {
   const [active, setActive] = useState(0)
@@ -8,7 +8,7 @@ export function TimelineInteractiveV3({ block }: { block: InteractiveV3Block }) 
   const current = events[active]
   const title = blockTitle(block)
   if (!events.length) return null
-  const dir = directionFromText([title, ...events.map(item => titleValue(item))].join(' '))
+  const dir = directionFromText([title, ...events.map(directionTextFromItem)].filter(Boolean).join(' '))
   return (
     <section className="interactive-v3 interactive-v3-timeline" dir={dir}>
       {title && <h3>{title}</h3>}

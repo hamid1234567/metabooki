@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.673`
+نسخه فعلی فایل رسمی: `1.0.674`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,12 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.674 - Interactive V3 inherited direction
+
+- Interactive V3 reader blocks now derive RTL/LTR from the first strong character in the actual entered item text.
+- Empty-title/empty-text interactive blocks no longer force LTR; they inherit the surrounding book direction for tabs, buttons, and layout alignment.
+- Interactive text and controls use logical `text-align: start` so Persian content aligns right and English content aligns left.
 
 ### 1.0.673 - Interactive V3 editor and reader polish
 

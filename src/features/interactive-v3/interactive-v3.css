@@ -12,6 +12,7 @@
   box-shadow: none;
   color: var(--interactive-v3-ink);
   font-size: 0.92rem;
+  text-align: start;
 }
 
 .interactive-v3 h3 {
@@ -22,6 +23,7 @@
 
 .interactive-v3 button {
   font: inherit;
+  text-align: start;
 }
 
 .interactive-v3-animated-panel {
@@ -110,6 +112,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.55rem;
+  justify-content: flex-start;
 }
 
 .interactive-v3-tab-row button,

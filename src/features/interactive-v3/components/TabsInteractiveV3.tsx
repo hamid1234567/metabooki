@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { InteractiveV3Block } from '../types'
-import { blockTitle, bodyValue, directionFromText, imageValue, itemsFor, titleValue, MediaTextCard } from './utils'
+import { blockTitle, bodyValue, directionFromText, directionTextFromItem, imageValue, itemsFor, titleValue, MediaTextCard } from './utils'
 
 export function TabsInteractiveV3({ block }: { block: InteractiveV3Block }) {
   const [active, setActive] = useState(0)
@@ -9,7 +9,7 @@ export function TabsInteractiveV3({ block }: { block: InteractiveV3Block }) {
   const title = blockTitle(block)
   if (!tabs.length) return null
   return (
-    <section className="interactive-v3 interactive-v3-tabs" dir={directionFromText(`${title} ${titleValue(current)} ${bodyValue(current)}`)}>
+    <section className="interactive-v3 interactive-v3-tabs" dir={directionFromText([title, ...tabs.map(directionTextFromItem)].filter(Boolean).join(' '))}>
       {title && <h3>{title}</h3>}
       <div className="interactive-v3-tab-row">
         {tabs.map((tab, index) => (

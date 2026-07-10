@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { InteractiveV3Block } from '../types'
-import { blockTitle, bodyValue, directionFromText, imageValue, itemsFor, titleValue, MediaTextCard } from './utils'
+import { blockTitle, bodyValue, directionFromText, directionTextFromItem, imageValue, itemsFor, titleValue, MediaTextCard } from './utils'
 
 export function StorytellingInteractiveV3({ block }: { block: InteractiveV3Block }) {
   const [active, setActive] = useState(0)
@@ -9,7 +9,7 @@ export function StorytellingInteractiveV3({ block }: { block: InteractiveV3Block
   const title = blockTitle(block)
   if (!steps.length) return null
   return (
-    <section className="interactive-v3 interactive-v3-story" dir={directionFromText(`${title} ${titleValue(current)}`)}>
+    <section className="interactive-v3 interactive-v3-story" dir={directionFromText([title, ...steps.map(directionTextFromItem)].filter(Boolean).join(' '))}>
       {title && <h3>{title}</h3>}
       <div className="interactive-v3-story-layout">
         <div className="interactive-v3-story-tabs">

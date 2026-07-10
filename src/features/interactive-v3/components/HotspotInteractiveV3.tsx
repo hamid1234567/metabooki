@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { InteractiveV3Block } from '../types'
-import { blockTitle, directionFromText, itemsFor, stringValue, titleValue } from './utils'
+import { blockTitle, directionFromText, directionTextFromItem, itemsFor, stringValue, titleValue } from './utils'
 
 function clampPercent(value: unknown) {
   const number = Number(value)
@@ -16,7 +16,7 @@ export function HotspotInteractiveV3({ block }: { block: InteractiveV3Block }) {
   const points = itemsFor(block, 'points')
   if (!image && !points.length) return null
   return (
-    <section className="interactive-v3 interactive-v3-hotspot" dir={directionFromText(`${title} ${caption}`)}>
+    <section className="interactive-v3 interactive-v3-hotspot" dir={directionFromText([title, caption, ...points.map(directionTextFromItem)].filter(Boolean).join(' '))}>
       {title && <h3>{title}</h3>}
       <div className="interactive-v3-hotspot-toolbar">
         <button type="button" className={showAll ? 'is-active' : ''} onClick={() => setShowAll(value => !value)}>{showAll ? 'مخفی کردن همه' : 'نمایش همه'}</button>

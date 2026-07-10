@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { InteractiveV3Block } from '../types'
-import { blockTitle, directionFromText, imageValue, itemsFor, stringValue } from './utils'
+import { blockTitle, directionFromText, directionTextFromItem, imageValue, itemsFor, stringValue } from './utils'
 
 export function AuthorInteractiveV3({ block }: { block: InteractiveV3Block }) {
   const [active, setActive] = useState<number | null>(null)
@@ -8,7 +8,7 @@ export function AuthorInteractiveV3({ block }: { block: InteractiveV3Block }) {
   const authors = itemsFor(block, 'authors').filter(author => stringValue(author.name || author.bio || author.image))
   if (!authors.length) return null
   return (
-    <section className="interactive-v3 interactive-v3-authors" dir={directionFromText(title)}>
+    <section className="interactive-v3 interactive-v3-authors" dir={directionFromText([title, ...authors.map(directionTextFromItem)].filter(Boolean).join(' '))}>
       {title && <h3>{title}</h3>}
       <div className="interactive-v3-author-row">
         {authors.map((author, index) => (

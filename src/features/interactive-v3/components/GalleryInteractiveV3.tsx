@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { InteractiveV3Block } from '../types'
-import { blockTitle, directionFromText, imageValue, itemsFor, stringValue, titleValue } from './utils'
+import { blockTitle, directionFromText, directionTextFromItem, imageValue, itemsFor, stringValue, titleValue } from './utils'
 
 export function GalleryInteractiveV3({ block }: { block: InteractiveV3Block }) {
   const [active, setActive] = useState(0)
@@ -9,7 +9,7 @@ export function GalleryInteractiveV3({ block }: { block: InteractiveV3Block }) {
   const title = blockTitle(block)
   if (!images.length) return null
   return (
-    <section className="interactive-v3 interactive-v3-gallery" dir={directionFromText(title)}>
+    <section className="interactive-v3 interactive-v3-gallery" dir={directionFromText([title, ...images.map(directionTextFromItem)].filter(Boolean).join(' '))}>
       {title && <h3>{title}</h3>}
       <div className="interactive-v3-gallery-stage">
         <button type="button" disabled={active === 0} onClick={() => setActive(value => Math.max(0, value - 1))}>‹</button>

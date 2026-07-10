@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { InteractiveV3Block } from '../types'
-import { blockTitle, directionFromText, imageValue, itemsFor, stringValue } from './utils'
+import { blockTitle, directionFromText, directionTextFromItem, imageValue, itemsFor, stringValue } from './utils'
 
 export function FlashcardInteractiveV3({ block }: { block: InteractiveV3Block }) {
   const [active, setActive] = useState(0)
@@ -13,7 +13,7 @@ export function FlashcardInteractiveV3({ block }: { block: InteractiveV3Block })
   const image = imageValue(card)
   if (!cards.length) return null
   return (
-    <section className="interactive-v3 interactive-v3-flashcard" dir={directionFromText(`${front} ${back} ${title}`)}>
+    <section className="interactive-v3 interactive-v3-flashcard" dir={directionFromText([title, ...cards.map(directionTextFromItem)].filter(Boolean).join(' '))}>
       {title && <h3>{title}</h3>}
       <div className="interactive-v3-tab-row">
         {cards.map((_, index) => (
