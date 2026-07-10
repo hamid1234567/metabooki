@@ -1,4 +1,4 @@
-import { type CSSProperties, useState } from 'react'
+import { type CSSProperties, useEffect, useRef, useState } from 'react'
 import type { InteractiveV3Block } from '../types'
 import { blockTitle, bodyValue, directionFromText, directionTextFromItem, imageValue, itemsFor, titleValue } from './utils'
 
@@ -6,15 +6,44 @@ const STORY_ACCENTS = ['#2563eb', '#7c3aed', '#db2777', '#0891b2', '#16a34a', '#
 
 export function StorytellingInteractiveV3({ block }: { block: InteractiveV3Block }) {
   const [active, setActive] = useState(0)
+  const [visibleActive, setVisibleActive] = useState(0)
+  const [fadePhase, setFadePhase] = useState<'idle' | 'out' | 'in'>('idle')
+  const fadeTimer = useRef<number | null>(null)
   const steps = itemsFor(block, 'steps')
-  const current = steps[active]
+  const safeActive = Math.min(active, Math.max(0, steps.length - 1))
+  const safeVisibleActive = Math.min(visibleActive, Math.max(0, steps.length - 1))
+  const current = steps[safeVisibleActive]
   const title = blockTitle(block)
   const blockDir = directionFromText([title, ...steps.map(directionTextFromItem)].filter(Boolean).join(' '))
   const currentTitle = titleValue(current)
   const currentBody = bodyValue(current)
   const currentImage = imageValue(current)
   const currentDir = directionFromText([currentTitle, currentBody].filter(Boolean).join(' ')) || blockDir || 'rtl'
-  const storyStyle = { '--story-accent': STORY_ACCENTS[active % STORY_ACCENTS.length] } as CSSProperties
+  const storyStyle = { '--story-accent': STORY_ACCENTS[safeActive % STORY_ACCENTS.length] } as CSSProperties
+
+  useEffect(() => {
+    if (active !== safeActive) setActive(safeActive)
+    if (visibleActive !== safeVisibleActive) setVisibleActive(safeVisibleActive)
+  }, [active, safeActive, safeVisibleActive, visibleActive])
+
+  useEffect(() => () => {
+    if (fadeTimer.current) window.clearTimeout(fadeTimer.current)
+  }, [])
+
+  const showStep = (index: number) => {
+    if (index < 0 || index >= steps.length || index === safeActive) return
+    if (fadeTimer.current) window.clearTimeout(fadeTimer.current)
+    setActive(index)
+    setFadePhase('out')
+    fadeTimer.current = window.setTimeout(() => {
+      setVisibleActive(index)
+      setFadePhase('in')
+      fadeTimer.current = window.setTimeout(() => {
+        setFadePhase('idle')
+        fadeTimer.current = null
+      }, 280)
+    }, 180)
+  }
 
   if (!steps.length) return null
 
@@ -26,7 +55,7 @@ export function StorytellingInteractiveV3({ block }: { block: InteractiveV3Block
           {steps.map((step, index) => {
             const stepTitle = titleValue(step)
             return (
-              <button key={step.id} type="button" className={active === index ? 'is-active' : ''} onClick={() => setActive(index)}>
+              <button key={step.id} type="button" className={safeActive === index ? 'is-active' : ''} onClick={() => showStep(index)}>
                 <span className="interactive-v3-story-tab-copy">
                   <small>مرحله {index + 1}</small>
                   {stepTitle && <b>{stepTitle}</b>}
@@ -38,17 +67,17 @@ export function StorytellingInteractiveV3({ block }: { block: InteractiveV3Block
         </nav>
 
         <div className="interactive-v3-story-panel">
-          <div key={current?.id || active} className="interactive-v3-story-frame interactive-v3-animated-panel">
+          <div className={`interactive-v3-story-frame is-${fadePhase}`}>
             {currentImage && (
               <figure className="interactive-v3-story-media">
-                <img src={currentImage} alt={currentTitle || title} loading={active === 0 ? 'eager' : 'lazy'} />
-                <span>{active + 1} / {steps.length}</span>
+                <img src={currentImage} alt={currentTitle || title} loading={safeVisibleActive === 0 ? 'eager' : 'lazy'} />
+                <span>{safeVisibleActive + 1} / {steps.length}</span>
               </figure>
             )}
 
             {(currentTitle || currentBody) && (
               <article className="interactive-v3-story-card" dir={currentDir}>
-                <small>مرحله {active + 1}</small>
+                <small>مرحله {safeVisibleActive + 1}</small>
                 {currentTitle && <h4>{currentTitle}</h4>}
                 {currentBody && <p>{currentBody}</p>}
               </article>
@@ -60,23 +89,23 @@ export function StorytellingInteractiveV3({ block }: { block: InteractiveV3Block
               <button
                 type="button"
                 className="interactive-v3-story-next"
-                disabled={active === steps.length - 1}
+                disabled={safeActive === steps.length - 1}
                 aria-label="بعدی"
-                onClick={() => setActive(value => Math.min(steps.length - 1, value + 1))}
+                onClick={() => showStep(Math.min(steps.length - 1, safeActive + 1))}
               >
                 ‹ بعدی
               </button>
-              <div className="interactive-v3-story-progress" aria-label={`${active + 1} / ${steps.length}`}>
+              <div className="interactive-v3-story-progress" aria-label={`${safeActive + 1} / ${steps.length}`}>
                 {steps.map((step, index) => (
-                  <button key={step.id} type="button" className={active === index ? 'is-active' : ''} onClick={() => setActive(index)} />
+                  <button key={step.id} type="button" className={safeActive === index ? 'is-active' : ''} onClick={() => showStep(index)} />
                 ))}
               </div>
               <button
                 type="button"
                 className="interactive-v3-story-prev"
-                disabled={active === 0}
+                disabled={safeActive === 0}
                 aria-label="قبلی"
-                onClick={() => setActive(value => Math.max(0, value - 1))}
+                onClick={() => showStep(Math.max(0, safeActive - 1))}
               >
                 قبلی ›
               </button>

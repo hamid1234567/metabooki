@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.687`
+نسخه فعلی فایل رسمی: `1.0.688`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,12 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.688 - Storytelling mobile tabs and fade transition
+
+- Storytelling mobile step tabs now render as fixed-width horizontal cards with overflow scrolling, so small screens do not squeeze titles into broken narrow columns.
+- Storytelling step changes now use a controlled fade-out/fade-in sequence instead of remounting the image panel with a flash-like jump.
+- The storytelling navigation and empty-title behavior from 1.0.687 remain unchanged.
 
 ### 1.0.687 - Storytelling direction and empty-title polish
 

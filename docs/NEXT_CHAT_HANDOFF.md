@@ -1,6 +1,6 @@
 # MetaBooki Next Chat Handoff
 
-Last reviewed version: `1.0.687`
+Last reviewed version: `1.0.688`
 
 Use this file as the first reference in a fresh Codex chat before making changes.
 
@@ -60,6 +60,7 @@ Use this file as the first reference in a fresh Codex chat before making changes
 - Interactive V3 gallery thumbnails now switch to the selected gallery image without triggering the global image zoom; gallery empty image space uses a frosted glass surface, caption on/off is visually distinct, and the active thumbnail frame is stronger.
 - Interactive V3 storytelling now has a dedicated reader layout with separated rounded images, colored active-step text accents, side step navigation, progress dots, and cleaner previous/next controls.
 - Storytelling controls are direction-aware: the next button sits on the left in RTL and on the right in LTR; empty step titles stay empty instead of falling back to `مرحله n`.
+- Storytelling mobile tabs use fixed-width horizontal scroll cards, and stage changes use a controlled fade-out/fade-in transition to avoid image flash/jump.
 
 ## Current Known Fragile Areas
 

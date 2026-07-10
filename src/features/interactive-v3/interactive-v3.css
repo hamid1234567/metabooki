@@ -569,6 +569,26 @@
 .interactive-v3-story-frame {
   display: grid;
   gap: 1rem;
+  opacity: 1;
+  transition: opacity 280ms ease;
+}
+
+.interactive-v3-story-frame.is-out {
+  opacity: 0;
+  transition-duration: 180ms;
+}
+
+.interactive-v3-story-frame.is-in {
+  animation: interactive-v3-story-fade-in 280ms ease both;
+}
+
+@keyframes interactive-v3-story-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .interactive-v3-story-media {
@@ -959,6 +979,63 @@
     flex-direction: row;
     overflow-x: auto;
     flex-wrap: nowrap;
+    justify-content: flex-start;
+    gap: 0.6rem;
+    max-width: 100%;
+    padding: 0.15rem 0.15rem 0.55rem;
+    scroll-snap-type: inline proximity;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .interactive-v3-story-tabs button {
+    width: auto;
+    flex: 0 0 clamp(8rem, 38vw, 9.6rem);
+    min-height: 4.15rem;
+    grid-template-columns: minmax(0, 1fr) 1.7rem;
+    align-content: start;
+    gap: 0.45rem;
+    padding: 0.55rem;
+    scroll-snap-align: start;
+  }
+
+  .interactive-v3-story-tab-copy {
+    align-content: start;
+  }
+
+  .interactive-v3-story-tab-copy small {
+    white-space: nowrap;
+  }
+
+  .interactive-v3-story-tab-copy b {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+
+  .interactive-v3-story-tab-index {
+    width: 1.7rem;
+    height: 1.7rem;
+    align-self: center;
+    font-size: 0.76rem;
+  }
+
+  .interactive-v3-story-card {
+    padding: 0.9rem 1rem;
+  }
+
+  .interactive-v3-story-controls {
+    grid-template-columns: auto minmax(4rem, 1fr) auto;
+    gap: 0.55rem;
+  }
+
+  .interactive-v3-story-controls > button {
+    min-width: 3.75rem;
+    padding-inline: 0.62rem;
   }
 
   .interactive-v3-side-nav,
