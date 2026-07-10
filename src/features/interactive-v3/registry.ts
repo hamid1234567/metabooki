@@ -32,7 +32,7 @@ export function createInteractivePayloadV3(kind: InteractiveV3Kind): Interactive
   if (kind === 'quiz') return { schema: 'interactive-v3', title: '', question: '', options: ['', '', '', ''], correct: 0, explanation: '' }
   if (kind === 'flashcard') return { schema: 'interactive-v3', title: '', cards: [item('card-1', { front: '', back: '', image: '' })] }
   if (kind === 'accordion') return { schema: 'interactive-v3', title: '', items: [item('item-1', { title: '', description: '', image: '' })] }
-  if (kind === 'tabs') return { schema: 'interactive-v3', title: '', tabs: [item('tab-1', { title: '', description: '', image: '' }), item('tab-2', { title: '', description: '', image: '' })] }
+  if (kind === 'tabs') return { schema: 'interactive-v3', title: '', tabs: [item('tab-1', { title: 'تب 1', description: '', image: '' }), item('tab-2', { title: 'تب 2', description: '', image: '' })] }
   if (kind === 'timeline') return { schema: 'interactive-v3', title: '', events: [item('event-1', { title: '', description: '', image: '' }), item('event-2', { title: '', description: '', image: '' })] }
   if (kind === 'gallery') return { schema: 'interactive-v3', title: '', images: [item('image-1', { image: '', caption: '' })] }
   if (kind === 'scrollytelling') return { schema: 'interactive-v3', title: '', steps: [item('step-1', { title: '', description: '', image: '' }), item('step-2', { title: '', description: '', image: '' })] }

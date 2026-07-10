@@ -95,7 +95,7 @@ function editorItemsHtml(kind: InteractiveV3Kind, payload: InteractiveV3Payload)
   }
 
   if (kind === 'tabs') {
-    return limitedItems(payload, 'tabs').map((item, index) => itemShell('tabs', index, item, `${input('title', item.title, 'عنوان تب')}${text('description', item.description || item.text, 'توضیح')}`)).join('')
+    return limitedItems(payload, 'tabs').map((item, index) => itemShell('tabs', index, item, `${input('title', item.title || `تب ${index + 1}`, 'عنوان تب')}${text('description', item.description || item.text, 'توضیح')}`)).join('')
   }
 
   if (kind === 'timeline') {
@@ -202,7 +202,7 @@ export function interactiveBlockFromEditorElementV3(element: HTMLElement, old: I
     payload.correct = Number(element.querySelector<HTMLInputElement>('[data-v3-field="correct"]:checked')?.value ?? 0)
   } else if (kind === 'flashcard') payload.cards = parseItems(element, 'cards')
   else if (kind === 'accordion') payload.items = parseItems(element, 'items')
-  else if (kind === 'tabs') payload.tabs = parseItems(element, 'tabs')
+  else if (kind === 'tabs') payload.tabs = parseItems(element, 'tabs').map((item, index) => ({ ...item, title: item.title || `تب ${index + 1}` }))
   else if (kind === 'timeline') payload.events = parseItems(element, 'events')
   else if (kind === 'gallery') payload.images = parseItems(element, 'images')
   else if (kind === 'scrollytelling') payload.steps = parseItems(element, 'steps')

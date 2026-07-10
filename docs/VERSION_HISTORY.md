@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.694`
+نسخه فعلی فایل رسمی: `1.0.695`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,11 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.695 - Tabs require item titles
+
+- Interactive V3 tabs are now the exception to the empty-title rule: every tab item gets a title fallback such as `تب 1`.
+- New tab blocks start with titled tab items, old empty tab titles render with a fallback, and editor saves fill cleared tab titles back in.
 
 ### 1.0.694 - Interactive tabs inherited direction and frosted track
 

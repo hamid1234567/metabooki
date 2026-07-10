@@ -1,6 +1,6 @@
 # MetaBooki Next Chat Handoff
 
-Last reviewed version: `1.0.694`
+Last reviewed version: `1.0.695`
 
 Use this file as the first reference in a fresh Codex chat before making changes.
 
@@ -67,6 +67,7 @@ Use this file as the first reference in a fresh Codex chat before making changes
 - Interactive V3 tabs were then shifted to the blue top-bar reference design: simple labels on a blue strip, muted inactive labels, white active label, and a rounded white marker under the active tab; the content panel uses a faint blue theme.
 - Interactive V3 tabs now use an iOS-style segmented control: gray rounded track, white active pill with subtle shadow, muted inactive labels, and horizontal mobile scrolling.
 - Interactive V3 tabs inherit book/page direction for tab ordering and media/text placement; the segmented track uses the site's frosted menu glass instead of flat gray.
+- Interactive V3 tab items must always have a visible title. Empty tab titles fall back to `تب n` in the reader/editor and are filled during editor save; this exception does not apply to other interactive kinds.
 
 ## Current Known Fragile Areas
 

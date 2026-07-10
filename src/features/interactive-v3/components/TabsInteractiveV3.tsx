@@ -16,7 +16,7 @@ export function TabsInteractiveV3({ block }: { block: InteractiveV3Block }) {
       {title && <h3>{title}</h3>}
       <div className="interactive-v3-tab-row">
         {tabs.map((tab, index) => {
-          const tabTitle = titleValue(tab)
+          const tabTitle = titleValue(tab, `تب ${index + 1}`)
           return (
             <button key={tab.id} type="button" className={active === index ? 'is-active' : ''} onClick={() => setActive(index)}>
               {tabTitle}
