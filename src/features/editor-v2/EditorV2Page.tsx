@@ -959,6 +959,63 @@ function insertBlockAfterV2(document: BookDocumentV2, selectedBlockId: string | 
   return rebuildDocumentTocV2({ ...document, pages })
 }
 
+function replaceSourceQuoteWithCalloutV2(document: BookDocumentV2, sourceQuote: string | undefined, fallbackBlockId: string | undefined, callout: CalloutBlockV2) {
+  const quote = normalizeAiSourceTextV2(sourceQuote || '')
+  let replaced = false
+  const makeTextBlock = (source: BookBlockV2, text: string, suffix: string): BookBlockV2 | null => {
+    const clean = normalizeBookTextV2(text)
+    if (!clean) return null
+    const common = {
+      id: createV2Id('ai-split', source.id, suffix, Date.now()),
+      text: clean,
+      anchor: createV2Id('ai-split-anchor', source.id, suffix, Date.now()),
+      printNumber: source.printNumber,
+      direction: source.direction,
+      style: source.style,
+    }
+    if (source.type === 'heading') return { ...common, type: 'heading', level: source.level } as BookBlockV2
+    return { ...common, type: 'paragraph' } as BookBlockV2
+  }
+  const replaceInBlocks = (blocks: BookBlockV2[]): BookBlockV2[] => {
+    const next: BookBlockV2[] = []
+    for (const block of blocks) {
+      if (block.type === 'callout') {
+        next.push({ ...block, blocks: replaceInBlocks(block.blocks) })
+        continue
+      }
+      const text = plainTextFromBlockV2(block)
+      const normalizedText = normalizeAiSourceTextV2(text)
+      const canSplit = block.type === 'paragraph' || block.type === 'heading'
+      const matchesQuote = quote.length >= 4 && normalizedText.includes(quote)
+      const matchesFallback = !quote && fallbackBlockId && block.id === fallbackBlockId
+      if (!replaced && canSplit && (matchesQuote || matchesFallback)) {
+        const rawQuote = matchesQuote ? normalizeBookTextV2(sourceQuote || '') : normalizeBookTextV2(text)
+        const index = rawQuote ? text.indexOf(rawQuote) : -1
+        if (index > 0) {
+          const before = makeTextBlock(block, text.slice(0, index), 'before')
+          if (before) next.push(before)
+        }
+        next.push({ ...callout, printNumber: block.printNumber })
+        if (index >= 0 && rawQuote && index + rawQuote.length < text.length) {
+          const after = makeTextBlock(block, text.slice(index + rawQuote.length), 'after')
+          if (after) next.push(after)
+        }
+        replaced = true
+        continue
+      }
+      if (!replaced && fallbackBlockId && block.id === fallbackBlockId) {
+        next.push({ ...callout, printNumber: block.printNumber })
+        replaced = true
+        continue
+      }
+      next.push(block)
+    }
+    return next
+  }
+  const pages = document.pages.map(page => ({ ...page, blocks: replaceInBlocks(page.blocks) }))
+  return { document: rebuildDocumentTocV2({ ...document, pages }), replaced }
+}
+
 function createInteractiveTemplateV2(kind: string, printNumber?: PrintPageValue): BookBlockV2 {
   return createInteractiveBlockV3(kind, printNumber)
 }
@@ -4321,15 +4378,36 @@ export default function EditorV2Page() {
 
   const aiSourceText = useCallback(() => {
     if (!document) return ''
-    const selectedText = selectedBlock ? plainTextFromBlockV2(selectedBlock).trim() : ''
-    if (selectedText) return selectedText.slice(0, 6000)
-    return document.pages
-      .flatMap(page => page.blocks)
+    const root = editorSurfaceRef.current
+    const selection = window.getSelection()
+    const ranges = [
+      selection?.rangeCount ? selection.getRangeAt(0) : null,
+      savedSelectionRef.current,
+    ].filter(Boolean) as Range[]
+    for (const range of ranges) {
+      const text = normalizeBookTextV2(range.toString())
+      const container = range.commonAncestorContainer
+      if (text && root?.contains(container.nodeType === Node.ELEMENT_NODE ? container as Element : container.parentElement)) return text.slice(0, 6000)
+    }
+    const targetBlockId = selectedBlockIdFromEditorTarget() || selectedBlockId
+    const block = findBlockInDocumentV2(document, targetBlockId) || selectedBlock
+    const blockText = block ? plainTextFromBlockV2(block).trim() : ''
+    if (blockText) return blockText.slice(0, 6000)
+    const rangeNode = ranges[0]?.commonAncestorContainer
+    const rangeElement = rangeNode
+      ? (rangeNode.nodeType === Node.ELEMENT_NODE ? rangeNode as Element : rangeNode.parentElement)
+      : null
+    const pageElement = rangeElement?.closest<HTMLElement>('.editor-v2-flow-page')
+      || (targetBlockId && root?.querySelector<HTMLElement>(`[data-block-id="${targetBlockId.replace(/"/g, '\\"')}"]`)?.closest<HTMLElement>('.editor-v2-flow-page'))
+      || root?.querySelector<HTMLElement>('.editor-v2-flow-page.is-active, .editor-v2-flow-page:focus-within')
+    const pageIndex = Number(pageElement?.dataset.pageIndex)
+    const page = Number.isFinite(pageIndex) ? document.pages.find(item => item.index === pageIndex) : null
+    return (page?.blocks || [])
       .map(plainTextFromBlockV2)
       .filter(Boolean)
       .join('\n\n')
       .slice(0, 6000)
-  }, [document, selectedBlock])
+  }, [document, selectedBlock, selectedBlockId, selectedBlockIdFromEditorTarget])
 
   const requestAiEnhance = useCallback(async () => {
     if (!document) return
@@ -4415,6 +4493,10 @@ export default function EditorV2Page() {
   const applyAiCalloutSuggestion = useCallback((suggestion: AiCalloutSuggestionV2) => {
     if (!document) return
     const sourceBlockId = findBlockIdBySourceQuoteV2(document, suggestion.sourceQuote) || selectedBlockIdFromEditorTarget() || selectedBlockId
+    if (!sourceBlockId) {
+      setAiMessage('برای اعمال این پیشنهاد، متن یا بلوک مقصد در صفحه فعلی پیدا نشد.')
+      return
+    }
     const action = normalizeBookTextV2(suggestion.action || '')
     const isCallout = suggestion.suggestionType === 'educational_callout' || Boolean(suggestion.variant)
     if (!isCallout && /(بولد|برجسته|bold)/i.test(action)) {
@@ -4437,7 +4519,7 @@ export default function EditorV2Page() {
     const paragraph: ParagraphBlockV2 = {
       id: createV2Id('ai-callout-text', Date.now()),
       type: 'paragraph',
-      text: normalizeBookTextV2(suggestion.text || suggestion.sourceQuote || suggestion.action || ''),
+      text: normalizeBookTextV2(suggestion.sourceQuote || suggestion.text || suggestion.action || ''),
       anchor: createV2Id('ai-callout-text-anchor', Date.now()),
     }
     const callout: CalloutBlockV2 = {
@@ -4451,12 +4533,19 @@ export default function EditorV2Page() {
       blocks: [paragraph],
     }
     const dirtyPageIndex = findBlockPageIndexV2(document, sourceBlockId) ?? 0
-    commitDocument(current => insertBlockAfterV2(current, sourceBlockId, callout), { dirtyPageIndexes: [dirtyPageIndex] })
-    insertBlockIntoEditorDom(callout, sourceBlockId)
+    forceNextSurfaceSyncRef.current = true
+    skipNextSurfaceSyncRef.current = false
+    commitDocument(current => {
+      const result = replaceSourceQuoteWithCalloutV2(current, suggestion.sourceQuote, sourceBlockId, callout)
+      return result.document
+    }, { dirtyPageIndexes: [dirtyPageIndex] })
+    window.setTimeout(() => {
+      editorSurfaceRef.current?.querySelector<HTMLElement>(`[data-block-id="${callout.id.replace(/"/g, '\\"')}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 80)
     setSelectedBlockId(callout.id)
     setAiCalloutSuggestions(current => current.filter(item => item.id !== suggestion.id))
-    setAiMessage('پیشنهاد کال‌اوت در ادیتور اعمال شد.')
-  }, [applyBoldToSourceQuote, commitDocument, document, insertBlockIntoEditorDom, selectedBlockId, selectedBlockIdFromEditorTarget])
+    setAiMessage('متن انتخاب‌شده به کال‌اوت تبدیل شد.')
+  }, [applyBoldToSourceQuote, commitDocument, document, selectedBlockId, selectedBlockIdFromEditorTarget])
 
   const dismissAiCalloutSuggestion = useCallback((suggestionId: string) => {
     setAiCalloutSuggestions(current => current.filter(item => item.id !== suggestionId))
