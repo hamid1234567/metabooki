@@ -1,6 +1,6 @@
 # MetaBooki Next Chat Handoff
 
-Last reviewed version: `1.0.708`
+Last reviewed version: `1.0.709`
 
 Use this file as the first reference in a fresh Codex chat before making changes.
 
@@ -87,6 +87,8 @@ Use this file as the first reference in a fresh Codex chat before making changes
 - AI callout suggestions now use a stricter educational-editor prompt, may return no suggestions instead of forcing weak callouts, refresh history when the AI panel opens, and AI history images fall back to insertion as normal editor image blocks when no interactive placeholder is active.
 - AI callout/text enhancement now uses the user's Persian professional digital-book editor prompt as the default admin-editable `readerCalloutSuggestions` prompt and renders actionable suggestion cards in Editor V2 with apply/dismiss controls.
 - Editor V2 AI analysis now scopes to exact selected text, current block, or current page instead of the start of the full document; applying a suggested callout replaces the matched source quote with the callout rather than inserting below it.
+- AI text cost estimates now use expected output tokens per action instead of charging the full model cap up front; callout suggestion estimates should be much closer to the configured provider formula.
+- AI editorial suggestions now distinguish formatting/editing from educational callouts even when the model returns a `variant`, and common formatting actions can apply as heading, list, paragraph split, or bold instead of becoming callouts.
 
 ## Current Known Fragile Areas
 

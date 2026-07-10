@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.708`
+نسخه فعلی فایل رسمی: `1.0.709`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,13 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.709 - AI suggestion cost and formatting actions
+
+- AI text cost estimates now use action-specific expected output tokens instead of billing the full generation cap during preflight; callout suggestion estimates no longer include the old 15% max-token padding.
+- The callout suggestion generation cap was reduced to better match the stricter editorial prompt while keeping actual post-run credit charging based on real provider token usage.
+- Editor V2 now classifies AI suggestions as formatting/editing before checking callout variants, so formatting cards are no longer converted into educational callouts just because `variant` is present.
+- Common formatting suggestions can now apply directly as bold text, heading/subheading, list conversion, or paragraph splitting; unsupported formatting suggestions stay non-callout and show a clear message.
 
 ### 1.0.708 - Current-page AI source and replacement callouts
 
