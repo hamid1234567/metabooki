@@ -51,6 +51,12 @@ type AiImageApprovalV2 = {
   estimate: AiImageEstimateResult
 }
 
+type InteractiveMediaTargetDescriptorV2 = {
+  blockId: string
+  pageIndex: number
+  mediaPath: string
+}
+
 type EditorActiveReferenceV2 = {
   kind: BookReferenceKindV2
   text: string
@@ -1181,6 +1187,15 @@ async function compressInteractiveUploadImageV2(file: File, maxSize = 1024, qual
   }
 }
 
+async function generatedImageUrlToFileV2(url: string, name: string): Promise<File> {
+  const response = await fetch(url)
+  if (!response.ok) throw new Error('دریافت تصویر تولیدشده برای فشرده‌سازی ناموفق بود.')
+  const blob = await response.blob()
+  const type = blob.type?.startsWith('image/') ? blob.type : 'image/png'
+  const extension = type.includes('webp') ? 'webp' : type.includes('jpeg') || type.includes('jpg') ? 'jpg' : 'png'
+  return new File([blob], `${name}.${extension}`, { type, lastModified: Date.now() })
+}
+
 const isUuid = isUuidV2
 
 function formatAutosaveCountdownV2(value: number | null) {
@@ -1471,11 +1486,12 @@ function RightPanelV2({
   aiBusy,
   aiMessage,
   aiHistory,
+  aiHistoryLoading,
+  aiHistoryMessage,
   aiHistoryBookOnly,
   onAiHistoryBookOnlyChange,
   onUseAiHistoryOutput,
   onRefreshAiHistory,
-  canUseAiHistoryImage,
 }: {
   document: BookDocumentV2
   selectedBlock?: BookBlockV2 | null
@@ -1509,11 +1525,12 @@ function RightPanelV2({
   aiBusy: boolean
   aiMessage: string
   aiHistory: AiSavedOutput[]
+  aiHistoryLoading: boolean
+  aiHistoryMessage: string
   aiHistoryBookOnly: boolean
   onAiHistoryBookOnlyChange: (value: boolean) => void
   onUseAiHistoryOutput: (output: AiSavedOutput) => void
   onRefreshAiHistory: () => void
-  canUseAiHistoryImage: boolean
 }) {
   const tree = useMemo(() => resolveTocTreeV2(document.toc), [document.toc])
   const flatToc = useMemo(() => tocAsFlatListV2(document), [document])
@@ -1986,12 +2003,13 @@ function RightPanelV2({
             <p>{aiMessage || 'اگر بلوکی انتخاب شده باشد همان متن بررسی می‌شود؛ در غیر این صورت متن صفحه یا ابتدای سند مبنا قرار می‌گیرد.'}</p>
             <div className="editor-v2-ai-history-head">
               <strong>خروجی‌های ذخیره‌شده</strong>
-              <button type="button" onClick={onRefreshAiHistory}>تازه‌سازی</button>
+              <button type="button" onClick={onRefreshAiHistory} disabled={aiHistoryLoading}>{aiHistoryLoading ? 'در حال خواندن...' : 'تازه‌سازی'}</button>
             </div>
             <label className="editor-v2-ai-history-filter">
               <input type="checkbox" checked={aiHistoryBookOnly} onChange={event => onAiHistoryBookOnlyChange(event.target.checked)} />
               فقط همین کتاب
             </label>
+            {aiHistoryMessage && <p className="editor-v2-ai-history-message">{aiHistoryMessage}</p>}
             <div className="editor-v2-ai-history-list">
               {aiHistory.length ? aiHistory.map(output => {
                 const isImage = aiOutputKind(output) === 'image'
@@ -2004,7 +2022,7 @@ function RightPanelV2({
                       <small>{new Date(output.created_at).toLocaleString('fa-IR')} · {output.action} · {aiOutputSourceLabel(output)}</small>
                       <p>{aiOutputPreview(output, 120)}</p>
                     </div>
-                    <button type="button" disabled={isImage && !canUseAiHistoryImage} onClick={() => onUseAiHistoryOutput(output)}>
+                    <button type="button" onClick={() => onUseAiHistoryOutput(output)}>
                       {isImage ? 'استفاده از تصویر' : 'درج متن'}
                     </button>
                   </article>
@@ -2042,6 +2060,8 @@ export default function EditorV2Page() {
   const [aiBusy, setAiBusy] = useState(false)
   const [aiMessage, setAiMessage] = useState('')
   const [aiHistory, setAiHistory] = useState<AiSavedOutput[]>([])
+  const [aiHistoryLoading, setAiHistoryLoading] = useState(false)
+  const [aiHistoryMessage, setAiHistoryMessage] = useState('')
   const [aiHistoryBookOnly, setAiHistoryBookOnly] = useState(false)
   const [mediaMessage, setMediaMessage] = useState('')
   const [interactiveMediaTargetActive, setInteractiveMediaTargetActive] = useState(false)
@@ -2058,6 +2078,8 @@ export default function EditorV2Page() {
   const savedSelectionRef = useRef<Range | null>(null)
   const activeReferenceElementRef = useRef<HTMLElement | null>(null)
   const interactiveMediaTargetRef = useRef<HTMLElement | null>(null)
+  const interactiveMediaTargetDescriptorRef = useRef<InteractiveMediaTargetDescriptorV2 | null>(null)
+  const aiHistoryRequestRef = useRef(0)
   const lastInlineStyleTargetRef = useRef<HTMLElement | null>(null)
   const calloutActionLockRef = useRef(false)
   const undoStackRef = useRef<string[]>([])
@@ -2097,16 +2119,35 @@ export default function EditorV2Page() {
   }, [creditBalance])
 
   const refreshAiHistory = useCallback(async () => {
+    const requestId = aiHistoryRequestRef.current + 1
+    aiHistoryRequestRef.current = requestId
     if (!user) {
       setAiHistory([])
+      setAiHistoryMessage('برای دیدن تاریخچه هوش مصنوعی وارد حساب شوید.')
+      setAiHistoryLoading(false)
       return
     }
+    const bookFilterId = aiHistoryBookOnly ? (document?.sourceBookId || id || '') : ''
+    setAiHistoryLoading(true)
+    setAiHistoryMessage('')
     try {
-      setAiHistory(await loadAiSavedOutputs(user, 60, aiHistoryBookOnly ? document?.sourceBookId : undefined))
+      const outputs = await loadAiSavedOutputs(user, 80, bookFilterId || undefined)
+      if (aiHistoryRequestRef.current !== requestId) return
+      setAiHistory(outputs)
+      setAiHistoryMessage(outputs.length
+        ? ''
+        : aiHistoryBookOnly
+          ? 'برای همین کتاب هنوز خروجی ذخیره‌شده‌ای پیدا نشد.'
+          : 'هنوز خروجی ذخیره‌شده‌ای برای این حساب پیدا نشد.')
     } catch {
-      setAiHistory([])
+      if (aiHistoryRequestRef.current === requestId) {
+        setAiHistory([])
+        setAiHistoryMessage('خواندن تاریخچه هوش مصنوعی ناموفق بود.')
+      }
+    } finally {
+      if (aiHistoryRequestRef.current === requestId) setAiHistoryLoading(false)
     }
-  }, [aiHistoryBookOnly, document?.sourceBookId, user])
+  }, [aiHistoryBookOnly, document?.sourceBookId, id, user])
 
   const clearAutoSaveSchedule = useCallback((clearDeadline = true) => {
     if (autoSaveTimeoutRef.current) {
@@ -2883,7 +2924,7 @@ export default function EditorV2Page() {
       dirtyTocRef.current = true
       scheduleToolbarDocumentRefresh()
     }
-  }, [document, markDirtyAssetPageFromNode, markEditorDirty, pushEditorHistory, scheduleToolbarDocumentRefresh])
+  }, [currentInteractiveMediaTarget, document, markDirtyAssetPageFromNode, markEditorDirty, pushEditorHistory, scheduleToolbarDocumentRefresh])
 
   const restoreEditorHtmlSnapshot = useCallback((html: string) => {
     if (!editorSurfaceRef.current) return
@@ -3542,8 +3583,46 @@ export default function EditorV2Page() {
     }
   }, [commitDocument, document, insertBlockIntoEditorDom, recordAiUsage, selectedBlockId, selectedBlockIdFromEditorTarget, user])
 
+  const readInteractiveMediaTargetDescriptor = useCallback((target: HTMLElement | null): InteractiveMediaTargetDescriptorV2 | null => {
+    const section = target?.closest<HTMLElement>('[data-v2-type="interactive"][data-block-id]')
+    const pageElement = section?.closest<HTMLElement>('.editor-v2-flow-page')
+    const blockId = section?.dataset.blockId || ''
+    const mediaPath = target?.dataset.v3Media || ''
+    const pageIndex = Number(pageElement?.dataset.pageIndex)
+    return blockId && mediaPath && Number.isFinite(pageIndex) ? { blockId, pageIndex, mediaPath } : null
+  }, [])
+
+  const findInteractiveMediaTarget = useCallback((descriptor: InteractiveMediaTargetDescriptorV2 | null) => {
+    if (!descriptor) return null
+    const root = editorSurfaceRef.current
+    const section = root?.querySelector<HTMLElement>(`[data-v2-type="interactive"][data-block-id="${descriptor.blockId}"]`)
+    return Array.from(section?.querySelectorAll<HTMLElement>('[data-v3-media]') || [])
+      .find(item => item.dataset.v3Media === descriptor.mediaPath) || null
+  }, [])
+
+  const rememberInteractiveMediaTarget = useCallback((target: HTMLElement | null) => {
+    const descriptor = readInteractiveMediaTargetDescriptor(target)
+    if (!descriptor || !target) return false
+    interactiveMediaTargetRef.current = target
+    interactiveMediaTargetDescriptorRef.current = descriptor
+    setInteractiveMediaTargetActive(true)
+    return true
+  }, [readInteractiveMediaTargetDescriptor])
+
+  const currentInteractiveMediaTarget = useCallback((explicitTarget?: HTMLElement | null) => {
+    let target = explicitTarget || interactiveMediaTargetRef.current
+    let descriptor = readInteractiveMediaTargetDescriptor(target) || interactiveMediaTargetDescriptorRef.current
+    if ((!target || !target.isConnected) && descriptor) target = findInteractiveMediaTarget(descriptor)
+    descriptor = readInteractiveMediaTargetDescriptor(target) || descriptor
+    if (target && descriptor) {
+      interactiveMediaTargetRef.current = target
+      interactiveMediaTargetDescriptorRef.current = descriptor
+    }
+    return target || null
+  }, [findInteractiveMediaTarget, readInteractiveMediaTargetDescriptor])
+
   const applyInteractiveMedia = useCallback((media: InteractiveV3MediaInput[], explicitTarget?: HTMLElement | null) => {
-    const target = explicitTarget || interactiveMediaTargetRef.current
+    const target = currentInteractiveMediaTarget(explicitTarget)
     const cleanMedia = media.filter(item => item.url)
     if (!target || !cleanMedia.length) return false
     const section = target.closest<HTMLElement>('[data-v2-type="interactive"][data-block-id]')
@@ -3646,8 +3725,15 @@ export default function EditorV2Page() {
 
   const runApprovedInteractiveImage = useCallback(async () => {
     if (!aiImageApproval) return
-    const { target, prompt, pageIndex, printNumber } = aiImageApproval
+    const { prompt, pageIndex, printNumber } = aiImageApproval
+    const target = currentInteractiveMediaTarget(aiImageApproval.target)
+    if (!target) {
+      setAiImageApproval(null)
+      setMediaMessage('برای تولید تصویر، placeholder تعاملی دوباره انتخاب شود.')
+      return
+    }
     if (target.dataset.v3AiBusy === 'true') return
+    setAiImageApproval(null)
     target.dataset.v3AiBusy = 'true'
     target.classList.add('is-ai-busy')
     target.querySelectorAll<HTMLButtonElement>('button').forEach(button => { button.disabled = true })
@@ -3661,18 +3747,31 @@ export default function EditorV2Page() {
         pageIndex,
         user,
       })
+      const assetId = createV2Id('asset-interactive-ai', Date.now())
+      let imageUrl = result.imageUrl
+      let compressedGenerated = false
+      try {
+        const generatedFile = await generatedImageUrlToFileV2(result.imageUrl, assetId)
+        const compressedImage = await compressInteractiveUploadImageV2(generatedFile, 1024, 0.84)
+        compressedGenerated = compressedImage.compressed
+        imageUrl = await uploadEditorImageFileV2(user?.id, document?.sourceBookId || id || '', assetId, compressedImage.file)
+      } catch {
+        imageUrl = result.imageUrl
+      }
       const asset = {
-        id: createV2Id('asset-interactive-ai', Date.now()),
+        id: assetId,
         type: 'image' as const,
-        url: result.imageUrl,
+        url: imageUrl,
         caption: prompt.slice(0, 90),
         printNumber,
         status: 'ready' as const,
       }
       if (!result.alreadyCharged) recordAiUsage(result.usage)
       commitDocument(current => ({ ...current, assets: [...current.assets, asset] }), { dirtyAssetPageIndexes: [Number.isFinite(pageIndex) ? pageIndex : 0] })
-      if (applyInteractiveMedia([{ url: result.imageUrl, caption: prompt.slice(0, 90) }], target)) {
-        setAiImageApproval(null)
+      if (compressedGenerated) {
+        toast.success('تصویر تولیدشده پیش از درج در بلوک تعاملی کم‌حجم شد.', { description: 'نسخه سبک‌تر برای ذخیره و بارگذاری استفاده شد.' })
+      }
+      if (applyInteractiveMedia([{ url: imageUrl, caption: prompt.slice(0, 90) }], target)) {
         setMediaMessage('تصویر تولید و داخل بلوک تعاملی قرار گرفت.')
         void refreshAiHistory()
       }
@@ -3684,7 +3783,7 @@ export default function EditorV2Page() {
       target.querySelectorAll<HTMLButtonElement>('button').forEach(button => { button.disabled = false })
       setAiBusy(false)
     }
-  }, [aiImageApproval, applyInteractiveMedia, commitDocument, document?.sourceBookId, recordAiUsage, refreshAiHistory, user])
+  }, [aiImageApproval, applyInteractiveMedia, commitDocument, currentInteractiveMediaTarget, document?.sourceBookId, id, recordAiUsage, refreshAiHistory, user])
 
   const resizeImageBlock = useCallback((blockId: string, widthPercent: number) => {
     const dirtyPageIndex = findBlockPageIndexV2(document, blockId)
@@ -3868,7 +3967,11 @@ export default function EditorV2Page() {
       window.requestAnimationFrame(() => hydrateAuthorLibraryInEditorV2(editorSurfaceRef.current, authorLibrary))
       return
     }
-    const interactiveAction = target.closest<HTMLElement>('[data-v3-add-item], [data-v3-item-remove], [data-v3-item-move], [data-v3-media-action], [data-v3-block-remove]')
+      const passiveMediaTarget = target.closest<HTMLElement>('[data-v3-media]')
+      if (passiveMediaTarget?.closest('[data-v2-type="interactive"][data-block-id]')) {
+        rememberInteractiveMediaTarget(passiveMediaTarget)
+      }
+      const interactiveAction = target.closest<HTMLElement>('[data-v3-add-item], [data-v3-item-remove], [data-v3-item-move], [data-v3-media-action], [data-v3-block-remove]')
     if (interactiveAction) {
       const section = interactiveAction.closest<HTMLElement>('[data-v2-type="interactive"][data-block-id]')
       const pageElement = section?.closest<HTMLElement>('.editor-v2-flow-page')
@@ -3893,8 +3996,7 @@ export default function EditorV2Page() {
       if (interactiveAction.dataset.v3MediaAction) {
         const mediaTarget = interactiveAction.closest<HTMLElement>('[data-v3-media]')
         if (!mediaTarget) return
-        interactiveMediaTargetRef.current = mediaTarget
-        setInteractiveMediaTargetActive(true)
+        rememberInteractiveMediaTarget(mediaTarget)
         const action = interactiveAction.dataset.v3MediaAction
         if (action === 'ai' && mediaTarget.dataset.v3AiBusy === 'true') {
           setMediaMessage('این جایگاه در حال دریافت خروجی هوش مصنوعی است.')
@@ -3957,7 +4059,7 @@ export default function EditorV2Page() {
       return
     }
     updateSelectedBlockFromDom()
-  }, [authorLibrary, deleteImageBlock, document, generateInteractiveMediaImage, markDirtyAssetPageFromNode, markEditorDirty, pushEditorHistory, readActiveReferenceFromElement, referenceElementFromNode, scheduleToolbarDocumentRefresh, updateSelectedBlockFromDom, uploadInteractiveMediaImages])
+  }, [authorLibrary, deleteImageBlock, document, generateInteractiveMediaImage, markDirtyAssetPageFromNode, markEditorDirty, pushEditorHistory, readActiveReferenceFromElement, referenceElementFromNode, rememberInteractiveMediaTarget, scheduleToolbarDocumentRefresh, updateSelectedBlockFromDom, uploadInteractiveMediaImages])
 
   const applyAutoCaptions = useCallback(() => {
     const root = editorSurfaceRef.current
@@ -4223,9 +4325,9 @@ export default function EditorV2Page() {
         setAiMessage('برای این خروجی تصویری آدرس قابل استفاده پیدا نشد.')
         return
       }
-      const target = interactiveMediaTargetRef.current
+      const target = currentInteractiveMediaTarget()
       if (!target) {
-        setAiMessage('برای استفاده از تصویر، اول یک placeholder تصویر تعاملی را انتخاب کنید.')
+        setAiMessage('برای استفاده از تصویر، اول روی placeholder تصویر در بلوک تعاملی کلیک کنید.')
         return
       }
       if (applyInteractiveMedia([{ url, caption: aiOutputPreview(output, 120) }], target)) {
@@ -4252,7 +4354,7 @@ export default function EditorV2Page() {
     insertBlockIntoEditorDom(block, insertionBlockId)
     setSelectedBlockId(block.id)
     setAiMessage('خروجی متنی هوش مصنوعی داخل سند درج شد.')
-  }, [applyInteractiveMedia, commitDocument, document, insertBlockIntoEditorDom, selectedBlockId, selectedBlockIdFromEditorTarget])
+  }, [applyInteractiveMedia, commitDocument, currentInteractiveMediaTarget, document, insertBlockIntoEditorDom, selectedBlockId, selectedBlockIdFromEditorTarget])
 
   const rebuildFullToc = useCallback(async () => {
     if (!book || !document || !isUuidV2(book.id)) {
@@ -4427,11 +4529,12 @@ export default function EditorV2Page() {
           aiBusy={aiBusy}
           aiMessage={aiMessage}
           aiHistory={aiHistory}
+          aiHistoryLoading={aiHistoryLoading}
+          aiHistoryMessage={aiHistoryMessage}
           aiHistoryBookOnly={aiHistoryBookOnly}
           onAiHistoryBookOnlyChange={setAiHistoryBookOnly}
           onUseAiHistoryOutput={useAiHistoryOutput}
           onRefreshAiHistory={() => { void refreshAiHistory() }}
-          canUseAiHistoryImage={Boolean(interactiveMediaTargetRef.current)}
         />
         <main
           className="editor-v2-canvas"

@@ -62,7 +62,17 @@ export function aiOutputUsableText(output: AiSavedOutput) {
 }
 
 export function aiOutputImageUrl(output: AiSavedOutput) {
-  return String(output.content?.imageUrl || '')
+  const content = output.content || {}
+  return String(
+    content.imageUrl
+    || content.url
+    || content.image_url
+    || content.resultUrls?.[0]
+    || content.result_urls?.[0]
+    || content.images?.[0]?.url
+    || content.images?.[0]
+    || '',
+  )
 }
 
 export async function loadAiSavedOutputs(user: AppUser | null, limit = 40, bookId?: string | null): Promise<AiSavedOutput[]> {

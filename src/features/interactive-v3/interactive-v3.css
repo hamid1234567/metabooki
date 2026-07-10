@@ -1524,6 +1524,10 @@
 }
 
 .interactive-v3-editor-media.is-ai-busy [data-v3-media-action="ai"] {
+  position: relative;
+  z-index: 11;
+  background: #2563eb;
+  color: #fff;
   animation: interactive-v3-spin 900ms linear infinite;
 }
 

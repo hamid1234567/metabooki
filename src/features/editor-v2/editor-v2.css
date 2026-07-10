@@ -474,6 +474,16 @@
   font-weight: 800;
 }
 
+.editor-v2-ai-history-message {
+  margin: 0;
+  border-radius: 0.8rem;
+  background: rgba(241, 245, 249, 0.78);
+  color: #64748b;
+  padding: 0.45rem 0.6rem;
+  font-size: 0.72rem;
+  line-height: 1.7;
+}
+
 .editor-v2-ai-history-list {
   display: grid;
   gap: 0.55rem;
