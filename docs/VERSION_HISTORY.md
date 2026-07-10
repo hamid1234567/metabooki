@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.707`
+نسخه فعلی فایل رسمی: `1.0.708`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,12 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.708 - Current-page AI source and replacement callouts
+
+- Editor V2 AI text analysis now uses the exact selected text, current selected block, or current editor page instead of falling back to the beginning of the full document.
+- Applying an AI educational callout now replaces the matched source text with a callout block, preserving surrounding paragraph text when the quote is inside a larger paragraph.
+- AI callout application now uses the original selected/source quote inside the callout body so the author's wording is preserved instead of adding explanatory text under the original passage.
 
 ### 1.0.707 - Actionable AI editorial suggestions
 
