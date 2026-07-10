@@ -1,6 +1,6 @@
 # MetaBooki Next Chat Handoff
 
-Last reviewed version: `1.0.689`
+Last reviewed version: `1.0.690`
 
 Use this file as the first reference in a fresh Codex chat before making changes.
 
@@ -62,6 +62,7 @@ Use this file as the first reference in a fresh Codex chat before making changes
 - Storytelling controls are direction-aware: the next button sits on the left in RTL and on the right in LTR; empty step titles stay empty instead of falling back to `مرحله n`.
 - Storytelling mobile tabs use fixed-width horizontal scroll cards, and stage changes use a controlled fade-out/fade-in transition to avoid image flash/jump.
 - Storytelling transitions now use a simultaneous crossfade: the outgoing panel fades out while the incoming panel fades in on top of it.
+- Interactive V3 tabs use square-like top-rounded tab buttons connected to a faint themed content panel; active tab and panel share the same accent, and mobile tabs scroll horizontally.
 
 ## Current Known Fragile Areas
 

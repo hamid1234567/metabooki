@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.689`
+نسخه فعلی فایل رسمی: `1.0.690`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,12 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.690 - Interactive tabs visual redesign
+
+- Interactive V3 tabs now use square-like tab buttons with rounded top corners and flat bottoms connected to the content panel.
+- The active tab and tab content panel share a faint accent theme that changes with the active tab.
+- Tab labels are larger than normal body text, and mobile tabs keep the same shape with horizontal scrolling when needed.
 
 ### 1.0.689 - Storytelling simultaneous crossfade
 
