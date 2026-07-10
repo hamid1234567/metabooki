@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.685`
+نسخه فعلی فایل رسمی: `1.0.686`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,12 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.686 - Storytelling reader redesign
+
+- Interactive V3 storytelling now uses a dedicated reader layout with separated image and text areas.
+- Story images have rounded framed media treatment, while text cards use colored step accents for the active story stage.
+- Step navigation was redesigned with clearer side step buttons, progress dots, and cleaner previous/next controls.
 
 ### 1.0.685 - Gallery thumbnail and visual state polish
 
