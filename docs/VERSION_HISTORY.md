@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.675`
+نسخه فعلی فایل رسمی: `1.0.676`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,12 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.676 - Interactive V3 hotspot redesign
+
+- Hotspot editor blocks now show the full image as the click target and add new points at the clicked image coordinate.
+- Hotspot points can be added and removed without the normal interactive item limit.
+- Reader hotspots now render as compact red plus markers with animated popovers, automatic inward placement, connector lines, a show/hide-all control, and smaller text when many points exist.
 
 ### 1.0.675 - Reader page-engine loading placeholder
 
