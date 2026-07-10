@@ -103,6 +103,7 @@ export default function Profile() {
   const [aiOutputs, setAiOutputs] = useState<AiSavedOutput[]>([])
   const [aiOutputsLoading, setAiOutputsLoading] = useState(false)
   const [aiOutputsMessage, setAiOutputsMessage] = useState('')
+  const [aiOutputsRefreshKey, setAiOutputsRefreshKey] = useState(0)
 
   const userId = user?.id || mock?.id || ''
 
@@ -211,7 +212,7 @@ export default function Profile() {
     return () => {
       alive = false
     }
-  }, [isMock, user, userId])
+  }, [aiOutputsRefreshKey, isMock, user, userId])
 
   const setField = (field: keyof ProfileForm, value: string | string[]) => {
     setProfile(current => ({ ...current, [field]: value }))
@@ -483,6 +484,9 @@ export default function Profile() {
 
       <section className="glass rounded-2xl p-6 mt-6">
         <h2 className="font-bold text-lg mb-4 flex items-center gap-2"><Sparkles className="w-5 h-5 text-primary" />خروجی‌های هوش مصنوعی من</h2>
+        <Button variant="outline" disabled={aiOutputsLoading} onClick={() => setAiOutputsRefreshKey(value => value + 1)} className="mb-3">
+          {aiOutputsLoading ? 'در حال خواندن...' : 'تازه‌سازی تاریخچه'}
+        </Button>
         {aiOutputsLoading && <p className="text-sm text-muted-foreground mb-3">در حال خواندن تاریخچه هوش مصنوعی...</p>}
         {aiOutputsMessage && !aiOutputsLoading && <p className="text-sm text-muted-foreground mb-3">{aiOutputsMessage}</p>}
         <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3 max-h-[32rem] overflow-auto pr-1">
