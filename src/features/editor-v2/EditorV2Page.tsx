@@ -16,7 +16,7 @@ import { backfillPageEngineForBook, isUuidV2, loadPageEngineWindow, rebuildPageE
 import { bookDisplayTextHtml, bookSearchIncludes, isBookLtrRunText, type PrintPageValue } from '@/lib/book-content'
 import { referenceClassNameV2, referenceDisplayLabelV2, referenceHtmlDataAttributesV2, referenceKindFromElementV2, referenceKindFromInlineV2, referenceTooltipDirectionV2, referenceTooltipTextV2, shortenReferencePreviewV2, type BookReferenceKindV2 } from '@/lib/book-references'
 import { createInteractiveBlockV3, INTERACTIVE_V3_DEFINITIONS } from '@/features/interactive-v3/registry'
-import { appendInteractiveItemV3, interactiveBlockFromEditorElementV3, interactiveBlockToEditorHtmlV3, removeInteractiveItemV3, setInteractiveItemImagesV3 } from '@/features/interactive-v3/editorHtml'
+import { appendHotspotPointV3, appendInteractiveItemV3, interactiveBlockFromEditorElementV3, interactiveBlockToEditorHtmlV3, removeInteractiveItemV3, setInteractiveItemImagesV3 } from '@/features/interactive-v3/editorHtml'
 import type { MockBook } from '@/lib/mock-data'
 import './editor-v2.css'
 import '@/features/interactive-v3/interactive-v3.css'
@@ -3598,6 +3598,33 @@ export default function EditorV2Page() {
 
   const handleEditorSurfaceClick = useCallback((event: any) => {
     const target = event.target as HTMLElement
+    const hotspotCanvas = target.closest<HTMLElement>('[data-v3-hotspot-canvas="true"]')
+    if (hotspotCanvas && !target.closest('[data-v3-media-action], input, textarea, button, .interactive-v3-editor-hotspot-card')) {
+      const section = hotspotCanvas.closest<HTMLElement>('[data-v2-type="interactive"][data-block-id]')
+      const pageElement = section?.closest<HTMLElement>('.editor-v2-flow-page')
+      const blockId = section?.dataset.blockId
+      const pageIndex = Number(pageElement?.dataset.pageIndex)
+      const page = document?.pages.find(item => item.index === pageIndex) || document?.pages[0]
+      const oldBlock = document && blockId ? findBlockInDocumentV2(document, blockId) : undefined
+      const image = hotspotCanvas.querySelector<HTMLImageElement>('[data-v3-media="image"] img')
+      if (!section || !blockId || !page || oldBlock?.type !== 'interactive' || !image) return
+      const rect = image.getBoundingClientRect()
+      if (!rect.width || !rect.height) return
+      event.preventDefault()
+      event.stopPropagation()
+      const parsed = interactiveBlockFromEditorElementV3(section, oldBlock, page)
+      if (!parsed) return
+      const x = ((Number(event.clientX) - rect.left) / rect.width) * 100
+      const y = ((Number(event.clientY) - rect.top) / rect.height) * 100
+      const nextBlock = appendHotspotPointV3(parsed, x, y)
+      pushEditorHistory()
+      section.outerHTML = interactiveBlockToEditorHtmlV3(nextBlock)
+      setSelectedBlockId(blockId)
+      markEditorDirty(pageElement || section)
+      markDirtyAssetPageFromNode(pageElement || section)
+      scheduleToolbarDocumentRefresh()
+      return
+    }
     const interactiveAction = target.closest<HTMLElement>('[data-v3-add-item], [data-v3-item-remove], [data-v3-media-action], [data-v3-block-remove]')
     if (interactiveAction) {
       const section = interactiveAction.closest<HTMLElement>('[data-v2-type="interactive"][data-block-id]')

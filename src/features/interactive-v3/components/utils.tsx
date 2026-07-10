@@ -40,7 +40,7 @@ export function directionFromText(text = ''): 'rtl' | 'ltr' | undefined {
 }
 
 export function itemsFor(block: InteractiveV3Block, key: keyof InteractiveV3Payload) {
-  return normalizeInteractiveItemsV3(block.payload || {}, key, block.kind === 'author') as InteractiveV3Item[]
+  return normalizeInteractiveItemsV3(block.payload || {}, key, block.kind === 'author' || key === 'points') as InteractiveV3Item[]
 }
 
 export function blockTitle(block: InteractiveV3Block) {

@@ -34,6 +34,17 @@ function mediaTools(path: string, image = '') {
   </div>`
 }
 
+function hotspotMedia(image = '') {
+  return `<div class="interactive-v3-editor-media interactive-v3-editor-hotspot-media" data-v3-media="image">
+    ${image ? `<img src="${escapeHtml(image)}" alt="">` : '<span></span>'}
+    <div contenteditable="false" class="interactive-v3-editor-media-tools">
+      <button type="button" data-v3-media-action="upload" title="آپلود تصویر">↑</button>
+      <button type="button" data-v3-media-action="library" title="انتخاب از تصاویر کتاب">▧</button>
+      <button type="button" data-v3-media-action="ai" title="تولید با هوش مصنوعی">✦</button>
+    </div>
+  </div>`
+}
+
 function itemShell(collection: keyof InteractiveV3Payload, index: number, item: InteractiveV3Item, body: string, media = true) {
   return `<article class="interactive-v3-editor-item" data-v3-list="${escapeHtml(String(collection))}" data-v3-index="${index}"${attr('data-v3-item-id', item.id)}>
     <header contenteditable="false"><b>${index + 1}</b><button type="button" data-v3-item-remove="true" title="حذف آیتم">×</button></header>
@@ -88,11 +99,21 @@ function editorItemsHtml(kind: InteractiveV3Kind, payload: InteractiveV3Payload)
   if (kind === 'hotspot') {
     const points = limitedItems(payload, 'points')
     return `<div class="interactive-v3-editor-hotspot">
-      ${mediaTools('image', payload.image || '')}
-      ${text('caption', payload.caption, 'کپشن تصویر')}
-      <div class="interactive-v3-editor-points">
-        ${points.map((point, index) => `<article data-v3-list="points" data-v3-index="${index}"${attr('data-v3-item-id', point.id)}><b>${index + 1}</b>${input('title', point.title, 'عنوان نقطه')}${text('text', point.text, 'توضیح نقطه')}<input data-v3-field="x" type="hidden" value="${escapeHtml(valueOf(point.x ?? 50))}"><input data-v3-field="y" type="hidden" value="${escapeHtml(valueOf(point.y ?? 50))}"></article>`).join('')}
+      <div class="interactive-v3-editor-hotspot-canvas" data-v3-hotspot-canvas="true">
+        ${hotspotMedia(payload.image || '')}
+        ${points.map((point, index) => `<article class="interactive-v3-editor-hotspot-point" data-v3-list="points" data-v3-index="${index}"${attr('data-v3-item-id', point.id)} style="--x:${escapeHtml(valueOf(point.x ?? 50))}%;--y:${escapeHtml(valueOf(point.y ?? 50))}%">
+          <b contenteditable="false">${index + 1}</b>
+          <div class="interactive-v3-editor-hotspot-card">
+            <button type="button" data-v3-item-remove="true" title="حذف نقطه">×</button>
+            ${input('title', point.title, 'عنوان نقطه')}
+            ${text('text', point.text, 'توضیح نقطه')}
+            <input data-v3-field="x" type="hidden" value="${escapeHtml(valueOf(point.x ?? 50))}">
+            <input data-v3-field="y" type="hidden" value="${escapeHtml(valueOf(point.y ?? 50))}">
+          </div>
+        </article>`).join('')}
       </div>
+      ${text('caption', payload.caption, 'کپشن تصویر')}
+      <small class="interactive-v3-editor-hotspot-hint">برای افزودن نقطه، روی محل مورد نظر در تصویر کلیک کنید.</small>
     </div>`
   }
 
@@ -128,7 +149,7 @@ function fieldValue(root: HTMLElement, name: string) {
 }
 
 function parseItems(root: HTMLElement, collection: keyof InteractiveV3Payload, media = true) {
-  return Array.from(root.querySelectorAll<HTMLElement>(`[data-v3-list="${CSS.escape(String(collection))}"]`)).slice(0, collection === 'authors' ? undefined : INTERACTIVE_V3_MAX_ITEMS).map((item, index) => {
+  return Array.from(root.querySelectorAll<HTMLElement>(`[data-v3-list="${CSS.escape(String(collection))}"]`)).slice(0, collection === 'authors' || collection === 'points' ? undefined : INTERACTIVE_V3_MAX_ITEMS).map((item, index) => {
     const get = (name: string) => queryValue(item, `[data-v3-field="${CSS.escape(name)}"]`)
     return {
       id: item.dataset.v3ItemId || `${String(collection)}-${index + 1}`,
@@ -196,8 +217,22 @@ export function appendInteractiveItemV3(block: BookBlockV2, collection: keyof In
   if (block.type !== 'interactive') return block
   const payload = { ...(block.payload || {}) } as InteractiveV3Payload
   const current = Array.isArray(payload[collection]) ? [...payload[collection] as InteractiveV3Item[]] : []
-  if (collection !== 'authors' && current.length >= INTERACTIVE_V3_MAX_ITEMS) return block
+  if (collection !== 'authors' && collection !== 'points' && current.length >= INTERACTIVE_V3_MAX_ITEMS) return block
   payload[collection] = [...current, blankItemForCollection(collection, current.length)] as any
+  return { ...block, payload }
+}
+
+export function appendHotspotPointV3(block: BookBlockV2, x: number, y: number): BookBlockV2 {
+  if (block.type !== 'interactive') return block
+  const payload = { ...(block.payload || {}) } as InteractiveV3Payload
+  const current = Array.isArray(payload.points) ? [...payload.points] : []
+  payload.points = [...current, {
+    id: `point-${Date.now()}-${current.length + 1}`,
+    x: Math.max(0, Math.min(100, Math.round(x * 100) / 100)),
+    y: Math.max(0, Math.min(100, Math.round(y * 100) / 100)),
+    title: '',
+    text: '',
+  }]
   return { ...block, payload }
 }
 
