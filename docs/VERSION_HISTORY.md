@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.677`
+نسخه فعلی فایل رسمی: `1.0.678`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,12 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.678 - Hotspot fixed editor text panel
+
+- Hotspot marker clicks now open the matching point editor in a fixed card area below the image.
+- Newly added points open the fixed text card immediately and focus the description field.
+- Edge points no longer place editable fields outside the editor canvas.
 
 ### 1.0.677 - Hotspot editor click-to-add fix
 

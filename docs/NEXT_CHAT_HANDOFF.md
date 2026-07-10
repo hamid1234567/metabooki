@@ -1,6 +1,6 @@
 # MetaBooki Next Chat Handoff
 
-Last reviewed version: `1.0.677`
+Last reviewed version: `1.0.678`
 
 Use this file as the first reference in a fresh Codex chat before making changes.
 
@@ -50,6 +50,7 @@ Use this file as the first reference in a fresh Codex chat before making changes
 - Reader page-engine placeholders now show a loading placeholder instead of the intentional empty-page message, preventing false empty pages while image-heavy pages are still loading.
 - Interactive V3 hotspot blocks now use the image itself as the editor click target, support unlimited add/remove hotspot points, and render reader points as small red plus markers with animated in-image popovers and a show/hide-all control.
 - Hotspot editor no longer uses the generic “add item” button; users add points only by clicking the image, and the new point opens a compact inline edit card.
+- Hotspot editor point text now uses a fixed card area below the image instead of floating at the marker, so edge points remain editable.
 
 ## Current Known Fragile Areas
 
