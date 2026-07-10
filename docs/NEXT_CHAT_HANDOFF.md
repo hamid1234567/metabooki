@@ -1,6 +1,6 @@
 # MetaBooki Next Chat Handoff
 
-Last reviewed version: `1.0.696`
+Last reviewed version: `1.0.697`
 
 Use this file as the first reference in a fresh Codex chat before making changes.
 
@@ -69,7 +69,7 @@ Use this file as the first reference in a fresh Codex chat before making changes
 - Interactive V3 tabs inherit book/page direction for tab ordering and media/text placement; the segmented track uses the site's frosted menu glass instead of flat gray.
 - Interactive V3 tab items must always have a visible title. Empty tab titles fall back to `تب n` in the reader/editor and are filled during editor save; this exception does not apply to other interactive kinds.
 
-- Interactive V3 author intro popovers now animate out with a reverse close animation, and author editor cards include a "پیدا کردن در متن" action that searches the editable book text for a matching author name.
+- Interactive V3 author intro popovers animate out with a reverse close animation. Author editor placeholders now support adding multiple names from a line-by-line list and reusing saved author profiles from previous author interactive blocks inside the same author placeholder.
 
 ## Current Known Fragile Areas
 

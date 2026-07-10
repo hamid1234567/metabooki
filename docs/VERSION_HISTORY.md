@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.696`
+نسخه فعلی فایل رسمی: `1.0.697`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,12 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.697 - Reusable author blocks
+
+- Author interactive editor placeholders now support adding multiple author names from a line-by-line list.
+- Saved author data from previous author interactive blocks is shown inside new author placeholders so users can reuse selected authors without recreating their image, role, and bio.
+- The earlier author text lookup action was removed in favor of explicit author reuse from saved interactive author data.
 
 ### 1.0.696 - Author intro exit and text lookup
 
