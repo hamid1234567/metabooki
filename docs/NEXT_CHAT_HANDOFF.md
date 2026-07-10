@@ -1,6 +1,6 @@
 # MetaBooki Next Chat Handoff
 
-Last reviewed version: `1.0.697`
+Last reviewed version: `1.0.698`
 
 Use this file as the first reference in a fresh Codex chat before making changes.
 
@@ -70,6 +70,7 @@ Use this file as the first reference in a fresh Codex chat before making changes
 - Interactive V3 tab items must always have a visible title. Empty tab titles fall back to `تب n` in the reader/editor and are filled during editor save; this exception does not apply to other interactive kinds.
 
 - Interactive V3 author intro popovers animate out with a reverse close animation. Author editor placeholders now support adding multiple names from a line-by-line list and reusing saved author profiles from previous author interactive blocks inside the same author placeholder.
+- Interactive V3 editor items now have up/down reorder controls next to delete, and selecting images from the book for an interactive item copies the source image caption into that item's empty description/caption field.
 
 ## Current Known Fragile Areas
 

@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.697`
+نسخه فعلی فایل رسمی: `1.0.698`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,12 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.698 - Interactive item ordering and image captions
+
+- Interactive V3 editor items now include up/down controls beside delete so users can reorder item-based interactive content while keeping each item's full data together.
+- Book-image selection for interactive media now carries the source image caption into the matching interactive item description field when that field is empty.
+- Gallery images receive the source caption as their caption, while tabs/accordion/timeline/storytelling receive it as description, flashcards as back text, authors as bio, and hotspot images as caption/text where applicable.
 
 ### 1.0.697 - Reusable author blocks
 
