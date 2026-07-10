@@ -956,6 +956,62 @@
   resize: vertical;
 }
 
+.interactive-v3-editor-hotspot-point {
+  width: 1.35rem;
+  height: 1.35rem;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: #dc2626;
+  box-shadow: 0 8px 22px rgba(220, 38, 38, 0.34), 0 0 0 3px rgba(255, 255, 255, 0.92);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.interactive-v3-editor-hotspot-point.is-open {
+  background: #1d4ed8;
+  box-shadow: 0 8px 22px rgba(37, 99, 235, 0.36), 0 0 0 3px rgba(255, 255, 255, 0.94);
+}
+
+.interactive-v3-editor-hotspot-cards {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.interactive-v3-editor-hotspot-card {
+  position: static;
+  width: 100%;
+  display: none;
+  transform: none;
+  gap: 0.45rem;
+  padding: 0.6rem;
+  border-radius: 12px;
+  background: rgba(248, 250, 252, 0.92);
+}
+
+.interactive-v3-editor-hotspot-card.is-open {
+  display: grid;
+}
+
+.interactive-v3-editor-hotspot-card header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.interactive-v3-editor-hotspot-card header b {
+  color: #1f2937;
+  font-size: 0.82rem;
+}
+
+.interactive-v3-editor-hotspot-card textarea {
+  min-height: 74px;
+}
+
 .interactive-v3-editor-hotspot-hint {
   color: #64748b;
   font-size: 0.82rem;
