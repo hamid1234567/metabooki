@@ -1470,6 +1470,10 @@ function RightPanelV2({
   onAiEnhance,
   aiBusy,
   aiMessage,
+  aiHistory,
+  onUseAiHistoryOutput,
+  onRefreshAiHistory,
+  canUseAiHistoryImage,
 }: {
   document: BookDocumentV2
   selectedBlock?: BookBlockV2 | null
@@ -1502,6 +1506,10 @@ function RightPanelV2({
   onAiEnhance: () => void
   aiBusy: boolean
   aiMessage: string
+  aiHistory: AiSavedOutput[]
+  onUseAiHistoryOutput: (output: AiSavedOutput) => void
+  onRefreshAiHistory: () => void
+  canUseAiHistoryImage: boolean
 }) {
   const tree = useMemo(() => resolveTocTreeV2(document.toc), [document.toc])
   const flatToc = useMemo(() => tocAsFlatListV2(document), [document])
@@ -1966,12 +1974,35 @@ function RightPanelV2({
           </div>
         )}
         {activePanel === 'ai' && (
-          <div className="editor-v2-action-grid">
+          <div className="editor-v2-action-grid editor-v2-ai-panel">
             <button type="button" disabled={aiBusy} onClick={onAiEnhance}>
               {aiBusy ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
               پیشنهاد ارتقای خوانایی
             </button>
             <p>{aiMessage || 'اگر بلوکی انتخاب شده باشد همان متن بررسی می‌شود؛ در غیر این صورت متن صفحه یا ابتدای سند مبنا قرار می‌گیرد.'}</p>
+            <div className="editor-v2-ai-history-head">
+              <strong>خروجی‌های ذخیره‌شده</strong>
+              <button type="button" onClick={onRefreshAiHistory}>تازه‌سازی</button>
+            </div>
+            <div className="editor-v2-ai-history-list">
+              {aiHistory.length ? aiHistory.map(output => {
+                const isImage = aiOutputKind(output) === 'image'
+                const imageUrl = aiOutputImageUrl(output)
+                return (
+                  <article key={output.id} className="editor-v2-ai-history-item">
+                    {isImage && imageUrl ? <img src={imageUrl} alt={aiOutputTitle(output)} loading="lazy" /> : <Sparkles size={16} />}
+                    <div>
+                      <b>{aiOutputTitle(output)}</b>
+                      <small>{new Date(output.created_at).toLocaleString('fa-IR')} · {output.action}</small>
+                      <p>{aiOutputPreview(output, 120)}</p>
+                    </div>
+                    <button type="button" disabled={isImage && !canUseAiHistoryImage} onClick={() => onUseAiHistoryOutput(output)}>
+                      {isImage ? 'استفاده از تصویر' : 'درج متن'}
+                    </button>
+                  </article>
+                )
+              }) : <p className="editor-v2-empty-panel">هنوز خروجی ذخیره‌شده‌ای برای هوش مصنوعی وجود ندارد.</p>}
+            </div>
           </div>
         )}
       </section>
@@ -3631,7 +3662,7 @@ export default function EditorV2Page() {
       }
       commitDocument(current => ({ ...current, assets: [...current.assets, asset] }), { dirtyAssetPageIndexes: [Number.isFinite(pageIndex) ? pageIndex : 0] })
       if (applyInteractiveMedia([{ url: result.imageUrl, caption: prompt.slice(0, 90) }], target)) {
-        recordAiUsage(result.usage)
+        if (!result.alreadyCharged) recordAiUsage(result.usage)
         setAiImageApproval(null)
         setMediaMessage('تصویر تولید و داخل بلوک تعاملی قرار گرفت.')
         void refreshAiHistory()
@@ -3856,6 +3887,10 @@ export default function EditorV2Page() {
         interactiveMediaTargetRef.current = mediaTarget
         setInteractiveMediaTargetActive(true)
         const action = interactiveAction.dataset.v3MediaAction
+        if (action === 'ai' && mediaTarget.dataset.v3AiBusy === 'true') {
+          setMediaMessage('این جایگاه در حال دریافت خروجی هوش مصنوعی است.')
+          return
+        }
         if (action === 'upload') {
           const input = window.document.createElement('input')
           input.type = 'file'
@@ -4164,12 +4199,51 @@ export default function EditorV2Page() {
       recordAiUsage(result.usage)
       setAiApproval(null)
       setAiMessage('پیشنهاد هوش مصنوعی به متن اضافه شد.')
+      void refreshAiHistory()
     } catch (error) {
       setAiMessage(error instanceof Error ? error.message : 'تولید پیشنهاد ناموفق بود.')
     } finally {
       setAiBusy(false)
     }
-  }, [aiApproval, commitDocument, document, recordAiUsage, selectedBlock?.printNumber, selectedBlockId, user])
+  }, [aiApproval, commitDocument, document, recordAiUsage, refreshAiHistory, selectedBlock?.printNumber, selectedBlockId, user])
+
+  const useAiHistoryOutput = useCallback((output: AiSavedOutput) => {
+    if (aiOutputKind(output) === 'image') {
+      const url = aiOutputImageUrl(output)
+      if (!url) {
+        setAiMessage('برای این خروجی تصویری آدرس قابل استفاده پیدا نشد.')
+        return
+      }
+      const target = interactiveMediaTargetRef.current
+      if (!target) {
+        setAiMessage('برای استفاده از تصویر، اول یک placeholder تصویر تعاملی را انتخاب کنید.')
+        return
+      }
+      if (applyInteractiveMedia([{ url, caption: aiOutputPreview(output, 120) }], target)) {
+        setAiMessage('تصویر ذخیره‌شده داخل placeholder تعاملی قرار گرفت.')
+      }
+      return
+    }
+    const text = normalizeBookTextV2(aiOutputUsableText(output))
+    if (!text) {
+      setAiMessage('متن قابل درج برای این خروجی پیدا نشد.')
+      return
+    }
+    const insertionBlockId = selectedBlockIdFromEditorTarget() || selectedBlockId
+    const anchorBlock = document ? findBlockInDocumentV2(document, insertionBlockId) : null
+    const dirtyPageIndex = findBlockPageIndexV2(document, insertionBlockId) ?? 0
+    const block: ParagraphBlockV2 = {
+      id: createV2Id('ai-output', Date.now()),
+      type: 'paragraph',
+      text,
+      anchor: createV2Id('ai-output-anchor', Date.now()),
+      printNumber: anchorBlock?.printNumber,
+    }
+    commitDocument(current => insertBlockAfterV2(current, insertionBlockId, block), { dirtyPageIndexes: [dirtyPageIndex] })
+    insertBlockIntoEditorDom(block, insertionBlockId)
+    setSelectedBlockId(block.id)
+    setAiMessage('خروجی متنی هوش مصنوعی داخل سند درج شد.')
+  }, [applyInteractiveMedia, commitDocument, document, insertBlockIntoEditorDom, selectedBlockId, selectedBlockIdFromEditorTarget])
 
   const rebuildFullToc = useCallback(async () => {
     if (!book || !document || !isUuidV2(book.id)) {
@@ -4343,6 +4417,10 @@ export default function EditorV2Page() {
           onAiEnhance={requestAiEnhance}
           aiBusy={aiBusy}
           aiMessage={aiMessage}
+          aiHistory={aiHistory}
+          onUseAiHistoryOutput={useAiHistoryOutput}
+          onRefreshAiHistory={() => { void refreshAiHistory() }}
+          canUseAiHistoryImage={Boolean(interactiveMediaTargetRef.current)}
         />
         <main
           className="editor-v2-canvas"
@@ -4437,6 +4515,29 @@ export default function EditorV2Page() {
             <footer>
               <Button variant="outline" onClick={() => setAiApproval(null)} disabled={aiBusy}>لغو</Button>
               <Button onClick={() => void runApprovedAi()} disabled={aiBusy}>{aiBusy ? 'در حال تولید...' : 'تایید و اجرا'}</Button>
+            </footer>
+          </section>
+        </div>
+      )}
+
+      {aiImageApproval && (
+        <div className="editor-v2-modal-backdrop">
+          <section className="editor-v2-ai-modal menu-glass-70" role="dialog" aria-modal="true">
+            <header>
+              <Wand2 size={20} />
+              <strong>تایید تولید تصویر</strong>
+            </header>
+            <p>درخواست تصویر بعد از تایید ارسال می‌شود و تا زمان دریافت نتیجه، همان placeholder در حالت لودینگ می‌ماند.</p>
+            <div className="editor-v2-ai-prompt-preview">{aiImageApproval.prompt}</div>
+            <div className="editor-v2-ai-cost">
+              <span><b>{aiImageApproval.estimate.usage.chargedCredits.toLocaleString('fa-IR')}</b><small>کردیت</small></span>
+              <span><b>{aiImageApproval.estimate.usage.chargedToman.toLocaleString('fa-IR')}</b><small>تومان</small></span>
+              <span><b>${aiImageApproval.estimate.usage.chargedUsd.toFixed(6)}</b><small>دلار</small></span>
+            </div>
+            <small>{aiImageApproval.estimate.provider} · {aiImageApproval.estimate.model}</small>
+            <footer>
+              <Button variant="outline" onClick={() => setAiImageApproval(null)} disabled={aiBusy}>لغو</Button>
+              <Button onClick={() => void runApprovedInteractiveImage()} disabled={aiBusy}>{aiBusy ? 'در حال تولید...' : 'تایید و تولید'}</Button>
             </footer>
           </section>
         </div>

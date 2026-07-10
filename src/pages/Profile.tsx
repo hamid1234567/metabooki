@@ -5,6 +5,7 @@ import { useI18n } from '@/lib/i18n'
 import { mockBooks, setMockUserPassword } from '@/lib/mock-data'
 import { supabase } from '@/integrations/supabase/client'
 import { Button } from '@/components/ui/button'
+import { aiOutputImageUrl, aiOutputKind, aiOutputPreview, aiOutputTitle, loadAiSavedOutputs, type AiSavedOutput } from '@/lib/ai-output-history'
 import {
   BookOpen,
   Camera,
@@ -12,10 +13,12 @@ import {
   Heart,
   Home,
   IdCard,
+  Image as ImageIcon,
   KeyRound,
   MapPin,
   Receipt,
   ShieldCheck,
+  Sparkles,
   User,
   Wallet,
 } from 'lucide-react'
@@ -97,6 +100,7 @@ export default function Profile() {
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const [aiOutputs, setAiOutputs] = useState<AiSavedOutput[]>([])
 
   const userId = user?.id || mock?.id || ''
 
@@ -176,6 +180,20 @@ export default function Profile() {
       alive = false
     }
   }, [isMock, mock, user])
+
+  useEffect(() => {
+    if (!user || isMock) {
+      setAiOutputs([])
+      return
+    }
+    let alive = true
+    loadAiSavedOutputs(user, 80)
+      .then(outputs => { if (alive) setAiOutputs(outputs) })
+      .catch(() => { if (alive) setAiOutputs([]) })
+    return () => {
+      alive = false
+    }
+  }, [isMock, user])
 
   const setField = (field: keyof ProfileForm, value: string | string[]) => {
     setProfile(current => ({ ...current, [field]: value }))
@@ -444,6 +462,36 @@ export default function Profile() {
           </div>
         </section>
       </div>
+
+      <section className="glass rounded-2xl p-6 mt-6">
+        <h2 className="font-bold text-lg mb-4 flex items-center gap-2"><Sparkles className="w-5 h-5 text-primary" />خروجی‌های هوش مصنوعی من</h2>
+        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3 max-h-[32rem] overflow-auto pr-1">
+          {aiOutputs.length ? aiOutputs.map(output => {
+            const isImage = aiOutputKind(output) === 'image'
+            const imageUrl = aiOutputImageUrl(output)
+            return (
+              <article key={output.id} className="rounded-2xl border bg-background/60 p-3 text-sm grid gap-2">
+                <div className="flex items-start gap-3">
+                  {isImage && imageUrl ? (
+                    <img src={imageUrl} alt={aiOutputTitle(output)} loading="lazy" className="w-16 h-16 rounded-xl object-cover border" />
+                  ) : (
+                    <span className="w-16 h-16 rounded-xl border bg-primary/10 grid place-items-center text-primary"><ImageIcon className="w-6 h-6" /></span>
+                  )}
+                  <div className="min-w-0">
+                    <b className="block truncate">{aiOutputTitle(output)}</b>
+                    <small className="block text-muted-foreground">{new Date(output.created_at).toLocaleString('fa-IR')}</small>
+                    <small className="block text-muted-foreground">نوع: {output.action}{output.book_id ? ` · کتاب: ${output.book_id}` : ''}{Number.isFinite(Number(output.page_index)) ? ` · صفحه ${Number(output.page_index) + 1}` : ''}</small>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground leading-6 line-clamp-3">{aiOutputPreview(output, 220) || 'بدون پیش‌نمایش متنی'}</p>
+                {isImage && imageUrl && <a href={imageUrl} target="_blank" rel="noreferrer" className="text-xs font-bold text-primary">باز کردن خروجی تصویر</a>}
+              </article>
+            )
+          }) : (
+            <p className="text-sm text-muted-foreground">هنوز خروجی ذخیره‌شده‌ای برای هوش مصنوعی وجود ندارد.</p>
+          )}
+        </div>
+      </section>
 
       <section className="glass rounded-2xl p-6 mt-6">
         <h2 className="font-bold text-lg mb-4 flex items-center gap-2"><Home className="w-5 h-5 text-primary" />کتاب‌های مرتبط با حساب</h2>

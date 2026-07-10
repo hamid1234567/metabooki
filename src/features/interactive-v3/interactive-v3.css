@@ -1504,6 +1504,35 @@
   cursor: pointer;
 }
 
+.interactive-v3-editor-media.is-ai-busy {
+  border-color: rgba(37, 99, 235, 0.58);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.08);
+}
+
+.interactive-v3-editor-media.is-ai-busy::after {
+  content: "در حال تولید...";
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.72);
+  color: #2563eb;
+  font-size: 0.78rem;
+  font-weight: 900;
+  backdrop-filter: blur(6px);
+}
+
+.interactive-v3-editor-media.is-ai-busy [data-v3-media-action="ai"] {
+  animation: interactive-v3-spin 900ms linear infinite;
+}
+
+@keyframes interactive-v3-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .interactive-v3-editor-options {
   display: grid;
   gap: 0.55rem;
