@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.699`
+نسخه فعلی فایل رسمی: `1.0.700`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,14 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.700 - Scoped AI history and KIE route tests
+
+- AI saved output loading now remains explicitly user-scoped and can be filtered to the current book from the Editor V2 AI panel.
+- Editor AI history image thumbnails are larger, making generated image reuse easier to inspect before insertion.
+- AI saved output RLS is reinforced with an idempotent migration so only the owning user can select their saved AI outputs.
+- Admin AI provider testing now reports text, image, and KIE audio routes separately, using the selected text/image/audio models.
+- KIE Qwen text-to-image requests remain aligned with the documented `createTask` payload using `model: qwen/text-to-image` and `input.image_size`.
 
 ### 1.0.699 - AI output history and interactive image approvals
 

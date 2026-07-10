@@ -8,12 +8,14 @@ import {
   maskApiKey,
   type AiGatewaySettings,
   type AiProviderConfig,
+  type AiProviderTestResult,
 } from '@/lib/ai-gateway'
 
 type ProviderTestState = {
   state: 'idle' | 'testing' | 'ok' | 'error'
   message: string
   sample?: string
+  routes?: AiProviderTestResult['routes']
 }
 
 type AiGatewaySettingsPanelProps = {
@@ -221,8 +223,9 @@ export function AiGatewaySettingsPanel({
                 <div className="mt-4 flex flex-wrap items-center gap-2">
                   <Button variant="outline" size="sm" onClick={() => onProviderTest(provider)} disabled={test.state === 'testing'} className="gap-2">
                     <RefreshCw className={`h-4 w-4 ${test.state === 'testing' ? 'animate-spin' : ''}`} />
-                    تست کلید
+                    تست مسیرها
                   </Button>
+                  {provider.id === 'kie' && <small className="text-xs text-muted-foreground">متن، تصویر و صدا با مدل‌های انتخاب‌شده تست می‌شوند.</small>}
                   {test.message && (
                     <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs ${test.state === 'ok' ? 'bg-success/15 text-success' : test.state === 'error' ? 'bg-destructive/15 text-destructive' : 'bg-muted text-muted-foreground'}`}>
                       {test.state === 'ok' ? <CheckCircle className="h-3.5 w-3.5" /> : test.state === 'error' ? <AlertTriangle className="h-3.5 w-3.5" /> : null}
@@ -230,6 +233,17 @@ export function AiGatewaySettingsPanel({
                     </span>
                   )}
                 </div>
+                {test.routes?.length ? (
+                  <div className="mt-3 grid gap-2">
+                    {test.routes.map(route => (
+                      <div key={`${route.kind}-${route.model}`} className={`rounded-xl border px-3 py-2 text-xs ${route.ok ? 'border-success/30 bg-success/10 text-success' : 'border-destructive/30 bg-destructive/10 text-destructive'}`}>
+                        <b className="uppercase">{route.kind}</b>
+                        <span className="mx-2" dir="ltr">{route.model}</span>
+                        <span>{route.ok ? 'OK' : route.message}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
                 {test.sample && <pre className="mt-3 max-h-24 overflow-auto rounded-xl bg-muted/50 p-3 text-xs leading-6 whitespace-pre-wrap" dir="auto">{test.sample}</pre>}
               </article>
             )

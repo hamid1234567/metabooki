@@ -65,14 +65,16 @@ export function aiOutputImageUrl(output: AiSavedOutput) {
   return String(output.content?.imageUrl || '')
 }
 
-export async function loadAiSavedOutputs(user: AppUser | null, limit = 40): Promise<AiSavedOutput[]> {
+export async function loadAiSavedOutputs(user: AppUser | null, limit = 40, bookId?: string | null): Promise<AiSavedOutput[]> {
   if (!user) return []
-  const { data, error } = await (supabase as any)
+  let query = (supabase as any)
     .from('ai_saved_outputs')
     .select('id,user_id,book_id,page_index,action,content,created_at')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
     .limit(limit)
+  if (bookId) query = query.eq('book_id', bookId)
+  const { data, error } = await query
   if (error) throw error
   return (data || []) as AiSavedOutput[]
 }

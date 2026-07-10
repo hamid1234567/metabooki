@@ -1,6 +1,6 @@
 # MetaBooki Next Chat Handoff
 
-Last reviewed version: `1.0.699`
+Last reviewed version: `1.0.700`
 
 Use this file as the first reference in a fresh Codex chat before making changes.
 
@@ -74,6 +74,8 @@ Use this file as the first reference in a fresh Codex chat before making changes
 - AI gateway outputs are now listed as reusable saved outputs in the Editor V2 AI panel and in the user profile, covering both text and image results across books.
 - Interactive image generation now requires an explicit cost approval, keeps the exact clicked placeholder in a loading/disabled state while waiting, and inserts the result back into that same placeholder.
 - Reusing saved AI outputs can insert text into the editor or place saved images into the active interactive media placeholder.
+- Editor V2 AI history remains user-scoped, now supports a current-book-only filter, and uses larger image thumbnails.
+- Admin AI provider tests now show separate route results for text, image, and KIE audio using the selected models; KIE Qwen text-to-image uses `/api/v1/jobs/createTask` with `input.image_size`.
 
 ## Current Known Fragile Areas
 

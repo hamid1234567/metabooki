@@ -465,6 +465,15 @@
   font-size: 0.82rem;
 }
 
+.editor-v2-ai-history-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #475569;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
 .editor-v2-ai-history-list {
   display: grid;
   gap: 0.55rem;
@@ -475,8 +484,8 @@
 
 .editor-v2-ai-history-item {
   display: grid;
-  grid-template-columns: 46px minmax(0, 1fr);
-  gap: 0.55rem;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 0.7rem;
   align-items: start;
   border: 1px solid #d4e1f4;
   border-radius: 1rem;
@@ -486,8 +495,8 @@
 
 .editor-v2-ai-history-item > img,
 .editor-v2-ai-history-item > svg {
-  width: 46px;
-  height: 46px;
+  width: 72px;
+  height: 72px;
   border-radius: 0.75rem;
   object-fit: cover;
   background: #eff6ff;

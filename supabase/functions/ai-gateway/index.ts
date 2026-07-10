@@ -80,6 +80,32 @@ function kieImageTaskInput(model: string, prompt: string, size: AiImageSize) {
   }
 }
 
+function kieAudioModelForProvider(provider: AiProviderConfig) {
+  const configured = String(provider.audio_model || '').trim()
+  if (configured === 'elevenlabs-v3' || configured === 'elevenlabs-turbo-v2-5') return 'elevenlabs/text-to-dialogue-v3'
+  if (configured === 'elevenlabs-v2') return 'elevenlabs/text-to-speech'
+  if (configured === 'elevenlabs-sfx') return 'elevenlabs/sound-effects'
+  return configured || 'elevenlabs/text-to-dialogue-v3'
+}
+
+function kieAudioTaskInput(model: string, text: string) {
+  if (model === 'elevenlabs/sound-effects') {
+    return { text }
+  }
+  if (model.includes('dialogue')) {
+    return {
+      dialogue: [{ text, voice: 'EkK5I93UQWFDigLMpZcX' }],
+      stability: 0.5,
+      language_code: 'fa',
+    }
+  }
+  return {
+    text,
+    voice_id: 'EkK5I93UQWFDigLMpZcX',
+    voice: 'EkK5I93UQWFDigLMpZcX',
+  }
+}
+
 function kieTextRoute(model: string) {
   const selected = String(model || '').trim() || 'gpt-5-5'
   if (selected === 'gpt-5-5' || selected === 'gpt-5-4') {
@@ -573,13 +599,56 @@ serve(async (req) => {
       }
       if (!provider.base_url || !provider.model) throw new Error('Base URL or model is missing')
 
-      const result = await callProvider(provider, 'Return exactly this Persian JSON: {"ok":true,"message":"اتصال برقرار است"}', 128)
+      const routeResults: Array<{ kind: string; ok: boolean; model: string; message: string; sample?: string }> = []
+      const runRoute = async (kind: string, model: string, runner: () => Promise<string>) => {
+        try {
+          const sample = await runner()
+          routeResults.push({ kind, ok: true, model, message: 'OK', sample })
+        } catch (error) {
+          routeResults.push({ kind, ok: false, model, message: error instanceof Error ? error.message : 'Route test failed' })
+        }
+      }
+
+      await runRoute('text', provider.model, async () => {
+        const result = await callProvider(provider, 'Return exactly this Persian JSON: {"ok":true,"message":"اتصال برقرار است"}', 128)
+        return result.text.slice(0, 300)
+      })
+
+      const imageModel = imageModelForProvider(provider)
+      if (provider.provider === 'kie' || provider.image_model) {
+        await runRoute('image', imageModel, async () => {
+          const result = await callImageProvider(provider, 'یک آیکون ساده آبی از یک کتاب باز روی پس‌زمینه سفید', '1024x1024')
+          return (result as any).imageUrl ? 'completed image response' : `task created: ${(result as any).taskId || 'pending'}`
+        })
+      }
+
+      if (provider.provider === 'kie') {
+        const audioModel = kieAudioModelForProvider(provider)
+        await runRoute('audio', audioModel, async () => {
+          const createRes = await fetch(`${kieBaseUrl(provider)}/api/v1/jobs/createTask`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${provider.api_key}` },
+            body: JSON.stringify({
+              model: audioModel,
+              input: kieAudioTaskInput(audioModel, 'سلام، این یک تست کوتاه اتصال صوتی متابوکی است.'),
+            }),
+          })
+          const created = await createRes.json().catch(() => ({}))
+          if (!createRes.ok) throw new Error(providerError(created, `KIE audio task failed (${createRes.status})`))
+          const taskId = extractKieTaskId(created)
+          if (!taskId) throw new Error(providerError(created, 'KIE audio did not return a task id'))
+          return `task created: ${taskId}`
+        })
+      }
+
+      const ok = routeResults.every(item => item.ok)
       return new Response(JSON.stringify({
-        ok: true,
+        ok,
         provider: provider.label || provider.provider,
         model: provider.model,
-        message: 'کلید و مدل با موفقیت پاسخ دادند.',
-        sample: result.text.slice(0, 300),
+        message: ok ? 'همه مسیرهای انتخاب‌شده با موفقیت پاسخ دادند.' : 'بعضی مسیرهای انتخاب‌شده خطا دارند.',
+        sample: routeResults.map(item => `${item.kind}: ${item.ok ? 'OK' : 'ERROR'} / ${item.model}${item.sample ? ` / ${item.sample}` : ` / ${item.message}`}`).join('\n'),
+        routes: routeResults,
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 

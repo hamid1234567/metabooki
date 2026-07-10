@@ -124,6 +124,7 @@ export interface AiProviderTestResult {
   model: string
   message: string
   sample?: string
+  routes?: Array<{ kind: string; ok: boolean; model: string; message: string; sample?: string }>
 }
 
 type AiImagePendingResult = AiImageEstimateResult & {
@@ -188,10 +189,9 @@ export const KIE_IMAGE_MODEL_OPTIONS: AiProviderImageModelOption[] = [
 ]
 
 export const KIE_AUDIO_MODEL_OPTIONS: AiProviderAudioModelOption[] = [
-  { id: 'elevenlabs-v3', label: 'ElevenLabs v3 TTS', baseCostUsd: 0.02, note: 'speech generation' },
-  { id: 'elevenlabs-v2', label: 'ElevenLabs v2 TTS', baseCostUsd: 0.018, note: 'stable speech generation' },
-  { id: 'elevenlabs-turbo-v2-5', label: 'ElevenLabs Turbo v2.5', baseCostUsd: 0.012, note: 'fast speech generation' },
-  { id: 'elevenlabs-sfx', label: 'ElevenLabs Sound Effects', baseCostUsd: 0.02, note: 'sound effects' },
+  { id: 'elevenlabs/text-to-dialogue-v3', label: 'ElevenLabs v3 Dialogue', baseCostUsd: 0.02, note: 'KIE createTask speech generation' },
+  { id: 'elevenlabs/text-to-speech', label: 'ElevenLabs Text to Speech', baseCostUsd: 0.018, note: 'KIE createTask speech generation' },
+  { id: 'elevenlabs/sound-effects', label: 'ElevenLabs Sound Effects', baseCostUsd: 0.02, note: 'KIE createTask sound effects' },
 ]
 
 export const defaultAiPromptSettings: AiPromptSettings = {
@@ -213,7 +213,7 @@ const defaultProviders: AiProviderConfig[] = [
   { id: 'gemini', label: 'Google Gemini', enabled: false, apiKey: '', baseUrl: 'https://generativelanguage.googleapis.com/v1beta', model: 'gemini-1.5-flash', inputCostPer1kUsd: 0.000075, outputCostPer1kUsd: 0.0003 },
   { id: 'anthropic', label: 'Anthropic Claude', enabled: false, apiKey: '', baseUrl: 'https://api.anthropic.com/v1', model: 'claude-3-haiku-20240307', inputCostPer1kUsd: 0.00025, outputCostPer1kUsd: 0.00125 },
   { id: 'custom', label: 'سرویس سفارشی OpenAI-compatible', enabled: false, apiKey: '', baseUrl: '', model: 'custom-model', imageModel: 'gpt-image-1', inputCostPer1kUsd: 0.00015, outputCostPer1kUsd: 0.0006 },
-  { id: 'kie', label: 'KIE.ai unified API', enabled: false, apiKey: '', baseUrl: 'https://api.kie.ai', model: 'gpt-5-5', imageModel: 'gpt-image-2-text-to-image', audioModel: 'elevenlabs-v3', inputCostPer1kUsd: 0.00127, outputCostPer1kUsd: 0.01 },
+  { id: 'kie', label: 'KIE.ai unified API', enabled: false, apiKey: '', baseUrl: 'https://api.kie.ai', model: 'gpt-5-5', imageModel: 'gpt-image-2-text-to-image', audioModel: 'elevenlabs/text-to-dialogue-v3', inputCostPer1kUsd: 0.00127, outputCostPer1kUsd: 0.01 },
 ]
 
 export const defaultAiGatewaySettings: AiGatewaySettings = {
@@ -226,6 +226,13 @@ export const defaultAiGatewaySettings: AiGatewaySettings = {
 
 function hasSupabaseConnection() {
   return Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_URL.startsWith('http'))
+}
+
+function normalizeKieAudioModel(model?: string) {
+  if (model === 'elevenlabs-v3' || model === 'elevenlabs-turbo-v2-5') return 'elevenlabs/text-to-dialogue-v3'
+  if (model === 'elevenlabs-v2') return 'elevenlabs/text-to-speech'
+  if (model === 'elevenlabs-sfx') return 'elevenlabs/sound-effects'
+  return model
 }
 
 async function gatewayError(error: unknown, fallback: string) {
@@ -258,10 +265,11 @@ function mergeAiGatewaySettings(settings: Partial<AiGatewaySettings> | null | un
   const incomingProviders = Array.isArray(settings?.providers) ? settings.providers : []
   const providers = defaultProviders.map(defaultProvider => {
     const incoming = incomingProviders.find(provider => provider.id === defaultProvider.id)
-    return incoming ? { ...defaultProvider, ...incoming } : defaultProvider
+    const merged = incoming ? { ...defaultProvider, ...incoming } : defaultProvider
+    return merged.id === 'kie' ? { ...merged, audioModel: normalizeKieAudioModel(merged.audioModel) } : merged
   })
   for (const provider of incomingProviders) {
-    if (!providers.some(item => item.id === provider.id)) providers.push(provider)
+    if (!providers.some(item => item.id === provider.id)) providers.push(provider.id === 'kie' ? { ...provider, audioModel: normalizeKieAudioModel(provider.audioModel) } : provider)
   }
   const activeProvider = settings?.activeProvider && providers.some(provider => provider.id === settings.activeProvider)
     ? settings.activeProvider

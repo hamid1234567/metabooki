@@ -1471,6 +1471,8 @@ function RightPanelV2({
   aiBusy,
   aiMessage,
   aiHistory,
+  aiHistoryBookOnly,
+  onAiHistoryBookOnlyChange,
   onUseAiHistoryOutput,
   onRefreshAiHistory,
   canUseAiHistoryImage,
@@ -1507,6 +1509,8 @@ function RightPanelV2({
   aiBusy: boolean
   aiMessage: string
   aiHistory: AiSavedOutput[]
+  aiHistoryBookOnly: boolean
+  onAiHistoryBookOnlyChange: (value: boolean) => void
   onUseAiHistoryOutput: (output: AiSavedOutput) => void
   onRefreshAiHistory: () => void
   canUseAiHistoryImage: boolean
@@ -1984,6 +1988,10 @@ function RightPanelV2({
               <strong>خروجی‌های ذخیره‌شده</strong>
               <button type="button" onClick={onRefreshAiHistory}>تازه‌سازی</button>
             </div>
+            <label className="editor-v2-ai-history-filter">
+              <input type="checkbox" checked={aiHistoryBookOnly} onChange={event => onAiHistoryBookOnlyChange(event.target.checked)} />
+              فقط همین کتاب
+            </label>
             <div className="editor-v2-ai-history-list">
               {aiHistory.length ? aiHistory.map(output => {
                 const isImage = aiOutputKind(output) === 'image'
@@ -2034,6 +2042,7 @@ export default function EditorV2Page() {
   const [aiBusy, setAiBusy] = useState(false)
   const [aiMessage, setAiMessage] = useState('')
   const [aiHistory, setAiHistory] = useState<AiSavedOutput[]>([])
+  const [aiHistoryBookOnly, setAiHistoryBookOnly] = useState(false)
   const [mediaMessage, setMediaMessage] = useState('')
   const [interactiveMediaTargetActive, setInteractiveMediaTargetActive] = useState(false)
   const [aiApproval, setAiApproval] = useState<AiApprovalV2 | null>(null)
@@ -2093,11 +2102,11 @@ export default function EditorV2Page() {
       return
     }
     try {
-      setAiHistory(await loadAiSavedOutputs(user, 60))
+      setAiHistory(await loadAiSavedOutputs(user, 60, aiHistoryBookOnly ? document?.sourceBookId : undefined))
     } catch {
       setAiHistory([])
     }
-  }, [user])
+  }, [aiHistoryBookOnly, document?.sourceBookId, user])
 
   const clearAutoSaveSchedule = useCallback((clearDeadline = true) => {
     if (autoSaveTimeoutRef.current) {
@@ -4418,6 +4427,8 @@ export default function EditorV2Page() {
           aiBusy={aiBusy}
           aiMessage={aiMessage}
           aiHistory={aiHistory}
+          aiHistoryBookOnly={aiHistoryBookOnly}
+          onAiHistoryBookOnlyChange={setAiHistoryBookOnly}
           onUseAiHistoryOutput={useAiHistoryOutput}
           onRefreshAiHistory={() => { void refreshAiHistory() }}
           canUseAiHistoryImage={Boolean(interactiveMediaTargetRef.current)}

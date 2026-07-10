@@ -5,7 +5,7 @@ import { mockUsers, mockBooks, CREDIT_VALUE_TOMAN, setCreditValue } from '@/lib/
 import { Shield, Users, Activity, BookOpen, DollarSign, Settings, Bug, MessageSquare, Eye, EyeOff, Trash2, Sparkles, KeyRound, Server, CheckCircle, AlertTriangle, RefreshCw, ExternalLink, Filter, Edit3, Mail, Receipt, Clock3, LibraryBig, Search, ShoppingCart, TrendingUp, Wallet, BarChart3, CreditCard, ArrowUpDown } from 'lucide-react'
 import { deleteComment, getAllComments, updateCommentStatus, type MockComment } from '@/lib/mock-comments'
 import { Button } from '@/components/ui/button'
-import { loadAiGatewaySettings, loadAiGatewaySettingsRemote, maskApiKey, saveAiGatewaySettings, testAiProvider, type AiGatewaySettings, type AiProviderConfig } from '@/lib/ai-gateway'
+import { loadAiGatewaySettings, loadAiGatewaySettingsRemote, maskApiKey, saveAiGatewaySettings, testAiProvider, type AiGatewaySettings, type AiProviderConfig, type AiProviderTestResult } from '@/lib/ai-gateway'
 import { useRoles } from '@/hooks/useRoles'
 import { supabase } from '@/integrations/supabase/client'
 import { emptyFilterSettings, loadBookFilterSettings, parseFilterLines, saveBookFilterSettings, type BookFilterSettings } from '@/lib/filter-settings'
@@ -25,7 +25,7 @@ export default function Admin() {
   const [aiSettings, setAiSettings] = useState<AiGatewaySettings>(() => loadAiGatewaySettings())
   const [connectionTest, setConnectionTest] = useState<'idle' | 'testing' | 'ok' | 'error'>('idle')
   const [connectionMessage, setConnectionMessage] = useState('')
-  const [aiProviderTests, setAiProviderTests] = useState<Record<string, { state: 'idle' | 'testing' | 'ok' | 'error'; message: string; sample?: string }>>({})
+  const [aiProviderTests, setAiProviderTests] = useState<Record<string, { state: 'idle' | 'testing' | 'ok' | 'error'; message: string; sample?: string; routes?: AiProviderTestResult['routes'] }>>({})
   const [filterSettings, setFilterSettings] = useState<BookFilterSettings>(emptyFilterSettings)
   const [filterDraft, setFilterDraft] = useState({ categories: '', tags: '', bookTypes: '' })
   const [adminUsers, setAdminUsers] = useState<AdminUserRow[]>([])
@@ -127,7 +127,7 @@ export default function Admin() {
       const result = await testAiProvider(provider)
       setAiProviderTests(current => ({
         ...current,
-        [provider.id]: { state: 'ok', message: `${result.message} (${result.provider} / ${result.model})`, sample: result.sample },
+        [provider.id]: { state: result.ok ? 'ok' : 'error', message: `${result.message} (${result.provider} / ${result.model})`, sample: result.sample, routes: result.routes },
       }))
     } catch (error) {
       setAiProviderTests(current => ({
