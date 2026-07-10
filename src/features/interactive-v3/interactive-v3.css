@@ -337,7 +337,88 @@
 }
 
 .interactive-v3-gallery-frame {
+  position: relative;
   min-width: 0;
+  overflow: hidden;
+  border-radius: 14px;
+  background: rgba(226, 232, 240, 0.55);
+}
+
+.interactive-v3-gallery-overlay-controls {
+  position: absolute;
+  z-index: 3;
+  inset-block-start: 0.65rem;
+  display: flex;
+  gap: 0.35rem;
+}
+
+.interactive-v3-gallery.is-rtl .interactive-v3-gallery-overlay-controls {
+  inset-inline-end: 0.65rem;
+}
+
+.interactive-v3-gallery.is-ltr .interactive-v3-gallery-overlay-controls {
+  inset-inline-start: 0.65rem;
+}
+
+.interactive-v3-gallery-track {
+  display: flex;
+  direction: ltr;
+  transition: transform 680ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.interactive-v3-gallery-slide {
+  position: relative;
+  flex: 0 0 100%;
+  margin: 0;
+}
+
+.interactive-v3-gallery-slide img {
+  width: 100%;
+  height: auto;
+  max-height: 420px;
+  object-fit: contain;
+  display: block;
+}
+
+.interactive-v3-gallery-slide figcaption {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  padding: 2rem 1rem 0.75rem;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0), rgba(15, 23, 42, 0.68));
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 750;
+  line-height: 1.7;
+  text-align: center;
+  text-shadow: 0 2px 10px rgba(15, 23, 42, 0.36);
+}
+
+.interactive-v3-gallery-actions {
+  position: relative;
+}
+
+.interactive-v3-gallery-timer,
+.interactive-v3-gallery-caption-toggle {
+  width: 2.1rem;
+  height: 2.1rem;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  color: #0f172a;
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+  backdrop-filter: blur(14px);
+}
+
+.interactive-v3-gallery-caption-toggle {
+  font-size: 1rem;
 }
 
 .interactive-v3-thumbs {
