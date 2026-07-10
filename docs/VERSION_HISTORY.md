@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.681`
+نسخه فعلی فایل رسمی: `1.0.682`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,12 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.682 - Interactive gallery carousel redesign
+
+- Gallery blocks now render as a rounded carousel with an image track, overlay caption, in-stage previous/next controls, and a pause/play control.
+- Gallery autoplay is enabled by default and advances every three seconds until the user pauses it.
+- Thumbnails now select the matching slide and scroll the thumbnail row into view instead of behaving like separate enlarged images.
 
 ### 1.0.681 - Interactive nav row placement
 
