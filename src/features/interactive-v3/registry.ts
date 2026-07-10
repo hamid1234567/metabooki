@@ -10,7 +10,7 @@ export const INTERACTIVE_V3_DEFINITIONS: InteractiveV3Definition[] = [
   { kind: 'timeline', label: 'تایم‌لاین', shortLabel: 'تایم‌لاین', icon: '○', allowsMedia: true, maxItems: INTERACTIVE_V3_MAX_ITEMS, itemCollection: 'events' },
   { kind: 'gallery', label: 'گالری اسلایدی', shortLabel: 'گالری', icon: '▧', allowsMedia: true, maxItems: INTERACTIVE_V3_MAX_ITEMS, itemCollection: 'images' },
   { kind: 'scrollytelling', label: 'استوری‌تلینگ', shortLabel: 'استوری', icon: '▣', allowsMedia: true, maxItems: INTERACTIVE_V3_MAX_ITEMS, itemCollection: 'steps' },
-  { kind: 'hotspot', label: 'هات‌اسپات', shortLabel: 'هات‌اسپات', icon: '+', allowsMedia: true, maxItems: INTERACTIVE_V3_MAX_ITEMS, itemCollection: 'points' },
+  { kind: 'hotspot', label: 'هات‌اسپات', shortLabel: 'هات‌اسپات', icon: '+', allowsMedia: true, maxItems: INTERACTIVE_V3_MAX_ITEMS },
   { kind: 'author', label: 'معرفی نویسنده', shortLabel: 'نویسنده', icon: '◎', allowsMedia: true, itemCollection: 'authors' },
 ]
 
@@ -36,7 +36,7 @@ export function createInteractivePayloadV3(kind: InteractiveV3Kind): Interactive
   if (kind === 'timeline') return { schema: 'interactive-v3', title: '', events: [item('event-1', { title: '', description: '', image: '' }), item('event-2', { title: '', description: '', image: '' })] }
   if (kind === 'gallery') return { schema: 'interactive-v3', title: '', images: [item('image-1', { image: '', caption: '' })] }
   if (kind === 'scrollytelling') return { schema: 'interactive-v3', title: '', steps: [item('step-1', { title: '', description: '', image: '' }), item('step-2', { title: '', description: '', image: '' })] }
-  if (kind === 'hotspot') return { schema: 'interactive-v3', title: '', image: '', caption: '', points: [item('point-1', { x: 50, y: 50, title: '', text: '' })] }
+  if (kind === 'hotspot') return { schema: 'interactive-v3', title: '', image: '', caption: '', points: [] }
   return { schema: 'interactive-v3', title: '', authors: [item('author-1', { name: '', role: '', bio: '', image: '' })] }
 }
 

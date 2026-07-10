@@ -784,6 +784,7 @@
   position: absolute;
   inset-block-end: 0.45rem;
   inset-inline-end: 0.45rem;
+  z-index: 12;
   display: flex;
   gap: 0.25rem;
   padding: 0.25rem;
@@ -832,10 +833,10 @@
 
 .interactive-v3-editor-hotspot-canvas {
   position: relative;
-  display: grid;
-  gap: 0.6rem;
-  overflow: visible;
+  display: block;
+  overflow: hidden;
   border-radius: 18px;
+  background: rgba(248, 250, 252, 0.86);
 }
 
 .interactive-v3-editor-hotspot-media {
@@ -847,7 +848,13 @@
 }
 
 .interactive-v3-editor-hotspot-media > span {
-  min-height: 260px;
+  min-height: 240px;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  color: #64748b;
+  font-size: 0.88rem;
+  text-align: center;
 }
 
 .interactive-v3-editor-hotspot-media img {
@@ -868,46 +875,85 @@
   transform: translate(-50%, -50%);
 }
 
-.interactive-v3-editor-hotspot-point > b {
-  width: 1.55rem;
-  height: 1.55rem;
+.interactive-v3-editor-hotspot-marker {
+  width: 1.35rem;
+  height: 1.35rem;
   display: grid;
   place-items: center;
+  padding: 0;
+  border: 0;
   border-radius: 999px;
   background: #dc2626;
   box-shadow: 0 8px 22px rgba(220, 38, 38, 0.34), 0 0 0 3px rgba(255, 255, 255, 0.92);
   color: #fff;
-  font-size: 0.76rem;
+  font-size: 0.7rem;
+  font-weight: 800;
   line-height: 1;
+  cursor: pointer;
 }
 
 .interactive-v3-editor-hotspot-card {
   position: absolute;
+  width: min(190px, 62vw);
+  display: none;
+  gap: 0.32rem;
+  padding: 0.42rem;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.16);
+}
+
+.interactive-v3-editor-hotspot-point.is-open .interactive-v3-editor-hotspot-card,
+.interactive-v3-editor-hotspot-point:focus-within .interactive-v3-editor-hotspot-card {
+  display: grid;
+}
+
+.interactive-v3-editor-hotspot-point.place-bottom .interactive-v3-editor-hotspot-card {
   inset-block-start: calc(100% + 8px);
   inset-inline-start: 50%;
-  width: min(250px, 72vw);
-  display: grid;
-  gap: 0.4rem;
-  padding: 0.58rem;
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.18);
   transform: translateX(-50%);
+}
+
+.interactive-v3-editor-hotspot-point.place-top .interactive-v3-editor-hotspot-card {
+  inset-block-end: calc(100% + 8px);
+  inset-inline-start: 50%;
+  transform: translateX(-50%);
+}
+
+.interactive-v3-editor-hotspot-point.place-right .interactive-v3-editor-hotspot-card {
+  inset-inline-start: calc(100% + 8px);
+  inset-block-start: -0.5rem;
+}
+
+.interactive-v3-editor-hotspot-point.place-left .interactive-v3-editor-hotspot-card {
+  inset-inline-end: calc(100% + 8px);
+  inset-block-start: -0.5rem;
 }
 
 .interactive-v3-editor-hotspot-card [data-v3-item-remove] {
   justify-self: end;
-  width: 1.65rem;
-  height: 1.65rem;
+  width: 1.35rem;
+  height: 1.35rem;
   padding: 0;
   border-radius: 999px;
+  border: 0;
   color: #b91c1c;
   background: rgba(220, 38, 38, 0.08);
 }
 
+.interactive-v3-editor-hotspot-card input,
 .interactive-v3-editor-hotspot-card textarea {
-  min-height: 68px;
+  min-height: 2rem;
+  padding: 0.36rem 0.45rem;
+  border-radius: 9px;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.interactive-v3-editor-hotspot-card textarea {
+  min-height: 46px;
+  resize: vertical;
 }
 
 .interactive-v3-editor-hotspot-hint {

@@ -3598,6 +3598,23 @@ export default function EditorV2Page() {
 
   const handleEditorSurfaceClick = useCallback((event: any) => {
     const target = event.target as HTMLElement
+    const hotspotPointToggle = target.closest<HTMLElement>('[data-v3-hotspot-point-toggle="true"]')
+    if (hotspotPointToggle) {
+      const point = hotspotPointToggle.closest<HTMLElement>('.interactive-v3-editor-hotspot-point')
+      const canvas = point?.closest<HTMLElement>('[data-v3-hotspot-canvas="true"]')
+      if (!point || !canvas) return
+      event.preventDefault()
+      event.stopPropagation()
+      const nextOpen = !point.classList.contains('is-open')
+      canvas.querySelectorAll<HTMLElement>('.interactive-v3-editor-hotspot-point.is-open').forEach(item => {
+        if (item !== point) item.classList.remove('is-open')
+      })
+      point.classList.toggle('is-open', nextOpen)
+      if (nextOpen) {
+        window.requestAnimationFrame(() => point.querySelector<HTMLInputElement | HTMLTextAreaElement>('input[data-v3-field="title"], textarea')?.focus())
+      }
+      return
+    }
     const hotspotCanvas = target.closest<HTMLElement>('[data-v3-hotspot-canvas="true"]')
     if (hotspotCanvas && !target.closest('[data-v3-media-action], input, textarea, button, .interactive-v3-editor-hotspot-card, .interactive-v3-editor-hotspot-point')) {
       const section = hotspotCanvas.closest<HTMLElement>('[data-v2-type="interactive"][data-block-id]')
@@ -3620,6 +3637,13 @@ export default function EditorV2Page() {
       const nextBlock = appendHotspotPointV3(parsed, x, y)
       pushEditorHistory()
       section.outerHTML = interactiveBlockToEditorHtmlV3(nextBlock)
+      const nextSection = pageElement?.querySelector<HTMLElement>(`[data-v2-type="interactive"][data-block-id="${CSS.escape(blockId)}"]`)
+      const nextPoints = Array.from(nextSection?.querySelectorAll<HTMLElement>('.interactive-v3-editor-hotspot-point') || [])
+      const newPoint = nextPoints[nextPoints.length - 1]
+      newPoint?.classList.add('is-open')
+      if (newPoint) {
+        window.requestAnimationFrame(() => newPoint.querySelector<HTMLInputElement | HTMLTextAreaElement>('input[data-v3-field="title"], textarea')?.focus())
+      }
       setSelectedBlockId(blockId)
       markEditorDirty(pageElement || section)
       markDirtyAssetPageFromNode(pageElement || section)

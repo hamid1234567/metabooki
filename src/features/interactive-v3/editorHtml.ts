@@ -36,7 +36,7 @@ function mediaTools(path: string, image = '') {
 
 function hotspotMedia(image = '') {
   return `<div class="interactive-v3-editor-media interactive-v3-editor-hotspot-media" data-v3-media="image">
-    ${image ? `<img src="${escapeHtml(image)}" alt="">` : '<span></span>'}
+    ${image ? `<img src="${escapeHtml(image)}" alt="">` : '<span>برای شروع، تصویر هات‌اسپات را انتخاب کنید</span>'}
     <div contenteditable="false" class="interactive-v3-editor-media-tools">
       <button type="button" data-v3-media-action="upload" title="آپلود تصویر">↑</button>
       <button type="button" data-v3-media-action="library" title="انتخاب از تصاویر کتاب">▧</button>
@@ -57,6 +57,15 @@ function itemShell(collection: keyof InteractiveV3Payload, index: number, item: 
 
 function limitedItems(payload: InteractiveV3Payload, collection: keyof InteractiveV3Payload, unlimited = false) {
   return normalizeInteractiveItemsV3(payload, collection, unlimited) as InteractiveV3Item[]
+}
+
+function hotspotPointPlacement(point: InteractiveV3Item) {
+  const x = Number(point.x)
+  const y = Number(point.y)
+  if (Number.isFinite(x) && x > 68) return 'place-left'
+  if (Number.isFinite(x) && x < 32) return 'place-right'
+  if (Number.isFinite(y) && y > 62) return 'place-top'
+  return 'place-bottom'
 }
 
 function editorItemsHtml(kind: InteractiveV3Kind, payload: InteractiveV3Payload) {
@@ -97,12 +106,12 @@ function editorItemsHtml(kind: InteractiveV3Kind, payload: InteractiveV3Payload)
   }
 
   if (kind === 'hotspot') {
-    const points = limitedItems(payload, 'points')
+    const points = limitedItems(payload, 'points', true)
     return `<div class="interactive-v3-editor-hotspot">
       <div class="interactive-v3-editor-hotspot-canvas" data-v3-hotspot-canvas="true">
         ${hotspotMedia(payload.image || '')}
-        ${points.map((point, index) => `<article class="interactive-v3-editor-hotspot-point" data-v3-list="points" data-v3-index="${index}"${attr('data-v3-item-id', point.id)} style="--x:${escapeHtml(valueOf(point.x ?? 50))}%;--y:${escapeHtml(valueOf(point.y ?? 50))}%">
-          <b contenteditable="false">${index + 1}</b>
+        ${points.map((point, index) => `<article class="interactive-v3-editor-hotspot-point ${hotspotPointPlacement(point)}" data-v3-list="points" data-v3-index="${index}"${attr('data-v3-item-id', point.id)} style="--x:${escapeHtml(valueOf(point.x ?? 50))}%;--y:${escapeHtml(valueOf(point.y ?? 50))}%">
+          <button type="button" class="interactive-v3-editor-hotspot-marker" data-v3-hotspot-point-toggle="true" contenteditable="false">${index + 1}</button>
           <div class="interactive-v3-editor-hotspot-card">
             <button type="button" data-v3-item-remove="true" title="حذف نقطه">×</button>
             ${input('title', point.title, 'عنوان نقطه')}
@@ -240,7 +249,7 @@ export function removeInteractiveItemV3(block: BookBlockV2, collection: keyof In
   if (block.type !== 'interactive') return block
   const payload = { ...(block.payload || {}) } as InteractiveV3Payload
   const current = Array.isArray(payload[collection]) ? [...payload[collection] as InteractiveV3Item[]] : []
-  if (current.length <= 1 || index < 0) return block
+  if ((collection !== 'points' && current.length <= 1) || index < 0) return block
   payload[collection] = current.filter((_, itemIndex) => itemIndex !== index) as any
   return { ...block, payload }
 }
