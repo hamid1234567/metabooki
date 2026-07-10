@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.680`
+نسخه فعلی فایل رسمی: `1.0.681`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,11 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.681 - Interactive nav row placement
+
+- Gallery, timeline, and storytelling previous/next controls now render together in a bottom action row instead of flanking the content.
+- Previous and next arrow glyphs were swapped to match the RTL reading flow and actual slide movement.
 
 ### 1.0.680 - Interactive nav arrow centering
 

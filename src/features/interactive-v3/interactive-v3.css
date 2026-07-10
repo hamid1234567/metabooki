@@ -272,13 +272,13 @@
 
 .interactive-v3-stage-wrap {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: 1fr;
   gap: 0.85rem;
   align-items: center;
 }
 
 .interactive-v3-side-nav,
-.interactive-v3-gallery-stage > button,
+.interactive-v3-nav-actions button,
 .interactive-v3-step-actions button {
   width: 2.25rem;
   height: 2.25rem;
@@ -300,10 +300,26 @@
 }
 
 .interactive-v3-side-nav:disabled,
-.interactive-v3-gallery-stage > button:disabled,
+.interactive-v3-nav-actions button:disabled,
 .interactive-v3-step-actions button:disabled {
   opacity: 0.4;
   cursor: default;
+}
+
+.interactive-v3-nav-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  direction: rtl;
+}
+
+.interactive-v3-nav-actions > span {
+  min-width: 3.5rem;
+  color: var(--interactive-v3-muted);
+  font-size: 0.82rem;
+  text-align: center;
 }
 
 .interactive-v3-counter {
@@ -315,7 +331,7 @@
 
 .interactive-v3-gallery-stage {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: 1fr;
   gap: 0.8rem;
   align-items: center;
 }
@@ -629,7 +645,7 @@
   }
 
   .interactive-v3-side-nav,
-  .interactive-v3-gallery-stage > button {
+  .interactive-v3-nav-actions button {
     justify-self: center;
   }
 }

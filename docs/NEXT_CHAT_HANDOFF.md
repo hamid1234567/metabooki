@@ -1,6 +1,6 @@
 # MetaBooki Next Chat Handoff
 
-Last reviewed version: `1.0.680`
+Last reviewed version: `1.0.681`
 
 Use this file as the first reference in a fresh Codex chat before making changes.
 
@@ -53,6 +53,7 @@ Use this file as the first reference in a fresh Codex chat before making changes
 - Hotspot editor point text now uses a fixed card area below the image instead of floating at the marker, so edge points remain editable.
 - Hotspot reader popovers are no longer clipped by the image canvas and use physical left/right placement so RTL pages do not push edge popovers off-screen; hotspot images now store an adjustable width percent.
 - Interactive V3 circular previous/next controls now center their arrow glyphs with grid alignment and LTR icon direction.
+- Interactive V3 gallery, timeline, and storytelling previous/next controls now sit together in a bottom action row, with RTL-appropriate arrow directions for previous/next movement.
 
 ## Current Known Fragile Areas
 

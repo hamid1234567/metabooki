@@ -22,10 +22,10 @@ export function StorytellingInteractiveV3({ block }: { block: InteractiveV3Block
         </div>
         <div className="interactive-v3-story-panel">
           <MediaTextCard key={current?.id || active} image={imageValue(current)} title={titleValue(current)} body={bodyValue(current)} index={active} />
-          <div className="interactive-v3-step-actions">
-            <button type="button" disabled={active === 0} onClick={() => setActive(value => Math.max(0, value - 1))}>‹</button>
+          <div className="interactive-v3-nav-actions interactive-v3-step-actions">
+            <button type="button" disabled={active === 0} aria-label="قبلی" onClick={() => setActive(value => Math.max(0, value - 1))}>›</button>
             <span>{active + 1} / {steps.length}</span>
-            <button type="button" disabled={active === steps.length - 1} onClick={() => setActive(value => Math.min(steps.length - 1, value + 1))}>›</button>
+            <button type="button" disabled={active === steps.length - 1} aria-label="بعدی" onClick={() => setActive(value => Math.min(steps.length - 1, value + 1))}>‹</button>
           </div>
         </div>
       </div>
