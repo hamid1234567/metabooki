@@ -238,13 +238,13 @@ export function AiGatewaySettingsPanel({
                 {test.routes?.length ? (
                   <div className="mt-3 grid gap-2">
                     {test.routes.map(route => (
-                      <div key={`${route.kind}-${route.model}`} className={`rounded-xl border px-3 py-2 text-xs ${route.ok ? 'border-success/30 bg-success/10 text-success' : 'border-destructive/30 bg-destructive/10 text-destructive'}`}>
+                      <div key={`${route.kind}-${route.model}`} className={`rounded-xl border px-3 py-2 text-xs ${route.skipped ? 'border-border bg-muted/35 text-muted-foreground' : route.ok ? 'border-success/30 bg-success/10 text-success' : 'border-destructive/30 bg-destructive/10 text-destructive'}`}>
                         <div className="flex flex-wrap items-center gap-2">
                           <b className="uppercase">{route.kind}</b>
                           <span dir="ltr">{route.model}</span>
-                          <span>{route.ok ? 'OK' : 'ERROR'}</span>
+                          <span>{route.skipped ? 'NOT REPORTED' : route.ok ? 'OK' : 'ERROR'}</span>
                         </div>
-                        <p className="mt-1 leading-5">{route.ok ? (route.sample || route.message || 'OK') : route.message}</p>
+                        <p className="mt-1 leading-5">{route.skipped ? route.message : route.ok ? (route.sample || route.message || 'OK') : route.message}</p>
                       </div>
                     ))}
                   </div>

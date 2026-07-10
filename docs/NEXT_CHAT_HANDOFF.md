@@ -1,6 +1,6 @@
 # MetaBooki Next Chat Handoff
 
-Last reviewed version: `1.0.701`
+Last reviewed version: `1.0.702`
 
 Use this file as the first reference in a fresh Codex chat before making changes.
 
@@ -77,6 +77,7 @@ Use this file as the first reference in a fresh Codex chat before making changes
 - Editor V2 AI history remains user-scoped, now supports a current-book-only filter, and uses larger image thumbnails.
 - Admin AI provider tests now show separate route results for text, image, and KIE audio using the selected models; KIE Qwen text-to-image uses `/api/v1/jobs/createTask` with `input.image_size`.
 - Admin AI provider test UI now creates fallback route rows when an older edge response lacks `routes`, so text/image/audio model rows remain visible instead of only showing the main model.
+- Missing fallback route rows now render as neutral `NOT REPORTED` instead of red errors; the old single-model success response is mapped to the text route.
 
 ## Current Known Fragile Areas
 

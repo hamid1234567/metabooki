@@ -18,6 +18,7 @@ type AiProviderTestRoute = NonNullable<AiProviderTestResult['routes']>[number]
 
 function normalizeProviderTestRoutes(provider: AiProviderConfig, result: AiProviderTestResult): AiProviderTestRoute[] {
   const routes = result.routes || []
+  const hasDetailedRoutes = routes.length > 0
   const expected = provider.id === 'kie'
     ? [
         { kind: 'text', model: provider.model },
@@ -30,11 +31,22 @@ function normalizeProviderTestRoutes(provider: AiProviderConfig, result: AiProvi
       ]
   return expected.map(item => {
     const reported = routes.find(route => route.kind === item.kind)
-    return reported || {
+    if (reported) return reported
+    if (!hasDetailedRoutes && item.kind === 'text') {
+      return {
+        kind: item.kind,
+        model: result.model || item.model,
+        ok: result.ok,
+        message: result.message,
+        sample: result.sample,
+      }
+    }
+    return {
       kind: item.kind,
       model: item.model,
       ok: false,
-      message: 'این مسیر از پاسخ تست گزارش نشد. Edge Function را دوباره deploy کنید.',
+      skipped: true,
+      message: 'این مسیر در پاسخ فعلی گزارش جداگانه ندارد.',
     }
   })
 }
@@ -154,7 +166,7 @@ export default function Admin() {
       const routeLabel = routes.map(route => `${route.kind}: ${route.model}`).join(' | ')
       setAiProviderTests(current => ({
         ...current,
-        [provider.id]: { state: routes.every(route => route.ok) ? 'ok' : 'error', message: `${result.message} (${result.provider})`, sample: result.sample, routes, routeLabel },
+        [provider.id]: { state: routes.every(route => route.ok || route.skipped) ? 'ok' : 'error', message: `${result.message} (${result.provider})`, sample: result.sample, routes, routeLabel },
       }))
     } catch (error) {
       setAiProviderTests(current => ({

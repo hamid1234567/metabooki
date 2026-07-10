@@ -124,7 +124,7 @@ export interface AiProviderTestResult {
   model: string
   message: string
   sample?: string
-  routes?: Array<{ kind: string; ok: boolean; model: string; message: string; sample?: string }>
+  routes?: Array<{ kind: string; ok: boolean; model: string; message: string; sample?: string; skipped?: boolean }>
 }
 
 type AiImagePendingResult = AiImageEstimateResult & {

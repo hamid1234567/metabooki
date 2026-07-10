@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.701`
+نسخه فعلی فایل رسمی: `1.0.702`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,11 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.702 - Softer AI route fallback states
+
+- Admin AI route fallback no longer marks image/audio as errors when an older single-model test response does not include detailed route results.
+- The old successful single-model response is mapped to the text route, while image/audio rows appear as neutral `NOT REPORTED` rows with their selected models.
 
 ### 1.0.701 - AI provider route report fallback
 
