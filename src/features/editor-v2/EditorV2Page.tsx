@@ -42,6 +42,18 @@ type AiApprovalV2 = {
   model: string
   pageText: string
 }
+type AiCalloutSuggestionV2 = {
+  id: string
+  suggestionType?: string
+  variant?: string
+  title?: string
+  text?: string
+  sourceQuote?: string
+  action?: string
+  reason?: string
+  importance?: string
+  placementHint?: string
+}
 
 type AiImageApprovalV2 = {
   target: HTMLElement
@@ -962,6 +974,28 @@ function plainTextFromBlockV2(block: BookBlockV2): string {
   return ''
 }
 
+function normalizeAiSourceTextV2(value: string) {
+  return normalizeBookTextV2(value).replace(/\s+/g, ' ').trim()
+}
+
+function findBlockIdBySourceQuoteV2(document: BookDocumentV2 | null, sourceQuote?: string) {
+  const quote = normalizeAiSourceTextV2(sourceQuote || '')
+  if (!document || quote.length < 4) return undefined
+  let found: string | undefined
+  const visit = (blocks: BookBlockV2[]) => {
+    for (const block of blocks) {
+      if (found) return
+      if (normalizeAiSourceTextV2(plainTextFromBlockV2(block)).includes(quote)) {
+        found = block.id
+        return
+      }
+      if (block.type === 'callout') visit(block.blocks)
+    }
+  }
+  document.pages.forEach(page => visit(page.blocks))
+  return found
+}
+
 type EditorMediaReferenceV2 = {
   key: string
   assetId?: string
@@ -1518,7 +1552,10 @@ function RightPanelV2({
   aiHistoryLoading,
   aiHistoryMessage,
   aiHistoryBookOnly,
+  aiCalloutSuggestions,
   onAiHistoryBookOnlyChange,
+  onApplyAiCalloutSuggestion,
+  onDismissAiCalloutSuggestion,
   onUseAiHistoryOutput,
   onRefreshAiHistory,
 }: {
@@ -1557,7 +1594,10 @@ function RightPanelV2({
   aiHistoryLoading: boolean
   aiHistoryMessage: string
   aiHistoryBookOnly: boolean
+  aiCalloutSuggestions: AiCalloutSuggestionV2[]
   onAiHistoryBookOnlyChange: (value: boolean) => void
+  onApplyAiCalloutSuggestion: (suggestion: AiCalloutSuggestionV2) => void
+  onDismissAiCalloutSuggestion: (suggestionId: string) => void
   onUseAiHistoryOutput: (output: AiSavedOutput) => void
   onRefreshAiHistory: () => void
 }) {
@@ -2030,6 +2070,26 @@ function RightPanelV2({
               پیشنهاد کال‌اوت از متن
             </button>
             <p>{aiMessage || 'متن انتخاب‌شده یا متن صفحه بررسی می‌شود؛ بعد از تایید هزینه، یک کال‌اوت پیشنهادی کنار متن اضافه می‌شود و متن اصلی تغییر نمی‌کند.'}</p>
+            {aiCalloutSuggestions.length > 0 && (
+              <div className="editor-v2-ai-suggestions">
+                <strong>پیشنهادهای قابل اعمال</strong>
+                {aiCalloutSuggestions.map(suggestion => (
+                  <article key={suggestion.id} className="editor-v2-ai-suggestion-item">
+                    <div>
+                      <b>{suggestion.title || suggestion.action || 'پیشنهاد ویرایش'}</b>
+                      <small>{suggestion.suggestionType === 'educational_callout' ? 'کال‌اوت آموزشی' : 'ویرایش و قالب‌بندی'} · اهمیت: {suggestion.importance || 'متوسط'}</small>
+                      {suggestion.sourceQuote && <p className="editor-v2-ai-source-quote">«{suggestion.sourceQuote}»</p>}
+                      {suggestion.action && <p>{suggestion.action}</p>}
+                      {suggestion.reason && <small>{suggestion.reason}</small>}
+                    </div>
+                    <div className="editor-v2-ai-suggestion-actions">
+                      <button type="button" onClick={() => onApplyAiCalloutSuggestion(suggestion)}>اعمال</button>
+                      <button type="button" onClick={() => onDismissAiCalloutSuggestion(suggestion.id)}>رد</button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
             <div className="editor-v2-ai-history-head">
               <strong>خروجی‌های ذخیره‌شده</strong>
               <button type="button" onClick={onRefreshAiHistory} disabled={aiHistoryLoading}>{aiHistoryLoading ? 'در حال خواندن...' : 'تازه‌سازی'}</button>
@@ -2095,6 +2155,7 @@ export default function EditorV2Page() {
   const [mediaMessage, setMediaMessage] = useState('')
   const [interactiveMediaTargetActive, setInteractiveMediaTargetActive] = useState(false)
   const [aiApproval, setAiApproval] = useState<AiApprovalV2 | null>(null)
+  const [aiCalloutSuggestions, setAiCalloutSuggestions] = useState<AiCalloutSuggestionV2[]>([])
   const [aiImageApproval, setAiImageApproval] = useState<AiImageApprovalV2 | null>(null)
   const [metadataOpen, setMetadataOpen] = useState(false)
   const [tocRebuilding, setTocRebuilding] = useState(false)
@@ -4296,44 +4357,110 @@ export default function EditorV2Page() {
     setAiMessage('در حال تولید پیشنهاد...')
     try {
       const result = await runAiThroughGateway({ action: 'callout_suggestions', bookTitle: document.title, pageText: aiApproval.pageText, bookId: document.sourceBookId, user })
-      const suggestion = result.content?.type === 'callout_suggestions' ? result.content.suggestions?.[0] : null
-      if (!suggestion) {
+      const suggestions = result.content?.type === 'callout_suggestions' && Array.isArray(result.content.suggestions)
+        ? result.content.suggestions.map((item, index) => ({ ...item, id: createV2Id('ai-suggestion', Date.now(), index) }))
+        : []
+      if (!suggestions.length) {
         recordAiUsage(result.usage)
         setAiApproval(null)
-        setAiMessage('هوش مصنوعی برای این متن کال‌اوت قوی و قابل پیشنهاد پیدا نکرد. خروجی در تاریخچه ذخیره شد.')
+        setAiCalloutSuggestions([])
+        setAiMessage('هوش مصنوعی برای این متن پیشنهاد کاربردی پیدا نکرد. خروجی در تاریخچه ذخیره شد.')
         void refreshAiHistory()
         return
       }
-      const variant = CALLOUT_VARIANTS_V2.includes((suggestion?.variant || '') as any) ? suggestion?.variant as (typeof CALLOUT_VARIANTS_V2)[number] : 'key'
-      const meta = CALLOUT_META_V2[variant]
-      const paragraph: ParagraphBlockV2 = {
-        id: createV2Id('ai-callout-text', Date.now()),
-        type: 'paragraph',
-        text: normalizeBookTextV2(suggestion?.text || result.text || aiApproval.pageText.slice(0, 600)),
-        anchor: createV2Id('ai-callout-text-anchor', Date.now()),
-      }
-      const callout: CalloutBlockV2 = {
-        id: createV2Id('ai-callout', Date.now()),
-        type: 'callout',
-        variant,
-        title: normalizeBookTextV2(suggestion?.title || meta.title),
-        icon: meta.icon,
-        anchor: createV2Id('ai-callout-anchor', Date.now()),
-        printNumber: selectedBlock?.printNumber,
-        blocks: [paragraph],
-      }
-      commitDocument(current => insertBlockAfterV2(current, selectedBlockId, callout))
-      setSelectedBlockId(callout.id)
       recordAiUsage(result.usage)
       setAiApproval(null)
-      setAiMessage('پیشنهاد هوش مصنوعی به متن اضافه شد.')
+      setAiCalloutSuggestions(suggestions)
+      setActivePanel('ai')
+      setAiMessage(`${suggestions.length.toLocaleString('fa-IR')} پیشنهاد آماده شد. هر مورد را جداگانه اعمال یا رد کنید.`)
       void refreshAiHistory()
     } catch (error) {
       setAiMessage(error instanceof Error ? error.message : 'تولید پیشنهاد ناموفق بود.')
     } finally {
       setAiBusy(false)
     }
-  }, [aiApproval, commitDocument, document, recordAiUsage, refreshAiHistory, selectedBlock?.printNumber, selectedBlockId, user])
+  }, [aiApproval, document, recordAiUsage, refreshAiHistory, user])
+
+  const applyBoldToSourceQuote = useCallback((sourceQuote?: string) => {
+    const quote = normalizeAiSourceTextV2(sourceQuote || '')
+    const root = editorSurfaceRef.current
+    if (!root || quote.length < 4) return false
+    const blocks = Array.from(root.querySelectorAll<HTMLElement>('[data-block-id]'))
+    for (const blockElement of blocks) {
+      if (!normalizeAiSourceTextV2(blockElement.innerText || blockElement.textContent || '').includes(quote)) continue
+      const walker = window.document.createTreeWalker(blockElement, NodeFilter.SHOW_TEXT)
+      let node = walker.nextNode() as Text | null
+      while (node) {
+        const nodeText = normalizeBookTextV2(node.nodeValue || '')
+        const index = nodeText.indexOf(quote)
+        if (index >= 0 && node.parentElement?.closest('strong,b') == null) {
+          pushEditorHistory()
+          const range = window.document.createRange()
+          range.setStart(node, index)
+          range.setEnd(node, index + quote.length)
+          const strong = window.document.createElement('strong')
+          strong.appendChild(range.extractContents())
+          range.insertNode(strong)
+          markEditorDirty(blockElement)
+          scheduleToolbarDocumentRefresh()
+          setSelectedBlockId(blockElement.dataset.blockId)
+          return true
+        }
+        node = walker.nextNode() as Text | null
+      }
+    }
+    return false
+  }, [markEditorDirty, pushEditorHistory, scheduleToolbarDocumentRefresh])
+
+  const applyAiCalloutSuggestion = useCallback((suggestion: AiCalloutSuggestionV2) => {
+    if (!document) return
+    const sourceBlockId = findBlockIdBySourceQuoteV2(document, suggestion.sourceQuote) || selectedBlockIdFromEditorTarget() || selectedBlockId
+    const action = normalizeBookTextV2(suggestion.action || '')
+    const isCallout = suggestion.suggestionType === 'educational_callout' || Boolean(suggestion.variant)
+    if (!isCallout && /(بولد|برجسته|bold)/i.test(action)) {
+      if (applyBoldToSourceQuote(suggestion.sourceQuote)) {
+        setAiCalloutSuggestions(current => current.filter(item => item.id !== suggestion.id))
+        setAiMessage('عبارت پیشنهادی برجسته شد.')
+      } else {
+        setAiMessage('متن دقیق پیشنهاد در ادیتور پیدا نشد؛ جای آن را انتخاب کنید و دوباره تلاش کنید.')
+      }
+      return
+    }
+    if (!isCallout) {
+      setAiMessage('این نوع پیشنهاد هنوز اجرای خودکار کامل ندارد. برای کال‌اوت‌ها و برجسته‌سازی، اعمال مستقیم فعال است.')
+      return
+    }
+    const variant = CALLOUT_VARIANTS_V2.includes((suggestion.variant || '') as any)
+      ? suggestion.variant as (typeof CALLOUT_VARIANTS_V2)[number]
+      : 'key'
+    const meta = CALLOUT_META_V2[variant]
+    const paragraph: ParagraphBlockV2 = {
+      id: createV2Id('ai-callout-text', Date.now()),
+      type: 'paragraph',
+      text: normalizeBookTextV2(suggestion.text || suggestion.sourceQuote || suggestion.action || ''),
+      anchor: createV2Id('ai-callout-text-anchor', Date.now()),
+    }
+    const callout: CalloutBlockV2 = {
+      id: createV2Id('ai-callout', Date.now()),
+      type: 'callout',
+      variant,
+      title: normalizeBookTextV2(suggestion.title || suggestion.action || meta.title),
+      icon: meta.icon,
+      anchor: createV2Id('ai-callout-anchor', Date.now()),
+      printNumber: findBlockInDocumentV2(document, sourceBlockId)?.printNumber,
+      blocks: [paragraph],
+    }
+    const dirtyPageIndex = findBlockPageIndexV2(document, sourceBlockId) ?? 0
+    commitDocument(current => insertBlockAfterV2(current, sourceBlockId, callout), { dirtyPageIndexes: [dirtyPageIndex] })
+    insertBlockIntoEditorDom(callout, sourceBlockId)
+    setSelectedBlockId(callout.id)
+    setAiCalloutSuggestions(current => current.filter(item => item.id !== suggestion.id))
+    setAiMessage('پیشنهاد کال‌اوت در ادیتور اعمال شد.')
+  }, [applyBoldToSourceQuote, commitDocument, document, insertBlockIntoEditorDom, selectedBlockId, selectedBlockIdFromEditorTarget])
+
+  const dismissAiCalloutSuggestion = useCallback((suggestionId: string) => {
+    setAiCalloutSuggestions(current => current.filter(item => item.id !== suggestionId))
+  }, [])
 
   const useAiHistoryOutput = useCallback((output: AiSavedOutput) => {
     if (aiOutputKind(output) === 'image') {
@@ -4571,7 +4698,10 @@ export default function EditorV2Page() {
           aiHistoryLoading={aiHistoryLoading}
           aiHistoryMessage={aiHistoryMessage}
           aiHistoryBookOnly={aiHistoryBookOnly}
+          aiCalloutSuggestions={aiCalloutSuggestions}
           onAiHistoryBookOnlyChange={setAiHistoryBookOnly}
+          onApplyAiCalloutSuggestion={applyAiCalloutSuggestion}
+          onDismissAiCalloutSuggestion={dismissAiCalloutSuggestion}
           onUseAiHistoryOutput={useAiHistoryOutput}
           onRefreshAiHistory={() => { void refreshAiHistory() }}
         />

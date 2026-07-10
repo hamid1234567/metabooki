@@ -8,6 +8,34 @@ const corsHeaders = {
 
 const DEFAULT_USD_TO_TOMAN = 170_000
 const DEFAULT_CHARGE_MULTIPLIER = 2
+const DEFAULT_CALLOUT_SUGGESTION_PROMPT = `به‌عنوان ویراستار حرفه‌ای کتاب دیجیتال، متن زیر را بررسی کن و پیشنهادهایی برای بهبود خوانایی، جذابیت بصری و یادگیری ارائه بده.
+
+اصول:
+
+* لحن، سبک و مقصود نویسنده را حفظ کن.
+* معنا، اطلاعات علمی، اعداد، اصطلاحات، نقل‌قول‌ها و منابع را تغییر نده.
+* متن جدیدی به نام نویسنده اضافه نکن.
+* از ویرایش و قالب‌بندی افراطی یا تزئینی خودداری کن.
+* فقط پیشنهادهایی را ارائه بده که واقعاً به فهم، توجه، یادگیری یا لذت خواندن کمک می‌کنند.
+
+دو نوع پیشنهاد ارائه بده:
+
+1. ویرایش و قالب‌بندی:
+مانند اصلاح نگارشی ضروری، شکستن پاراگراف طولانی، ایجاد تیتر یا زیرتیتر، تبدیل متن مناسب به فهرست، بولد یا برجسته‌کردن عبارات مهم، تغییر محدود رنگ، اندازه یا سبک نمایش متن.
+
+2. کال‌اوت آموزشی:
+بخش مناسبی از متن را بدون تغییر در کلمات آن، برای یکی از این کال‌اوت‌ها پیشنهاد بده:
+«نکته کلیدی»، «مکث و فکر»، «اشتباه رایج»، «جمله طلایی»، «عمیق‌تر بخوان»، «تمرین سریع»، «تعریف واژه»، «داده و منبع»، «یادداشت حاشیه‌ای».
+
+برای هر پیشنهاد دقیقاً این موارد را بنویس:
+
+* نوع پیشنهاد
+* متن دقیق انتخاب‌شده از متن اصلی
+* اقدام پیشنهادی
+* دلیل کوتاه
+* میزان اهمیت: زیاد، متوسط یا کم
+
+پیشنهادها را به ترتیب محل قرارگیری در متن فهرست کن. برای هر بخش فقط بهترین پیشنهاد را بده و از تکرار، شلوغ‌کردن صفحه و استفاده بیش‌ازحد از کال‌اوت‌ها خودداری کن. اگر بخشی نیاز به تغییر ندارد، پیشنهادی ارائه نده.`
 
 type AiProviderConfig = {
   provider: string
@@ -259,7 +287,10 @@ function providerError(json: any, fallback: string) {
 
 function promptSetting(settings: PromptSettings | null | undefined, key: string) {
   const value = settings?.[key]
-  return typeof value === 'string' ? value.trim() : ''
+  const trimmed = typeof value === 'string' ? value.trim() : ''
+  if (trimmed) return trimmed
+  if (key === 'readerCalloutSuggestions') return DEFAULT_CALLOUT_SUGGESTION_PROMPT
+  return ''
 }
 
 function appendSupplementalPrompt(prompt: string, additions: string[]) {
@@ -499,14 +530,15 @@ function safeActionPrompt(action: string, bookTitle: string, pageTitle: string |
   if (action === 'summary') return `${common}\nUse: {"type":"article","title":"...","lead":"...","sections":[{"heading":"...","paragraphs":["..."],"bullets":["..."]}]}\n\n${header}`
   if (action === 'explain') return `${common}\nUse: {"type":"article","title":"...","lead":"...","sections":[{"heading":"...","paragraphs":["..."],"bullets":["..."]}]}\nExplain deeply but only from the supplied text.\n\n${header}`
   if (action === 'callout_suggestions') return `${common}
-Act as an expert educational editor. Find only the fragments that are truly worth turning into visual callouts inside an interactive textbook.
-Do not summarize the whole page. Do not create a callout for ordinary filler text. Prefer sentences that contain a definition, warning, contrast, key mechanism, clinical/technical fact, exam-worthy point, surprising idea, practical instruction, or a common misconception.
-Every suggestion must be anchored to one exact short quote copied from the supplied page text in sourceQuote. If the text has no strong callout candidate, return {"type":"callout_suggestions","suggestions":[]}.
-Write the title in 2 to 7 words. Write the callout text in 1 or 2 compact sentences. The callout text should teach or highlight the point, not merely repeat sourceQuote.
-Choose variant by purpose: key for core ideas, question for reflection, warning for risks/mistakes, quote for memorable wording, deep for deeper explanation, practice for actions/exercises, glossary for terms, data for numbers/findings, margin for side notes.
-Allowed variants: key, question, warning, quote, deep, practice, glossary, data, margin.
-Use: {"type":"callout_suggestions","suggestions":[{"variant":"key","title":"...","text":"...","sourceQuote":"exact quote from page text","reason":"why this improves learning","placementHint":"after|before|replace-near-source"}]}
-Return 1 to 5 strong suggestions only, ordered from most useful to least useful.
+Return an actionable list of editorial suggestions for the editor UI.
+Every suggestion must be anchored to one exact short quote copied from the supplied page text in sourceQuote.
+Do not return prose outside JSON. Do not add authorial claims. If no useful suggestion exists, return {"type":"callout_suggestions","suggestions":[]}.
+Use suggestionType "formatting" for editing/layout/readability suggestions and "educational_callout" for callout suggestions.
+For educational_callout choose variant by purpose: key, question, warning, quote, deep, practice, glossary, data, margin.
+Use this exact JSON shape:
+{"type":"callout_suggestions","suggestions":[{"suggestionType":"formatting|educational_callout","variant":"key","title":"...","text":"...","sourceQuote":"exact quote from page text","action":"...","reason":"...","importance":"زیاد|متوسط|کم","placementHint":"after|before|replace-near-source"}]}
+For formatting suggestions, leave variant empty unless a callout is intended. Put the concrete editor action in action.
+Return 1 to 7 useful suggestions, ordered by their location in the original text.
 
 ${header}`
   return `${common}\nUser request: ${action}\n\n${header}`

@@ -11,7 +11,7 @@ export type AiStructuredContent =
   | { type: 'quiz'; question: string; options: string[]; correctIndex: number; explanation: string }
   | { type: 'timeline'; title: string; steps: Array<{ title: string; description: string }> }
   | { type: 'mindmap'; title: string; branches: Array<{ title: string; items: string[] }> }
-  | { type: 'callout_suggestions'; suggestions: Array<{ variant: string; title: string; text: string; sourceQuote: string; reason?: string }> }
+  | { type: 'callout_suggestions'; suggestions: Array<{ suggestionType?: string; variant?: string; title?: string; text?: string; sourceQuote: string; action?: string; reason?: string; importance?: string; placementHint?: string }> }
   | { type: 'article'; title: string; lead?: string; sections: Array<{ heading: string; paragraphs: string[]; bullets?: string[] }> }
 
 export interface AiProviderConfig {
@@ -173,6 +173,34 @@ export type AiProviderAudioModelOption = {
 
 export const DEFAULT_USD_TO_TOMAN = 170_000
 export const DEFAULT_AI_CHARGE_MULTIPLIER = 2
+export const DEFAULT_CALLOUT_SUGGESTION_PROMPT = `به‌عنوان ویراستار حرفه‌ای کتاب دیجیتال، متن زیر را بررسی کن و پیشنهادهایی برای بهبود خوانایی، جذابیت بصری و یادگیری ارائه بده.
+
+اصول:
+
+* لحن، سبک و مقصود نویسنده را حفظ کن.
+* معنا، اطلاعات علمی، اعداد، اصطلاحات، نقل‌قول‌ها و منابع را تغییر نده.
+* متن جدیدی به نام نویسنده اضافه نکن.
+* از ویرایش و قالب‌بندی افراطی یا تزئینی خودداری کن.
+* فقط پیشنهادهایی را ارائه بده که واقعاً به فهم، توجه، یادگیری یا لذت خواندن کمک می‌کنند.
+
+دو نوع پیشنهاد ارائه بده:
+
+1. ویرایش و قالب‌بندی:
+مانند اصلاح نگارشی ضروری، شکستن پاراگراف طولانی، ایجاد تیتر یا زیرتیتر، تبدیل متن مناسب به فهرست، بولد یا برجسته‌کردن عبارات مهم، تغییر محدود رنگ، اندازه یا سبک نمایش متن.
+
+2. کال‌اوت آموزشی:
+بخش مناسبی از متن را بدون تغییر در کلمات آن، برای یکی از این کال‌اوت‌ها پیشنهاد بده:
+«نکته کلیدی»، «مکث و فکر»، «اشتباه رایج»، «جمله طلایی»، «عمیق‌تر بخوان»، «تمرین سریع»، «تعریف واژه»، «داده و منبع»، «یادداشت حاشیه‌ای».
+
+برای هر پیشنهاد دقیقاً این موارد را بنویس:
+
+* نوع پیشنهاد
+* متن دقیق انتخاب‌شده از متن اصلی
+* اقدام پیشنهادی
+* دلیل کوتاه
+* میزان اهمیت: زیاد، متوسط یا کم
+
+پیشنهادها را به ترتیب محل قرارگیری در متن فهرست کن. برای هر بخش فقط بهترین پیشنهاد را بده و از تکرار، شلوغ‌کردن صفحه و استفاده بیش‌ازحد از کال‌اوت‌ها خودداری کن. اگر بخشی نیاز به تغییر ندارد، پیشنهادی ارائه نده.`
 
 export const KIE_TEXT_MODEL_OPTIONS: AiProviderModelOption[] = [
   { id: 'gpt-5-5', label: 'GPT 5.5 Response', inputCostPer1kUsd: 0.00127, outputCostPer1kUsd: 0.01, note: 'KIE /codex/v1/responses' },
@@ -221,7 +249,7 @@ export const defaultAiPromptSettings: AiPromptSettings = {
   readerMindmap: '',
   readerLearningPath: '',
   readerExplain: '',
-  readerCalloutSuggestions: '',
+  readerCalloutSuggestions: DEFAULT_CALLOUT_SUGGESTION_PROMPT,
 }
 
 const defaultProviders: AiProviderConfig[] = [
@@ -295,7 +323,11 @@ function mergeAiGatewaySettings(settings: Partial<AiGatewaySettings> | null | un
     usdToToman: Number(settings?.usdToToman || defaultAiGatewaySettings.usdToToman),
     chargeMultiplier: Number(settings?.chargeMultiplier || defaultAiGatewaySettings.chargeMultiplier),
     providers,
-    promptSettings: { ...defaultAiPromptSettings, ...(settings?.promptSettings || {}) },
+    promptSettings: {
+      ...defaultAiPromptSettings,
+      ...(settings?.promptSettings || {}),
+      readerCalloutSuggestions: String(settings?.promptSettings?.readerCalloutSuggestions || '').trim() || defaultAiPromptSettings.readerCalloutSuggestions,
+    },
   }
 }
 
