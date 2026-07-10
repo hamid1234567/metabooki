@@ -282,11 +282,21 @@
 .interactive-v3-step-actions button {
   width: 2.25rem;
   height: 2.25rem;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 2.25rem;
+  padding: 0;
   border: 1px solid rgba(148, 163, 184, 0.25);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.86);
   cursor: pointer;
   box-shadow: 0 12px 26px rgba(15, 23, 42, 0.08);
+  color: var(--interactive-v3-ink);
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  direction: ltr;
 }
 
 .interactive-v3-side-nav:disabled,
