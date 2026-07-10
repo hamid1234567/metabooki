@@ -371,7 +371,7 @@ export default function Reader() {
     return () => {
       alive = false
     }
-  }, [book?.id, book?.metadata?.editor_v2_page_engine, currentPage])
+  }, [book?.id, book?.metadata?.editor_v2_page_engine, (book?.pages?.[currentPage] as any)?.pageEnginePlaceholder, currentPage])
 
   const readerReturnTo = useMemo(() => {
     const raw = new URLSearchParams(location.search).get('returnTo') || ''
@@ -483,6 +483,7 @@ export default function Reader() {
     ? editorV2DocumentSource as BookDocumentV2
     : null
   const editorV2Page = editorV2Document?.pages?.find(item => item.index === currentPage) || editorV2Document?.pages?.[currentPage]
+  const isCurrentPageEnginePlaceholder = Boolean((page as any)?.pageEnginePlaceholder)
   const dir = book.language === 'fa' ? 'rtl' : 'ltr'
   const pageBackgroundUrl = page.background_url || book.metadata?.page_background_url
   const pageBackgroundAlpha = Number(page.background_alpha ?? book.metadata?.page_background_alpha ?? 0)
@@ -1490,6 +1491,8 @@ export default function Reader() {
           >
             {editorV2Page
               ? <BookRendererV2 document={editorV2Document || undefined} pages={[editorV2Page]} compact onInternalLink={goInternalEditorLink} />
+              : isCurrentPageEnginePlaceholder
+                ? <div className="reader-empty-page-placeholder reader-page-loading-placeholder"><span>در حال بارگذاری صفحه...</span></div>
               : pageHasVisibleLegacyContent(page.blocks)
                 ? page.blocks.map((block:any,i:number)=>renderBlock(block,i))
                 : <div className="reader-empty-page-placeholder"><span>این صفحه عمداً خالی گذاشته شده است.</span></div>}

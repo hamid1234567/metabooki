@@ -16,7 +16,8 @@
   min-width: 0;
 }
 
-.book-v2-empty-page {
+.book-v2-empty-page,
+.book-v2-page-loading {
   min-height: 48vh;
   display: grid;
   place-items: center;
@@ -29,7 +30,12 @@
   text-align: center;
 }
 
-.book-v2-empty-page span {
+.book-v2-page-loading {
+  color: hsl(215 28% 48% / 0.62);
+}
+
+.book-v2-empty-page span,
+.book-v2-page-loading span {
   font-weight: 850;
   letter-spacing: 0;
 }

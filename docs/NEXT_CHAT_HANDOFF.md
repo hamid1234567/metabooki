@@ -1,6 +1,6 @@
 # MetaBooki Next Chat Handoff
 
-Last reviewed version: `1.0.674`
+Last reviewed version: `1.0.675`
 
 Use this file as the first reference in a fresh Codex chat before making changes.
 
@@ -47,6 +47,7 @@ Use this file as the first reference in a fresh Codex chat before making changes
 - Interactive V3 reader blocks now render without an outer visible frame, use smaller typography, top-align text beside images, animate item changes, and render tabs with a dedicated reader component.
 - Interactive V3 reader direction now comes from the first strong character of actual entered item text; if an interactive block has no text/title, it inherits the book/page direction instead of forcing LTR.
 - Editor V2 now allows removing an inserted Interactive V3 block from the editor canvas.
+- Reader page-engine placeholders now show a loading placeholder instead of the intentional empty-page message, preventing false empty pages while image-heavy pages are still loading.
 
 ## Current Known Fragile Areas
 

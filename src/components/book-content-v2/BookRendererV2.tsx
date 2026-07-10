@@ -168,7 +168,16 @@ function blockHasVisibleContentV2(block: BookBlockV2): boolean {
 }
 
 function pageHasVisibleContentV2(page: BookPageV2) {
+  if ((page as any).pageEnginePlaceholder) return true
   return page.blocks.some(blockHasVisibleContentV2)
+}
+
+function PageEngineLoadingV2() {
+  return (
+    <div className="book-v2-page-loading" aria-label="در حال بارگذاری صفحه">
+      <span>در حال بارگذاری صفحه...</span>
+    </div>
+  )
 }
 
 function EmptyBookPageV2() {
@@ -399,7 +408,7 @@ export function BookRendererV2({ document, pages, blocks, compact = false, edita
       {visiblePages.map((page, index) => (
         <section key={page.id} className="book-v2-page" data-page-index={page.index} data-print-page={page.printNumber ?? ''}>
           {index > 0 && <PageBreakV2 previous={visiblePages[index - 1]} next={page} />}
-          {pageHasVisibleContentV2(page) ? renderBlocks(page.blocks, options) : <EmptyBookPageV2 />}
+          {(page as any).pageEnginePlaceholder ? <PageEngineLoadingV2 /> : pageHasVisibleContentV2(page) ? renderBlocks(page.blocks, options) : <EmptyBookPageV2 />}
         </section>
       ))}
       {hoverPreview}

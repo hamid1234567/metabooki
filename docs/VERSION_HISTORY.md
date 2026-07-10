@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.674`
+نسخه فعلی فایل رسمی: `1.0.675`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,12 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.675 - Reader page-engine loading placeholder
+
+- Reader no longer shows the intentional empty-page message while a page-engine page is still a loading placeholder.
+- BookRenderer V2 now treats `pageEnginePlaceholder` pages as loading pages, not empty content pages.
+- Page-engine window loading in Reader reruns when the current placeholder state changes, reducing cases where navigation was needed to refresh image-heavy pages.
 
 ### 1.0.674 - Interactive V3 inherited direction
 
