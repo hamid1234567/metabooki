@@ -225,7 +225,7 @@ export function AiGatewaySettingsPanel({
                     <RefreshCw className={`h-4 w-4 ${test.state === 'testing' ? 'animate-spin' : ''}`} />
                     تست مسیرها
                   </Button>
-                  {provider.id === 'kie' && <small className="text-xs text-muted-foreground">متن، تصویر و صدا با مدل‌های انتخاب‌شده تست می‌شوند.</small>}
+                  {provider.id === 'kie' && <small className="text-xs text-muted-foreground">متن، تصویر و صدا با مدل‌های انتخاب‌شده تست می‌شوند و ممکن است task آزمایشی بسازند.</small>}
                   {test.message && (
                     <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs ${test.state === 'ok' ? 'bg-success/15 text-success' : test.state === 'error' ? 'bg-destructive/15 text-destructive' : 'bg-muted text-muted-foreground'}`}>
                       {test.state === 'ok' ? <CheckCircle className="h-3.5 w-3.5" /> : test.state === 'error' ? <AlertTriangle className="h-3.5 w-3.5" /> : null}
