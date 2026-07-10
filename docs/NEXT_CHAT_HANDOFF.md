@@ -1,6 +1,6 @@
 # MetaBooki Next Chat Handoff
 
-Last reviewed version: `1.0.672`
+Last reviewed version: `1.0.673`
 
 Use this file as the first reference in a fresh Codex chat before making changes.
 
@@ -43,6 +43,9 @@ Use this file as the first reference in a fresh Codex chat before making changes
 - Page-based save payload was reduced from multi-MB full-book style payloads.
 - Supabase `ON CONFLICT DO UPDATE command cannot affect row a second time` was handled by deduping page/search/asset rows before upsert.
 - Reader route and local server were checked at `http://localhost:5173/`.
+- Interactive V3 media selection now uses the shared editor book-image/reference media list and modal, supports multi-select for interactive placeholders, and uploads multiple interactive images after client-side compression.
+- Interactive V3 reader blocks now render without an outer visible frame, use smaller typography, top-align text beside images, animate item changes, and render tabs with a dedicated reader component.
+- Editor V2 now allows removing an inserted Interactive V3 block from the editor canvas.
 
 ## Current Known Fragile Areas
 

@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.672`
+نسخه فعلی فایل رسمی: `1.0.673`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,13 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.673 - Interactive V3 editor and reader polish
+
+- Interactive image selection now reuses the editor media/reference image list and shared book-image modal, with multi-select support for interactive placeholders.
+- Interactive uploads accept multiple files, compress oversized images before server upload, and notify the user when compression happens.
+- Interactive blocks can be removed from Editor V2, empty interactive titles stay hidden in the reader, and tabs now render with their own reader component.
+- Reader-side interactive blocks now sit transparently in the book flow, use smaller typography, top-align text beside images, and animate item transitions.
 
 ### 1.0.672 - prevent route preload refresh loops
 
