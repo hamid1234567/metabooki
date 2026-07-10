@@ -7,10 +7,11 @@ import { getBook } from '@/lib/book-repository'
 import { notifyPublisherBookChanged, updatePublisherBook, type PublisherBook } from '@/lib/publisher-books'
 import { openReaderPreview } from '@/lib/app-routes'
 import { supabase } from '@/integrations/supabase/client'
-import { estimateAiTextUsage, generateAiImageThroughGateway, runAiThroughGateway, type RunAiResult } from '@/lib/ai-gateway'
+import { estimateAiImageGeneration, estimateAiTextUsage, generateAiImageThroughGateway, runAiThroughGateway, type AiImageEstimateResult, type RunAiResult } from '@/lib/ai-gateway'
 import { useAuthContext } from '@/lib/auth-context'
 import { useCredits } from '@/hooks/useCredits'
 import { creditsBus } from '@/lib/credits-bus'
+import { aiOutputImageUrl, aiOutputKind, aiOutputPreview, aiOutputTitle, aiOutputUsableText, loadAiSavedOutputs, type AiSavedOutput } from '@/lib/ai-output-history'
 import { buildTocFromHeadingsV2, cleanImageCaptionV2, createV2Id, documentV2ToConfirmedToc, documentV2ToLegacyPages, legacyBookToDocumentV2, mergeLoadedPagesTocV2, normalizeBookTextV2, resolveTocTreeV2, textDirectionV2, tocAsFlatListV2, type BookBlockV2, type BookDocumentV2, type BookInlineV2, type BookTocItemV2, type CalloutBlockV2, type ParagraphBlockV2 } from '@/lib/book-document-v2'
 import { backfillPageEngineForBook, isUuidV2, loadPageEngineWindow, rebuildPageEngineToc, savePageEngineDocument } from '@/lib/page-content-engine'
 import { bookDisplayTextHtml, bookSearchIncludes, isBookLtrRunText, type PrintPageValue } from '@/lib/book-content'
@@ -40,6 +41,14 @@ type AiApprovalV2 = {
   provider: string
   model: string
   pageText: string
+}
+
+type AiImageApprovalV2 = {
+  target: HTMLElement
+  prompt: string
+  pageIndex?: number
+  printNumber?: PrintPageValue
+  estimate: AiImageEstimateResult
 }
 
 type EditorActiveReferenceV2 = {
@@ -1993,9 +2002,11 @@ export default function EditorV2Page() {
   const [dirtyRevision, setDirtyRevision] = useState(0)
   const [aiBusy, setAiBusy] = useState(false)
   const [aiMessage, setAiMessage] = useState('')
+  const [aiHistory, setAiHistory] = useState<AiSavedOutput[]>([])
   const [mediaMessage, setMediaMessage] = useState('')
   const [interactiveMediaTargetActive, setInteractiveMediaTargetActive] = useState(false)
   const [aiApproval, setAiApproval] = useState<AiApprovalV2 | null>(null)
+  const [aiImageApproval, setAiImageApproval] = useState<AiImageApprovalV2 | null>(null)
   const [metadataOpen, setMetadataOpen] = useState(false)
   const [tocRebuilding, setTocRebuilding] = useState(false)
   const canvasRef = useRef<HTMLDivElement | null>(null)
@@ -2045,6 +2056,18 @@ export default function EditorV2Page() {
     creditsBus.emit(after)
   }, [creditBalance])
 
+  const refreshAiHistory = useCallback(async () => {
+    if (!user) {
+      setAiHistory([])
+      return
+    }
+    try {
+      setAiHistory(await loadAiSavedOutputs(user, 60))
+    } catch {
+      setAiHistory([])
+    }
+  }, [user])
+
   const clearAutoSaveSchedule = useCallback((clearDeadline = true) => {
     if (autoSaveTimeoutRef.current) {
       window.clearTimeout(autoSaveTimeoutRef.current)
@@ -2064,6 +2087,10 @@ export default function EditorV2Page() {
     if (saveIdleTimerRef.current) window.clearTimeout(saveIdleTimerRef.current)
     clearAutoSaveSchedule()
   }, [clearAutoSaveSchedule])
+
+  useEffect(() => {
+    void refreshAiHistory()
+  }, [refreshAiHistory])
 
   useEffect(() => {
     if (!document || !editorSurfaceRef.current) return
@@ -3475,8 +3502,8 @@ export default function EditorV2Page() {
     }
   }, [commitDocument, document, insertBlockIntoEditorDom, recordAiUsage, selectedBlockId, selectedBlockIdFromEditorTarget, user])
 
-  const applyInteractiveMedia = useCallback((media: InteractiveV3MediaInput[]) => {
-    const target = interactiveMediaTargetRef.current
+  const applyInteractiveMedia = useCallback((media: InteractiveV3MediaInput[], explicitTarget?: HTMLElement | null) => {
+    const target = explicitTarget || interactiveMediaTargetRef.current
     const cleanMedia = media.filter(item => item.url)
     if (!target || !cleanMedia.length) return false
     const section = target.closest<HTMLElement>('[data-v2-type="interactive"][data-block-id]')
@@ -3548,6 +3575,7 @@ export default function EditorV2Page() {
   }, [applyInteractiveMedia, commitDocument, document?.pages, document?.sourceBookId, id, user?.id])
 
   const generateInteractiveMediaImage = useCallback(async (target: HTMLElement) => {
+    if (target.dataset.v3AiBusy === 'true') return
     const item = target.closest<HTMLElement>('[data-v3-list], .interactive-v3-editor-hotspot, .interactive-v3-editor')
     const prompt = Array.from(item?.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('input, textarea') || [])
       .map(input => normalizeBookTextV2(input.value))
@@ -3560,6 +3588,29 @@ export default function EditorV2Page() {
     }
     const pageIndex = Number(target.closest<HTMLElement>('.editor-v2-flow-page')?.dataset.pageIndex)
     const page = document?.pages.find(item => item.index === pageIndex)
+    setMediaMessage('در حال برآورد هزینه تولید تصویر...')
+    try {
+      const estimate = await estimateAiImageGeneration({
+        prompt,
+        purpose: 'interactive',
+        bookId: document?.sourceBookId,
+        pageIndex: page?.index,
+        user,
+      })
+      setAiImageApproval({ target, prompt, pageIndex: page?.index, printNumber: page?.printNumber, estimate })
+      setMediaMessage('هزینه تولید تصویر برآورد شد؛ برای ارسال درخواست تایید کنید.')
+    } catch (error) {
+      setMediaMessage(error instanceof Error ? error.message : 'برآورد هزینه تولید تصویر ناموفق بود.')
+    }
+  }, [document?.pages, document?.sourceBookId, user])
+
+  const runApprovedInteractiveImage = useCallback(async () => {
+    if (!aiImageApproval) return
+    const { target, prompt, pageIndex, printNumber } = aiImageApproval
+    if (target.dataset.v3AiBusy === 'true') return
+    target.dataset.v3AiBusy = 'true'
+    target.classList.add('is-ai-busy')
+    target.querySelectorAll<HTMLButtonElement>('button').forEach(button => { button.disabled = true })
     setAiBusy(true)
     setMediaMessage('در حال تولید تصویر برای آیتم تعاملی...')
     try {
@@ -3567,7 +3618,7 @@ export default function EditorV2Page() {
         prompt,
         purpose: 'interactive',
         bookId: document?.sourceBookId,
-        pageIndex: page?.index,
+        pageIndex,
         user,
       })
       const asset = {
@@ -3575,20 +3626,25 @@ export default function EditorV2Page() {
         type: 'image' as const,
         url: result.imageUrl,
         caption: prompt.slice(0, 90),
-        printNumber: page?.printNumber,
+        printNumber,
         status: 'ready' as const,
       }
       commitDocument(current => ({ ...current, assets: [...current.assets, asset] }), { dirtyAssetPageIndexes: [Number.isFinite(pageIndex) ? pageIndex : 0] })
-      if (applyInteractiveMedia([{ url: result.imageUrl }])) {
+      if (applyInteractiveMedia([{ url: result.imageUrl, caption: prompt.slice(0, 90) }], target)) {
         recordAiUsage(result.usage)
+        setAiImageApproval(null)
         setMediaMessage('تصویر تولید و داخل بلوک تعاملی قرار گرفت.')
+        void refreshAiHistory()
       }
     } catch (error) {
       setMediaMessage(error instanceof Error ? error.message : 'تولید تصویر برای آیتم تعاملی ناموفق بود.')
     } finally {
+      target.dataset.v3AiBusy = ''
+      target.classList.remove('is-ai-busy')
+      target.querySelectorAll<HTMLButtonElement>('button').forEach(button => { button.disabled = false })
       setAiBusy(false)
     }
-  }, [applyInteractiveMedia, commitDocument, document?.pages, document?.sourceBookId, recordAiUsage, user])
+  }, [aiImageApproval, applyInteractiveMedia, commitDocument, document?.sourceBookId, recordAiUsage, refreshAiHistory, user])
 
   const resizeImageBlock = useCallback((blockId: string, widthPercent: number) => {
     const dirtyPageIndex = findBlockPageIndexV2(document, blockId)
