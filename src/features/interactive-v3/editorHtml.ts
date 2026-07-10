@@ -34,6 +34,10 @@ function mediaTools(path: string, image = '') {
   </div>`
 }
 
+function authorFindButton(index: number) {
+  return `<button type="button" class="interactive-v3-author-find" data-v3-author-find="true" data-v3-index="${index}" contenteditable="false">پیدا کردن در متن</button>`
+}
+
 function hotspotMedia(image = '') {
   return `<div class="interactive-v3-editor-media interactive-v3-editor-hotspot-media" data-v3-media="image">
     ${image ? `<img src="${escapeHtml(image)}" alt="">` : '<span>برای شروع، تصویر هات‌اسپات را انتخاب کنید</span>'}
@@ -46,11 +50,12 @@ function hotspotMedia(image = '') {
 }
 
 function itemShell(collection: keyof InteractiveV3Payload, index: number, item: InteractiveV3Item, body: string, media = true) {
+  const itemBody = collection === 'authors' ? `${body}${authorFindButton(index)}` : body
   return `<article class="interactive-v3-editor-item" data-v3-list="${escapeHtml(String(collection))}" data-v3-index="${index}"${attr('data-v3-item-id', item.id)}>
     <header contenteditable="false"><b>${index + 1}</b><button type="button" data-v3-item-remove="true" title="حذف آیتم">×</button></header>
     <div class="interactive-v3-editor-item-grid ${media ? 'has-media' : 'no-media'}">
       ${media ? mediaTools(`${String(collection)}.${index}.image`, item.image || '') : ''}
-      <div>${body}</div>
+      <div>${itemBody}</div>
     </div>
   </article>`
 }
