@@ -3600,18 +3600,22 @@ export default function EditorV2Page() {
     const target = event.target as HTMLElement
     const hotspotPointToggle = target.closest<HTMLElement>('[data-v3-hotspot-point-toggle="true"]')
     if (hotspotPointToggle) {
-      const point = hotspotPointToggle.closest<HTMLElement>('.interactive-v3-editor-hotspot-point')
-      const canvas = point?.closest<HTMLElement>('[data-v3-hotspot-canvas="true"]')
-      if (!point || !canvas) return
+      const canvas = hotspotPointToggle.closest<HTMLElement>('[data-v3-hotspot-canvas="true"]')
+      const section = hotspotPointToggle.closest<HTMLElement>('[data-v2-type="interactive"][data-block-id]')
+      const pointIndex = hotspotPointToggle.dataset.v3Index
+      const card = section?.querySelector<HTMLElement>(`.interactive-v3-editor-hotspot-card[data-v3-index="${CSS.escape(pointIndex || '')}"]`)
+      if (!canvas || !section || !card || pointIndex === undefined) return
       event.preventDefault()
       event.stopPropagation()
-      const nextOpen = !point.classList.contains('is-open')
-      canvas.querySelectorAll<HTMLElement>('.interactive-v3-editor-hotspot-point.is-open').forEach(item => {
-        if (item !== point) item.classList.remove('is-open')
+      const nextOpen = !card.classList.contains('is-open')
+      canvas.querySelectorAll<HTMLElement>('.interactive-v3-editor-hotspot-point.is-open').forEach(item => item.classList.remove('is-open'))
+      section.querySelectorAll<HTMLElement>('.interactive-v3-editor-hotspot-card.is-open').forEach(item => {
+        if (item !== card) item.classList.remove('is-open')
       })
-      point.classList.toggle('is-open', nextOpen)
+      hotspotPointToggle.classList.toggle('is-open', nextOpen)
+      card.classList.toggle('is-open', nextOpen)
       if (nextOpen) {
-        window.requestAnimationFrame(() => point.querySelector<HTMLInputElement | HTMLTextAreaElement>('input[data-v3-field="title"], textarea')?.focus())
+        window.requestAnimationFrame(() => card.querySelector<HTMLInputElement | HTMLTextAreaElement>('textarea[data-v3-field="text"], input[data-v3-field="title"]')?.focus())
       }
       return
     }
@@ -3640,9 +3644,12 @@ export default function EditorV2Page() {
       const nextSection = pageElement?.querySelector<HTMLElement>(`[data-v2-type="interactive"][data-block-id="${CSS.escape(blockId)}"]`)
       const nextPoints = Array.from(nextSection?.querySelectorAll<HTMLElement>('.interactive-v3-editor-hotspot-point') || [])
       const newPoint = nextPoints[nextPoints.length - 1]
+      const nextCards = Array.from(nextSection?.querySelectorAll<HTMLElement>('.interactive-v3-editor-hotspot-card') || [])
+      const newCard = nextCards[nextCards.length - 1]
       newPoint?.classList.add('is-open')
-      if (newPoint) {
-        window.requestAnimationFrame(() => newPoint.querySelector<HTMLInputElement | HTMLTextAreaElement>('input[data-v3-field="title"], textarea')?.focus())
+      newCard?.classList.add('is-open')
+      if (newCard) {
+        window.requestAnimationFrame(() => newCard.querySelector<HTMLInputElement | HTMLTextAreaElement>('textarea[data-v3-field="text"], input[data-v3-field="title"]')?.focus())
       }
       setSelectedBlockId(blockId)
       markEditorDirty(pageElement || section)

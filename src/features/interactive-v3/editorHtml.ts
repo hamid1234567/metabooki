@@ -110,15 +110,15 @@ function editorItemsHtml(kind: InteractiveV3Kind, payload: InteractiveV3Payload)
     return `<div class="interactive-v3-editor-hotspot">
       <div class="interactive-v3-editor-hotspot-canvas" data-v3-hotspot-canvas="true">
         ${hotspotMedia(payload.image || '')}
-        ${points.map((point, index) => `<article class="interactive-v3-editor-hotspot-point ${hotspotPointPlacement(point)}" data-v3-list="points" data-v3-index="${index}"${attr('data-v3-item-id', point.id)} style="--x:${escapeHtml(valueOf(point.x ?? 50))}%;--y:${escapeHtml(valueOf(point.y ?? 50))}%">
-          <button type="button" class="interactive-v3-editor-hotspot-marker" data-v3-hotspot-point-toggle="true" contenteditable="false">${index + 1}</button>
-          <div class="interactive-v3-editor-hotspot-card">
-            <button type="button" data-v3-item-remove="true" title="حذف نقطه">×</button>
-            ${input('title', point.title, 'عنوان نقطه')}
-            ${text('text', point.text, 'توضیح نقطه')}
-            <input data-v3-field="x" type="hidden" value="${escapeHtml(valueOf(point.x ?? 50))}">
-            <input data-v3-field="y" type="hidden" value="${escapeHtml(valueOf(point.y ?? 50))}">
-          </div>
+        ${points.map((point, index) => `<button type="button" class="interactive-v3-editor-hotspot-point ${hotspotPointPlacement(point)}" data-v3-hotspot-point-toggle="true" data-v3-index="${index}" contenteditable="false" style="--x:${escapeHtml(valueOf(point.x ?? 50))}%;--y:${escapeHtml(valueOf(point.y ?? 50))}%">${index + 1}</button>`).join('')}
+      </div>
+      <div class="interactive-v3-editor-hotspot-cards" data-v3-hotspot-cards="true">
+        ${points.map((point, index) => `<article class="interactive-v3-editor-hotspot-card" data-v3-list="points" data-v3-index="${index}"${attr('data-v3-item-id', point.id)}>
+          <header contenteditable="false"><b>نقطه ${index + 1}</b><button type="button" data-v3-item-remove="true" title="حذف نقطه">×</button></header>
+          ${input('title', point.title, 'عنوان نقطه')}
+          ${text('text', point.text, 'توضیح نقطه')}
+          <input data-v3-field="x" type="hidden" value="${escapeHtml(valueOf(point.x ?? 50))}">
+          <input data-v3-field="y" type="hidden" value="${escapeHtml(valueOf(point.y ?? 50))}">
         </article>`).join('')}
       </div>
       ${text('caption', payload.caption, 'کپشن تصویر')}
