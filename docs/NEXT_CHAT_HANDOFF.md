@@ -87,13 +87,76 @@ Use this file as the first reference in a fresh Codex chat before making changes
   - `public/sw.js`
   - `docs/VERSION_HISTORY.md`
 
+## Existing Git Checkpoints
+
+These checkpoints are git tags already present in the repository. Prefer creating a new branch from a checkpoint for inspection or recovery. Do not use destructive reset unless the user explicitly asks.
+
+Safe inspection:
+
+```bash
+git switch -c inspect/<name> <tag-name>
+```
+
+Safe file-level restore from a checkpoint:
+
+```bash
+git restore --source <tag-name> -- <file-or-folder>
+```
+
+Safe comparison:
+
+```bash
+git diff <tag-name>..HEAD -- <file-or-folder>
+```
+
+Known checkpoints:
+
+| Tag | Commit | Purpose | When to use |
+| --- | --- | --- | --- |
+| `editor-text-complete-v1.0.393` | `327b41c` | Text editor baseline after central text editing became usable. | Recover core text toolbar/content editing behavior. |
+| `checkpoint-callout-complete-20260625-011120` | `6ae1366` | Callout system completed before media panel fixes. | Recover callout behavior/design if later media or interactive changes break callouts. |
+| `checkpoint/page-engine-before-implementation-20260629-0118` | `b0b1e70` | State before page-based content engine implementation. | Compare against pre-page-engine behavior only; avoid restoring wholesale unless explicitly requested. |
+| `checkpoint/editor-v2-before-delta-save-20260628-2255` | `c6b3e44` | State before Editor V2 delta/page save work. | Investigate save regressions introduced by delta/page saving. |
+| `checkpoint/editor-v2-current-1.0.597` | `4769756` | Editor V2 checkpoint around version 1.0.597. | Recover broad Editor V2 state after early page-engine/documentation stabilization. |
+| `checkpoint/editor-v2-media-toc-stable-1.0.599` | `b12eae4` | Media and TOC stable checkpoint. | Recover media list / TOC navigation behavior if later changes break either one. |
+| `editor-v2-references-checkpoint-v1.0.668` | `7db9775` | References panel and reader hover behavior completed. | Recover reference/link/footnote/image-reference behavior. |
+| `editor-v2-save-checkpoint-v1.0.668` | `0fe2b16` | Page-based save payload and TOC manifest persistence stable. | Recover save payload reduction and TOC persistence behavior. |
+
+Suggested recovery workflow:
+
+1. Save the current work first:
+
+```bash
+git status --short
+git diff > tmp/current-work-before-restore.patch
+```
+
+2. Compare checkpoint with current code:
+
+```bash
+git diff <tag-name>..HEAD -- src/features/editor-v2 src/lib/page-content-engine.ts src/components/book-content src/lib/book-document-v2
+```
+
+3. Restore only the broken area, not the entire repo:
+
+```bash
+git restore --source <tag-name> -- src/features/editor-v2/EditorV2Page.tsx
+```
+
+4. Build and test before continuing:
+
+```bash
+npm.cmd run build
+```
+
 ## How To Resume In A New Chat
 
 1. Read this file first.
 2. Check `git status --short`.
 3. Check current version from `src/lib/version.ts`.
-4. If editing code, run a targeted build/test after the change.
-5. Keep responses concise and include only the final estimated cost at the end of the final response.
+4. Check tags with `git tag --list` if rollback or comparison is needed.
+5. If editing code, run a targeted build/test after the change.
+6. Keep responses concise and include only the final estimated cost at the end of the final response.
 
 ## User Preferences To Preserve
 
@@ -105,4 +168,3 @@ Use this file as the first reference in a fresh Codex chat before making changes
   - input token: `1 تومان`
   - output token: `2 تومان`
   - `170,000 تومان = $1`
-
