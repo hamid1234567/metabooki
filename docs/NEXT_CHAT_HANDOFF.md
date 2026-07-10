@@ -1,6 +1,6 @@
 # MetaBooki Next Chat Handoff
 
-Last reviewed version: `1.0.679`
+Last reviewed version: `1.0.680`
 
 Use this file as the first reference in a fresh Codex chat before making changes.
 
@@ -52,6 +52,7 @@ Use this file as the first reference in a fresh Codex chat before making changes
 - Hotspot editor no longer uses the generic “add item” button; users add points only by clicking the image, and the new point opens a compact inline edit card.
 - Hotspot editor point text now uses a fixed card area below the image instead of floating at the marker, so edge points remain editable.
 - Hotspot reader popovers are no longer clipped by the image canvas and use physical left/right placement so RTL pages do not push edge popovers off-screen; hotspot images now store an adjustable width percent.
+- Interactive V3 circular previous/next controls now center their arrow glyphs with grid alignment and LTR icon direction.
 
 ## Current Known Fragile Areas
 
