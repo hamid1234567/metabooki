@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.705`
+نسخه فعلی فایل رسمی: `1.0.706`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,13 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.706 - AI callout prompt and image history reuse
+
+- The callout suggestion prompt now behaves like an educational editor: it only suggests strong callout-worthy fragments, anchors each suggestion to an exact source quote, and can return no suggestions instead of forcing a weak callout.
+- Editor V2 no longer inserts fallback page text when AI returns no strong callout suggestion; it records usage/history and reports that no strong callout was found.
+- Reusing an image from AI history now places it in the active interactive placeholder when available, or inserts it as a normal image block in the editor text when no placeholder is active.
+- Opening the Editor V2 AI panel refreshes AI history again so old outputs are less likely to appear missing after initial load/session timing issues.
 
 ### 1.0.705 - AI history visibility and gateway timeouts
 
