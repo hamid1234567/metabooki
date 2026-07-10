@@ -15,11 +15,11 @@
 
 ## خلاصه مسیر نسخه‌ها
 
-### 1.0.682 - Interactive gallery carousel redesign
+### 1.0.682 - Restore simple gallery with timer
 
-- Gallery blocks now render as a rounded carousel with an image track, overlay caption, in-stage previous/next controls, and a pause/play control.
-- Gallery autoplay is enabled by default and advances every three seconds until the user pauses it.
-- Thumbnails now select the matching slide and scroll the thumbnail row into view instead of behaving like separate enlarged images.
+- Restored the Interactive V3 gallery to the simpler pre-redesign layout so the reader route can load the gallery component again.
+- Added default 3-second autoplay to the simple gallery, with a small pause/play control in the existing navigation row.
+- Removed the failed carousel-shell styling from the active gallery CSS path.
 
 ### 1.0.681 - Interactive nav row placement
 

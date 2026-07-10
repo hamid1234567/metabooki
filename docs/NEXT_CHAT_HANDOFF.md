@@ -54,7 +54,7 @@ Use this file as the first reference in a fresh Codex chat before making changes
 - Hotspot reader popovers are no longer clipped by the image canvas and use physical left/right placement so RTL pages do not push edge popovers off-screen; hotspot images now store an adjustable width percent.
 - Interactive V3 circular previous/next controls now center their arrow glyphs with grid alignment and LTR icon direction.
 - Interactive V3 gallery, timeline, and storytelling previous/next controls now sit together in a bottom action row, with RTL-appropriate arrow directions for previous/next movement.
-- Interactive V3 gallery now renders as an autoplay carousel with a rounded image stage, overlay caption, in-stage pause/next/previous controls, scrollable thumbnails, and 3-second default autoplay.
+- Interactive V3 gallery was restored to the simpler previous layout and now adds only a default 3-second autoplay timer with a pause/play control.
 
 ## Current Known Fragile Areas
 
