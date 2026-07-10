@@ -13,7 +13,7 @@ import { useCredits } from '@/hooks/useCredits'
 import { creditsBus } from '@/lib/credits-bus'
 import { buildTocFromHeadingsV2, cleanImageCaptionV2, createV2Id, documentV2ToConfirmedToc, documentV2ToLegacyPages, legacyBookToDocumentV2, mergeLoadedPagesTocV2, normalizeBookTextV2, resolveTocTreeV2, textDirectionV2, tocAsFlatListV2, type BookBlockV2, type BookDocumentV2, type BookInlineV2, type BookTocItemV2, type CalloutBlockV2, type ParagraphBlockV2 } from '@/lib/book-document-v2'
 import { backfillPageEngineForBook, isUuidV2, loadPageEngineWindow, rebuildPageEngineToc, savePageEngineDocument } from '@/lib/page-content-engine'
-import { bookDisplayTextHtml, bookSearchIncludes, isBookLtrRunText, type PrintPageValue } from '@/lib/book-content'
+import { bookDisplayTextHtml, bookSearchIncludes, bookSearchMatches, isBookLtrRunText, type PrintPageValue } from '@/lib/book-content'
 import { referenceClassNameV2, referenceDisplayLabelV2, referenceHtmlDataAttributesV2, referenceKindFromElementV2, referenceKindFromInlineV2, referenceTooltipDirectionV2, referenceTooltipTextV2, shortenReferencePreviewV2, type BookReferenceKindV2 } from '@/lib/book-references'
 import { createInteractiveBlockV3, INTERACTIVE_V3_DEFINITIONS } from '@/features/interactive-v3/registry'
 import { appendHotspotPointV3, appendInteractiveItemV3, interactiveBlockFromEditorElementV3, interactiveBlockToEditorHtmlV3, removeInteractiveItemV3, setInteractiveItemImagesV3 } from '@/features/interactive-v3/editorHtml'
@@ -108,6 +108,42 @@ function normalizeCaptionElementV2(caption: HTMLElement | null | undefined) {
   }
   caption.innerHTML = ''
   caption.dataset.captionEmpty = 'true'
+}
+
+function markAuthorFindButtonV2(button: HTMLElement, state: 'idle' | 'success' | 'missing') {
+  button.classList.toggle('is-success', state === 'success')
+  button.classList.toggle('is-missing', state === 'missing')
+  button.textContent = state === 'success' ? 'پیدا شد' : state === 'missing' ? 'پیدا نشد' : 'پیدا کردن در متن'
+}
+
+function findAuthorTextNodeInEditorV2(root: HTMLElement, query: string, excludedSection?: HTMLElement | null) {
+  const needle = normalizeBookTextV2(query).trim()
+  if (!needle) return null
+  const filter = {
+    acceptNode(node: Node) {
+      const parent = node.parentNode instanceof HTMLElement ? node.parentNode : null
+      if (!parent) return window.NodeFilter.FILTER_REJECT
+      if (excludedSection?.contains(parent)) return window.NodeFilter.FILTER_REJECT
+      if (parent.closest('[data-v2-type="interactive"], input, textarea, button, script, style, .editor-v2-flow-page-break')) return window.NodeFilter.FILTER_REJECT
+      const text = normalizeBookTextV2(node.textContent || '').trim()
+      return text && bookSearchMatches(text, needle).matched ? window.NodeFilter.FILTER_ACCEPT : window.NodeFilter.FILTER_REJECT
+    },
+  }
+  const walker = window.document.createTreeWalker(root, window.NodeFilter.SHOW_TEXT, filter)
+  return walker.nextNode() as Text | null
+}
+
+function rangeForAuthorTextMatchV2(node: Text, query: string) {
+  const text = node.textContent || ''
+  const range = window.document.createRange()
+  const exactOffset = text.toLowerCase().indexOf(query.toLowerCase())
+  if (exactOffset >= 0) {
+    range.setStart(node, exactOffset)
+    range.setEnd(node, Math.min(text.length, exactOffset + query.length))
+    return range
+  }
+  range.selectNodeContents(node)
+  return range
 }
 
 const FONT_SIZE_MAP_V2: Record<string, string> = {
@@ -3675,6 +3711,40 @@ export default function EditorV2Page() {
       markEditorDirty(pageElement || section)
       markDirtyAssetPageFromNode(pageElement || section)
       scheduleToolbarDocumentRefresh()
+      return
+    }
+    const authorFindButton = target.closest<HTMLElement>('[data-v3-author-find="true"]')
+    if (authorFindButton) {
+      event.preventDefault()
+      event.stopPropagation()
+      const root = editorSurfaceRef.current
+      const section = authorFindButton.closest<HTMLElement>('[data-v2-type="interactive"]')
+      const item = authorFindButton.closest<HTMLElement>('[data-v3-list="authors"]')
+      const name = normalizeBookTextV2(item?.querySelector<HTMLInputElement>('[data-v3-field="name"]')?.value || '').trim()
+      if (!root || !name) {
+        markAuthorFindButtonV2(authorFindButton, 'missing')
+        window.setTimeout(() => markAuthorFindButtonV2(authorFindButton, 'idle'), 1500)
+        toast.info('برای جستجو، ابتدا نام نویسنده را وارد کنید.')
+        return
+      }
+      const textNode = findAuthorTextNodeInEditorV2(root, name, section)
+      if (!textNode) {
+        markAuthorFindButtonV2(authorFindButton, 'missing')
+        window.setTimeout(() => markAuthorFindButtonV2(authorFindButton, 'idle'), 1500)
+        toast.info('نویسنده مشابهی در متن کتاب پیدا نشد.')
+        return
+      }
+      const range = rangeForAuthorTextMatchV2(textNode, name)
+      const selection = window.getSelection()
+      selection?.removeAllRanges()
+      selection?.addRange(range)
+      savedSelectionRef.current = range.cloneRange()
+      setHasTextSelection(true)
+      const matchElement = textNode.parentElement
+      matchElement?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      markAuthorFindButtonV2(authorFindButton, 'success')
+      window.setTimeout(() => markAuthorFindButtonV2(authorFindButton, 'idle'), 1500)
+      toast.success('نویسنده در متن کتاب پیدا شد.')
       return
     }
     const interactiveAction = target.closest<HTMLElement>('[data-v3-add-item], [data-v3-item-remove], [data-v3-media-action], [data-v3-block-remove]')
