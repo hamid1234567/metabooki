@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.700`
+نسخه فعلی فایل رسمی: `1.0.701`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,11 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.701 - AI provider route report fallback
+
+- Admin AI provider test results now always display the expected text/image/audio route rows for KIE, even if the deployed edge function returns only the older single-model response.
+- The test card now shows a compact route model summary and per-route status/sample text so image and audio models are visible separately from the main text model.
 
 ### 1.0.700 - Scoped AI history and KIE route tests
 

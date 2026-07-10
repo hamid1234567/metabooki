@@ -14,6 +14,31 @@ import { getAllReadingProgress, getMockLibraryEntries } from '@/lib/mock-library
 import { AiGatewaySettingsPanel } from '@/components/admin/AiGatewaySettingsPanel'
 import { bookSearchIncludes } from '@/lib/book-content'
 
+type AiProviderTestRoute = NonNullable<AiProviderTestResult['routes']>[number]
+
+function normalizeProviderTestRoutes(provider: AiProviderConfig, result: AiProviderTestResult): AiProviderTestRoute[] {
+  const routes = result.routes || []
+  const expected = provider.id === 'kie'
+    ? [
+        { kind: 'text', model: provider.model },
+        { kind: 'image', model: provider.imageModel || 'gpt-image-2-text-to-image' },
+        { kind: 'audio', model: provider.audioModel || 'elevenlabs/text-to-dialogue-v3' },
+      ]
+    : [
+        { kind: 'text', model: provider.model },
+        ...(provider.imageModel ? [{ kind: 'image', model: provider.imageModel }] : []),
+      ]
+  return expected.map(item => {
+    const reported = routes.find(route => route.kind === item.kind)
+    return reported || {
+      kind: item.kind,
+      model: item.model,
+      ok: false,
+      message: 'این مسیر از پاسخ تست گزارش نشد. Edge Function را دوباره deploy کنید.',
+    }
+  })
+}
+
 export default function Admin() {
   const { t } = useI18n()
   const { user } = useAuthContext()
@@ -25,7 +50,7 @@ export default function Admin() {
   const [aiSettings, setAiSettings] = useState<AiGatewaySettings>(() => loadAiGatewaySettings())
   const [connectionTest, setConnectionTest] = useState<'idle' | 'testing' | 'ok' | 'error'>('idle')
   const [connectionMessage, setConnectionMessage] = useState('')
-  const [aiProviderTests, setAiProviderTests] = useState<Record<string, { state: 'idle' | 'testing' | 'ok' | 'error'; message: string; sample?: string; routes?: AiProviderTestResult['routes'] }>>({})
+  const [aiProviderTests, setAiProviderTests] = useState<Record<string, { state: 'idle' | 'testing' | 'ok' | 'error'; message: string; sample?: string; routes?: AiProviderTestResult['routes']; routeLabel?: string }>>({})
   const [filterSettings, setFilterSettings] = useState<BookFilterSettings>(emptyFilterSettings)
   const [filterDraft, setFilterDraft] = useState({ categories: '', tags: '', bookTypes: '' })
   const [adminUsers, setAdminUsers] = useState<AdminUserRow[]>([])
@@ -125,9 +150,11 @@ export default function Admin() {
     setAiProviderTests(current => ({ ...current, [provider.id]: { state: 'testing', message: 'در حال تست کلید و مدل...' } }))
     try {
       const result = await testAiProvider(provider)
+      const routes = normalizeProviderTestRoutes(provider, result)
+      const routeLabel = routes.map(route => `${route.kind}: ${route.model}`).join(' | ')
       setAiProviderTests(current => ({
         ...current,
-        [provider.id]: { state: result.ok ? 'ok' : 'error', message: `${result.message} (${result.provider} / ${result.model})`, sample: result.sample, routes: result.routes },
+        [provider.id]: { state: routes.every(route => route.ok) ? 'ok' : 'error', message: `${result.message} (${result.provider})`, sample: result.sample, routes, routeLabel },
       }))
     } catch (error) {
       setAiProviderTests(current => ({

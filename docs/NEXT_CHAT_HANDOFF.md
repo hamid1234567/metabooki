@@ -1,6 +1,6 @@
 # MetaBooki Next Chat Handoff
 
-Last reviewed version: `1.0.700`
+Last reviewed version: `1.0.701`
 
 Use this file as the first reference in a fresh Codex chat before making changes.
 
@@ -76,6 +76,7 @@ Use this file as the first reference in a fresh Codex chat before making changes
 - Reusing saved AI outputs can insert text into the editor or place saved images into the active interactive media placeholder.
 - Editor V2 AI history remains user-scoped, now supports a current-book-only filter, and uses larger image thumbnails.
 - Admin AI provider tests now show separate route results for text, image, and KIE audio using the selected models; KIE Qwen text-to-image uses `/api/v1/jobs/createTask` with `input.image_size`.
+- Admin AI provider test UI now creates fallback route rows when an older edge response lacks `routes`, so text/image/audio model rows remain visible instead of only showing the main model.
 
 ## Current Known Fragile Areas
 
