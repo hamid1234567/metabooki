@@ -1366,37 +1366,80 @@
   gap: 0.55rem;
 }
 
-.interactive-v3-author-find {
+.interactive-v3-author-batch {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.72rem;
+  border: 1px solid rgba(37, 99, 235, 0.14);
+  border-radius: 16px;
+  background: rgba(239, 246, 255, 0.62);
+}
+
+.interactive-v3-author-batch textarea {
+  min-height: 72px;
+}
+
+.interactive-v3-author-batch > button {
   justify-self: start;
-  width: auto;
-  border: 1px solid rgba(37, 99, 235, 0.24);
+  border: 1px solid rgba(37, 99, 235, 0.28);
   border-radius: 999px;
-  background: rgba(239, 246, 255, 0.86);
+  background: rgba(255, 255, 255, 0.86);
   color: #2563eb;
-  padding: 0.44rem 0.75rem;
+  padding: 0.46rem 0.82rem;
   font: inherit;
   font-size: 0.8rem;
   font-weight: 900;
   cursor: pointer;
-  transition: background 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
 }
 
-.interactive-v3-author-find:hover {
-  transform: translateY(-1px);
-  border-color: rgba(37, 99, 235, 0.42);
-  background: rgba(219, 234, 254, 0.94);
+.interactive-v3-author-library {
+  display: grid;
+  gap: 0.45rem;
 }
 
-.interactive-v3-author-find.is-success {
-  border-color: rgba(22, 163, 74, 0.42);
-  background: rgba(220, 252, 231, 0.95);
-  color: #15803d;
+.interactive-v3-author-library > small {
+  color: #667085;
+  font-size: 0.74rem;
+  font-weight: 750;
 }
 
-.interactive-v3-author-find.is-missing {
-  border-color: rgba(239, 68, 68, 0.36);
-  background: rgba(254, 242, 242, 0.95);
-  color: #dc2626;
+.interactive-v3-author-library > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.interactive-v3-author-library button {
+  display: inline-grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  gap: 0.12rem 0.42rem;
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #1d2939;
+  padding: 0.28rem 0.58rem;
+  cursor: pointer;
+}
+
+.interactive-v3-author-library button img,
+.interactive-v3-author-library button > span {
+  grid-row: span 2;
+  width: 1.65rem;
+  height: 1.65rem;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.12);
+  object-fit: cover;
+}
+
+.interactive-v3-author-library button b {
+  font-size: 0.78rem;
+}
+
+.interactive-v3-author-library button em {
+  color: #667085;
+  font-size: 0.68rem;
+  font-style: normal;
 }
 
 .interactive-v3-editor-media {

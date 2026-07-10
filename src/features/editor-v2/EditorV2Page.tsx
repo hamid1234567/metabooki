@@ -13,10 +13,11 @@ import { useCredits } from '@/hooks/useCredits'
 import { creditsBus } from '@/lib/credits-bus'
 import { buildTocFromHeadingsV2, cleanImageCaptionV2, createV2Id, documentV2ToConfirmedToc, documentV2ToLegacyPages, legacyBookToDocumentV2, mergeLoadedPagesTocV2, normalizeBookTextV2, resolveTocTreeV2, textDirectionV2, tocAsFlatListV2, type BookBlockV2, type BookDocumentV2, type BookInlineV2, type BookTocItemV2, type CalloutBlockV2, type ParagraphBlockV2 } from '@/lib/book-document-v2'
 import { backfillPageEngineForBook, isUuidV2, loadPageEngineWindow, rebuildPageEngineToc, savePageEngineDocument } from '@/lib/page-content-engine'
-import { bookDisplayTextHtml, bookSearchIncludes, bookSearchMatches, isBookLtrRunText, type PrintPageValue } from '@/lib/book-content'
+import { bookDisplayTextHtml, bookSearchIncludes, isBookLtrRunText, type PrintPageValue } from '@/lib/book-content'
 import { referenceClassNameV2, referenceDisplayLabelV2, referenceHtmlDataAttributesV2, referenceKindFromElementV2, referenceKindFromInlineV2, referenceTooltipDirectionV2, referenceTooltipTextV2, shortenReferencePreviewV2, type BookReferenceKindV2 } from '@/lib/book-references'
 import { createInteractiveBlockV3, INTERACTIVE_V3_DEFINITIONS } from '@/features/interactive-v3/registry'
-import { appendHotspotPointV3, appendInteractiveItemV3, interactiveBlockFromEditorElementV3, interactiveBlockToEditorHtmlV3, removeInteractiveItemV3, setInteractiveItemImagesV3 } from '@/features/interactive-v3/editorHtml'
+import { appendAuthorNamesV3, appendAuthorsV3, appendHotspotPointV3, appendInteractiveItemV3, interactiveBlockFromEditorElementV3, interactiveBlockToEditorHtmlV3, removeInteractiveItemV3, setInteractiveItemImagesV3 } from '@/features/interactive-v3/editorHtml'
+import type { InteractiveV3Item } from '@/features/interactive-v3/types'
 import type { MockBook } from '@/lib/mock-data'
 import './editor-v2.css'
 import '@/features/interactive-v3/interactive-v3.css'
@@ -110,40 +111,63 @@ function normalizeCaptionElementV2(caption: HTMLElement | null | undefined) {
   caption.dataset.captionEmpty = 'true'
 }
 
-function markAuthorFindButtonV2(button: HTMLElement, state: 'idle' | 'success' | 'missing') {
-  button.classList.toggle('is-success', state === 'success')
-  button.classList.toggle('is-missing', state === 'missing')
-  button.textContent = state === 'success' ? 'پیدا شد' : state === 'missing' ? 'پیدا نشد' : 'پیدا کردن در متن'
+type EditorAuthorLibraryItemV2 = InteractiveV3Item & { key: string }
+
+function authorLibraryKeyV2(name: unknown) {
+  return normalizeBookTextV2(name).trim().toLowerCase()
 }
 
-function findAuthorTextNodeInEditorV2(root: HTMLElement, query: string, excludedSection?: HTMLElement | null) {
-  const needle = normalizeBookTextV2(query).trim()
-  if (!needle) return null
-  const filter = {
-    acceptNode(node: Node) {
-      const parent = node.parentNode instanceof HTMLElement ? node.parentNode : null
-      if (!parent) return window.NodeFilter.FILTER_REJECT
-      if (excludedSection?.contains(parent)) return window.NodeFilter.FILTER_REJECT
-      if (parent.closest('[data-v2-type="interactive"], input, textarea, button, script, style, .editor-v2-flow-page-break')) return window.NodeFilter.FILTER_REJECT
-      const text = normalizeBookTextV2(node.textContent || '').trim()
-      return text && bookSearchMatches(text, needle).matched ? window.NodeFilter.FILTER_ACCEPT : window.NodeFilter.FILTER_REJECT
-    },
-  }
-  const walker = window.document.createTreeWalker(root, window.NodeFilter.SHOW_TEXT, filter)
-  return walker.nextNode() as Text | null
+function collectAuthorLibraryFromBlocksV2(blocks: BookBlockV2[], map: Map<string, EditorAuthorLibraryItemV2>) {
+  blocks.forEach(block => {
+    if (block.type === 'callout') {
+      collectAuthorLibraryFromBlocksV2(block.blocks, map)
+      return
+    }
+    if (block.type !== 'interactive' || block.kind !== 'author' || !Array.isArray(block.payload?.authors)) return
+    block.payload.authors.forEach((author, index) => {
+      const name = normalizeBookTextV2(author.name || '').trim()
+      if (!name) return
+      const key = authorLibraryKeyV2(name)
+      const existing = map.get(key)
+      map.set(key, {
+        key,
+        id: existing?.id || author.id || `author-library-${index}`,
+        name,
+        role: existing?.role || normalizeBookTextV2(author.role || ''),
+        bio: existing?.bio || normalizeBookTextV2(author.bio || ''),
+        image: existing?.image || author.image || '',
+      })
+    })
+  })
 }
 
-function rangeForAuthorTextMatchV2(node: Text, query: string) {
-  const text = node.textContent || ''
-  const range = window.document.createRange()
-  const exactOffset = text.toLowerCase().indexOf(query.toLowerCase())
-  if (exactOffset >= 0) {
-    range.setStart(node, exactOffset)
-    range.setEnd(node, Math.min(text.length, exactOffset + query.length))
-    return range
-  }
-  range.selectNodeContents(node)
-  return range
+function collectAuthorLibraryV2(document: BookDocumentV2 | null | undefined) {
+  const map = new Map<string, EditorAuthorLibraryItemV2>()
+  document?.pages.forEach(page => collectAuthorLibraryFromBlocksV2(page.blocks, map))
+  return Array.from(map.values()).sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'fa'))
+}
+
+function hydrateAuthorLibraryInEditorV2(root: HTMLElement | null, library: EditorAuthorLibraryItemV2[]) {
+  if (!root) return
+  const containers = Array.from(root.querySelectorAll<HTMLElement>('[data-v3-author-library="true"]'))
+  containers.forEach(container => {
+    const section = container.closest<HTMLElement>('[data-v2-type="interactive"][data-kind="author"]')
+    const existingNames = new Set(Array.from(section?.querySelectorAll<HTMLInputElement>('[data-v3-list="authors"] [data-v3-field="name"]') || [])
+      .map(input => authorLibraryKeyV2(input.value))
+      .filter(Boolean))
+    const visible = library.filter(author => !existingNames.has(author.key))
+    if (!visible.length) {
+      container.innerHTML = '<small>پس از ذخیره، نویسنده‌های ساخته‌شده اینجا دیده می‌شوند.</small>'
+      return
+    }
+    container.innerHTML = `<small>نویسنده‌های قبلی</small><div>${visible.map(author => `
+      <button type="button" data-v3-author-library-add="true" data-v3-author-library-key="${escapeHtmlV2(author.key)}">
+        ${author.image ? `<img src="${escapeHtmlV2(author.image)}" alt="">` : '<span></span>'}
+        <b>${escapeHtmlV2(author.name || '')}</b>
+        ${author.role ? `<em>${escapeHtmlV2(author.role)}</em>` : ''}
+      </button>
+    `).join('')}</div>`
+  })
 }
 
 const FONT_SIZE_MAP_V2: Record<string, string> = {
@@ -1996,6 +2020,7 @@ export default function EditorV2Page() {
   const autoSaveTickerRef = useRef<number | null>(null)
   const loadingEditorWindowRef = useRef(false)
   const selectedBlock = useMemo(() => document ? findBlockInDocumentV2(document, selectedBlockId) : null, [document, selectedBlockId])
+  const authorLibrary = useMemo(() => collectAuthorLibraryV2(document), [document])
   const autoSaveCountdownLabel = formatAutosaveCountdownV2(autoSaveRemainingSeconds)
   const visualSaveState: SaveVisualStateV2 = saveState === 'saving'
     ? 'saving'
@@ -2053,6 +2078,10 @@ export default function EditorV2Page() {
     editorSurfaceRef.current.innerHTML = documentToEditorHtmlV2(document)
     restoreEditorPageBreaksV2(document, editorSurfaceRef.current)
   }, [dirty, document])
+
+  useEffect(() => {
+    hydrateAuthorLibraryInEditorV2(editorSurfaceRef.current, authorLibrary)
+  }, [authorLibrary, dirtyRevision])
 
   useEffect(() => {
     if (authLoading) return
@@ -3713,38 +3742,34 @@ export default function EditorV2Page() {
       scheduleToolbarDocumentRefresh()
       return
     }
-    const authorFindButton = target.closest<HTMLElement>('[data-v3-author-find="true"]')
-    if (authorFindButton) {
+    const authorLinesButton = target.closest<HTMLElement>('[data-v3-author-lines-add="true"]')
+    const authorLibraryButton = target.closest<HTMLElement>('[data-v3-author-library-add="true"]')
+    if (authorLinesButton || authorLibraryButton) {
       event.preventDefault()
       event.stopPropagation()
-      const root = editorSurfaceRef.current
-      const section = authorFindButton.closest<HTMLElement>('[data-v2-type="interactive"]')
-      const item = authorFindButton.closest<HTMLElement>('[data-v3-list="authors"]')
-      const name = normalizeBookTextV2(item?.querySelector<HTMLInputElement>('[data-v3-field="name"]')?.value || '').trim()
-      if (!root || !name) {
-        markAuthorFindButtonV2(authorFindButton, 'missing')
-        window.setTimeout(() => markAuthorFindButtonV2(authorFindButton, 'idle'), 1500)
-        toast.info('برای جستجو، ابتدا نام نویسنده را وارد کنید.')
+      const trigger = authorLinesButton || authorLibraryButton
+      const section = trigger?.closest<HTMLElement>('[data-v2-type="interactive"][data-block-id]')
+      const pageElement = section?.closest<HTMLElement>('.editor-v2-flow-page')
+      const blockId = section?.dataset.blockId
+      const pageIndex = Number(pageElement?.dataset.pageIndex)
+      const page = document?.pages.find(item => item.index === pageIndex) || document?.pages[0]
+      const oldBlock = document && blockId ? findBlockInDocumentV2(document, blockId) : undefined
+      if (!section || !blockId || !page || oldBlock?.type !== 'interactive') return
+      const parsed = interactiveBlockFromEditorElementV3(section, oldBlock, page)
+      if (!parsed) return
+      const nextBlock = authorLinesButton
+        ? appendAuthorNamesV3(parsed, (section.querySelector<HTMLTextAreaElement>('[data-v3-author-lines="true"]')?.value || '').split(/\r?\n/))
+        : appendAuthorsV3(parsed, authorLibrary.filter(author => author.key === authorLibraryButton?.dataset.v3AuthorLibraryKey))
+      if (nextBlock === parsed) {
+        toast.info(authorLinesButton ? 'نام تازه‌ای برای افزودن پیدا نشد.' : 'این نویسنده در همین بلوک وجود دارد.')
         return
       }
-      const textNode = findAuthorTextNodeInEditorV2(root, name, section)
-      if (!textNode) {
-        markAuthorFindButtonV2(authorFindButton, 'missing')
-        window.setTimeout(() => markAuthorFindButtonV2(authorFindButton, 'idle'), 1500)
-        toast.info('نویسنده مشابهی در متن کتاب پیدا نشد.')
-        return
-      }
-      const range = rangeForAuthorTextMatchV2(textNode, name)
-      const selection = window.getSelection()
-      selection?.removeAllRanges()
-      selection?.addRange(range)
-      savedSelectionRef.current = range.cloneRange()
-      setHasTextSelection(true)
-      const matchElement = textNode.parentNode instanceof HTMLElement ? textNode.parentNode : null
-      matchElement?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      markAuthorFindButtonV2(authorFindButton, 'success')
-      window.setTimeout(() => markAuthorFindButtonV2(authorFindButton, 'idle'), 1500)
-      toast.success('نویسنده در متن کتاب پیدا شد.')
+      pushEditorHistory()
+      section.outerHTML = interactiveBlockToEditorHtmlV3(nextBlock)
+      setSelectedBlockId(blockId)
+      markEditorDirty(pageElement || section)
+      scheduleToolbarDocumentRefresh()
+      window.requestAnimationFrame(() => hydrateAuthorLibraryInEditorV2(editorSurfaceRef.current, authorLibrary))
       return
     }
     const interactiveAction = target.closest<HTMLElement>('[data-v3-add-item], [data-v3-item-remove], [data-v3-media-action], [data-v3-block-remove]')
@@ -3827,7 +3852,7 @@ export default function EditorV2Page() {
       return
     }
     updateSelectedBlockFromDom()
-  }, [deleteImageBlock, document, generateInteractiveMediaImage, markDirtyAssetPageFromNode, markEditorDirty, pushEditorHistory, readActiveReferenceFromElement, referenceElementFromNode, scheduleToolbarDocumentRefresh, updateSelectedBlockFromDom, uploadInteractiveMediaImages])
+  }, [authorLibrary, deleteImageBlock, document, generateInteractiveMediaImage, markDirtyAssetPageFromNode, markEditorDirty, pushEditorHistory, readActiveReferenceFromElement, referenceElementFromNode, scheduleToolbarDocumentRefresh, updateSelectedBlockFromDom, uploadInteractiveMediaImages])
 
   const applyAutoCaptions = useCallback(() => {
     const root = editorSurfaceRef.current

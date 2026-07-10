@@ -251,6 +251,36 @@ export function appendInteractiveItemV3(block: BookBlockV2, collection: keyof In
   return { ...block, payload }
 }
 
+export function appendAuthorsV3(block: BookBlockV2, authors: InteractiveV3Item[]): BookBlockV2 {
+  if (block.type !== 'interactive' || !authors.length) return block
+  const payload = { ...(block.payload || {}) } as InteractiveV3Payload
+  const current = Array.isArray(payload.authors) ? [...payload.authors] : []
+  const existing = new Set(current.map(author => normalizeBookTextV2(author.name || '').trim().toLowerCase()).filter(Boolean))
+  let added = false
+  authors.forEach((author, index) => {
+    const name = normalizeBookTextV2(author.name || '').trim()
+    if (!name) return
+    const key = name.toLowerCase()
+    if (existing.has(key)) return
+    existing.add(key)
+    added = true
+    current.push({
+      id: `author-${Date.now()}-${current.length + index + 1}`,
+      name,
+      role: normalizeBookTextV2(author.role || ''),
+      bio: normalizeBookTextV2(author.bio || ''),
+      image: author.image || '',
+    })
+  })
+  if (!added) return block
+  payload.authors = current
+  return { ...block, payload }
+}
+
+export function appendAuthorNamesV3(block: BookBlockV2, names: string[]): BookBlockV2 {
+  return appendAuthorsV3(block, names.map(name => ({ id: '', name })))
+}
+
 export function appendHotspotPointV3(block: BookBlockV2, x: number, y: number): BookBlockV2 {
   if (block.type !== 'interactive') return block
   const payload = { ...(block.payload || {}) } as InteractiveV3Payload
