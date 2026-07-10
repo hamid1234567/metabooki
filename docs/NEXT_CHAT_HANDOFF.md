@@ -1,6 +1,6 @@
 # MetaBooki Next Chat Handoff
 
-Last reviewed version: `1.0.690`
+Last reviewed version: `1.0.691`
 
 Use this file as the first reference in a fresh Codex chat before making changes.
 
@@ -63,6 +63,7 @@ Use this file as the first reference in a fresh Codex chat before making changes
 - Storytelling mobile tabs use fixed-width horizontal scroll cards, and stage changes use a controlled fade-out/fade-in transition to avoid image flash/jump.
 - Storytelling transitions now use a simultaneous crossfade: the outgoing panel fades out while the incoming panel fades in on top of it.
 - Interactive V3 tabs use square-like top-rounded tab buttons connected to a faint themed content panel; active tab and panel share the same accent, and mobile tabs scroll horizontally.
+- Interactive V3 tabs were shortened after the initial redesign, and active/inactive contrast is stronger so inactive tabs stay muted while the active tab carries the accent.
 
 ## Current Known Fragile Areas
 
