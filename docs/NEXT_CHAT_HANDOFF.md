@@ -1,6 +1,6 @@
 # MetaBooki Next Chat Handoff
 
-Last reviewed version: `1.0.692`
+Last reviewed version: `1.0.693`
 
 Use this file as the first reference in a fresh Codex chat before making changes.
 
@@ -65,6 +65,7 @@ Use this file as the first reference in a fresh Codex chat before making changes
 - Interactive V3 tabs use square-like top-rounded tab buttons connected to a faint themed content panel; active tab and panel share the same accent, and mobile tabs scroll horizontally.
 - Interactive V3 tabs were shortened after the initial redesign, and active/inactive contrast is stronger so inactive tabs stay muted while the active tab carries the accent.
 - Interactive V3 tabs were then shifted to the blue top-bar reference design: simple labels on a blue strip, muted inactive labels, white active label, and a rounded white marker under the active tab; the content panel uses a faint blue theme.
+- Interactive V3 tabs now use an iOS-style segmented control: gray rounded track, white active pill with subtle shadow, muted inactive labels, and horizontal mobile scrolling.
 
 ## Current Known Fragile Areas
 

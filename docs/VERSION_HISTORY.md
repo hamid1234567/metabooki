@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.692`
+نسخه فعلی فایل رسمی: `1.0.693`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,12 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.693 - Interactive tabs iOS segmented style
+
+- Interactive V3 tabs now use an iOS-style segmented control with a soft gray rounded track.
+- The active tab is a white rounded pill with a subtle iOS-like shadow, while inactive labels remain muted.
+- Mobile keeps the same segmented style with horizontal scrolling when tab labels do not fit.
 
 ### 1.0.692 - Interactive tabs blue bar reference design
 
