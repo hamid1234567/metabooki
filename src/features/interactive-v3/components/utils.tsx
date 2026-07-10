@@ -48,11 +48,11 @@ export function blockTitle(block: InteractiveV3Block) {
   return stringValue(block.title)
 }
 
-export function MediaTextCard({ image, title, body, index }: { image?: string; title?: string; body?: string; index?: number }) {
+export function MediaTextCard({ image, title, body, index, inheritDirection }: { image?: string; title?: string; body?: string; index?: number; inheritDirection?: boolean }) {
   const hasImage = Boolean(image)
   const text = [title, body].filter(Boolean).join(' ')
   return (
-    <div className={`interactive-v3-media-card interactive-v3-animated-panel ${hasImage ? 'has-media' : 'no-media'}`} dir={directionFromText(text)}>
+    <div className={`interactive-v3-media-card interactive-v3-animated-panel ${hasImage ? 'has-media' : 'no-media'}`} dir={inheritDirection ? undefined : directionFromText(text)}>
       {hasImage && (
         <div className="interactive-v3-media">
           <img src={image} alt={title || ''} loading="lazy" />

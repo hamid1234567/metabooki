@@ -158,14 +158,15 @@
   position: relative;
   z-index: 2;
   overflow: hidden;
-  border: 1px solid rgba(148, 163, 184, 0.22);
+  border: 1px solid hsl(0 0% 100% / 0.7);
   border-radius: 999px;
-  background: rgba(229, 231, 235, 0.82);
+  background:
+    linear-gradient(145deg, hsl(0 0% 100% / 0.48), hsl(205 62% 96% / 0.34));
   box-shadow:
-    inset 0 1px 2px rgba(15, 23, 42, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(14px) saturate(1.18);
-  -webkit-backdrop-filter: blur(14px) saturate(1.18);
+    0 18px 48px hsl(213 38% 24% / 0.12),
+    inset 0 1px 0 hsl(0 0% 100% / 0.72);
+  backdrop-filter: blur(17px) saturate(1.35) contrast(1.04);
+  -webkit-backdrop-filter: blur(17px) saturate(1.35) contrast(1.04);
 }
 
 .interactive-v3-tabs .interactive-v3-tab-row button {
@@ -219,6 +220,23 @@
   background: transparent;
   border-color: color-mix(in srgb, var(--tab-accent) 12%, rgba(148, 163, 184, 0.18));
   box-shadow: none;
+}
+
+.interactive-v3-tabs .interactive-v3-media-card.has-media {
+  grid-template-areas: "media copy";
+}
+
+.interactive-v3-tabs:dir(rtl) .interactive-v3-media-card.has-media {
+  grid-template-areas: "copy media";
+}
+
+.interactive-v3-tabs .interactive-v3-media-card.has-media .interactive-v3-media {
+  grid-area: media;
+}
+
+.interactive-v3-tabs .interactive-v3-media-card.has-media .interactive-v3-copy {
+  grid-area: copy;
+  text-align: start;
 }
 
 .interactive-v3-tabs .interactive-v3-copy h4 {
@@ -1113,6 +1131,14 @@
   .interactive-v3-tabs-panel {
     padding: 0.82rem;
     border-radius: 16px;
+  }
+
+  .interactive-v3-tabs .interactive-v3-media-card.has-media,
+  .interactive-v3-tabs:dir(rtl) .interactive-v3-media-card.has-media {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "media"
+      "copy";
   }
 
   .interactive-v3-story-tabs button {

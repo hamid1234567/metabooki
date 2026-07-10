@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.693`
+نسخه فعلی فایل رسمی: `1.0.694`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,12 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.694 - Interactive tabs inherited direction and frosted track
+
+- Interactive V3 tabs now inherit the book/page direction for tab ordering instead of deriving layout direction from tab text.
+- Tab media/text layout now follows the inherited book direction, while mobile stays single-column.
+- The iOS-style segmented track now uses the site's frosted menu glass surface instead of a flat gray background.
 
 ### 1.0.693 - Interactive tabs iOS segmented style
 
