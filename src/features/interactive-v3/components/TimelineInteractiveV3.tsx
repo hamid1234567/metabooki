@@ -16,13 +16,13 @@ export function TimelineInteractiveV3({ block }: { block: InteractiveV3Block }) 
         {events.map((event, index) => (
           <button key={event.id} type="button" className={active === index ? 'is-active' : ''} onClick={() => setActive(index)}>
             <span>{index + 1}</span>
-            <small>{index + 1}</small>
+            <small>{titleValue(event, `${index + 1}`)}</small>
           </button>
         ))}
       </div>
       <div className="interactive-v3-stage-wrap">
         <button type="button" className="interactive-v3-side-nav" disabled={active === 0} onClick={() => setActive(value => Math.max(0, value - 1))}>‹</button>
-        <MediaTextCard image={imageValue(current)} title={titleValue(current)} body={bodyValue(current)} index={active} />
+        <MediaTextCard key={current?.id || active} image={imageValue(current)} title={titleValue(current)} body={bodyValue(current)} index={active} />
         <button type="button" className="interactive-v3-side-nav" disabled={active === events.length - 1} onClick={() => setActive(value => Math.min(events.length - 1, value + 1))}>›</button>
       </div>
       <p className="interactive-v3-counter">{active + 1} / {events.length}</p>

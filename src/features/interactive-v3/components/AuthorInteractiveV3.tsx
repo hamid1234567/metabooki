@@ -24,7 +24,7 @@ export function AuthorInteractiveV3({ block }: { block: InteractiveV3Block }) {
             <span>{stringValue(author.name) || `نویسنده ${index + 1}`}</span>
             {stringValue(author.role) && <small>{stringValue(author.role)}</small>}
             {active === index && (
-              <b className="interactive-v3-author-popover">
+              <b className="interactive-v3-author-popover interactive-v3-animated-panel">
                 {imageValue(author) && <img src={imageValue(author)} alt="" loading="lazy" />}
                 <strong>{stringValue(author.name)}</strong>
                 {stringValue(author.bio) && <em>{stringValue(author.bio)}</em>}

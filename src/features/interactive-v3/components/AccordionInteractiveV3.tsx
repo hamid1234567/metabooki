@@ -27,7 +27,7 @@ export function AccordionInteractiveV3({ block }: { block: InteractiveV3Block })
               <span>{active ? '−' : '+'}</span>
               {itemTitle}
             </button>
-            {active && <MediaTextCard image={imageValue(item)} title={itemTitle} body={bodyValue(item)} index={index} />}
+            {active && <MediaTextCard key={item.id} image={imageValue(item)} title={itemTitle} body={bodyValue(item)} index={index} />}
           </article>
         )
       })}

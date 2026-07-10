@@ -109,8 +109,9 @@ export function interactiveBlockToEditorHtmlV3(block: BookBlockV2) {
       <span>${escapeHtml(def.icon)}</span>
       <div>
         <small>${escapeHtml(def.label)}</small>
-        ${input('title', payload.title || block.title || '', 'عنوان بلوک', 'class="interactive-v3-editor-title"')}
+        ${input('title', Object.prototype.hasOwnProperty.call(payload, 'title') ? payload.title : block.title || '', 'عنوان بلوک', 'class="interactive-v3-editor-title"')}
       </div>
+      <button type="button" class="interactive-v3-editor-remove" data-v3-block-remove="true" title="حذف این تعاملی">×</button>
     </header>
     <div class="interactive-v3-editor-body">${editorItemsHtml(kind, payload)}</div>
     ${def.itemCollection ? `<button type="button" class="interactive-v3-editor-add" data-v3-add-item="${escapeHtml(String(def.itemCollection))}">+ افزودن آیتم</button>` : ''}
@@ -175,7 +176,7 @@ export function interactiveBlockFromEditorElementV3(element: HTMLElement, old: I
     id: element.dataset.blockId || old?.id || '',
     type: 'interactive',
     kind: kind as any,
-    title: payload.title || interactiveV3Definition(kind).label,
+    title: payload.title,
     anchor: old?.anchor || element.dataset.blockId || old?.id,
     printNumber: page.printNumber,
     payload,
@@ -206,5 +207,24 @@ export function removeInteractiveItemV3(block: BookBlockV2, collection: keyof In
   const current = Array.isArray(payload[collection]) ? [...payload[collection] as InteractiveV3Item[]] : []
   if (current.length <= 1 || index < 0) return block
   payload[collection] = current.filter((_, itemIndex) => itemIndex !== index) as any
+  return { ...block, payload }
+}
+
+export function setInteractiveItemImagesV3(block: BookBlockV2, collection: keyof InteractiveV3Payload | undefined, startIndex: number, urls: string[]): BookBlockV2 {
+  if (block.type !== 'interactive' || !urls.length) return block
+  const payload = { ...(block.payload || {}) } as InteractiveV3Payload
+  if (!collection) {
+    payload.image = urls[0]
+    return { ...block, payload }
+  }
+  const current = Array.isArray(payload[collection]) ? [...payload[collection] as InteractiveV3Item[]] : []
+  const next = current.length ? current : [blankItemForCollection(collection, 0)]
+  urls.forEach((url, offset) => {
+    const index = startIndex + offset
+    if (collection !== 'authors' && index >= INTERACTIVE_V3_MAX_ITEMS) return
+    while (next.length <= index) next.push(blankItemForCollection(collection, next.length))
+    next[index] = { ...next[index], image: url }
+  })
+  payload[collection] = next as any
   return { ...block, payload }
 }

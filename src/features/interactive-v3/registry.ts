@@ -11,7 +11,7 @@ export const INTERACTIVE_V3_DEFINITIONS: InteractiveV3Definition[] = [
   { kind: 'gallery', label: 'گالری اسلایدی', shortLabel: 'گالری', icon: '▧', allowsMedia: true, maxItems: INTERACTIVE_V3_MAX_ITEMS, itemCollection: 'images' },
   { kind: 'scrollytelling', label: 'استوری‌تلینگ', shortLabel: 'استوری', icon: '▣', allowsMedia: true, maxItems: INTERACTIVE_V3_MAX_ITEMS, itemCollection: 'steps' },
   { kind: 'hotspot', label: 'هات‌اسپات', shortLabel: 'هات‌اسپات', icon: '+', allowsMedia: true, maxItems: INTERACTIVE_V3_MAX_ITEMS, itemCollection: 'points' },
-  { kind: 'author', label: 'معرفی نویسنده', shortLabel: 'نویسنده', icon: '◉', allowsMedia: true, itemCollection: 'authors' },
+  { kind: 'author', label: 'معرفی نویسنده', shortLabel: 'نویسنده', icon: '◎', allowsMedia: true, itemCollection: 'authors' },
 ]
 
 export const INTERACTIVE_V3_KINDS = new Set<string>(INTERACTIVE_V3_DEFINITIONS.map(item => item.kind))

@@ -21,7 +21,7 @@ export function StorytellingInteractiveV3({ block }: { block: InteractiveV3Block
           ))}
         </div>
         <div className="interactive-v3-story-panel">
-          <MediaTextCard image={imageValue(current)} title={titleValue(current)} body={bodyValue(current)} index={active} />
+          <MediaTextCard key={current?.id || active} image={imageValue(current)} title={titleValue(current)} body={bodyValue(current)} index={active} />
           <div className="interactive-v3-step-actions">
             <button type="button" disabled={active === 0} onClick={() => setActive(value => Math.max(0, value - 1))}>‹</button>
             <span>{active + 1} / {steps.length}</span>

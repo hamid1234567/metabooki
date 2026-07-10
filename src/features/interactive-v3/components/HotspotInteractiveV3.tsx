@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { InteractiveV3Block } from '../types'
-import { blockTitle, directionFromText, imageValue, itemsFor, stringValue, titleValue } from './utils'
+import { blockTitle, directionFromText, itemsFor, stringValue, titleValue } from './utils'
 
 function clampPercent(value: unknown) {
   const number = Number(value)
@@ -35,7 +35,7 @@ export function HotspotInteractiveV3({ block }: { block: InteractiveV3Block }) {
             >
               <span>+</span>
               {open && (
-                <b className="interactive-v3-hotspot-popover">
+                <b className="interactive-v3-hotspot-popover interactive-v3-animated-panel">
                   {titleValue(point, `نقطه ${index + 1}`)}
                   {stringValue(point.text) && <small>{stringValue(point.text)}</small>}
                 </b>

@@ -27,14 +27,15 @@ export function itemsFor(block: InteractiveV3Block, key: keyof InteractiveV3Payl
 }
 
 export function blockTitle(block: InteractiveV3Block) {
-  return stringValue(block.payload?.title || block.title)
+  if (block.payload && Object.prototype.hasOwnProperty.call(block.payload, 'title')) return stringValue(block.payload.title)
+  return stringValue(block.title)
 }
 
 export function MediaTextCard({ image, title, body, index }: { image?: string; title?: string; body?: string; index?: number }) {
   const hasImage = Boolean(image)
   const text = [title, body].filter(Boolean).join(' ')
   return (
-    <div className={`interactive-v3-media-card ${hasImage ? 'has-media' : 'no-media'}`} dir={directionFromText(text)}>
+    <div className={`interactive-v3-media-card interactive-v3-animated-panel ${hasImage ? 'has-media' : 'no-media'}`} dir={directionFromText(text)}>
       {hasImage && (
         <div className="interactive-v3-media">
           <img src={image} alt={title || ''} loading="lazy" />

@@ -16,7 +16,7 @@ import { backfillPageEngineForBook, isUuidV2, loadPageEngineWindow, rebuildPageE
 import { bookDisplayTextHtml, bookSearchIncludes, isBookLtrRunText, type PrintPageValue } from '@/lib/book-content'
 import { referenceClassNameV2, referenceDisplayLabelV2, referenceHtmlDataAttributesV2, referenceKindFromElementV2, referenceKindFromInlineV2, referenceTooltipDirectionV2, referenceTooltipTextV2, shortenReferencePreviewV2, type BookReferenceKindV2 } from '@/lib/book-references'
 import { createInteractiveBlockV3, INTERACTIVE_V3_DEFINITIONS } from '@/features/interactive-v3/registry'
-import { appendInteractiveItemV3, interactiveBlockFromEditorElementV3, interactiveBlockToEditorHtmlV3, removeInteractiveItemV3 } from '@/features/interactive-v3/editorHtml'
+import { appendInteractiveItemV3, interactiveBlockFromEditorElementV3, interactiveBlockToEditorHtmlV3, removeInteractiveItemV3, setInteractiveItemImagesV3 } from '@/features/interactive-v3/editorHtml'
 import type { MockBook } from '@/lib/mock-data'
 import './editor-v2.css'
 import '@/features/interactive-v3/interactive-v3.css'
@@ -1380,7 +1380,7 @@ function RightPanelV2({
   tocRebuilding,
   onInsertImage,
   interactiveMediaTargetActive,
-  onPickInteractiveImage,
+  onPickInteractiveImages,
   onUploadImage,
   onGenerateImage,
   onAutoCaption,
@@ -1412,8 +1412,8 @@ function RightPanelV2({
   tocRebuilding: boolean
   onInsertImage: (assetId: string) => void
   interactiveMediaTargetActive: boolean
-  onPickInteractiveImage: (assetId: string) => void
-  onUploadImage: (file: File) => void
+  onPickInteractiveImages: (refs: EditorMediaReferenceV2[]) => void
+  onUploadImage: (files: File[]) => void
   onGenerateImage: (prompt: string) => void
   onAutoCaption: () => void
   mediaMessage: string
@@ -1451,6 +1451,7 @@ function RightPanelV2({
   const [selectedReferenceItem, setSelectedReferenceItem] = useState<EditorInlineReferenceV2 | null>(null)
   const [openReferenceSection, setOpenReferenceSection] = useState<'edit' | 'heading' | 'footnote' | 'reference' | 'image' | ''>('edit')
   const [libraryOpen, setLibraryOpen] = useState(false)
+  const [selectedLibraryKeys, setSelectedLibraryKeys] = useState<Set<string>>(() => new Set())
   const [aiPrompt, setAiPrompt] = useState('')
   const filteredMediaRefs = useMemo(() => {
     const query = mediaQuery.trim()
@@ -1497,6 +1498,16 @@ function RightPanelV2({
       return
     }
   }, [activePanel])
+  useEffect(() => {
+    if (interactiveMediaTargetActive && activePanel === 'media') {
+      setLibraryOpen(true)
+      setSelectedLibraryKeys(new Set())
+      setMediaQuery('')
+    }
+  }, [activePanel, interactiveMediaTargetActive])
+  useEffect(() => {
+    if (!libraryOpen) setSelectedLibraryKeys(new Set())
+  }, [libraryOpen])
   useEffect(() => {
     if (!activeReference) {
       setLinkHref('')
@@ -1585,7 +1596,7 @@ function RightPanelV2({
               <label>
                 <Upload size={14} />
                 آپلود
-                <input type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" onChange={event => event.target.files?.[0] && onUploadImage(event.target.files[0])} />
+                <input type="file" multiple accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" onChange={event => { const files = Array.from(event.target.files || []); if (files.length) onUploadImage(files); event.currentTarget.value = '' }} />
               </label>
               <button type="button" onClick={() => setLibraryOpen(true)}><ImageIcon size={14} />انتخاب از کتاب</button>
               <button type="button" className="editor-v2-media-auto-caption" onClick={onAutoCaption}><FileText size={14} />درج خودکار کپشن</button>
@@ -1664,14 +1675,51 @@ function RightPanelV2({
                     <input value={mediaQuery} onChange={event => setMediaQuery(event.target.value)} placeholder="جستجو..." autoFocus />
                   </div>
                   <div className="editor-v2-media-library">
-                    {filteredLibraryMediaRefs.map(item => (
-                      <button key={item.key} type="button" className={item.needsCheck ? 'has-issue' : ''} disabled={!item.assetId || !item.url} onClick={() => { if (item.assetId) { interactiveMediaTargetActive ? onPickInteractiveImage(item.assetId) : onInsertImage(item.assetId); setLibraryOpen(false) } }}>
+                    {filteredLibraryMediaRefs.map(item => {
+                      const isSelected = selectedLibraryKeys.has(item.key)
+                      return (
+                      <button
+                        key={item.key}
+                        type="button"
+                        className={`${item.needsCheck ? 'has-issue' : ''} ${isSelected ? 'is-selected' : ''}`}
+                        disabled={!item.url || (!interactiveMediaTargetActive && !item.assetId)}
+                        onClick={() => {
+                          if (!item.url || (!interactiveMediaTargetActive && !item.assetId)) return
+                          if (interactiveMediaTargetActive) {
+                            setSelectedLibraryKeys(current => {
+                              const next = new Set(current)
+                              if (next.has(item.key)) next.delete(item.key)
+                              else next.add(item.key)
+                              return next
+                            })
+                            return
+                          }
+                          if (item.assetId) onInsertImage(item.assetId)
+                          setLibraryOpen(false)
+                        }}
+                      >
                         {item.url ? <img src={item.url} alt={item.caption || ''} loading="lazy" /> : <span className="editor-v2-missing-thumb"><ImageIcon size={18} /></span>}
                         <b>{item.caption || 'بدون کپشن'}</b>
                         <small>صفحه چاپی: {item.printNumber || 'نامشخص'}{item.autoCaption ? ' · اتوکپشن' : ''}</small>
                       </button>
-                    ))}
+                    )})}
                   </div>
+                  {interactiveMediaTargetActive && (
+                    <footer className="editor-v2-media-modal-actions">
+                      <button type="button" onClick={() => setSelectedLibraryKeys(new Set())} disabled={!selectedLibraryKeys.size}>پاک کردن انتخاب</button>
+                      <button
+                        type="button"
+                        disabled={!selectedLibraryKeys.size}
+                        onClick={() => {
+                          const selected = filteredLibraryMediaRefs.filter(item => selectedLibraryKeys.has(item.key))
+                          onPickInteractiveImages(selected)
+                          setLibraryOpen(false)
+                        }}
+                      >
+                        درج {selectedLibraryKeys.size.toLocaleString('fa-IR')} تصویر
+                      </button>
+                    </footer>
+                  )}
                 </div>
               </div>
             )}
@@ -3289,6 +3337,10 @@ export default function EditorV2Page() {
     }
   }, [commitDocument, document, id, insertBlockIntoEditorDom, selectedBlockId, selectedBlockIdFromEditorTarget, user?.id])
 
+  const insertUploadedImages = useCallback((files: File[]) => {
+    files.forEach(file => { void insertUploadedImage(file) })
+  }, [insertUploadedImage])
+
   const generateImageFromPrompt = useCallback(async (prompt: string) => {
     if (!prompt.trim()) return
     const insertionBlockId = selectedBlockIdFromEditorTarget() || selectedBlockId
@@ -3338,59 +3390,77 @@ export default function EditorV2Page() {
     }
   }, [commitDocument, document, insertBlockIntoEditorDom, recordAiUsage, selectedBlockId, selectedBlockIdFromEditorTarget, user])
 
-  const setInteractiveMediaUrl = useCallback((url: string) => {
+  const applyInteractiveMediaUrls = useCallback((urls: string[]) => {
     const target = interactiveMediaTargetRef.current
-    if (!target || !url) return false
-    const existing = target.querySelector<HTMLImageElement>(':scope > img')
-    const placeholder = target.querySelector<HTMLElement>(':scope > span')
-    const image = existing || window.document.createElement('img')
-    image.src = url
-    image.alt = ''
-    image.loading = 'lazy'
-    if (!existing) target.insertBefore(image, target.firstChild)
-    placeholder?.remove()
+    const cleanUrls = urls.filter(Boolean)
+    if (!target || !cleanUrls.length) return false
+    const section = target.closest<HTMLElement>('[data-v2-type="interactive"][data-block-id]')
+    const pageElement = section?.closest<HTMLElement>('.editor-v2-flow-page')
+    const blockId = section?.dataset.blockId
+    const pageIndex = Number(pageElement?.dataset.pageIndex)
+    const page = document?.pages.find(item => item.index === pageIndex) || document?.pages[0]
+    const oldBlock = document && blockId ? findBlockInDocumentV2(document, blockId) : undefined
+    if (!section || !blockId || !page || oldBlock?.type !== 'interactive') return false
+    const parsed = interactiveBlockFromEditorElementV3(section, oldBlock, page)
+    if (!parsed) return false
+    const path = target.dataset.v3Media || ''
+    const match = /^([^.]+)\.(\d+)\.image$/.exec(path)
+    const collection = match?.[1] as any
+    const startIndex = match ? Number(match[2]) : 0
+    const nextBlock = setInteractiveItemImagesV3(parsed, match ? collection : undefined, startIndex, cleanUrls)
+    pushEditorHistory()
+    section.outerHTML = interactiveBlockToEditorHtmlV3(nextBlock)
     skipNextSurfaceSyncRef.current = true
     markEditorDirty(target)
     markDirtyAssetPageFromNode(target)
     scheduleToolbarDocumentRefresh()
     setInteractiveMediaTargetActive(false)
     return true
-  }, [markDirtyAssetPageFromNode, markEditorDirty, scheduleToolbarDocumentRefresh])
+  }, [document, markDirtyAssetPageFromNode, markEditorDirty, pushEditorHistory, scheduleToolbarDocumentRefresh])
 
-  const pickInteractiveImageFromAsset = useCallback((assetId: string) => {
-    const asset = document?.assets.find(item => item.id === assetId)
-    if (!asset?.url) return
-    if (setInteractiveMediaUrl(asset.url)) setMediaMessage('تصویر داخل همان بلوک تعاملی قرار گرفت.')
-  }, [document?.assets, setInteractiveMediaUrl])
+  const pickInteractiveImagesFromRefs = useCallback((refs: EditorMediaReferenceV2[]) => {
+    const urls = refs.map(item => item.url).filter(Boolean)
+    if (applyInteractiveMediaUrls(urls)) {
+      setMediaMessage(`${urls.length.toLocaleString('fa-IR')} تصویر داخل آیتم‌های تعاملی قرار گرفت.`)
+    }
+  }, [applyInteractiveMediaUrls])
 
-  const uploadInteractiveMediaImage = useCallback(async (file: File) => {
+  const uploadInteractiveMediaImages = useCallback(async (files: File[]) => {
     const target = interactiveMediaTargetRef.current
-    if (!target) return
+    if (!target || !files.length) return
     const pageIndex = Number(target.closest<HTMLElement>('.editor-v2-flow-page')?.dataset.pageIndex)
     const page = document?.pages.find(item => item.index === pageIndex)
     try {
-      const compressedImage = await compressInteractiveUploadImageV2(file)
-      const uploadFile = compressedImage.file
-      const assetId = createV2Id('asset-interactive', Date.now(), uploadFile.name)
-      const url = await uploadEditorImageFileV2(user?.id, document?.sourceBookId || id || '', assetId, uploadFile)
-      const asset = {
-        id: assetId,
-        type: 'image' as const,
-        url,
-        caption: file.name.replace(/\.[^.]+$/, ''),
-        printNumber: page?.printNumber,
-        status: 'ready' as const,
+      const assets: NonNullable<BookDocumentV2['assets']>[number][] = []
+      const urls: string[] = []
+      let compressedCount = 0
+      for (const file of files) {
+        const compressedImage = await compressInteractiveUploadImageV2(file)
+        if (compressedImage.compressed) compressedCount += 1
+        const uploadFile = compressedImage.file
+        const assetId = createV2Id('asset-interactive', Date.now(), uploadFile.name)
+        const url = await uploadEditorImageFileV2(user?.id, document?.sourceBookId || id || '', assetId, uploadFile)
+        urls.push(url)
+        assets.push({
+          id: assetId,
+          type: 'image' as const,
+          url,
+          caption: file.name.replace(/\.[^.]+$/, ''),
+          printNumber: page?.printNumber,
+          status: 'ready' as const,
+        })
       }
-      commitDocument(current => ({ ...current, assets: [...current.assets, asset] }), { dirtyAssetPageIndexes: [Number.isFinite(pageIndex) ? pageIndex : 0] })
-      if (setInteractiveMediaUrl(url)) {
-        setMediaMessage(compressedImage.compressed
-          ? `تصویر با حفظ کیفیت فشرده شد و در اندازه حداکثر 1K داخل بلوک تعاملی قرار گرفت.`
-          : 'تصویر آپلود و داخل بلوک تعاملی قرار گرفت.')
+      commitDocument(current => ({ ...current, assets: [...current.assets, ...assets] }), { dirtyAssetPageIndexes: [Number.isFinite(pageIndex) ? pageIndex : 0] })
+      if (compressedCount) {
+        toast.success(`${compressedCount.toLocaleString('fa-IR')} تصویر پیش از آپلود کم‌حجم شد.`, { description: 'نسخه فشرده‌شده به سرور ارسال شد.' })
+      }
+      if (applyInteractiveMediaUrls(urls)) {
+        setMediaMessage(`${urls.length.toLocaleString('fa-IR')} تصویر آپلود و داخل آیتم‌های تعاملی قرار گرفت.`)
       }
     } catch (error) {
       setMediaMessage(error instanceof Error ? error.message : 'آپلود تصویر تعاملی ناموفق بود.')
     }
-  }, [commitDocument, document?.pages, document?.sourceBookId, id, setInteractiveMediaUrl, user?.id])
+  }, [applyInteractiveMediaUrls, commitDocument, document?.pages, document?.sourceBookId, id, user?.id])
 
   const generateInteractiveMediaImage = useCallback(async (target: HTMLElement) => {
     const item = target.closest<HTMLElement>('[data-v3-list], .interactive-v3-editor-hotspot, .interactive-v3-editor')
@@ -3424,7 +3494,7 @@ export default function EditorV2Page() {
         status: 'ready' as const,
       }
       commitDocument(current => ({ ...current, assets: [...current.assets, asset] }), { dirtyAssetPageIndexes: [Number.isFinite(pageIndex) ? pageIndex : 0] })
-      if (setInteractiveMediaUrl(result.imageUrl)) {
+      if (applyInteractiveMediaUrls([result.imageUrl])) {
         recordAiUsage(result.usage)
         setMediaMessage('تصویر تولید و داخل بلوک تعاملی قرار گرفت.')
       }
@@ -3433,7 +3503,7 @@ export default function EditorV2Page() {
     } finally {
       setAiBusy(false)
     }
-  }, [commitDocument, document?.pages, document?.sourceBookId, recordAiUsage, setInteractiveMediaUrl, user])
+  }, [applyInteractiveMediaUrls, commitDocument, document?.pages, document?.sourceBookId, recordAiUsage, user])
 
   const resizeImageBlock = useCallback((blockId: string, widthPercent: number) => {
     const dirtyPageIndex = findBlockPageIndexV2(document, blockId)
@@ -3528,7 +3598,7 @@ export default function EditorV2Page() {
 
   const handleEditorSurfaceClick = useCallback((event: any) => {
     const target = event.target as HTMLElement
-    const interactiveAction = target.closest<HTMLElement>('[data-v3-add-item], [data-v3-item-remove], [data-v3-media-action]')
+    const interactiveAction = target.closest<HTMLElement>('[data-v3-add-item], [data-v3-item-remove], [data-v3-media-action], [data-v3-block-remove]')
     if (interactiveAction) {
       const section = interactiveAction.closest<HTMLElement>('[data-v2-type="interactive"][data-block-id]')
       const pageElement = section?.closest<HTMLElement>('.editor-v2-flow-page')
@@ -3541,6 +3611,15 @@ export default function EditorV2Page() {
       event.stopPropagation()
       const parsed = interactiveBlockFromEditorElementV3(section, oldBlock, page)
       if (!parsed) return
+      if (interactiveAction.dataset.v3BlockRemove) {
+        pushEditorHistory()
+        section.remove()
+        setSelectedBlockId(current => current === blockId ? undefined : current)
+        markEditorDirty(pageElement || section)
+        markDirtyAssetPageFromNode(pageElement || section)
+        scheduleToolbarDocumentRefresh()
+        return
+      }
       if (interactiveAction.dataset.v3MediaAction) {
         const mediaTarget = interactiveAction.closest<HTMLElement>('[data-v3-media]')
         if (!mediaTarget) return
@@ -3550,16 +3629,18 @@ export default function EditorV2Page() {
         if (action === 'upload') {
           const input = window.document.createElement('input')
           input.type = 'file'
+          input.multiple = true
           input.accept = 'image/png,image/jpeg,image/webp,image/gif,image/svg+xml'
           input.onchange = () => {
-            const file = input.files?.[0]
-            if (file) void uploadInteractiveMediaImage(file)
+            const files = Array.from(input.files || [])
+            if (files.length) void uploadInteractiveMediaImages(files)
           }
           input.click()
           return
         }
         if (action === 'library') {
-          setMediaMessage('یک تصویر از کتاب انتخاب کنید تا داخل همین بلوک تعاملی قرار بگیرد.')
+          setMediaMessage('یک یا چند تصویر از کتاب انتخاب کنید تا از همین مسیر داخل آیتم‌های تعاملی قرار بگیرد.')
+          setSelectedBlockId(blockId)
           setActivePanel('media')
           return
         }
@@ -3597,7 +3678,7 @@ export default function EditorV2Page() {
       return
     }
     updateSelectedBlockFromDom()
-  }, [deleteImageBlock, document, generateInteractiveMediaImage, markEditorDirty, pushEditorHistory, readActiveReferenceFromElement, referenceElementFromNode, scheduleToolbarDocumentRefresh, updateSelectedBlockFromDom, uploadInteractiveMediaImage])
+  }, [deleteImageBlock, document, generateInteractiveMediaImage, markDirtyAssetPageFromNode, markEditorDirty, pushEditorHistory, readActiveReferenceFromElement, referenceElementFromNode, scheduleToolbarDocumentRefresh, updateSelectedBlockFromDom, uploadInteractiveMediaImages])
 
   const applyAutoCaptions = useCallback(() => {
     const root = editorSurfaceRef.current
@@ -4006,8 +4087,8 @@ export default function EditorV2Page() {
           tocRebuilding={tocRebuilding}
           onInsertImage={insertImageFromAsset}
           interactiveMediaTargetActive={interactiveMediaTargetActive}
-          onPickInteractiveImage={pickInteractiveImageFromAsset}
-          onUploadImage={insertUploadedImage}
+          onPickInteractiveImages={pickInteractiveImagesFromRefs}
+          onUploadImage={insertUploadedImages}
           onGenerateImage={generateImageFromPrompt}
           onAutoCaption={applyAutoCaptions}
           mediaMessage={mediaMessage}

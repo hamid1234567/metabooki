@@ -1147,7 +1147,7 @@
   max-width: 100%;
   max-height: min(34rem, calc(100dvh - 12rem));
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   gap: 0.55rem;
   border: 1px solid hsl(214 55% 84% / 0.9);
   border-radius: 1rem;
@@ -1198,6 +1198,42 @@
   transform: translateY(-2px);
   border-color: #93b5f5;
   box-shadow: 0 12px 28px #1d4ed81a;
+}
+
+.editor-v2-media-library button.is-selected {
+  border-color: #2563eb;
+  background: hsl(214 100% 96% / 0.92);
+  box-shadow: 0 0 0 3px hsl(217 91% 60% / 0.14);
+}
+
+.editor-v2-media-modal-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.45rem;
+  padding-top: 0.15rem;
+}
+
+.editor-v2-media-modal-actions button {
+  border: 1px solid #c9d8ee;
+  border-radius: 999px;
+  background: hsl(0 0% 100% / 0.86);
+  color: #20304a;
+  padding: 0.5rem 0.75rem;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.editor-v2-media-modal-actions button:last-child {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #fff;
+}
+
+.editor-v2-media-modal-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .editor-v2-media-library img {

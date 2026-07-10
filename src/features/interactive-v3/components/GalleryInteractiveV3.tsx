@@ -13,10 +13,12 @@ export function GalleryInteractiveV3({ block }: { block: InteractiveV3Block }) {
       {title && <h3>{title}</h3>}
       <div className="interactive-v3-gallery-stage">
         <button type="button" disabled={active === 0} onClick={() => setActive(value => Math.max(0, value - 1))}>‹</button>
-        {imageValue(current) && <img src={imageValue(current)} alt={titleValue(current)} loading="lazy" />}
+        <div key={current?.id || active} className="interactive-v3-gallery-frame interactive-v3-animated-panel">
+          {imageValue(current) && <img src={imageValue(current)} alt={titleValue(current)} loading="lazy" />}
+        </div>
         <button type="button" disabled={active === images.length - 1} onClick={() => setActive(value => Math.min(images.length - 1, value + 1))}>›</button>
       </div>
-      {stringValue(current?.caption) && <p className="interactive-v3-gallery-caption">{stringValue(current?.caption)}</p>}
+      {stringValue(current?.caption) && <p key={`caption-${current?.id || active}`} className="interactive-v3-gallery-caption interactive-v3-animated-panel">{stringValue(current?.caption)}</p>}
       <div className="interactive-v3-thumbs">
         {images.map((image, index) => (
           <button key={image.id} type="button" className={active === index ? 'is-active' : ''} onClick={() => setActive(index)}>
