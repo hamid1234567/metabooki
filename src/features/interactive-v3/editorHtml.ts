@@ -34,8 +34,12 @@ function mediaTools(path: string, image = '') {
   </div>`
 }
 
-function authorFindButton(index: number) {
-  return `<button type="button" class="interactive-v3-author-find" data-v3-author-find="true" data-v3-index="${index}" contenteditable="false">پیدا کردن در متن</button>`
+function authorBatchTools() {
+  return `<div class="interactive-v3-author-batch" contenteditable="false">
+    <textarea data-v3-author-lines="true" placeholder="نام نویسنده‌ها؛ هر نویسنده در یک خط"></textarea>
+    <button type="button" data-v3-author-lines-add="true">افزودن نویسنده‌ها</button>
+    <div class="interactive-v3-author-library" data-v3-author-library="true"></div>
+  </div>`
 }
 
 function hotspotMedia(image = '') {
@@ -50,12 +54,11 @@ function hotspotMedia(image = '') {
 }
 
 function itemShell(collection: keyof InteractiveV3Payload, index: number, item: InteractiveV3Item, body: string, media = true) {
-  const itemBody = collection === 'authors' ? `${body}${authorFindButton(index)}` : body
   return `<article class="interactive-v3-editor-item" data-v3-list="${escapeHtml(String(collection))}" data-v3-index="${index}"${attr('data-v3-item-id', item.id)}>
     <header contenteditable="false"><b>${index + 1}</b><button type="button" data-v3-item-remove="true" title="حذف آیتم">×</button></header>
     <div class="interactive-v3-editor-item-grid ${media ? 'has-media' : 'no-media'}">
       ${media ? mediaTools(`${String(collection)}.${index}.image`, item.image || '') : ''}
-      <div>${itemBody}</div>
+      <div>${body}</div>
     </div>
   </article>`
 }
@@ -142,7 +145,7 @@ function editorItemsHtml(kind: InteractiveV3Kind, payload: InteractiveV3Payload)
     </div>`
   }
 
-  return limitedItems(payload, 'authors', true).map((author, index) => itemShell('authors', index, author, `${input('name', author.name, 'نام نویسنده')}${input('role', author.role, 'نقش یا سمت')}${text('bio', author.bio, 'معرفی کوتاه')}`)).join('')
+  return `${authorBatchTools()}${limitedItems(payload, 'authors', true).map((author, index) => itemShell('authors', index, author, `${input('name', author.name, 'نام نویسنده')}${input('role', author.role, 'نقش یا سمت')}${text('bio', author.bio, 'معرفی کوتاه')}`)).join('')}`
 }
 
 export function interactiveBlockToEditorHtmlV3(block: BookBlockV2) {
