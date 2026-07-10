@@ -3369,8 +3369,10 @@ export default function EditorV2Page() {
     const pageIndex = Number(target.closest<HTMLElement>('.editor-v2-flow-page')?.dataset.pageIndex)
     const page = document?.pages.find(item => item.index === pageIndex)
     try {
-      const assetId = createV2Id('asset-interactive', Date.now(), file.name)
-      const url = await uploadEditorImageFileV2(user?.id, document?.sourceBookId || id || '', assetId, file)
+      const compressedImage = await compressInteractiveUploadImageV2(file)
+      const uploadFile = compressedImage.file
+      const assetId = createV2Id('asset-interactive', Date.now(), uploadFile.name)
+      const url = await uploadEditorImageFileV2(user?.id, document?.sourceBookId || id || '', assetId, uploadFile)
       const asset = {
         id: assetId,
         type: 'image' as const,
@@ -3380,7 +3382,11 @@ export default function EditorV2Page() {
         status: 'ready' as const,
       }
       commitDocument(current => ({ ...current, assets: [...current.assets, asset] }), { dirtyAssetPageIndexes: [Number.isFinite(pageIndex) ? pageIndex : 0] })
-      if (setInteractiveMediaUrl(url)) setMediaMessage('تصویر آپلود و داخل بلوک تعاملی قرار گرفت.')
+      if (setInteractiveMediaUrl(url)) {
+        setMediaMessage(compressedImage.compressed
+          ? `تصویر با حفظ کیفیت فشرده شد و در اندازه حداکثر 1K داخل بلوک تعاملی قرار گرفت.`
+          : 'تصویر آپلود و داخل بلوک تعاملی قرار گرفت.')
+      }
     } catch (error) {
       setMediaMessage(error instanceof Error ? error.message : 'آپلود تصویر تعاملی ناموفق بود.')
     }
