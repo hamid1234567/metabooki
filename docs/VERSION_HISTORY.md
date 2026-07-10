@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.686`
+نسخه فعلی فایل رسمی: `1.0.687`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,12 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.687 - Storytelling direction and empty-title polish
+
+- Storytelling previous/next controls now place the next button at the visual end of the inherited text direction: left for RTL and right for LTR.
+- Storytelling no longer creates artificial step titles when a step title is empty.
+- The dedicated storytelling reader markup still uses the shared Interactive V3 block wrapper, item normalization, and direction utilities.
 
 ### 1.0.686 - Storytelling reader redesign
 

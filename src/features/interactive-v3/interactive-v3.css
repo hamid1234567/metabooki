@@ -663,12 +663,14 @@
 }
 
 .interactive-v3-story-next {
+  order: 3;
   background: var(--story-accent);
   color: #fff;
   box-shadow: 0 14px 26px color-mix(in srgb, var(--story-accent) 28%, transparent);
 }
 
 .interactive-v3-story-prev {
+  order: 1;
   background: rgba(255, 255, 255, 0.76);
   color: #475569;
 }
@@ -680,6 +682,7 @@
 }
 
 .interactive-v3-story-progress {
+  order: 2;
   display: flex;
   justify-content: center;
   align-items: center;
