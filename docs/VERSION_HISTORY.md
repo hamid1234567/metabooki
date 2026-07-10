@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.706`
+نسخه فعلی فایل رسمی: `1.0.707`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,13 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.707 - Actionable AI editorial suggestions
+
+- The default admin-editable callout suggestion prompt now uses the user's Persian professional digital-book editor prompt and is applied by default even when the stored setting is empty.
+- AI callout/text enhancement output now returns actionable formatting/callout suggestions instead of a generic explanatory paragraph.
+- Editor V2 shows the current AI suggestions as a separate list with apply/dismiss actions; educational callouts insert real callout blocks and bold/highlight suggestions can apply directly when the source quote is found.
+- The edge prompt schema now asks for suggestion type, exact source quote, proposed action, short reason, importance, and location-ordered suggestions.
 
 ### 1.0.706 - AI callout prompt and image history reuse
 

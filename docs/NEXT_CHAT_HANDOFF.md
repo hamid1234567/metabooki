@@ -1,6 +1,6 @@
 # MetaBooki Next Chat Handoff
 
-Last reviewed version: `1.0.706`
+Last reviewed version: `1.0.707`
 
 Use this file as the first reference in a fresh Codex chat before making changes.
 
@@ -85,6 +85,7 @@ Use this file as the first reference in a fresh Codex chat before making changes
 
 - Editor V2 AI panel now labels the text action as callout suggestion generation; AI history/profile output lists expose loading/empty/error states, and AI gateway/history reads use client-side timeouts so stuck requests no longer look like empty lists.
 - AI callout suggestions now use a stricter educational-editor prompt, may return no suggestions instead of forcing weak callouts, refresh history when the AI panel opens, and AI history images fall back to insertion as normal editor image blocks when no interactive placeholder is active.
+- AI callout/text enhancement now uses the user's Persian professional digital-book editor prompt as the default admin-editable `readerCalloutSuggestions` prompt and renders actionable suggestion cards in Editor V2 with apply/dismiss controls.
 
 ## Current Known Fragile Areas
 
