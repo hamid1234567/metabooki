@@ -340,9 +340,17 @@ function estimatedOutputTokensForAction(action: string, inputTokens: number, max
   return Math.min(maxOutputTokens, 360)
 }
 
+function weightedRangeEstimate(minimum: number, maximum: number) {
+  const min = Math.max(0, Number(minimum) || 0)
+  const max = Math.max(min, Number(maximum) || min)
+  if (min === max) return Math.ceil(min)
+  return Math.ceil(((2 * min) + max) / 3)
+}
+
 function estimatedTextUsage(provider: AiProviderConfig, prompt: string, action: string, maxOutputTokens: number, usdToToman: number, chargeMultiplier: number, creditsPerToman: number) {
   const inputTokens = Math.ceil(estimateTokens(prompt))
-  const outputTokens = estimatedOutputTokensForAction(action, inputTokens, maxOutputTokens)
+  const minimumOutputTokens = estimatedOutputTokensForAction(action, inputTokens, maxOutputTokens)
+  const outputTokens = weightedRangeEstimate(minimumOutputTokens, maxOutputTokens)
   return textUsageFromTokens(provider, inputTokens, outputTokens, usdToToman, chargeMultiplier, creditsPerToman)
 }
 
