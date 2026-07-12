@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.709`
+نسخه فعلی فایل رسمی: `1.0.710`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,13 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.710 - Complete AI formatting application
+
+- AI formatting suggestions now apply inline styles to the exact source text in the document model instead of relying only on DOM selection.
+- Supported AI formatting actions now include bold, italic, underline, strike, highlight/background color, text color, font-size changes, and clear-format handling.
+- Block-level AI formatting can apply alignment and simple block text styling without converting the suggestion into a callout.
+- AI estimate preflight now uses the requested weighted range rule for bounded output usage: `(2 * minimum + maximum) / 3`; completed requests still charge by actual provider token usage.
 
 ### 1.0.709 - AI suggestion cost and formatting actions
 
