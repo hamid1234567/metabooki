@@ -3,6 +3,7 @@ import { normalizeSymbolFontText } from '@/lib/symbol-font'
 
 export type BookInlineSpan = ImportInlineSpan & {
   color?: string
+  backgroundColor?: string
   fontFamily?: string
   fontSize?: string
 }
@@ -317,6 +318,7 @@ export function inlineToHtml(inline?: BookInlineSpan[], fallback = '') {
     let content = bookDisplayTextHtml(span.text || '')
     const style = [
       span.color ? `color:${span.color}` : '',
+      span.backgroundColor ? `background-color:${span.backgroundColor}` : '',
       span.fontFamily ? `font-family:${span.fontFamily}` : '',
       span.fontSize ? `font-size:${span.fontSize}` : '',
     ].filter(Boolean).join(';')
