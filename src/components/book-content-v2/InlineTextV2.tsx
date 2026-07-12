@@ -20,6 +20,7 @@ function wrapWithMarks(node: ReactNode, span: BookInlineV2) {
 function spanStyle(span: BookInlineV2) {
   return {
     color: span.style?.color,
+    backgroundColor: span.style?.backgroundColor,
     fontFamily: span.style?.fontFamily,
     fontSize: span.style?.fontSize,
   }

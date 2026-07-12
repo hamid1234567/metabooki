@@ -301,6 +301,7 @@ function inlineV2ToLegacy(inline?: BookInlineV2[]) {
     referenceTitle: span.referenceTitle,
     referenceText: span.referenceText,
     color: span.style?.color,
+    backgroundColor: span.style?.backgroundColor,
     fontFamily: span.style?.fontFamily,
     fontSize: span.style?.fontSize,
   }))

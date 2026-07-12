@@ -17,6 +17,7 @@ export type BookBlockTypeV2 =
 
 export interface BookInlineStyleV2 {
   color?: string
+  backgroundColor?: string
   fontFamily?: string
   fontSize?: string
 }

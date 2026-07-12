@@ -44,6 +44,7 @@ export function normalizeInlineV2(inline: unknown): BookInlineV2[] | undefined {
       ].filter(Boolean) as BookInlineV2['marks']
       const style = {
         color: item.color ? String(item.color) : undefined,
+        backgroundColor: item.backgroundColor ? String(item.backgroundColor) : undefined,
         fontFamily: item.fontFamily ? String(item.fontFamily) : undefined,
         fontSize: item.fontSize ? String(item.fontSize) : undefined,
       }

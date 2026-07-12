@@ -288,6 +288,7 @@ function styleAttrFromInlineV2(style?: BookInlineV2['style']) {
   if (!style) return ''
   const declarations = [
     style.color ? `color:${escapeHtmlV2(style.color)}` : '',
+    style.backgroundColor ? `background-color:${escapeHtmlV2(style.backgroundColor)}` : '',
     style.fontFamily ? `font-family:${escapeHtmlV2(style.fontFamily)}` : '',
     style.fontSize ? `font-size:${escapeHtmlV2(style.fontSize)}` : '',
   ].filter(Boolean)
@@ -587,6 +588,7 @@ function mergeInlineStyleFromElementV2(element: Element, inherited: BookInlineV2
   const tag = element.tagName.toLowerCase()
   const style = { ...(inherited || {}) }
   if (html.style.color) style.color = html.style.color
+  if (html.style.backgroundColor) style.backgroundColor = html.style.backgroundColor
   if (html.style.fontFamily) style.fontFamily = html.style.fontFamily
   if (html.style.fontSize) style.fontSize = html.style.fontSize
   if (tag === 'font') {
