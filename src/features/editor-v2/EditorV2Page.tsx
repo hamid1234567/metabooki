@@ -4815,22 +4815,56 @@ export default function EditorV2Page() {
     const action = normalizeBookTextV2(suggestion.action || '')
     const isCallout = aiSuggestionIsCalloutV2(suggestion)
     const sourceBlock = findBlockInDocumentV2(document, sourceBlockId)
-    if (!isCallout && /(بولد|برجسته|bold)/i.test(action)) {
-      if (applyBoldToSourceQuote(suggestion.sourceQuote)) {
-        setAiCalloutSuggestions(current => current.filter(item => item.id !== suggestion.id))
-        setAiMessage('عبارت پیشنهادی برجسته شد.')
-      } else {
-        setAiMessage('متن دقیق پیشنهاد در ادیتور پیدا نشد؛ جای آن را انتخاب کنید و دوباره تلاش کنید.')
-      }
-      return
-    }
     if (!isCallout) {
+      const dirtyPageIndex = findBlockPageIndexV2(document, sourceBlockId) ?? 0
+      const inlineFormatting = aiInlineFormattingForSuggestionV2(suggestion)
+      if (inlineFormatting) {
+        let applied = false
+        forceNextSurfaceSyncRef.current = true
+        skipNextSurfaceSyncRef.current = false
+        commitDocument(current => {
+          const result = applyInlineFormattingToDocumentV2(current, suggestion.sourceQuote, sourceBlockId, inlineFormatting)
+          applied = result.replaced
+          return applied ? result.document : current
+        }, { dirtyPageIndexes: [dirtyPageIndex] })
+        if (applied) {
+          setSelectedBlockId(sourceBlockId)
+          setAiCalloutSuggestions(current => current.filter(item => item.id !== suggestion.id))
+          setAiMessage('قالب‌بندی پیشنهادی روی متن انتخاب‌شده اعمال شد.')
+          return
+        }
+        if (/(بولد|برجسته|bold)/i.test(action) && applyBoldToSourceQuote(suggestion.sourceQuote)) {
+          setAiCalloutSuggestions(current => current.filter(item => item.id !== suggestion.id))
+          setAiMessage('عبارت پیشنهادی برجسته شد.')
+          return
+        }
+        setAiMessage('متن دقیق پیشنهاد در ادیتور پیدا نشد؛ جای آن را انتخاب کنید و دوباره تلاش کنید.')
+        return
+      }
+
+      const blockStyle = aiBlockStyleForSuggestionV2(suggestion)
+      if (blockStyle) {
+        let applied = false
+        forceNextSurfaceSyncRef.current = true
+        skipNextSurfaceSyncRef.current = false
+        commitDocument(current => {
+          const result = applyBlockStyleToDocumentV2(current, suggestion.sourceQuote, sourceBlockId, blockStyle)
+          applied = result.replaced
+          return applied ? result.document : current
+        }, { dirtyPageIndexes: [dirtyPageIndex] })
+        if (applied) {
+          setSelectedBlockId(sourceBlockId)
+          setAiCalloutSuggestions(current => current.filter(item => item.id !== suggestion.id))
+          setAiMessage('استایل پیشنهادی روی بلوک متن اعمال شد.')
+          return
+        }
+      }
+
       const replacementBlocks = formattingReplacementBlocksForSuggestionV2(suggestion, sourceBlock)
       if (!replacementBlocks?.length) {
         setAiMessage('این پیشنهاد از نوع ویرایش و قالب‌بندی است، اما اجرای خودکار امن برای این اقدام هنوز فعال نیست.')
         return
       }
-      const dirtyPageIndex = findBlockPageIndexV2(document, sourceBlockId) ?? 0
       forceNextSurfaceSyncRef.current = true
       skipNextSurfaceSyncRef.current = false
       commitDocument(current => {
