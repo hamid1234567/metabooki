@@ -4755,7 +4755,12 @@ export default function EditorV2Page() {
     try {
       const result = await runAiThroughGateway({ action: 'callout_suggestions', bookTitle: document.title, pageText: aiApproval.pageText, bookId: document.sourceBookId, user })
       const suggestions = result.content?.type === 'callout_suggestions' && Array.isArray(result.content.suggestions)
-        ? result.content.suggestions.map((item, index) => ({ ...item, id: createV2Id('ai-suggestion', Date.now(), index) }))
+        ? result.content.suggestions.map((item, index) => ({
+          ...item,
+          id: createV2Id('ai-suggestion', Date.now(), index),
+          status: 'pending' as const,
+          targetBlockId: findBlockIdBySourceQuoteV2(document, item.sourceQuote) || selectedBlockIdFromEditorTarget() || selectedBlockId,
+        }))
         : []
       if (!suggestions.length) {
         recordAiUsage(result.usage)
@@ -4809,36 +4814,46 @@ export default function EditorV2Page() {
     return false
   }, [markEditorDirty, pushEditorHistory, scheduleToolbarDocumentRefresh])
 
+  const markAiSuggestionApplied = useCallback((suggestionId: string, targetBlockId: string | undefined, statusMessage: string) => {
+    setAiCalloutSuggestions(current => current.map(item => item.id === suggestionId
+      ? { ...item, status: 'applied', targetBlockId: targetBlockId || item.targetBlockId, statusMessage }
+      : item))
+  }, [])
+
   const applyAiCalloutSuggestion = useCallback((suggestion: AiCalloutSuggestionV2) => {
     if (!document) return
-    const sourceBlockId = findBlockIdBySourceQuoteV2(document, suggestion.sourceQuote) || selectedBlockIdFromEditorTarget() || selectedBlockId
+    if (suggestion.status === 'applied') {
+      setAiMessage('این پیشنهاد قبلاً اعمال شده است.')
+      return
+    }
+    const baseDocument = documentFromEditorDomV2(document, editorSurfaceRef.current)
+    const sourceBlockId = suggestion.targetBlockId
+      || findBlockIdBySourceQuoteV2(baseDocument, suggestion.sourceQuote)
+      || selectedBlockIdFromEditorTarget()
+      || selectedBlockId
     if (!sourceBlockId) {
       setAiMessage('برای اعمال این پیشنهاد، متن یا بلوک مقصد در صفحه فعلی پیدا نشد.')
       return
     }
     const action = normalizeBookTextV2(suggestion.action || '')
     const isCallout = aiSuggestionIsCalloutV2(suggestion)
-    const sourceBlock = findBlockInDocumentV2(document, sourceBlockId)
+    const sourceBlock = findBlockInDocumentV2(baseDocument, sourceBlockId)
     if (!isCallout) {
-      const dirtyPageIndex = findBlockPageIndexV2(document, sourceBlockId) ?? 0
+      const dirtyPageIndex = findBlockPageIndexV2(baseDocument, sourceBlockId) ?? 0
       const inlineFormatting = aiInlineFormattingForSuggestionV2(suggestion)
       if (inlineFormatting) {
-        let applied = false
+        const result = applyInlineFormattingToDocumentV2(baseDocument, suggestion.sourceQuote, sourceBlockId, inlineFormatting)
         forceNextSurfaceSyncRef.current = true
         skipNextSurfaceSyncRef.current = false
-        commitDocument(current => {
-          const result = applyInlineFormattingToDocumentV2(current, suggestion.sourceQuote, sourceBlockId, inlineFormatting)
-          applied = result.replaced
-          return applied ? result.document : current
-        }, { dirtyPageIndexes: [dirtyPageIndex] })
-        if (applied) {
+        if (result.replaced) {
+          commitDocument(() => result.document, { dirtyPageIndexes: [dirtyPageIndex] })
           setSelectedBlockId(sourceBlockId)
-          setAiCalloutSuggestions(current => current.filter(item => item.id !== suggestion.id))
+          markAiSuggestionApplied(suggestion.id, sourceBlockId, 'قالب‌بندی روی متن اعمال شد.')
           setAiMessage('قالب‌بندی پیشنهادی روی متن انتخاب‌شده اعمال شد.')
           return
         }
         if (/(بولد|برجسته|bold)/i.test(action) && applyBoldToSourceQuote(suggestion.sourceQuote)) {
-          setAiCalloutSuggestions(current => current.filter(item => item.id !== suggestion.id))
+          markAiSuggestionApplied(suggestion.id, sourceBlockId, 'عبارت برجسته شد.')
           setAiMessage('عبارت پیشنهادی برجسته شد.')
           return
         }
@@ -4848,17 +4863,13 @@ export default function EditorV2Page() {
 
       const blockStyle = aiBlockStyleForSuggestionV2(suggestion)
       if (blockStyle) {
-        let applied = false
+        const result = applyBlockStyleToDocumentV2(baseDocument, suggestion.sourceQuote, sourceBlockId, blockStyle)
         forceNextSurfaceSyncRef.current = true
         skipNextSurfaceSyncRef.current = false
-        commitDocument(current => {
-          const result = applyBlockStyleToDocumentV2(current, suggestion.sourceQuote, sourceBlockId, blockStyle)
-          applied = result.replaced
-          return applied ? result.document : current
-        }, { dirtyPageIndexes: [dirtyPageIndex] })
-        if (applied) {
+        if (result.replaced) {
+          commitDocument(() => result.document, { dirtyPageIndexes: [dirtyPageIndex] })
           setSelectedBlockId(sourceBlockId)
-          setAiCalloutSuggestions(current => current.filter(item => item.id !== suggestion.id))
+          markAiSuggestionApplied(suggestion.id, sourceBlockId, 'استایل بلوک اعمال شد.')
           setAiMessage('استایل پیشنهادی روی بلوک متن اعمال شد.')
           return
         }
@@ -4871,15 +4882,17 @@ export default function EditorV2Page() {
       }
       forceNextSurfaceSyncRef.current = true
       skipNextSurfaceSyncRef.current = false
-      commitDocument(current => {
-        const result = replaceSourceQuoteWithBlocksV2(current, suggestion.sourceQuote, sourceBlockId, replacementBlocks)
-        return result.document
-      }, { dirtyPageIndexes: [dirtyPageIndex] })
+      const result = replaceSourceQuoteWithBlocksV2(baseDocument, suggestion.sourceQuote, sourceBlockId, replacementBlocks)
+      if (!result.replaced) {
+        setAiMessage('متن مقصد برای اجرای این پیشنهاد پیدا نشد. احتمالاً متن قبلاً تغییر کرده است.')
+        return
+      }
+      commitDocument(() => result.document, { dirtyPageIndexes: [dirtyPageIndex] })
       window.setTimeout(() => {
         editorSurfaceRef.current?.querySelector<HTMLElement>(`[data-block-id="${replacementBlocks[0].id.replace(/"/g, '\\"')}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       }, 80)
       setSelectedBlockId(replacementBlocks[0].id)
-      setAiCalloutSuggestions(current => current.filter(item => item.id !== suggestion.id))
+      markAiSuggestionApplied(suggestion.id, replacementBlocks[0].id, 'تغییر قالب‌بندی اعمال شد.')
       setAiMessage('پیشنهاد ویرایش و قالب‌بندی روی متن اعمال شد.')
       return
     }
@@ -4900,23 +4913,25 @@ export default function EditorV2Page() {
       title: normalizeBookTextV2(suggestion.title || suggestion.action || meta.title),
       icon: meta.icon,
       anchor: createV2Id('ai-callout-anchor', Date.now()),
-      printNumber: findBlockInDocumentV2(document, sourceBlockId)?.printNumber,
+      printNumber: findBlockInDocumentV2(baseDocument, sourceBlockId)?.printNumber,
       blocks: [paragraph],
     }
-    const dirtyPageIndex = findBlockPageIndexV2(document, sourceBlockId) ?? 0
+    const dirtyPageIndex = findBlockPageIndexV2(baseDocument, sourceBlockId) ?? 0
+    const result = replaceSourceQuoteWithCalloutV2(baseDocument, suggestion.sourceQuote, sourceBlockId, callout)
+    if (!result.replaced) {
+      setAiMessage('متن مقصد برای تبدیل به کال‌اوت پیدا نشد. احتمالاً متن قبلاً تغییر کرده است.')
+      return
+    }
     forceNextSurfaceSyncRef.current = true
     skipNextSurfaceSyncRef.current = false
-    commitDocument(current => {
-      const result = replaceSourceQuoteWithCalloutV2(current, suggestion.sourceQuote, sourceBlockId, callout)
-      return result.document
-    }, { dirtyPageIndexes: [dirtyPageIndex] })
+    commitDocument(() => result.document, { dirtyPageIndexes: [dirtyPageIndex] })
     window.setTimeout(() => {
       editorSurfaceRef.current?.querySelector<HTMLElement>(`[data-block-id="${callout.id.replace(/"/g, '\\"')}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }, 80)
     setSelectedBlockId(callout.id)
-    setAiCalloutSuggestions(current => current.filter(item => item.id !== suggestion.id))
+    markAiSuggestionApplied(suggestion.id, callout.id, 'کال‌اوت ساخته شد.')
     setAiMessage('متن انتخاب‌شده به کال‌اوت تبدیل شد.')
-  }, [applyBoldToSourceQuote, commitDocument, document, selectedBlockId, selectedBlockIdFromEditorTarget])
+  }, [applyBoldToSourceQuote, commitDocument, document, markAiSuggestionApplied, selectedBlockId, selectedBlockIdFromEditorTarget])
 
   const dismissAiCalloutSuggestion = useCallback((suggestionId: string) => {
     setAiCalloutSuggestions(current => current.filter(item => item.id !== suggestionId))
