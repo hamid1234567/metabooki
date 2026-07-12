@@ -554,8 +554,9 @@ Every suggestion must be anchored to one exact short quote copied from the suppl
 Do not return prose outside JSON. Do not add authorial claims. If no useful suggestion exists, return {"type":"callout_suggestions","suggestions":[]}.
 Use suggestionType "formatting" for editing/layout/readability suggestions and "educational_callout" for callout suggestions.
 For educational_callout choose variant by purpose: key, question, warning, quote, deep, practice, glossary, data, margin.
+Use suggestionType exactly as one value, either "formatting" or "educational_callout"; never return a combined value.
 Use this exact JSON shape:
-{"type":"callout_suggestions","suggestions":[{"suggestionType":"formatting|educational_callout","variant":"key","title":"...","text":"...","sourceQuote":"exact quote from page text","action":"...","reason":"...","importance":"زیاد|متوسط|کم","placementHint":"after|before|replace-near-source"}]}
+{"type":"callout_suggestions","suggestions":[{"suggestionType":"educational_callout","variant":"key","title":"...","text":"...","sourceQuote":"exact quote from page text","action":"...","reason":"...","importance":"زیاد|متوسط|کم","placementHint":"after|before|replace-near-source"}]}
 For formatting suggestions, leave variant empty unless a callout is intended. Put the concrete editor action in action.
 Return 1 to 7 useful suggestions, ordered by their location in the original text.
 
