@@ -81,8 +81,68 @@ function splitAiFormattingTextV2(text: string) {
   return parts.filter((part, index) => parts.indexOf(part) === index)
 }
 
+function aiSuggestionTextV2(suggestion: AiCalloutSuggestionV2) {
+  return normalizeBookTextV2(`${suggestion.action || ''} ${suggestion.title || ''} ${suggestion.text || ''}`)
+}
+
+function aiSuggestedTextColorV2(text: string) {
+  if (/(آبی|blue)/i.test(text)) return '#2563EB'
+  if (/(سبز|green)/i.test(text)) return '#16A34A'
+  if (/(نارنجی|orange)/i.test(text)) return '#EA580C'
+  if (/(قرمز|red)/i.test(text)) return '#DC2626'
+  if (/(بنفش|purple|violet)/i.test(text)) return '#7C3AED'
+  if (/(مشکی|سیاه|black)/i.test(text)) return '#111827'
+  return undefined
+}
+
+type AiInlineFormattingV2 = {
+  marks?: NonNullable<BookInlineV2['marks']>
+  style?: BookInlineV2['style']
+  clear?: boolean
+}
+
+function aiInlineFormattingForSuggestionV2(suggestion: AiCalloutSuggestionV2): AiInlineFormattingV2 | null {
+  const text = aiSuggestionTextV2(suggestion)
+  const marks: NonNullable<BookInlineV2['marks']> = []
+  const style: BookInlineV2['style'] = {}
+  const clear = /(حذف فرمت|پاک کردن فرمت|remove format|clear format)/i.test(text)
+  if (clear) return { clear: true }
+  if (/(بولد|پررنگ|برجسته|bold|strong)/i.test(text)) marks.push('bold')
+  if (/(ایتالیک|مورب|italic)/i.test(text)) marks.push('italic')
+  if (/(زیرخط|زیر خط|underline)/i.test(text)) marks.push('underline')
+  if (/(خط.?خورده|strike|strikethrough)/i.test(text)) marks.push('strike')
+  if (/(بالانویس|superscript)/i.test(text)) marks.push('superscript')
+  if (/(زیرنویس|subscript)/i.test(text)) marks.push('subscript')
+  if (/(هایلایت|هایلایت‌کردن|highlight|برجسته‌سازی)/i.test(text)) style.backgroundColor = 'rgba(250, 204, 21, 0.38)'
+  if (/(رنگ|color|colour)/i.test(text)) {
+    const color = aiSuggestedTextColorV2(text)
+    if (color) style.color = color
+  }
+  if (/(اندازه|فونت|font size|بزرگ‌تر|درشت)/i.test(text)) style.fontSize = '1.12em'
+  if (/(کوچک‌تر|ریزتر|small)/i.test(text)) style.fontSize = '0.9em'
+  const cleanMarks = marks.filter((mark, index) => marks.indexOf(mark) === index)
+  const hasStyle = Object.values(style).some(Boolean)
+  return cleanMarks.length || hasStyle ? { marks: cleanMarks, style: hasStyle ? style : undefined } : null
+}
+
+function aiBlockStyleForSuggestionV2(suggestion: AiCalloutSuggestionV2): Record<string, unknown> | null {
+  const text = aiSuggestionTextV2(suggestion)
+  const style: Record<string, unknown> = {}
+  if (/(وسط.?چین|center)/i.test(text)) style.alignment = 'center'
+  else if (/(چپ.?چین|left)/i.test(text)) style.alignment = 'left'
+  else if (/(راست.?چین|right)/i.test(text)) style.alignment = 'right'
+  else if (/(تراز|justify)/i.test(text)) style.alignment = 'justify'
+  if (/(رنگ کل|رنگ متن|text color|color)/i.test(text)) {
+    const color = aiSuggestedTextColorV2(text)
+    if (color) style.color = color
+  }
+  if (/(اندازه متن|اندازه فونت|font size|بزرگ‌تر|درشت)/i.test(text)) style.fontSize = '1.08em'
+  if (/(کوچک‌تر|ریزتر|small)/i.test(text)) style.fontSize = '0.92em'
+  return Object.keys(style).length ? style : null
+}
+
 function formattingReplacementBlocksForSuggestionV2(suggestion: AiCalloutSuggestionV2, sourceBlock?: BookBlockV2 | null): BookBlockV2[] | null {
-  const action = normalizeBookTextV2(`${suggestion.action || ''} ${suggestion.title || ''}`)
+  const action = aiSuggestionTextV2(suggestion)
   const sourceText = normalizeBookTextV2(suggestion.sourceQuote || suggestion.text || '')
   const now = Date.now()
   const common = {
@@ -1154,6 +1214,120 @@ function replaceSourceQuoteWithBlocksV2(document: BookDocumentV2, sourceQuote: s
     return next
   }
   const pages = document.pages.map(page => ({ ...page, blocks: replaceInBlocks(page.blocks) }))
+  return { document: rebuildDocumentTocV2({ ...document, pages }), replaced }
+}
+
+function mergeInlineFormattingV2(span: BookInlineV2, formatting: AiInlineFormattingV2): BookInlineV2 {
+  if (formatting.clear) {
+    const { marks: _marks, style: _style, ...rest } = span
+    return rest
+  }
+  const marks = [...(span.marks || []), ...(formatting.marks || [])].filter((mark, index, all) => all.indexOf(mark) === index)
+  const style = { ...(span.style || {}), ...(formatting.style || {}) }
+  return {
+    ...span,
+    marks: marks.length ? marks : undefined,
+    style: Object.values(style).some(Boolean) ? style : undefined,
+  }
+}
+
+function splitInlineSpanByRangeV2(span: BookInlineV2, start: number, end: number, formatting: AiInlineFormattingV2, key: string) {
+  const text = normalizeBookTextV2(span.text || '')
+  const parts: BookInlineV2[] = []
+  if (start > 0) parts.push({ ...span, id: createV2Id('ai-inline', key, 'before'), text: text.slice(0, start) })
+  const middle = text.slice(start, end)
+  if (middle) parts.push(mergeInlineFormattingV2({ ...span, id: createV2Id('ai-inline', key, 'mark'), text: middle }, formatting))
+  if (end < text.length) parts.push({ ...span, id: createV2Id('ai-inline', key, 'after'), text: text.slice(end) })
+  return parts.filter(part => part.text)
+}
+
+function applyInlineFormattingToInlineV2(inline: BookInlineV2[] | undefined, fallbackText: string, sourceQuote: string | undefined, formatting: AiInlineFormattingV2) {
+  const baseInline = inline?.length
+    ? inline.map((span, index) => ({ ...span, id: span.id || createV2Id('inline', index) }))
+    : [{ id: createV2Id('inline', Date.now()), text: normalizeBookTextV2(fallbackText) } satisfies BookInlineV2]
+  const plain = baseInline.map(span => normalizeBookTextV2(span.text || '')).join('')
+  const quote = normalizeBookTextV2(sourceQuote || '')
+  const start = quote ? plain.indexOf(quote) : 0
+  if (start < 0 || (!quote && !plain)) return { inline: baseInline, replaced: false }
+  const end = quote ? start + quote.length : plain.length
+  let cursor = 0
+  const nextInline: BookInlineV2[] = []
+  baseInline.forEach((span, index) => {
+    const text = normalizeBookTextV2(span.text || '')
+    const spanStart = cursor
+    const spanEnd = cursor + text.length
+    cursor = spanEnd
+    if (spanEnd <= start || spanStart >= end) {
+      nextInline.push(span)
+      return
+    }
+    nextInline.push(...splitInlineSpanByRangeV2(
+      { ...span, text },
+      Math.max(0, start - spanStart),
+      Math.min(text.length, end - spanStart),
+      formatting,
+      `${span.id || index}-${Date.now()}`,
+    ))
+  })
+  return { inline: nextInline, replaced: true }
+}
+
+function applyInlineFormattingToBlockV2(block: BookBlockV2, sourceQuote: string | undefined, formatting: AiInlineFormattingV2) {
+  if (block.type === 'paragraph' || block.type === 'heading') {
+    const result = applyInlineFormattingToInlineV2(block.inline, block.text, sourceQuote, formatting)
+    return {
+      block: result.replaced ? { ...block, inline: result.inline } as BookBlockV2 : block,
+      replaced: result.replaced,
+    }
+  }
+  if (block.type === 'list') {
+    let replaced = false
+    const items = block.items.map(item => {
+      const quote = normalizeBookTextV2(sourceQuote || '')
+      if (quote && !normalizeBookTextV2(item.text || '').includes(quote)) return item
+      if (replaced && quote) return item
+      const result = applyInlineFormattingToInlineV2(item.inline, item.text, sourceQuote, formatting)
+      if (!result.replaced) return item
+      replaced = true
+      return { ...item, inline: result.inline }
+    })
+    return { block: replaced ? { ...block, items } as BookBlockV2 : block, replaced }
+  }
+  return { block, replaced: false }
+}
+
+function applyInlineFormattingToDocumentV2(document: BookDocumentV2, sourceQuote: string | undefined, fallbackBlockId: string | undefined, formatting: AiInlineFormattingV2) {
+  const quote = normalizeAiSourceTextV2(sourceQuote || '')
+  let replaced = false
+  const applyInBlocks = (blocks: BookBlockV2[]): BookBlockV2[] => blocks.map(block => {
+    if (block.type === 'callout') return { ...block, blocks: applyInBlocks(block.blocks) }
+    if (replaced) return block
+    const matchesQuote = quote.length >= 4 && normalizeAiSourceTextV2(plainTextFromBlockV2(block)).includes(quote)
+    const matchesFallback = !quote && fallbackBlockId && block.id === fallbackBlockId
+    if (!matchesQuote && !matchesFallback) return block
+    const result = applyInlineFormattingToBlockV2(block, matchesQuote ? sourceQuote : undefined, formatting)
+    replaced = result.replaced
+    return result.block
+  })
+  const pages = document.pages.map(page => ({ ...page, blocks: applyInBlocks(page.blocks) }))
+  return { document: rebuildDocumentTocV2({ ...document, pages }), replaced }
+}
+
+function applyBlockStyleToDocumentV2(document: BookDocumentV2, sourceQuote: string | undefined, fallbackBlockId: string | undefined, stylePatch: Record<string, unknown>) {
+  const quote = normalizeAiSourceTextV2(sourceQuote || '')
+  let replaced = false
+  const applyInBlocks = (blocks: BookBlockV2[]): BookBlockV2[] => blocks.map(block => {
+    if (block.type === 'callout') return { ...block, blocks: applyInBlocks(block.blocks) }
+    if (replaced) return block
+    const canStyle = block.type === 'paragraph' || block.type === 'heading' || block.type === 'list'
+    if (!canStyle) return block
+    const matchesQuote = quote.length >= 4 && normalizeAiSourceTextV2(plainTextFromBlockV2(block)).includes(quote)
+    const matchesFallback = !quote && fallbackBlockId && block.id === fallbackBlockId
+    if (!matchesQuote && !matchesFallback) return block
+    replaced = true
+    return { ...block, style: { ...(block.style || {}), ...stylePatch } } as BookBlockV2
+  })
+  const pages = document.pages.map(page => ({ ...page, blocks: applyInBlocks(page.blocks) }))
   return { document: rebuildDocumentTocV2({ ...document, pages }), replaced }
 }
 
