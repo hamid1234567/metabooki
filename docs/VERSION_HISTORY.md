@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.710`
+نسخه فعلی فایل رسمی: `1.0.711`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,12 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.711 - AI suggestion applied state
+
+- Applied AI editorial suggestion cards now remain visible as green completed items with a disabled apply button and an applied status message.
+- AI suggestion application now computes the document change before committing instead of depending on a mutable flag inside the React state updater, preventing later suggestions from getting stuck after one item is applied.
+- Generated AI suggestions now store their likely target block so follow-up suggestions can still apply even after the first change updates the editor surface.
 
 ### 1.0.710 - Complete AI formatting application
 
