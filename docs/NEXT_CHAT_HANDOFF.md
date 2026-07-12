@@ -1,6 +1,6 @@
 # MetaBooki Next Chat Handoff
 
-Last reviewed version: `1.0.709`
+Last reviewed version: `1.0.710`
 
 Use this file as the first reference in a fresh Codex chat before making changes.
 
@@ -89,6 +89,8 @@ Use this file as the first reference in a fresh Codex chat before making changes
 - Editor V2 AI analysis now scopes to exact selected text, current block, or current page instead of the start of the full document; applying a suggested callout replaces the matched source quote with the callout rather than inserting below it.
 - AI text cost estimates now use expected output tokens per action instead of charging the full model cap up front; callout suggestion estimates should be much closer to the configured provider formula.
 - AI editorial suggestions now distinguish formatting/editing from educational callouts even when the model returns a `variant`, and common formatting actions can apply as heading, list, paragraph split, or bold instead of becoming callouts.
+- AI formatting suggestions now apply more inline styles directly to the source text, including bold, italic, underline, strike, highlight/background color, text color, and font-size adjustments; block-level alignment/style suggestions are handled separately.
+- AI text estimate preflight now uses a weighted range rule when output usage is bounded: `(2 * minimum + maximum) / 3`, while completed requests still charge by actual provider usage.
 
 ## Current Known Fragile Areas
 
