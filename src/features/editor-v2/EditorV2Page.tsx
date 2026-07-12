@@ -53,6 +53,9 @@ type AiCalloutSuggestionV2 = {
   reason?: string
   importance?: string
   placementHint?: string
+  status?: 'pending' | 'applied'
+  statusMessage?: string
+  targetBlockId?: string
 }
 
 function aiSuggestionIsFormattingV2(suggestion: AiCalloutSuggestionV2) {
@@ -2446,17 +2449,18 @@ function RightPanelV2({
               <div className="editor-v2-ai-suggestions">
                 <strong>پیشنهادهای قابل اعمال</strong>
                 {aiCalloutSuggestions.map(suggestion => (
-                  <article key={suggestion.id} className="editor-v2-ai-suggestion-item">
+                  <article key={suggestion.id} className={`editor-v2-ai-suggestion-item ${suggestion.status === 'applied' ? 'is-applied' : ''}`}>
                     <div>
                       <b>{suggestion.title || suggestion.action || 'پیشنهاد ویرایش'}</b>
                       <small>{aiSuggestionIsCalloutV2(suggestion) ? 'کال‌اوت آموزشی' : 'ویرایش و قالب‌بندی'} · اهمیت: {suggestion.importance || 'متوسط'}</small>
                       {suggestion.sourceQuote && <p className="editor-v2-ai-source-quote">«{suggestion.sourceQuote}»</p>}
                       {suggestion.action && <p>{suggestion.action}</p>}
                       {suggestion.reason && <small>{suggestion.reason}</small>}
+                      {suggestion.status === 'applied' && <small className="editor-v2-ai-suggestion-status"><Check size={13} />{suggestion.statusMessage || 'اعمال شد'}</small>}
                     </div>
                     <div className="editor-v2-ai-suggestion-actions">
-                      <button type="button" onClick={() => onApplyAiCalloutSuggestion(suggestion)}>اعمال</button>
-                      <button type="button" onClick={() => onDismissAiCalloutSuggestion(suggestion.id)}>رد</button>
+                      <button type="button" disabled={suggestion.status === 'applied'} onClick={() => onApplyAiCalloutSuggestion(suggestion)}>{suggestion.status === 'applied' ? 'اعمال شد' : 'اعمال'}</button>
+                      <button type="button" onClick={() => onDismissAiCalloutSuggestion(suggestion.id)}>{suggestion.status === 'applied' ? 'حذف از لیست' : 'رد'}</button>
                     </div>
                   </article>
                 ))}
