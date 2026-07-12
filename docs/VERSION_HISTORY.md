@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.711`
+نسخه فعلی فایل رسمی: `1.0.712`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,12 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.712 - AI callout detection fix
+
+- AI callout suggestion detection now prioritizes explicit callout signals such as `educational_callout`, `callout`, and Persian callout titles before checking formatting labels.
+- Legacy or mixed model outputs that include both formatting and callout wording no longer get routed through formatting, so educational callout cards can convert into real callout blocks again.
+- The AI gateway prompt schema now tells models to return exactly one suggestionType value and not a combined value.
 
 ### 1.0.711 - AI suggestion applied state
 
