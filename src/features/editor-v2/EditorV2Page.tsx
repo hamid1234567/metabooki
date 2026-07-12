@@ -4781,7 +4781,7 @@ export default function EditorV2Page() {
     } finally {
       setAiBusy(false)
     }
-  }, [aiApproval, document, recordAiUsage, refreshAiHistory, user])
+  }, [aiApproval, document, recordAiUsage, refreshAiHistory, selectedBlockId, selectedBlockIdFromEditorTarget, user])
 
   const applyBoldToSourceQuote = useCallback((sourceQuote?: string) => {
     const quote = normalizeAiSourceTextV2(sourceQuote || '')
