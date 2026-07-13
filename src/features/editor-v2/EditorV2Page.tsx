@@ -59,19 +59,22 @@ type AiCalloutSuggestionV2 = {
 }
 
 function aiSuggestionHasCalloutSignalV2(suggestion: AiCalloutSuggestionV2) {
+  const type = normalizeBookTextV2(suggestion.suggestionType || '').toLowerCase()
+  if (/(formatting|format|editing|ویرایش|قالب)/i.test(type)) return false
+  if (/(educational_callout|callout|کال\s*[-‌]?\s*اوت)/i.test(type)) return true
   const text = normalizeBookTextV2([
-    suggestion.suggestionType,
     suggestion.title,
     suggestion.action,
     suggestion.text,
   ].filter(Boolean).join(' '))
-  return /(educational_callout|callout|کال\s*[-‌]?\s*اوت|نکته کلیدی|مکث و فکر|اشتباه رایج|جمله طلایی|عمیق‌تر بخوان|تمرین سریع|تعریف واژه|داده و منبع|یادداشت حاشیه‌ای)/i.test(text)
+  const hasVariant = CALLOUT_VARIANTS_V2.includes((suggestion.variant || '') as any)
+  return hasVariant && /(نکته کلیدی|مکث و فکر|اشتباه رایج|جمله طلایی|عمیق‌تر بخوان|تمرین سریع|تعریف واژه|داده و منبع|یادداشت حاشیه‌ای)/i.test(text)
 }
 
 function aiSuggestionIsFormattingV2(suggestion: AiCalloutSuggestionV2) {
-  if (aiSuggestionHasCalloutSignalV2(suggestion)) return false
   const kind = normalizeBookTextV2(suggestion.suggestionType || '').toLowerCase()
-  return /(formatting|format|editing|ویرایش|قالب)/i.test(kind)
+  if (/(formatting|format|editing|ویرایش|قالب)/i.test(kind)) return true
+  return !aiSuggestionHasCalloutSignalV2(suggestion)
 }
 
 function aiSuggestionIsCalloutV2(suggestion: AiCalloutSuggestionV2) {
