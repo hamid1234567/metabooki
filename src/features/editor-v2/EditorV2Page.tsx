@@ -7,7 +7,7 @@ import { getBook } from '@/lib/book-repository'
 import { notifyPublisherBookChanged, updatePublisherBook, type PublisherBook } from '@/lib/publisher-books'
 import { openReaderPreview } from '@/lib/app-routes'
 import { supabase } from '@/integrations/supabase/client'
-import { estimateAiImageGeneration, estimateAiTextUsage, generateAiImageThroughGateway, runAiThroughGateway, type AiImageEstimateResult, type RunAiResult } from '@/lib/ai-gateway'
+import { estimateAiImageGeneration, estimateAiTextUsage, generateAiImageThroughGateway, runAiThroughGateway, type AiImageEstimateResult, type AiTextEstimateResult, type RunAiResult } from '@/lib/ai-gateway'
 import { useAuthContext } from '@/lib/auth-context'
 import { useCredits } from '@/hooks/useCredits'
 import { creditsBus } from '@/lib/credits-bus'
@@ -41,6 +41,7 @@ type AiApprovalV2 = {
   provider: string
   model: string
   pageText: string
+  estimateDetails?: AiTextEstimateResult['estimateDetails']
 }
 type AiCalloutSuggestionV2 = {
   id: string
@@ -4765,7 +4766,7 @@ export default function EditorV2Page() {
     setAiMessage('در حال برآورد هزینه...')
     try {
       const estimate = await estimateAiTextUsage({ action: 'callout_suggestions', bookTitle: document.title, pageText, bookId: document.sourceBookId, user })
-      setAiApproval({ usage: estimate.usage, provider: estimate.provider, model: estimate.model, pageText })
+      setAiApproval({ usage: estimate.usage, provider: estimate.provider, model: estimate.model, pageText, estimateDetails: estimate.estimateDetails })
       setAiMessage('هزینه برآورد شد؛ برای اجرا تایید کنید.')
     } catch (error) {
       setAiMessage(error instanceof Error ? error.message : 'برآورد هزینه ناموفق بود.')
@@ -5290,13 +5291,34 @@ export default function EditorV2Page() {
               <Sparkles size={20} />
               <strong>تایید هزینه هوش مصنوعی</strong>
             </header>
-            <p>این عملیات فقط پیشنهاد callout تولید می‌کند و هیچ بخشی از متن اصلی را حذف یا جایگزین نمی‌کند.</p>
+            <p>این عملیات پیشنهادهای ویرایش/قالب‌بندی و در صورت نیاز چند کال‌اوت آموزشی تولید می‌کند؛ تا قبل از اعمال هر پیشنهاد، متن اصلی تغییر نمی‌کند.</p>
             <div className="editor-v2-ai-cost">
               <span><b>{aiApproval.usage.chargedCredits.toLocaleString('fa-IR')}</b><small>کردیت</small></span>
               <span><b>{aiApproval.usage.chargedToman.toLocaleString('fa-IR')}</b><small>تومان</small></span>
               <span><b>${aiApproval.usage.chargedUsd.toFixed(6)}</b><small>دلار</small></span>
             </div>
             <small>{aiApproval.provider} · {aiApproval.model}</small>
+            <div className="editor-v2-ai-cost-debug">
+              <strong>جزئیات موقت محاسبه هزینه</strong>
+              {aiApproval.estimateDetails ? (
+                <>
+                  <span>توکن ورودی: <b>{aiApproval.estimateDetails.inputTokens.toLocaleString('fa-IR')}</b></span>
+                  <span>خروجی کمینه: <b>{aiApproval.estimateDetails.minimumOutputTokens.toLocaleString('fa-IR')}</b></span>
+                  <span>خروجی بیشینه: <b>{aiApproval.estimateDetails.maximumOutputTokens.toLocaleString('fa-IR')}</b></span>
+                  <span>خروجی محاسبه‌شده: <b>{aiApproval.estimateDetails.estimatedOutputTokens.toLocaleString('fa-IR')}</b> = ceil(((2 × کمینه) + بیشینه) ÷ 3)</span>
+                  <span>نرخ ورودی مدل: <b>${aiApproval.estimateDetails.inputCostPer1kUsd.toFixed(6)}</b> / ۱۰۰۰ توکن</span>
+                  <span>نرخ خروجی مدل: <b>${aiApproval.estimateDetails.outputCostPer1kUsd.toFixed(6)}</b> / ۱۰۰۰ توکن</span>
+                  <span>هزینه خام: <b>${aiApproval.estimateDetails.rawUsd.toFixed(8)}</b></span>
+                  <span>ضریب سامانه: <b>{aiApproval.estimateDetails.chargeMultiplier.toLocaleString('fa-IR')}</b> → <b>${aiApproval.estimateDetails.chargedUsd.toFixed(8)}</b></span>
+                  <span>نرخ دلار: <b>{aiApproval.estimateDetails.usdToToman.toLocaleString('fa-IR')}</b> تومان</span>
+                  <span>تومان: <b>{aiApproval.estimateDetails.chargedToman.toLocaleString('fa-IR')}</b></span>
+                  <span>ارزش هر کردیت: <b>{aiApproval.estimateDetails.creditValueToman.toLocaleString('fa-IR')}</b> تومان</span>
+                  <span>کردیت نهایی: <b>{aiApproval.estimateDetails.chargedCredits.toLocaleString('fa-IR')}</b></span>
+                </>
+              ) : (
+                <span>جزئیات فرمول در پاسخ Edge Function نبود. بعد از deploy نسخه جدید، این بخش کامل می‌شود.</span>
+              )}
+            </div>
             <footer>
               <Button variant="outline" onClick={() => setAiApproval(null)} disabled={aiBusy}>لغو</Button>
               <Button onClick={() => void runApprovedAi()} disabled={aiBusy}>{aiBusy ? 'در حال تولید...' : 'تایید و اجرا'}</Button>

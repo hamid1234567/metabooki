@@ -82,6 +82,23 @@ export interface AiTextEstimateResult {
   promptTokens: number
   maxOutputTokens: number
   usage: RunAiResult['usage']
+  estimateDetails?: {
+    inputTokens: number
+    minimumOutputTokens: number
+    maximumOutputTokens: number
+    estimatedOutputTokens: number
+    outputFormula: string
+    inputCostPer1kUsd: number
+    outputCostPer1kUsd: number
+    rawUsd: number
+    chargeMultiplier: number
+    chargedUsd: number
+    usdToToman: number
+    chargedToman: number
+    creditsPerToman: number
+    creditValueToman: number
+    chargedCredits: number
+  }
 }
 
 export interface AiImageUsage {
