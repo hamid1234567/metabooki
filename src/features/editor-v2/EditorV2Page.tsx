@@ -4777,10 +4777,12 @@ export default function EditorV2Page() {
 
   const runApprovedAi = useCallback(async () => {
     if (!document || !aiApproval) return
+    const approval = aiApproval
+    setAiApproval(null)
     setAiBusy(true)
     setAiMessage('در حال تولید پیشنهاد...')
     try {
-      const result = await runAiThroughGateway({ action: 'callout_suggestions', bookTitle: document.title, pageText: aiApproval.pageText, bookId: document.sourceBookId, user })
+      const result = await runAiThroughGateway({ action: 'callout_suggestions', bookTitle: document.title, pageText: approval.pageText, bookId: document.sourceBookId, user })
       const rawSuggestions = result.content?.type === 'callout_suggestions' && Array.isArray(result.content.suggestions)
         ? result.content.suggestions.map((item, index) => ({
           ...item,
@@ -4792,14 +4794,12 @@ export default function EditorV2Page() {
       const suggestions = normalizeAiEditorialSuggestionsV2(rawSuggestions)
       if (!suggestions.length) {
         recordAiUsage(result.usage)
-        setAiApproval(null)
         setAiCalloutSuggestions([])
         setAiMessage('هوش مصنوعی برای این متن پیشنهاد کاربردی پیدا نکرد. خروجی در تاریخچه ذخیره شد.')
         void refreshAiHistory()
         return
       }
       recordAiUsage(result.usage)
-      setAiApproval(null)
       setAiCalloutSuggestions(suggestions)
       setActivePanel('ai')
       setAiMessage(`${suggestions.length.toLocaleString('fa-IR')} پیشنهاد آماده شد. هر مورد را جداگانه اعمال یا رد کنید.`)
