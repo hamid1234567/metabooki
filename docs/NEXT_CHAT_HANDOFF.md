@@ -1,6 +1,6 @@
 # MetaBooki Next Chat Handoff
 
-Last reviewed version: `1.0.712`
+Last reviewed version: `1.0.713`
 
 Use this file as the first reference in a fresh Codex chat before making changes.
 
@@ -92,7 +92,7 @@ Use this file as the first reference in a fresh Codex chat before making changes
 - AI formatting suggestions now apply more inline styles directly to the source text, including bold, italic, underline, strike, highlight/background color, text color, and font-size adjustments; block-level alignment/style suggestions are handled separately.
 - AI text estimate preflight now uses a weighted range rule when output usage is bounded: `(2 * minimum + maximum) / 3`, while completed requests still charge by actual provider usage.
 - Applied AI suggestions now stay visible as green completed cards instead of disappearing, and suggestion application computes the document change before committing so later suggestions do not get stuck after the first applied item.
-- AI callout suggestion detection now prioritizes explicit callout signals over formatting labels, so mixed/legacy `suggestionType` values no longer prevent educational callouts from converting into callout blocks.
+- AI editorial suggestion classification now treats explicit `suggestionType: formatting` as formatting even when callout words appear in action/title; callouts are capped to at most two generated suggestions so the flow follows the admin prompt's formatting-first intent.
 
 ## Current Known Fragile Areas
 
