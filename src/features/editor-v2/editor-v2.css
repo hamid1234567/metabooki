@@ -2214,6 +2214,32 @@
   font-size: 0.72rem;
 }
 
+.editor-v2-ai-cost-debug {
+  display: grid;
+  gap: 0.35rem;
+  max-height: 260px;
+  overflow: auto;
+  border: 1px dashed rgba(37, 99, 235, 0.28);
+  border-radius: 0.85rem;
+  background: rgba(239, 246, 255, 0.52);
+  padding: 0.65rem;
+  color: #334155;
+  font-size: 0.72rem;
+  line-height: 1.7;
+}
+
+.editor-v2-ai-cost-debug strong {
+  color: #1e3a8a;
+}
+
+.editor-v2-ai-cost-debug span {
+  display: block;
+}
+
+.editor-v2-ai-cost-debug b {
+  color: #0f172a;
+}
+
 .editor-v2-ai-modal footer {
   display: flex;
   justify-content: flex-end;
