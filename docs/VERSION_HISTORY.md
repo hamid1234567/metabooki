@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.712`
+نسخه فعلی فایل رسمی: `1.0.713`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,12 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.713 - AI formatting-first suggestion balance
+
+- AI editorial suggestion classification now honors explicit `suggestionType: formatting` before checking callout-like action/title text, preventing formatting suggestions from turning into callouts.
+- The editor normalizes AI suggestion batches so at most two items remain `educational_callout`; the rest are routed as formatting suggestions.
+- The Edge Function callout suggestion prompt now explicitly asks for 70-80% formatting suggestions and at most one or two educational callouts.
 
 ### 1.0.712 - AI callout detection fix
 
