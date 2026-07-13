@@ -1,6 +1,6 @@
 # MetaBooki Next Chat Handoff
 
-Last reviewed version: `1.0.714`
+Last reviewed version: `1.0.715`
 
 Use this file as the first reference in a fresh Codex chat before making changes.
 
@@ -94,6 +94,7 @@ Use this file as the first reference in a fresh Codex chat before making changes
 - Applied AI suggestions now stay visible as green completed cards instead of disappearing, and suggestion application computes the document change before committing so later suggestions do not get stuck after the first applied item.
 - AI editorial suggestion classification now treats explicit `suggestionType: formatting` as formatting even when callout words appear in action/title; callouts are capped to at most two generated suggestions so the flow follows the admin prompt's formatting-first intent.
 - AI text cost approval modal temporarily shows detailed estimate math for callout/editorial suggestions, including input tokens, min/max/weighted output tokens, model rates, multiplier, USD-to-toman conversion, and final credits.
+- AI editorial suggestion approval now closes the cost modal immediately after confirmation; the approved payload is captured locally so generation can continue while the AI panel/loading state shows progress.
 
 ## Current Known Fragile Areas
 

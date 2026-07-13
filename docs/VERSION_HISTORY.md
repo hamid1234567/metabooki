@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.714`
+نسخه فعلی فایل رسمی: `1.0.715`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,12 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.715 - AI approval modal closes on run
+
+- The Editor V2 AI editorial suggestion approval modal now closes immediately when the user confirms generation instead of staying visible during or after generation.
+- The approved estimate payload is captured locally before clearing approval state, so generation continues safely after the modal closes.
+- Current AI source selection remains selection, then selected block, then current page fallback; heading-section input should be considered as a capped option because token use depends on section length.
 
 ### 1.0.714 - Temporary AI cost formula display
 
