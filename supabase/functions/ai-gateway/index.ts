@@ -553,7 +553,8 @@ Return an actionable list of editorial suggestions for the editor UI.
 Every suggestion must be anchored to one exact short quote copied from the supplied page text in sourceQuote.
 Do not return prose outside JSON. Do not add authorial claims. If no useful suggestion exists, return {"type":"callout_suggestions","suggestions":[]}.
 Use suggestionType "formatting" for editing/layout/readability suggestions and "educational_callout" for callout suggestions.
-Most suggestions should be "formatting"; use "educational_callout" only for the strongest one or two educational callouts.
+Most suggestions must be "formatting"; use "educational_callout" only for the strongest one or two educational callouts.
+Aim for 70-80% formatting suggestions and 20-30% educational_callout suggestions. Return at most 2 educational_callout items, preferably 0 or 1 unless the text strongly deserves more.
 For educational_callout choose variant by purpose: key, question, warning, quote, deep, practice, glossary, data, margin.
 Use suggestionType exactly as one value, either "formatting" or "educational_callout"; never return a combined value.
 Use this exact JSON shape:

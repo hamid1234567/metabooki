@@ -81,6 +81,25 @@ function aiSuggestionIsCalloutV2(suggestion: AiCalloutSuggestionV2) {
   return aiSuggestionHasCalloutSignalV2(suggestion)
 }
 
+function normalizeAiEditorialSuggestionsV2(suggestions: AiCalloutSuggestionV2[]) {
+  let calloutCount = 0
+  return suggestions.map(suggestion => {
+    if (!aiSuggestionHasCalloutSignalV2(suggestion)) {
+      return { ...suggestion, suggestionType: 'formatting', variant: '' }
+    }
+    calloutCount += 1
+    if (calloutCount <= 2) {
+      return { ...suggestion, suggestionType: 'educational_callout' }
+    }
+    return {
+      ...suggestion,
+      suggestionType: 'formatting',
+      variant: '',
+      action: normalizeBookTextV2(suggestion.action || '').replace(/(?:تبدیل|convert).{0,24}(?:کال\s*[-‌]?\s*اوت|callout)/i, 'برجسته‌سازی محدود متن'),
+    }
+  })
+}
+
 function splitAiFormattingTextV2(text: string) {
   const clean = normalizeBookTextV2(text)
   if (!clean) return []
@@ -4761,7 +4780,7 @@ export default function EditorV2Page() {
     setAiMessage('در حال تولید پیشنهاد...')
     try {
       const result = await runAiThroughGateway({ action: 'callout_suggestions', bookTitle: document.title, pageText: aiApproval.pageText, bookId: document.sourceBookId, user })
-      const suggestions = result.content?.type === 'callout_suggestions' && Array.isArray(result.content.suggestions)
+      const rawSuggestions = result.content?.type === 'callout_suggestions' && Array.isArray(result.content.suggestions)
         ? result.content.suggestions.map((item, index) => ({
           ...item,
           id: createV2Id('ai-suggestion', Date.now(), index),
@@ -4769,6 +4788,7 @@ export default function EditorV2Page() {
           targetBlockId: findBlockIdBySourceQuoteV2(document, item.sourceQuote) || selectedBlockIdFromEditorTarget() || selectedBlockId,
         }))
         : []
+      const suggestions = normalizeAiEditorialSuggestionsV2(rawSuggestions)
       if (!suggestions.length) {
         recordAiUsage(result.usage)
         setAiApproval(null)
