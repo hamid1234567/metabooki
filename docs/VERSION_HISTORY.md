@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.713`
+نسخه فعلی فایل رسمی: `1.0.714`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,12 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.714 - Temporary AI cost formula display
+
+- The Editor V2 AI approval modal now temporarily displays detailed cost-estimate math for editorial/callout suggestions.
+- The AI gateway text estimate response now includes `estimateDetails` with input tokens, min/max/weighted output tokens, provider rates, multiplier, USD-to-toman conversion, credit value, and final charged credits.
+- The approval modal copy was updated to describe mixed formatting/callout suggestions instead of saying the operation only creates callouts.
 
 ### 1.0.713 - AI formatting-first suggestion balance
 
