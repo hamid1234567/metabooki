@@ -351,7 +351,27 @@ function estimatedTextUsage(provider: AiProviderConfig, prompt: string, action: 
   const inputTokens = Math.ceil(estimateTokens(prompt))
   const minimumOutputTokens = estimatedOutputTokensForAction(action, inputTokens, maxOutputTokens)
   const outputTokens = weightedRangeEstimate(minimumOutputTokens, maxOutputTokens)
-  return textUsageFromTokens(provider, inputTokens, outputTokens, usdToToman, chargeMultiplier, creditsPerToman)
+  const usage = textUsageFromTokens(provider, inputTokens, outputTokens, usdToToman, chargeMultiplier, creditsPerToman)
+  return {
+    usage,
+    details: {
+      inputTokens,
+      minimumOutputTokens,
+      maximumOutputTokens: maxOutputTokens,
+      estimatedOutputTokens: outputTokens,
+      outputFormula: minimumOutputTokens === maxOutputTokens ? 'fixed' : 'ceil(((2 * minimumOutputTokens) + maximumOutputTokens) / 3)',
+      inputCostPer1kUsd: Number(provider.input_cost_per_1k_usd || 0),
+      outputCostPer1kUsd: Number(provider.output_cost_per_1k_usd || 0),
+      rawUsd: usage.rawUsd,
+      chargeMultiplier,
+      chargedUsd: usage.chargedUsd,
+      usdToToman,
+      chargedToman: usage.chargedToman,
+      creditsPerToman,
+      creditValueToman: usage.creditValueToman,
+      chargedCredits: usage.chargedCredits,
+    },
+  }
 }
 
 function maxOutputTokensForAction(action: string) {
@@ -904,7 +924,8 @@ serve(async (req) => {
     const maxTokens = maxOutputTokensForAction(body.action)
 
     if (body.operation === 'estimate_text') {
-      const usage = estimatedTextUsage(provider, prompt, String(body.action || ''), maxTokens, usdToToman, chargeMultiplier, creditsPerToman)
+      const estimate = estimatedTextUsage(provider, prompt, String(body.action || ''), maxTokens, usdToToman, chargeMultiplier, creditsPerToman)
+      const usage = estimate.usage
       return new Response(JSON.stringify({
         provider: provider.label || provider.provider,
         model: provider.model,
@@ -912,6 +933,7 @@ serve(async (req) => {
         promptTokens: usage.inputTokens,
         maxOutputTokens: usage.outputTokens,
         usage,
+        estimateDetails: estimate.details,
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
