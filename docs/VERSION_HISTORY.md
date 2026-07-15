@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.715`
+نسخه فعلی فایل رسمی: `1.0.716`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,12 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.716 - AI heading-section source
+
+- Editor V2 AI editorial/callout suggestions now use the user's current heading section as the default input instead of only the active page.
+- The source range starts at the nearest previous/current heading and stops at the next same-or-higher-level heading or 8,000 characters, whichever comes first.
+- Explicit text selections remain honored as the exact AI input, still capped at 8,000 characters.
 
 ### 1.0.715 - AI approval modal closes on run
 
