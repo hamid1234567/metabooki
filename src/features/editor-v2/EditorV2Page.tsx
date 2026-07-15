@@ -26,6 +26,7 @@ import '@/features/interactive-v3/interactive-v3.css'
 type EditorPanelV2 = 'toc' | 'upgrade' | 'media' | 'references' | 'interactive' | 'ai'
 type SaveStateV2 = 'idle' | 'saving' | 'saved' | 'error'
 type SaveVisualStateV2 = SaveStateV2 | 'dirty'
+const AI_EDITORIAL_SOURCE_LIMIT_V2 = 8000
 type TextToolbarStateV2 = {
   hasSelection: boolean
   bold: boolean
@@ -1071,6 +1072,47 @@ function findBlockPageIndexV2(document: BookDocumentV2 | null | undefined, id?: 
     if (findBlockV2(page.blocks, id)) return page.index
   }
   return undefined
+}
+
+function blockContainsIdV2(block: BookBlockV2, id?: string): boolean {
+  if (!id) return false
+  if (block.id === id) return true
+  return block.type === 'callout' && block.blocks.some(item => blockContainsIdV2(item, id))
+}
+
+function flatTopLevelBlocksV2(document: BookDocumentV2) {
+  return [...document.pages]
+    .sort((a, b) => Number(a.index || 0) - Number(b.index || 0))
+    .flatMap(page => page.blocks.map((block, blockIndex) => ({ page, block, blockIndex })))
+}
+
+function headingSectionTextFromLocationV2(document: BookDocumentV2, locationBlockId?: string, limit = AI_EDITORIAL_SOURCE_LIMIT_V2) {
+  const entries = flatTopLevelBlocksV2(document)
+  if (!entries.length) return ''
+  const locationIndex = locationBlockId ? entries.findIndex(entry => blockContainsIdV2(entry.block, locationBlockId)) : -1
+  if (locationIndex < 0) return ''
+
+  let headingIndex = -1
+  for (let index = locationIndex; index >= 0; index -= 1) {
+    if (entries[index].block.type === 'heading') {
+      headingIndex = index
+      break
+    }
+  }
+  const headingBlock = entries[headingIndex]?.block
+  if (!headingBlock || headingBlock.type !== 'heading') return ''
+
+  const startLevel = headingBlock.level
+  const parts: string[] = []
+  for (let index = headingIndex; index < entries.length; index += 1) {
+    const block = entries[index].block
+    if (index > headingIndex && block.type === 'heading' && block.level <= startLevel) break
+    const text = plainTextFromBlockV2(block).trim()
+    if (!text) continue
+    parts.push(text)
+    if (parts.join('\n\n').length >= limit) break
+  }
+  return parts.join('\n\n').slice(0, limit).trim()
 }
 
 function rebuildDocumentTocV2(document: BookDocumentV2): BookDocumentV2 {
@@ -4733,12 +4775,9 @@ export default function EditorV2Page() {
     for (const range of ranges) {
       const text = normalizeBookTextV2(range.toString())
       const container = range.commonAncestorContainer
-      if (text && root?.contains(container.nodeType === Node.ELEMENT_NODE ? container as Element : container.parentElement)) return text.slice(0, 6000)
+      if (text && root?.contains(container.nodeType === Node.ELEMENT_NODE ? container as Element : container.parentElement)) return text.slice(0, AI_EDITORIAL_SOURCE_LIMIT_V2)
     }
     const targetBlockId = selectedBlockIdFromEditorTarget() || selectedBlockId
-    const block = findBlockInDocumentV2(document, targetBlockId) || selectedBlock
-    const blockText = block ? plainTextFromBlockV2(block).trim() : ''
-    if (blockText) return blockText.slice(0, 6000)
     const rangeNode = ranges[0]?.commonAncestorContainer
     const rangeElement = rangeNode
       ? (rangeNode.nodeType === Node.ELEMENT_NODE ? rangeNode as Element : rangeNode.parentElement)
@@ -4748,12 +4787,17 @@ export default function EditorV2Page() {
       || root?.querySelector<HTMLElement>('.editor-v2-flow-page.is-active, .editor-v2-flow-page:focus-within')
     const pageIndex = Number(pageElement?.dataset.pageIndex)
     const page = Number.isFinite(pageIndex) ? document.pages.find(item => item.index === pageIndex) : null
+    const locationBlockId = targetBlockId
+      || rangeElement?.closest<HTMLElement>('[data-block-id]')?.dataset.blockId
+      || page?.blocks.find(block => plainTextFromBlockV2(block).trim())?.id
+    const headingText = headingSectionTextFromLocationV2(document, locationBlockId)
+    if (headingText) return headingText
     return (page?.blocks || [])
       .map(plainTextFromBlockV2)
       .filter(Boolean)
       .join('\n\n')
-      .slice(0, 6000)
-  }, [document, selectedBlock, selectedBlockId, selectedBlockIdFromEditorTarget])
+      .slice(0, AI_EDITORIAL_SOURCE_LIMIT_V2)
+  }, [document, selectedBlockId, selectedBlockIdFromEditorTarget])
 
   const requestAiEnhance = useCallback(async () => {
     if (!document) return
