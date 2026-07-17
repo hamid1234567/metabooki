@@ -78,6 +78,7 @@ function App() {
   const location = useLocation()
 
   useEffect(() => {
+    if (import.meta.env.DEV) return undefined
     const pathname = location.pathname
     if (pathname.startsWith('/publisher/')) return preloadRoutesWhenIdle([loadEditV2, loadReader, loadUpload])
     if (pathname.startsWith('/b/') || pathname === '/library' || pathname === '/store') return preloadRoutesWhenIdle([loadReader])
