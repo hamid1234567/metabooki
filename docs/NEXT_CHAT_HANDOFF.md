@@ -1,6 +1,6 @@
 # MetaBooki Next Chat Handoff
 
-Last reviewed version: `1.0.716`
+Last reviewed version: `1.0.717`
 
 Use this file as the first reference in a fresh Codex chat before making changes.
 
@@ -96,6 +96,7 @@ Use this file as the first reference in a fresh Codex chat before making changes
 - AI text cost approval modal temporarily shows detailed estimate math for callout/editorial suggestions, including input tokens, min/max/weighted output tokens, model rates, multiplier, USD-to-toman conversion, and final credits.
 - AI editorial suggestion approval now closes the cost modal immediately after confirmation; the approved payload is captured locally so generation can continue while the AI panel/loading state shows progress.
 - AI editorial suggestions now use the current heading section as their default source: from the nearest previous/current heading to the next same-or-higher-level heading, capped at 8,000 characters. Explicit text selections still use the selected text.
+- Local development no longer background-preloads heavy reader/editor/upload route chunks; this keeps Editor V2 and Reader startup lighter on localhost while production preloading remains unchanged.
 
 ## Current Known Fragile Areas
 

@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.716`
+نسخه فعلی فایل رسمی: `1.0.717`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,12 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.717 - Local route preload relief
+
+- Development builds now skip background preloading of heavy route chunks such as Reader, Editor V2, and Upload.
+- This avoids compiling/loading Reader in the background while opening Editor V2 on localhost, reducing perceived local slowness.
+- Production route preloading remains unchanged.
 
 ### 1.0.716 - AI heading-section source
 
