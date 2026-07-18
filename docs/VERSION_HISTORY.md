@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-نسخه فعلی فایل رسمی: `1.0.717`
+نسخه فعلی فایل رسمی: `1.0.718`
 منبع نسخه: `src/lib/version.ts`
 
 این فایل تاریخچه محصولی کامل نیست؛ هدف آن ثبت تصمیم‌های معماری و علت تغییرات مهم است تا برنامه‌نویس بعدی بداند چرا مسیر فعلی انتخاب شده است.
@@ -14,6 +14,12 @@
 5. با هر افزایش نسخه سایت، علت افزایش نسخه باید در همین فایل یا در بخش تصمیم‌های معماری مرتبط ثبت شود.
 
 ## خلاصه مسیر نسخه‌ها
+
+### 1.0.718 - AI suggestions scale by analyzed pages
+
+- Editor V2 now calculates how many pages are included in the AI editorial analysis source and requests at least three suggestions per analyzed page.
+- The AI approval modal displays the analyzed page count and requested minimum suggestion count.
+- The deployed `ai-gateway` Edge Function now receives these values, injects them into the callout/editorial prompt, and scales max/estimated output tokens for cost estimation.
 
 ### 1.0.717 - Local route preload relief
 
