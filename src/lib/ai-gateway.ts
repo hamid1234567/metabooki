@@ -56,6 +56,8 @@ export interface RunAiRequest {
   pageText: string
   bookId?: string
   pageIndex?: number
+  sourcePageCount?: number
+  minSuggestions?: number
   user: AppUser | null
 }
 
@@ -98,6 +100,8 @@ export interface AiTextEstimateResult {
     creditsPerToman: number
     creditValueToman: number
     chargedCredits: number
+    sourcePageCount?: number
+    minSuggestions?: number
   }
 }
 
@@ -375,7 +379,7 @@ export async function runAiThroughGateway(request: RunAiRequest): Promise<RunAiR
   if (!hasSupabaseConnection()) throw new Error('برای استفاده امن از هوش مصنوعی، اتصال Supabase و Edge Function را فعال کنید.')
 
   const { data, error } = await invokeAiGateway<RunAiResult>(
-    { action: request.action, bookTitle: request.bookTitle, pageTitle: request.pageTitle, pageText: request.pageText, bookId: request.bookId, pageIndex: request.pageIndex },
+    { action: request.action, bookTitle: request.bookTitle, pageTitle: request.pageTitle, pageText: request.pageText, bookId: request.bookId, pageIndex: request.pageIndex, sourcePageCount: request.sourcePageCount, minSuggestions: request.minSuggestions },
     'پاسخ هوش مصنوعی بیش از حد طول کشید. اگر هزینه‌ای کسر شد، تاریخچه خروجی‌ها را بررسی کنید و سپس دوباره تلاش کنید.',
   )
   if (error) throw await gatewayError(error, 'اجرای درخواست هوش مصنوعی ناموفق بود.')
@@ -388,7 +392,7 @@ export async function estimateAiTextUsage(request: RunAiRequest): Promise<AiText
   if (!hasSupabaseConnection()) throw new Error('برای استفاده امن از هوش مصنوعی، اتصال Supabase و Edge Function را فعال کنید.')
 
   const { data, error } = await invokeAiGateway<AiTextEstimateResult>(
-    { operation: 'estimate_text', action: request.action, bookTitle: request.bookTitle, pageTitle: request.pageTitle, pageText: request.pageText, bookId: request.bookId, pageIndex: request.pageIndex },
+    { operation: 'estimate_text', action: request.action, bookTitle: request.bookTitle, pageTitle: request.pageTitle, pageText: request.pageText, bookId: request.bookId, pageIndex: request.pageIndex, sourcePageCount: request.sourcePageCount, minSuggestions: request.minSuggestions },
     'برآورد هزینه هوش مصنوعی بیش از حد طول کشید. اتصال Edge Function را بررسی کنید.',
   )
   if (error) throw await gatewayError(error, 'برآورد هزینه هوش مصنوعی ناموفق بود.')

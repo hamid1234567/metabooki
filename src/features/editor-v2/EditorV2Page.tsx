@@ -42,6 +42,8 @@ type AiApprovalV2 = {
   provider: string
   model: string
   pageText: string
+  sourcePageCount: number
+  minSuggestions: number
   estimateDetails?: AiTextEstimateResult['estimateDetails']
 }
 type AiCalloutSuggestionV2 = {
@@ -1088,9 +1090,9 @@ function flatTopLevelBlocksV2(document: BookDocumentV2) {
 
 function headingSectionTextFromLocationV2(document: BookDocumentV2, locationBlockId?: string, limit = AI_EDITORIAL_SOURCE_LIMIT_V2) {
   const entries = flatTopLevelBlocksV2(document)
-  if (!entries.length) return ''
+  if (!entries.length) return { text: '', pageCount: 1 }
   const locationIndex = locationBlockId ? entries.findIndex(entry => blockContainsIdV2(entry.block, locationBlockId)) : -1
-  if (locationIndex < 0) return ''
+  if (locationIndex < 0) return { text: '', pageCount: 1 }
 
   let headingIndex = -1
   for (let index = locationIndex; index >= 0; index -= 1) {
@@ -1100,19 +1102,23 @@ function headingSectionTextFromLocationV2(document: BookDocumentV2, locationBloc
     }
   }
   const headingBlock = entries[headingIndex]?.block
-  if (!headingBlock || headingBlock.type !== 'heading') return ''
+  if (!headingBlock || headingBlock.type !== 'heading') return { text: '', pageCount: 1 }
 
   const startLevel = headingBlock.level
   const parts: string[] = []
+  const pageIndexes = new Set<number>()
+  let totalLength = 0
   for (let index = headingIndex; index < entries.length; index += 1) {
-    const block = entries[index].block
+    const { page, block } = entries[index]
     if (index > headingIndex && block.type === 'heading' && block.level <= startLevel) break
     const text = plainTextFromBlockV2(block).trim()
     if (!text) continue
+    pageIndexes.add(Number(page.index))
     parts.push(text)
-    if (parts.join('\n\n').length >= limit) break
+    totalLength += text.length + (parts.length > 1 ? 2 : 0)
+    if (totalLength >= limit) break
   }
-  return parts.join('\n\n').slice(0, limit).trim()
+  return { text: parts.join('\n\n').slice(0, limit).trim(), pageCount: Math.max(1, pageIndexes.size) }
 }
 
 function rebuildDocumentTocV2(document: BookDocumentV2): BookDocumentV2 {
@@ -4764,8 +4770,8 @@ export default function EditorV2Page() {
     setSelectedBlockId(block.id)
   }, [commitDocument, document, insertBlockIntoEditorDom, selectedBlock?.printNumber, selectedBlockId, selectedBlockIdFromEditorTarget])
 
-  const aiSourceText = useCallback(() => {
-    if (!document) return ''
+  const aiSourceInput = useCallback(() => {
+    if (!document) return { pageText: '', sourcePageCount: 1, minSuggestions: 3 }
     const root = editorSurfaceRef.current
     const selection = window.getSelection()
     const ranges = [
@@ -4775,7 +4781,21 @@ export default function EditorV2Page() {
     for (const range of ranges) {
       const text = normalizeBookTextV2(range.toString())
       const container = range.commonAncestorContainer
-      if (text && root?.contains(container.nodeType === Node.ELEMENT_NODE ? container as Element : container.parentElement)) return text.slice(0, AI_EDITORIAL_SOURCE_LIMIT_V2)
+      if (text && root?.contains(container.nodeType === Node.ELEMENT_NODE ? container as Element : container.parentElement)) {
+        const selectedPageIndexes = new Set<number>()
+        root.querySelectorAll<HTMLElement>('.editor-v2-flow-page').forEach(pageElement => {
+          try {
+            if (range.intersectsNode(pageElement)) {
+              const index = Number(pageElement.dataset.pageIndex)
+              if (Number.isFinite(index)) selectedPageIndexes.add(index)
+            }
+          } catch {
+            // Some detached selections can throw in intersectsNode; fall back to one page.
+          }
+        })
+        const sourcePageCount = Math.max(1, selectedPageIndexes.size)
+        return { pageText: text.slice(0, AI_EDITORIAL_SOURCE_LIMIT_V2), sourcePageCount, minSuggestions: sourcePageCount * 3 }
+      }
     }
     const targetBlockId = selectedBlockIdFromEditorTarget() || selectedBlockId
     const rangeNode = ranges[0]?.commonAncestorContainer
@@ -4790,18 +4810,20 @@ export default function EditorV2Page() {
     const locationBlockId = targetBlockId
       || rangeElement?.closest<HTMLElement>('[data-block-id]')?.dataset.blockId
       || page?.blocks.find(block => plainTextFromBlockV2(block).trim())?.id
-    const headingText = headingSectionTextFromLocationV2(document, locationBlockId)
-    if (headingText) return headingText
-    return (page?.blocks || [])
+    const headingSource = headingSectionTextFromLocationV2(document, locationBlockId)
+    if (headingSource.text) return { pageText: headingSource.text, sourcePageCount: headingSource.pageCount, minSuggestions: headingSource.pageCount * 3 }
+    const pageText = (page?.blocks || [])
       .map(plainTextFromBlockV2)
       .filter(Boolean)
       .join('\n\n')
       .slice(0, AI_EDITORIAL_SOURCE_LIMIT_V2)
+    return { pageText, sourcePageCount: 1, minSuggestions: 3 }
   }, [document, selectedBlockId, selectedBlockIdFromEditorTarget])
 
   const requestAiEnhance = useCallback(async () => {
     if (!document) return
-    const pageText = aiSourceText()
+    const sourceInput = aiSourceInput()
+    const { pageText, sourcePageCount, minSuggestions } = sourceInput
     if (!pageText.trim()) {
       setAiMessage('متنی برای تحلیل پیدا نشد.')
       return
@@ -4809,15 +4831,15 @@ export default function EditorV2Page() {
     setAiBusy(true)
     setAiMessage('در حال برآورد هزینه...')
     try {
-      const estimate = await estimateAiTextUsage({ action: 'callout_suggestions', bookTitle: document.title, pageText, bookId: document.sourceBookId, user })
-      setAiApproval({ usage: estimate.usage, provider: estimate.provider, model: estimate.model, pageText, estimateDetails: estimate.estimateDetails })
-      setAiMessage('هزینه برآورد شد؛ برای اجرا تایید کنید.')
+      const estimate = await estimateAiTextUsage({ action: 'callout_suggestions', bookTitle: document.title, pageText, bookId: document.sourceBookId, sourcePageCount, minSuggestions, user })
+      setAiApproval({ usage: estimate.usage, provider: estimate.provider, model: estimate.model, pageText, sourcePageCount, minSuggestions, estimateDetails: estimate.estimateDetails })
+      setAiMessage(`هزینه برآورد شد؛ برای اجرا تایید کنید. حداقل ${minSuggestions.toLocaleString('fa-IR')} پیشنهاد برای ${sourcePageCount.toLocaleString('fa-IR')} صفحه درخواست می‌شود.`)
     } catch (error) {
       setAiMessage(error instanceof Error ? error.message : 'برآورد هزینه ناموفق بود.')
     } finally {
       setAiBusy(false)
     }
-  }, [aiSourceText, document, user])
+  }, [aiSourceInput, document, user])
 
   const runApprovedAi = useCallback(async () => {
     if (!document || !aiApproval) return
@@ -4826,7 +4848,7 @@ export default function EditorV2Page() {
     setAiBusy(true)
     setAiMessage('در حال تولید پیشنهاد...')
     try {
-      const result = await runAiThroughGateway({ action: 'callout_suggestions', bookTitle: document.title, pageText: approval.pageText, bookId: document.sourceBookId, user })
+      const result = await runAiThroughGateway({ action: 'callout_suggestions', bookTitle: document.title, pageText: approval.pageText, bookId: document.sourceBookId, sourcePageCount: approval.sourcePageCount, minSuggestions: approval.minSuggestions, user })
       const rawSuggestions = result.content?.type === 'callout_suggestions' && Array.isArray(result.content.suggestions)
         ? result.content.suggestions.map((item, index) => ({
           ...item,
