@@ -59,7 +59,7 @@ function estimateTokens(text: string) {
 
 function imageModelForProvider(provider: AiProviderConfig) {
   const configured = String(provider.image_model || '').trim()
-  if (provider.provider === 'kie') return configured || 'gpt-image-2-text-to-image'
+  if (provider.provider === 'kie') return normalizeKieImageModel(configured)
   const envModel = String(Deno.env.get('AI_IMAGE_MODEL') || '').trim()
   const candidate = configured || envModel || 'gpt-image-1'
   if (/^(gpt-image-|dall-e)/i.test(candidate)) return candidate
@@ -92,6 +92,15 @@ function kieImageSizeForModel(size: AiImageSize) {
   if (size === '1024x1536') return 'portrait_4_3'
   if (size === '1536x1024') return 'landscape_4_3'
   return 'square_hd'
+}
+
+function normalizeKieImageModel(model?: string) {
+  const selected = String(model || '').trim()
+  if (!selected) return 'gpt-image/1.5-text-to-image'
+  if (selected === 'gpt-image-1.5') return 'gpt-image/1.5-text-to-image'
+  if (selected === 'seedream-v5') return 'bytedance/seedream-v5-text-to-image'
+  if (selected === 'seedream-v4') return 'bytedance/seedream-v4-text-to-image'
+  return selected
 }
 
 function kieImageTaskInput(model: string, prompt: string, size: AiImageSize) {
@@ -135,8 +144,8 @@ function kieAudioTaskInput(model: string, text: string) {
 }
 
 function kieTextRoute(model: string) {
-  const selected = String(model || '').trim() || 'gpt-5-5'
-  if (selected === 'gpt-5-5' || selected === 'gpt-5-4') {
+  const selected = String(model || '').trim() || 'gpt-5-6-luna'
+  if (selected.startsWith('gpt-5-6-') || selected === 'gpt-5-5' || selected === 'gpt-5-4') {
     return { kind: 'responses' as const, path: '/codex/v1/responses', model: selected }
   }
   if (selected === 'gpt-5-2') {
@@ -267,6 +276,10 @@ function imageUsage(provider: AiProviderConfig, prompt: string, usdToToman: numb
 function imageBaseUsdForProvider(provider: AiProviderConfig) {
   const model = imageModelForProvider(provider)
   if (provider.provider === 'kie') {
+    if (model === 'gpt-image/1.5-text-to-image') return 0.04
+    if (model === 'gpt-image-2-text-to-image') return 0.05
+    if (model === 'bytedance/seedream-v5-text-to-image') return 0.04
+    if (model === 'bytedance/seedream-v4-text-to-image') return 0.03
     if (model === 'qwen/text-to-image') return 0.0125
     if (model === 'qwen2/text-to-image') return 0.027
     if (model === 'nano-banana-2') return 0.03

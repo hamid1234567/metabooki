@@ -224,9 +224,12 @@ export const DEFAULT_CALLOUT_SUGGESTION_PROMPT = `به‌عنوان ویراست
 پیشنهادها را به ترتیب محل قرارگیری در متن فهرست کن. برای هر بخش فقط بهترین پیشنهاد را بده و از تکرار، شلوغ‌کردن صفحه و استفاده بیش‌ازحد از کال‌اوت‌ها خودداری کن. اگر بخشی نیاز به تغییر ندارد، پیشنهادی ارائه نده.`
 
 export const KIE_TEXT_MODEL_OPTIONS: AiProviderModelOption[] = [
+  { id: 'gpt-5-6-luna', label: 'GPT 5.6 Luna', inputCostPer1kUsd: 0.00127, outputCostPer1kUsd: 0.01, note: 'KIE /codex/v1/responses' },
+  { id: 'gpt-5-6-terra', label: 'GPT 5.6 Terra', inputCostPer1kUsd: 0.001, outputCostPer1kUsd: 0.008, note: 'KIE /codex/v1/responses' },
+  { id: 'gpt-5-6-sol', label: 'GPT 5.6 Sol', inputCostPer1kUsd: 0.00044, outputCostPer1kUsd: 0.0035, note: 'KIE /codex/v1/responses' },
   { id: 'gpt-5-5', label: 'GPT 5.5 Response', inputCostPer1kUsd: 0.00127, outputCostPer1kUsd: 0.01, note: 'KIE /codex/v1/responses' },
   { id: 'gpt-5-4', label: 'GPT 5.4 Response', inputCostPer1kUsd: 0.001, outputCostPer1kUsd: 0.008, note: 'KIE /codex/v1/responses' },
-  { id: 'gpt-5-2', label: 'GPT 5.2 Response', inputCostPer1kUsd: 0.00044, outputCostPer1kUsd: 0.0035, note: 'lower-cost text model' },
+  { id: 'gpt-5-2', label: 'GPT 5.2 Chat', inputCostPer1kUsd: 0.00044, outputCostPer1kUsd: 0.0035, note: 'KIE /gpt-5-2/v1/chat/completions' },
   { id: 'claude-opus-4-8', label: 'Claude Opus 4.8', inputCostPer1kUsd: 0.015, outputCostPer1kUsd: 0.075, note: 'KIE /claude/v1/messages' },
   { id: 'claude-opus-4-7', label: 'Claude Opus 4.7', inputCostPer1kUsd: 0.015, outputCostPer1kUsd: 0.075, note: 'KIE /claude/v1/messages' },
   { id: 'claude-fable-5', label: 'Claude Fable 5', inputCostPer1kUsd: 0.006, outputCostPer1kUsd: 0.03, note: 'KIE /claude/v1/messages' },
@@ -244,8 +247,11 @@ export const KIE_TEXT_MODEL_OPTIONS: AiProviderModelOption[] = [
 ]
 
 export const KIE_IMAGE_MODEL_OPTIONS: AiProviderImageModelOption[] = [
+  { id: 'gpt-image/1.5-text-to-image', label: 'GPT Image 1.5 - text to image', baseCostUsd: 0.04 },
   { id: 'gpt-image-2-text-to-image', label: 'GPT Image 2 - text to image', baseCostUsd: 0.05 },
   { id: 'gpt-image-2-edit-image', label: 'GPT Image 2 - edit image', baseCostUsd: 0.05 },
+  { id: 'bytedance/seedream-v5-text-to-image', label: 'Seedream v5 - text to image', baseCostUsd: 0.04 },
+  { id: 'bytedance/seedream-v4-text-to-image', label: 'Seedream v4 - text to image', baseCostUsd: 0.03 },
   { id: '4o-image', label: '4o Image generation', baseCostUsd: 0.03 },
   { id: 'qwen/text-to-image', label: 'Qwen - Text to Image', baseCostUsd: 0.0125 },
   { id: 'qwen2/text-to-image', label: 'Qwen2 - Text to Image', baseCostUsd: 0.027 },
@@ -278,7 +284,7 @@ const defaultProviders: AiProviderConfig[] = [
   { id: 'gemini', label: 'Google Gemini', enabled: false, apiKey: '', baseUrl: 'https://generativelanguage.googleapis.com/v1beta', model: 'gemini-1.5-flash', inputCostPer1kUsd: 0.000075, outputCostPer1kUsd: 0.0003 },
   { id: 'anthropic', label: 'Anthropic Claude', enabled: false, apiKey: '', baseUrl: 'https://api.anthropic.com/v1', model: 'claude-3-haiku-20240307', inputCostPer1kUsd: 0.00025, outputCostPer1kUsd: 0.00125 },
   { id: 'custom', label: 'سرویس سفارشی OpenAI-compatible', enabled: false, apiKey: '', baseUrl: '', model: 'custom-model', imageModel: 'gpt-image-1', inputCostPer1kUsd: 0.00015, outputCostPer1kUsd: 0.0006 },
-  { id: 'kie', label: 'KIE.ai unified API', enabled: false, apiKey: '', baseUrl: 'https://api.kie.ai', model: 'gpt-5-5', imageModel: 'gpt-image-2-text-to-image', audioModel: 'elevenlabs/text-to-dialogue-v3', inputCostPer1kUsd: 0.00127, outputCostPer1kUsd: 0.01 },
+  { id: 'kie', label: 'KIE.ai unified API', enabled: false, apiKey: '', baseUrl: 'https://api.kie.ai', model: 'gpt-5-6-luna', imageModel: 'gpt-image/1.5-text-to-image', audioModel: 'elevenlabs/text-to-dialogue-v3', inputCostPer1kUsd: 0.00127, outputCostPer1kUsd: 0.01 },
 ]
 
 export const defaultAiGatewaySettings: AiGatewaySettings = {
@@ -297,6 +303,13 @@ function normalizeKieAudioModel(model?: string) {
   if (model === 'elevenlabs-v3' || model === 'elevenlabs-turbo-v2-5') return 'elevenlabs/text-to-dialogue-v3'
   if (model === 'elevenlabs-v2') return 'elevenlabs/text-to-speech'
   if (model === 'elevenlabs-sfx') return 'elevenlabs/sound-effects'
+  return model
+}
+
+function normalizeKieImageModel(model?: string) {
+  if (model === 'gpt-image-1.5') return 'gpt-image/1.5-text-to-image'
+  if (model === 'seedream-v5') return 'bytedance/seedream-v5-text-to-image'
+  if (model === 'seedream-v4') return 'bytedance/seedream-v4-text-to-image'
   return model
 }
 
@@ -331,10 +344,16 @@ function mergeAiGatewaySettings(settings: Partial<AiGatewaySettings> | null | un
   const providers = defaultProviders.map(defaultProvider => {
     const incoming = incomingProviders.find(provider => provider.id === defaultProvider.id)
     const merged = incoming ? { ...defaultProvider, ...incoming } : defaultProvider
-    return merged.id === 'kie' ? { ...merged, audioModel: normalizeKieAudioModel(merged.audioModel) } : merged
+    return merged.id === 'kie'
+      ? { ...merged, imageModel: normalizeKieImageModel(merged.imageModel), audioModel: normalizeKieAudioModel(merged.audioModel) }
+      : merged
   })
   for (const provider of incomingProviders) {
-    if (!providers.some(item => item.id === provider.id)) providers.push(provider.id === 'kie' ? { ...provider, audioModel: normalizeKieAudioModel(provider.audioModel) } : provider)
+    if (!providers.some(item => item.id === provider.id)) {
+      providers.push(provider.id === 'kie'
+        ? { ...provider, imageModel: normalizeKieImageModel(provider.imageModel), audioModel: normalizeKieAudioModel(provider.audioModel) }
+        : provider)
+    }
   }
   const activeProvider = settings?.activeProvider && providers.some(provider => provider.id === settings.activeProvider)
     ? settings.activeProvider
