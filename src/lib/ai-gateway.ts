@@ -3,6 +3,7 @@ import { buildAiImagePrompt, imageSizeForPurpose, type AiImagePurpose, type AiIm
 import type { AppUser } from '@/lib/auth-context'
 
 const AI_GATEWAY_TIMEOUT_MS = 45_000
+const AI_GATEWAY_TEXT_TIMEOUT_MS = 120_000
 const AI_GATEWAY_POLL_TIMEOUT_MS = 25_000
 
 export type AiProvider = 'openai' | 'gemini' | 'anthropic' | 'custom' | 'kie'
@@ -402,6 +403,7 @@ export async function runAiThroughGateway(request: RunAiRequest): Promise<RunAiR
   const { data, error } = await invokeAiGateway<RunAiResult>(
     { action: request.action, bookTitle: request.bookTitle, pageTitle: request.pageTitle, pageText: request.pageText, bookId: request.bookId, pageIndex: request.pageIndex, sourcePageCount: request.sourcePageCount, minSuggestions: request.minSuggestions },
     'پاسخ هوش مصنوعی بیش از حد طول کشید. اگر هزینه‌ای کسر شد، تاریخچه خروجی‌ها را بررسی کنید و سپس دوباره تلاش کنید.',
+    AI_GATEWAY_TEXT_TIMEOUT_MS,
   )
   if (error) throw await gatewayError(error, 'اجرای درخواست هوش مصنوعی ناموفق بود.')
   return data as RunAiResult
