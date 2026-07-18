@@ -402,7 +402,7 @@ export async function runAiThroughGateway(request: RunAiRequest): Promise<RunAiR
 
   const { data, error } = await invokeAiGateway<RunAiResult>(
     { action: request.action, bookTitle: request.bookTitle, pageTitle: request.pageTitle, pageText: request.pageText, bookId: request.bookId, pageIndex: request.pageIndex, sourcePageCount: request.sourcePageCount, minSuggestions: request.minSuggestions },
-    'پاسخ هوش مصنوعی بیش از حد طول کشید. اگر هزینه‌ای کسر شد، تاریخچه خروجی‌ها را بررسی کنید و سپس دوباره تلاش کنید.',
+    'پاسخ هوش مصنوعی طولانی شد. سامانه تلاش می‌کند خروجی کامل را در تاریخچه همین کاربر ذخیره کند؛ چند لحظه بعد تاریخچه هوش مصنوعی را تازه‌سازی کنید.',
     AI_GATEWAY_TEXT_TIMEOUT_MS,
   )
   if (error) throw await gatewayError(error, 'اجرای درخواست هوش مصنوعی ناموفق بود.')

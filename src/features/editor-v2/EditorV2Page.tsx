@@ -4868,10 +4868,12 @@ export default function EditorV2Page() {
       recordAiUsage(result.usage)
       setAiCalloutSuggestions(suggestions)
       setActivePanel('ai')
-      setAiMessage(`${suggestions.length.toLocaleString('fa-IR')} پیشنهاد آماده شد. هر مورد را جداگانه اعمال یا رد کنید.`)
+      setAiMessage(`${suggestions.length.toLocaleString('fa-IR')} پیشنهاد آماده شد.${(result.content as any)?.continuationApplied ? ' پاسخ طولانی بود و به‌صورت خودکار کامل شد.' : ''} هر مورد را جداگانه اعمال یا رد کنید.`)
       void refreshAiHistory()
     } catch (error) {
       setAiMessage(error instanceof Error ? error.message : 'تولید پیشنهاد ناموفق بود.')
+      setActivePanel('ai')
+      void refreshAiHistory()
     } finally {
       setAiBusy(false)
     }

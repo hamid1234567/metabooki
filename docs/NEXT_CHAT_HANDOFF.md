@@ -1,6 +1,6 @@
 # MetaBooki Next Chat Handoff
 
-Last reviewed version: `1.0.719`
+Last reviewed version: `1.0.720`
 
 Use this file as the first reference in a fresh Codex chat before making changes.
 
@@ -99,6 +99,7 @@ Use this file as the first reference in a fresh Codex chat before making changes
 - Local development no longer background-preloads heavy reader/editor/upload route chunks; this keeps Editor V2 and Reader startup lighter on localhost while production preloading remains unchanged.
 - Editor V2 AI editorial suggestions now request a dynamic minimum count: three suggestions per analyzed page. The editor passes analyzed page count/minimum suggestions to `ai-gateway`, and the deployed Edge Function uses them in prompt instructions plus output-token cost estimates.
 - KIE AI model lists were refreshed: text includes GPT 5.6 Luna/Terra/Sol, image includes GPT Image 1.5 plus Seedream v4 and Seedream 5 Lite/Pro, GPT 5.6 text routes use `/codex/v1/responses`, GPT 5.2 stays on its chat route, and image short aliases are normalized before KIE task creation.
+- Long AI text/editorial responses now get automatic structured continuation inside `ai-gateway`; the function retries continuation/repair before parsing JSON, stores raw user-scoped output in `ai_saved_outputs` if parsing still fails, and the editor refreshes AI history after long-response errors.
 
 ## Current Known Fragile Areas
 

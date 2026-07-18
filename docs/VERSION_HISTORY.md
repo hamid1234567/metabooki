@@ -1,6 +1,6 @@
 # Metabooki Version History and Decision Log
 
-Ù†Ø³Ø®Ù‡ ÙØ¹Ù„ÛŒ ÙØ§ÛŒÙ„ Ø±Ø³Ù…ÛŒ: `1.0.719`
+Ù†Ø³Ø®Ù‡ ÙØ¹Ù„ÛŒ ÙØ§ÛŒÙ„ Ø±Ø³Ù…ÛŒ: `1.0.720`
 Ù…Ù†Ø¨Ø¹ Ù†Ø³Ø®Ù‡: `src/lib/version.ts`
 
 Ø§ÛŒÙ† ÙØ§ÛŒÙ„ ØªØ§Ø±ÛŒØ®Ú†Ù‡ Ù…Ø­ØµÙˆÙ„ÛŒ Ú©Ø§Ù…Ù„ Ù†ÛŒØ³ØªØ› Ù‡Ø¯Ù Ø¢Ù† Ø«Ø¨Øª ØªØµÙ…ÛŒÙ…â€ŒÙ‡Ø§ÛŒ Ù…Ø¹Ù…Ø§Ø±ÛŒ Ùˆ Ø¹Ù„Øª ØªØºÛŒÛŒØ±Ø§Øª Ù…Ù‡Ù… Ø§Ø³Øª ØªØ§ Ø¨Ø±Ù†Ø§Ù…Ù‡â€ŒÙ†ÙˆÛŒØ³ Ø¨Ø¹Ø¯ÛŒ Ø¨Ø¯Ø§Ù†Ø¯ Ú†Ø±Ø§ Ù…Ø³ÛŒØ± ÙØ¹Ù„ÛŒ Ø§Ù†ØªØ®Ø§Ø¨ Ø´Ø¯Ù‡ Ø§Ø³Øª.
@@ -14,6 +14,12 @@
 5. Ø¨Ø§ Ù‡Ø± Ø§ÙØ²Ø§ÛŒØ´ Ù†Ø³Ø®Ù‡ Ø³Ø§ÛŒØªØŒ Ø¹Ù„Øª Ø§ÙØ²Ø§ÛŒØ´ Ù†Ø³Ø®Ù‡ Ø¨Ø§ÛŒØ¯ Ø¯Ø± Ù‡Ù…ÛŒÙ† ÙØ§ÛŒÙ„ ÛŒØ§ Ø¯Ø± Ø¨Ø®Ø´ ØªØµÙ…ÛŒÙ…â€ŒÙ‡Ø§ÛŒ Ù…Ø¹Ù…Ø§Ø±ÛŒ Ù…Ø±ØªØ¨Ø· Ø«Ø¨Øª Ø´ÙˆØ¯.
 
 ## Ø®Ù„Ø§ØµÙ‡ Ù…Ø³ÛŒØ± Ù†Ø³Ø®Ù‡â€ŒÙ‡Ø§
+
+### 1.0.720 - AI long response continuation
+
+- Text/editorial AI requests now detect truncated or invalid structured JSON and automatically ask the provider to continue or repair the response before parsing.
+- Actual token usage now includes continuation/repair calls, and successful long responses are saved to the user's AI history with a continuation marker.
+- If a long response still cannot be parsed, the raw output is stored in the same user's AI history instead of disappearing, and the editor refreshes the AI panel after the error.
 
 ### 1.0.719 - KIE model list refresh
 
