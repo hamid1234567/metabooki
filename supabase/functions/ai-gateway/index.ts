@@ -568,9 +568,9 @@ async function callProvider(provider: AiProviderConfig, prompt: string, maxToken
   return { text, inputTokens, outputTokens }
 }
 
-function safeActionPrompt(action: string, bookTitle: string, pageTitle: string | undefined, pageText: string) {
-  const header = `Book: ${bookTitle}\n${pageTitle ? `Page title: ${pageTitle}\n` : ''}Page text:\n${pageText}`
-  const common = 'Answer only from this page text. Do not invent facts. Write fluent Persian. Return only valid JSON without markdown.'
+function safeActionPrompt(action: string, bookTitle: string, pageTitle: string | undefined, pageText: string, sourcePageCount = 1, minSuggestions = 1) {
+  const header = `Book: ${bookTitle}\n${pageTitle ? `Page title: ${pageTitle}\n` : ''}Analyzed pages: ${sourcePageCount}\nMinimum suggestions required: ${minSuggestions}\nPage/section text:\n${pageText}`
+  const common = 'Answer only from this supplied text. Do not invent facts. Write fluent Persian. Return only valid JSON without markdown.'
   if (action === 'quiz') return `${common}\nUse: {"type":"quiz","question":"...","options":["...","...","...","..."],"correctIndex":0,"explanation":"..."}\nCreate exactly one single-answer multiple-choice question.\n\n${header}`
   if (action === 'mindmap') return `${common}\nUse: {"type":"mindmap","title":"...","branches":[{"title":"...","items":["..."]}]}\n\n${header}`
   if (action === 'learning_path') return `${common}\nUse: {"type":"timeline","title":"...","steps":[{"title":"...","description":"..."}]}\nOrder the steps for an interactive learning view.\n\n${header}`
@@ -578,7 +578,7 @@ function safeActionPrompt(action: string, bookTitle: string, pageTitle: string |
   if (action === 'explain') return `${common}\nUse: {"type":"article","title":"...","lead":"...","sections":[{"heading":"...","paragraphs":["..."],"bullets":["..."]}]}\nExplain deeply but only from the supplied text.\n\n${header}`
   if (action === 'callout_suggestions') return `${common}
 Return an actionable list of editorial suggestions for the editor UI.
-Every suggestion must be anchored to one exact short quote copied from the supplied page text in sourceQuote.
+Every suggestion must be anchored to one exact short quote copied from the supplied text in sourceQuote.
 Do not return prose outside JSON. Do not add authorial claims. If no useful suggestion exists, return {"type":"callout_suggestions","suggestions":[]}.
 Use suggestionType "formatting" for editing/layout/readability suggestions and "educational_callout" for callout suggestions.
 Most suggestions must be "formatting"; use "educational_callout" only for the strongest one or two educational callouts.
@@ -588,7 +588,7 @@ Use suggestionType exactly as one value, either "formatting" or "educational_cal
 Use this exact JSON shape:
 {"type":"callout_suggestions","suggestions":[{"suggestionType":"formatting","variant":"","title":"...","text":"","sourceQuote":"exact quote from page text","action":"concrete formatting/editing action","reason":"...","importance":"زیاد|متوسط|کم","placementHint":"replace-near-source"},{"suggestionType":"educational_callout","variant":"key","title":"...","text":"...","sourceQuote":"exact quote from page text","action":"convert to educational callout","reason":"...","importance":"زیاد|متوسط|کم","placementHint":"replace-near-source"}]}
 For formatting suggestions, leave variant empty. Put the concrete editor action in action.
-Return 1 to 7 useful suggestions, ordered by their location in the original text.
+Return at least ${minSuggestions} useful suggestions for the ${sourcePageCount} analyzed page(s), ordered by their location in the original text. If there are more useful formatting opportunities, you may return up to ${Math.max(minSuggestions, minSuggestions + 3)} suggestions. Keep educational_callout items capped at 2; fill the rest with formatting suggestions.
 
 ${header}`
   return `${common}\nUser request: ${action}\n\n${header}`
@@ -928,11 +928,16 @@ serve(async (req) => {
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
-    const prompt = textPromptWithSettings(safeActionPrompt(body.action, body.bookTitle, body.pageTitle, body.pageText), String(body.action || ''), promptSettings)
-    const maxTokens = maxOutputTokensForAction(body.action)
+    const sourcePageCount = positiveInt(body.sourcePageCount, 1, 1, 100)
+    const requestedMinSuggestions = positiveInt(body.minSuggestions, sourcePageCount * 3, 1, 300)
+    const minSuggestions = String(body.action || '') === 'callout_suggestions'
+      ? Math.max(3, requestedMinSuggestions)
+      : 1
+    const prompt = textPromptWithSettings(safeActionPrompt(body.action, body.bookTitle, body.pageTitle, body.pageText, sourcePageCount, minSuggestions), String(body.action || ''), promptSettings)
+    const maxTokens = maxOutputTokensForAction(body.action, minSuggestions)
 
     if (body.operation === 'estimate_text') {
-      const estimate = estimatedTextUsage(provider, prompt, String(body.action || ''), maxTokens, usdToToman, chargeMultiplier, creditsPerToman)
+      const estimate = estimatedTextUsage(provider, prompt, String(body.action || ''), maxTokens, usdToToman, chargeMultiplier, creditsPerToman, sourcePageCount, minSuggestions)
       const usage = estimate.usage
       return new Response(JSON.stringify({
         provider: provider.label || provider.provider,
