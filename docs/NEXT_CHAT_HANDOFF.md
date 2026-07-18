@@ -98,7 +98,7 @@ Use this file as the first reference in a fresh Codex chat before making changes
 - AI editorial suggestions now use the current heading section as their default source: from the nearest previous/current heading to the next same-or-higher-level heading, capped at 8,000 characters. Explicit text selections still use the selected text.
 - Local development no longer background-preloads heavy reader/editor/upload route chunks; this keeps Editor V2 and Reader startup lighter on localhost while production preloading remains unchanged.
 - Editor V2 AI editorial suggestions now request a dynamic minimum count: three suggestions per analyzed page. The editor passes analyzed page count/minimum suggestions to `ai-gateway`, and the deployed Edge Function uses them in prompt instructions plus output-token cost estimates.
-- KIE AI model lists were refreshed: text includes GPT 5.6 Luna/Terra/Sol, image includes GPT Image 1.5 and Seedream v4/v5, GPT 5.6 text routes use `/codex/v1/responses`, GPT 5.2 stays on its chat route, and image short aliases are normalized before KIE task creation.
+- KIE AI model lists were refreshed: text includes GPT 5.6 Luna/Terra/Sol, image includes GPT Image 1.5 plus Seedream v4 and Seedream 5 Lite/Pro, GPT 5.6 text routes use `/codex/v1/responses`, GPT 5.2 stays on its chat route, and image short aliases are normalized before KIE task creation.
 
 ## Current Known Fragile Areas
 

@@ -98,7 +98,8 @@ function normalizeKieImageModel(model?: string) {
   const selected = String(model || '').trim()
   if (!selected) return 'gpt-image/1.5-text-to-image'
   if (selected === 'gpt-image-1.5') return 'gpt-image/1.5-text-to-image'
-  if (selected === 'seedream-v5') return 'bytedance/seedream-v5-text-to-image'
+  if (selected === 'seedream-v5' || selected === 'seedream-5-lite') return 'seedream/5-lite-text-to-image'
+  if (selected === 'seedream-5-pro') return 'seedream/5-pro-text-to-image'
   if (selected === 'seedream-v4') return 'bytedance/seedream-v4-text-to-image'
   return selected
 }
@@ -108,6 +109,29 @@ function kieImageTaskInput(model: string, prompt: string, size: AiImageSize) {
     return {
       prompt,
       image_size: kieImageSizeForModel(size),
+    }
+  }
+  if (model === 'bytedance/seedream-v4-text-to-image') {
+    return {
+      prompt,
+      image_size: kieImageSizeForModel(size),
+      image_resolution: '1K',
+      max_images: 1,
+    }
+  }
+  if (model === 'seedream/5-lite-text-to-image' || model === 'seedream/5-pro-text-to-image') {
+    return {
+      prompt,
+      aspect_ratio: kieAspectRatioForSize(size),
+      quality: 'basic',
+      output_format: 'png',
+      nsfw_checker: false,
+    }
+  }
+  if (model.startsWith('gpt-image/') || model.startsWith('gpt-image-2-')) {
+    return {
+      prompt,
+      aspect_ratio: kieAspectRatioForSize(size),
     }
   }
   return {
@@ -278,7 +302,8 @@ function imageBaseUsdForProvider(provider: AiProviderConfig) {
   if (provider.provider === 'kie') {
     if (model === 'gpt-image/1.5-text-to-image') return 0.04
     if (model === 'gpt-image-2-text-to-image') return 0.05
-    if (model === 'bytedance/seedream-v5-text-to-image') return 0.04
+    if (model === 'seedream/5-lite-text-to-image') return 0.03
+    if (model === 'seedream/5-pro-text-to-image') return 0.04
     if (model === 'bytedance/seedream-v4-text-to-image') return 0.03
     if (model === 'qwen/text-to-image') return 0.0125
     if (model === 'qwen2/text-to-image') return 0.027
