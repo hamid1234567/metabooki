@@ -535,10 +535,67 @@ function parseStructuredContent(text: string) {
   }
 }
 
+function tryParseStructuredContent(text: string) {
+  try {
+    return parseStructuredContent(text)
+  } catch {
+    return null
+  }
+}
+
+function extractFinishReason(json: any) {
+  return String(
+    json?.finish_reason
+    || json?.finishReason
+    || json?.status_details?.reason
+    || json?.incomplete_details?.reason
+    || json?.choices?.[0]?.finish_reason
+    || json?.choices?.[0]?.finishReason
+    || json?.candidates?.[0]?.finishReason
+    || json?.stop_reason
+    || json?.data?.finish_reason
+    || json?.data?.finishReason
+    || '',
+  ).toLowerCase()
+}
+
+function looksOutputLimited(reason: string) {
+  return /length|max|max_tokens|max_output|incomplete|token/.test(reason)
+}
+
+function continuationPromptFor(action: string, originalPrompt: string, partialText: string) {
+  const tail = partialText.slice(-9000)
+  return `The previous answer for this request was cut off before valid JSON was complete.
+Continue the same JSON response from the exact next character. Do not restart, do not add markdown, and do not explain.
+If continuing exactly is impossible, return a single complete valid JSON object that preserves the already produced items and finishes the requested output.
+
+Original request:
+${originalPrompt}
+
+Already produced partial response:
+${tail}`
+}
+
+function repairPromptFor(action: string, originalPrompt: string, partialText: string) {
+  const shape = action === 'callout_suggestions'
+    ? '{"type":"callout_suggestions","suggestions":[{"suggestionType":"formatting","variant":"","title":"...","text":"","sourceQuote":"...","action":"...","reason":"...","importance":"زیاد|متوسط|کم","placementHint":"replace-near-source"}]}'
+    : 'the exact JSON schema requested in the original prompt'
+  return `Repair the AI output below into one complete valid JSON object only. Do not use markdown.
+Keep only items grounded in the original request text. Remove duplicates and incomplete trailing items.
+Use this JSON shape when applicable: ${shape}
+
+Original request:
+${originalPrompt}
+
+Broken or partial output:
+${partialText.slice(-14000)}`
+}
+
 async function callProvider(provider: AiProviderConfig, prompt: string, maxTokens = 512) {
   let text = ''
   let inputTokens = estimateTokens(prompt)
   let outputTokens = 0
+  let finishReason = ''
 
   if (provider.provider === 'kie') {
     const route = kieTextRoute(provider.model)
@@ -574,6 +631,7 @@ async function callProvider(provider: AiProviderConfig, prompt: string, maxToken
     text = extractKieText(json)
     inputTokens = json.usage?.input_tokens || json.usage?.prompt_tokens || json.usage?.cache_creation_input_tokens || inputTokens
     outputTokens = json.usage?.output_tokens || json.usage?.completion_tokens || estimateTokens(text)
+    finishReason = extractFinishReason(json)
   } else if (provider.provider === 'gemini') {
     const res = await fetch(`${provider.base_url}/models/${provider.model}:generateContent?key=${provider.api_key}`, {
       method: 'POST',
@@ -585,6 +643,7 @@ async function callProvider(provider: AiProviderConfig, prompt: string, maxToken
     text = json.candidates?.[0]?.content?.parts?.[0]?.text || ''
     inputTokens = json.usageMetadata?.promptTokenCount || inputTokens
     outputTokens = json.usageMetadata?.candidatesTokenCount || estimateTokens(text)
+    finishReason = extractFinishReason(json)
   } else {
     const requestBody: Record<string, unknown> = {
       model: provider.model,
@@ -601,9 +660,46 @@ async function callProvider(provider: AiProviderConfig, prompt: string, maxToken
     text = json.choices?.[0]?.message?.content || ''
     inputTokens = json.usage?.prompt_tokens || inputTokens
     outputTokens = json.usage?.completion_tokens || estimateTokens(text)
+    finishReason = extractFinishReason(json)
   }
 
-  return { text, inputTokens, outputTokens }
+  return { text, inputTokens, outputTokens, finishReason }
+}
+
+async function callProviderWithStructuredContinuation(provider: AiProviderConfig, prompt: string, maxTokens: number, action: string) {
+  let result = await callProvider(provider, prompt, maxTokens)
+  let text = result.text
+  let inputTokens = result.inputTokens
+  let outputTokens = result.outputTokens
+  let finishReason = result.finishReason
+  let continued = false
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const parsed = tryParseStructuredContent(text)
+    if (parsed) break
+
+    const next = await callProvider(provider, continuationPromptFor(action, prompt, text), Math.max(700, Math.min(1800, maxTokens)))
+    if (!next.text.trim()) break
+    continued = true
+    text = `${text}${next.text}`
+    inputTokens += next.inputTokens
+    outputTokens += next.outputTokens
+    finishReason = next.finishReason
+    if (tryParseStructuredContent(text) && !looksOutputLimited(finishReason)) break
+  }
+
+  if (!tryParseStructuredContent(text)) {
+    const repaired = await callProvider(provider, repairPromptFor(action, prompt, text), Math.max(900, Math.min(2200, maxTokens)))
+    if (repaired.text.trim()) {
+      continued = true
+      text = repaired.text
+      inputTokens += repaired.inputTokens
+      outputTokens += repaired.outputTokens
+      finishReason = repaired.finishReason
+    }
+  }
+
+  return { text, inputTokens, outputTokens, finishReason, continued }
 }
 
 function safeActionPrompt(action: string, bookTitle: string, pageTitle: string | undefined, pageText: string, sourcePageCount = 1, minSuggestions = 1) {
@@ -988,7 +1084,8 @@ serve(async (req) => {
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
-    const { text, inputTokens, outputTokens } = await callProvider(provider, prompt, maxTokens)
+    const generated = await callProviderWithStructuredContinuation(provider, prompt, maxTokens, String(body.action || ''))
+    const { text, inputTokens, outputTokens } = generated
 
     const rawUsd = (inputTokens / 1000) * Number(provider.input_cost_per_1k_usd) + (outputTokens / 1000) * Number(provider.output_cost_per_1k_usd)
     const chargedUsd = rawUsd * chargeMultiplier
@@ -996,11 +1093,31 @@ serve(async (req) => {
 
     const chargedCredits = Math.max(1, Math.ceil(chargedToman * creditsPerToman))
 
-    const content = parseStructuredContent(text)
+    let content: any
+    try {
+      content = parseStructuredContent(text)
+    } catch (parseError) {
+      await adminClient.from('ai_saved_outputs').insert({
+        user_id: user.id,
+        book_id: body.bookId || null,
+        page_index: body.pageIndex ?? null,
+        action: `${body.action || 'text'}_raw`,
+        content: {
+          type: 'text',
+          title: 'پاسخ خام هوش مصنوعی',
+          text,
+          parseError: parseError instanceof Error ? parseError.message : 'AI response was not valid JSON',
+          sourceAction: body.action || 'text',
+          provider: provider.provider,
+          model: provider.model,
+        },
+      })
+      throw new Error('پاسخ هوش مصنوعی خیلی طولانی یا ناقص بود و به ساختار قابل اعمال تبدیل نشد؛ متن خام خروجی در تاریخچه هوش مصنوعی همین کاربر ذخیره شد.')
+    }
     const { error: txError } = await userClient.rpc('charge_user_credits', {
       target_user_id: user.id,
       charge_amount: chargedCredits,
-      charge_description: `AI usage: ${provider.provider}/${provider.model} ($${chargedUsd.toFixed(6)})`,
+      charge_description: `AI usage: ${provider.provider}/${provider.model}${generated.continued ? ' + continuation' : ''} ($${chargedUsd.toFixed(6)})`,
     })
     if (txError) throw txError
 
@@ -1017,11 +1134,23 @@ serve(async (req) => {
       charged_credits: chargedCredits,
     })
 
-    await adminClient.from('ai_saved_outputs').insert({ user_id: user.id, book_id: body.bookId || null, page_index: body.pageIndex ?? null, action: body.action, content })
+    await adminClient.from('ai_saved_outputs').insert({
+      user_id: user.id,
+      book_id: body.bookId || null,
+      page_index: body.pageIndex ?? null,
+      action: body.action,
+      content: {
+        ...content,
+        continuationApplied: generated.continued || undefined,
+      },
+    })
 
     return new Response(JSON.stringify({
       text: '',
-      content,
+      content: {
+        ...content,
+        continuationApplied: generated.continued || undefined,
+      },
       provider: provider.label || provider.provider,
       model: provider.model,
       usage: { inputTokens, outputTokens, rawUsd, chargedUsd, chargedToman, chargedCredits, creditValueToman: Math.round(1 / creditsPerToman) },
