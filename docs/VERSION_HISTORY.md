@@ -21,7 +21,7 @@
 - KIE image model options now include GPT Image 1.5 and Seedream v4/v5 text-to-image entries, with legacy short aliases normalized before sending requests.
 - KIE default settings now start with GPT 5.6 Luna and GPT Image 1.5, while existing saved KIE audio aliases remain normalized.
 
-### 1.0.719 - AI suggestions scale by analyzed pages
+### 1.0.718 - AI suggestions scale by analyzed pages
 
 - Editor V2 now calculates how many pages are included in the AI editorial analysis source and requests at least three suggestions per analyzed page.
 - The AI approval modal displays the analyzed page count and requested minimum suggestion count.
