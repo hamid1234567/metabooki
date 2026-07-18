@@ -5368,6 +5368,8 @@ export default function EditorV2Page() {
               <strong>جزئیات موقت محاسبه هزینه</strong>
               {aiApproval.estimateDetails ? (
                 <>
+                  <span>صفحات تحلیل‌شده: <b>{aiApproval.sourcePageCount.toLocaleString('fa-IR')}</b></span>
+                  <span>حداقل پیشنهاد درخواستی: <b>{aiApproval.minSuggestions.toLocaleString('fa-IR')}</b></span>
                   <span>توکن ورودی: <b>{aiApproval.estimateDetails.inputTokens.toLocaleString('fa-IR')}</b></span>
                   <span>خروجی کمینه: <b>{aiApproval.estimateDetails.minimumOutputTokens.toLocaleString('fa-IR')}</b></span>
                   <span>خروجی بیشینه: <b>{aiApproval.estimateDetails.maximumOutputTokens.toLocaleString('fa-IR')}</b></span>
