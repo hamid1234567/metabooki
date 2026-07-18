@@ -22,7 +22,7 @@ function normalizeProviderTestRoutes(provider: AiProviderConfig, result: AiProvi
   const expected = provider.id === 'kie'
     ? [
         { kind: 'text', model: provider.model },
-        { kind: 'image', model: provider.imageModel || 'gpt-image-2-text-to-image' },
+        { kind: 'image', model: provider.imageModel || 'gpt-image/1.5-text-to-image' },
         { kind: 'audio', model: provider.audioModel || 'elevenlabs/text-to-dialogue-v3' },
       ]
     : [
